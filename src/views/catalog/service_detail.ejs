@@ -1,0 +1,47 @@
+<% const title = svc.name; %>
+<section class="card">
+  <h2><%= svc.category.name %> › <%= svc.subcategory.name %></h2>
+  <h3><%= svc.name %></h3>
+
+  <p class="muted">
+    เรต (base): <b><%= svc.rate %></b> <%= svc.currency || '' %>
+    | ราคาแสดงผล: <b><%= svc.displayRate %></b> <%= svc.currency || '' %>
+    | ช่วง: <%= svc.min %> - <%= svc.max %>
+    <% if (svc.step) { %> | step: <%= svc.step %><% } %>
+    <% if (svc.average_delivery) { %> | เฉลี่ย: <%= svc.average_delivery %><% } %>
+    <% if (svc.refill) { %> | รีฟิล<% } %>
+    <% if (svc.cancel) { %> | ยกเลิกได้<% } %>
+    <% if (svc.dripfeed) { %> | Dripfeed<% } %>
+  </p>
+
+  <% if (svc.description) { %>
+  <details open>
+    <summary>รายละเอียดจากผู้ให้บริการ</summary>
+    <div class="mt" style="white-space:pre-wrap"><%= svc.description %></div>
+  </details>
+  <% } %>
+
+  <form id="orderForm" class="grid" onsubmit="return submitOrder(event)">
+    <input type="hidden" name="serviceId" value="<%= svc._id %>">
+    <label>ลิงก์/เป้าหมาย <input name="link" required placeholder="https://..."></label>
+    <label>จำนวน <input type="number" name="quantity" min="<%= svc.min %>" max="<%= svc.max %>" step="<%= svc.step || 1 %>" required></label>
+    <button class="btn">ยืนยันคำสั่งซื้อ</button>
+  </form>
+  <div id="orderResp" class="mt"></div>
+</section>
+
+<script>
+async function submitOrder(e){
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const body = Object.fromEntries(fd.entries());
+  const res = await fetch('/orders', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  const data = await res.json();
+  const box = document.getElementById('orderResp');
+  if(data.ok){
+    box.innerHTML = '<div class="alert success">สร้างคำสั่งซื้อแล้ว #' + data.providerOrderId + '</div>';
+  }else{
+    box.innerHTML = '<div class="alert error">' + (data.error||'สั่งซื้อไม่สำเร็จ') + '</div>';
+  }
+}
+</script>

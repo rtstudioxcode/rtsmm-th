@@ -1,0 +1,10 @@
+<% const title = cat.name + " — หมวดย่อย"; %>
+<h2><%= cat.name %> — หมวดย่อย</h2>
+<div class="grid cards">
+  <% subs.forEach(s => { %>
+    <a class="card link" href="/c/<%= cat.slug %>/<%= s.slug %>">
+      <div class="title"><%= s.name %></div>
+      <div class="muted">ดูบริการ</div>
+    </a>
+  <% }) %>
+</div>

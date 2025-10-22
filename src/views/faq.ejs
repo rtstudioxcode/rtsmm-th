@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="content-language" content="th" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title>คำถามที่พบบ่อย (FAQ) | RTSSM-TH</title>
+  <meta name="description" content="รวมคำถามที่พบบ่อยในการทำการตลาดออนไลน์ ปั้มวิว ปั้มไลค์ ปั้มผู้ติดตาม ครบจบในที่เดียว ใช้งานง่าย ปลอดภัย รองรับทุกโซเชียล" />
+  <meta name="keywords" content="ปั้มวิว, ปั้มไลค์, ปั้มผู้ติดตาม, ปั้มวิวtiktok, ปั้มซับyoutube, เพิ่มผู้ติดตาม, โฆษณาออนไลน์, FAQ" />
+
+  <!-- Favicon -->
+  <link rel="icon" href="/static/logo/icon-logo.png" type="image/png">
+  <link rel="shortcut icon" href="/static/logo/icon-logo.png" type="image/png">
+  <link rel="apple-touch-icon" href="/static/logo/icon-logo.png">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Bootstrap & Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/css/flag-icons.min.css"/>
+  <!-- Effects (ตาม index.ejs) -->
+  <link rel="stylesheet" href="https://iplusview.store/assets-landing/css/animate.min.css">
+  <link rel="stylesheet" href="https://iplusview.store/assets-landing/css/main.css">
+
+  <!-- ===== Theme Bridge (ยกมาจาก index.ejs) ===== -->
+  <script>
+  (() => {
+    const html = document.documentElement;
+    const PALETTE_LIGHT = Object.assign({
+      primary:'#16a34a',
+      accent:'#7c3aed',
+      dark:'#0e314c',
+      muted:'#6084a4',
+      surface:'#f7fafd',
+      surface2:'#ffffff',
+      gradient:'linear-gradient(135deg,#22c55e 0%, #06b6d4 100%)'
+    }, (window.THEME_LIGHT||{}));
+
+    const PALETTE_DARK = Object.assign({
+      primary:'#22d3ee',
+      accent:'#a78bfa',
+      dark:'#e6edf3',
+      muted:'#9fb6c6',
+      surface:'#0b1620',
+      surface2:'#0f1e2b',
+      gradient:'linear-gradient(135deg,#06b6d4 0%, #14b8a6 100%)'
+    }, (window.THEME_DARK||{}));
+
+    function setVars(p) {
+      const s = html.style;
+      s.setProperty('--theme-primary',  p.primary);
+      s.setProperty('--theme-accent',   p.accent);
+      s.setProperty('--theme-dark',     p.dark);
+      s.setProperty('--theme-muted',    p.muted);
+      s.setProperty('--theme-surface',  p.surface);
+      s.setProperty('--theme-surface-2',p.surface2);
+      s.setProperty('--theme-gradient', p.gradient);
+      html.setAttribute('data-bs-theme', (html.getAttribute('data-theme') === 'dark') ? 'dark' : 'light');
+    }
+    function apply(){ setVars(html.getAttribute('data-theme')==='dark' ? PALETTE_DARK : PALETTE_LIGHT); }
+    apply(); window.addEventListener('themechange', apply);
+    window.ThemeBridge = {
+      setLight(v){ Object.assign(PALETTE_LIGHT, v||{}); apply(); },
+      setDark(v){  Object.assign(PALETTE_DARK,  v||{}); apply(); }
+    };
+  })();
+  </script>
+
+  <!-- ===== Style (ยกชุดจาก index.ejs + ปรับเล็กน้อยสำหรับ FAQ) ===== -->
+  <style>
+    :root{
+      --pv-primary:  var(--theme-primary, #22c55e);
+      --pv-accent:   var(--theme-accent,  #0ea5e9);
+      --pv-dark:     var(--theme-dark,    #0e314c);
+      --pv-muted:    var(--theme-muted,   #6084a4);
+      --pv-bg:       var(--theme-bg,        #f7fafd);
+      --pv-surface:  var(--theme-surface,   #ffffff);
+      --pv-surface-2:var(--theme-surface-2, #ffffff);
+      --pv-border:   var(--theme-border,    #e6eef5);
+      --pv-border-soft: #cdf1d8;
+      --pv-hero-a: rgba(68,206,111,.08);
+      --pv-hero-b: rgba(99,74,165,.06);
+      --pv-shadow: 0 12px 24px rgba(14,49,76,.08);
+      --pv-gradient: var(--theme-gradient, linear-gradient(135deg,#22c55e 0%, #06b6d4 100%));
+      --font-sans: "Inter","Noto Sans Thai",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;
+    }
+    html[data-theme="dark"],html.dark,html[data-bs-theme="dark"]{
+      --pv-primary:  var(--theme-primary, #22d3ee);
+      --pv-accent:   var(--theme-accent,  #a78bfa);
+      --pv-dark:     var(--theme-dark,    #e6edf3);
+      --pv-muted:    var(--theme-muted,   #9fb6c6);
+      --pv-bg:#07131b; --pv-surface:#0b1620; --pv-surface-2:#0f1e2b; --pv-border:#173046;
+      --pv-hero-a: rgba(34,211,238,.10); --pv-hero-b: rgba(167,139,250,.08);
+      --pv-shadow: 0 12px 24px rgba(0,0,0,.35);
+      color-scheme: dark;
+    }
+
+    a, a:hover, a:focus, .btn, .btn:hover { text-decoration:none!important }
+    html,body{ font-family:var(--font-sans); background:var(--pv-surface) }
+    .hero{
+      background:
+        radial-gradient(1200px 600px at 85% 20%, var(--pv-hero-a), transparent 60%),
+        radial-gradient(1000px 600px at 10% 80%, var(--pv-hero-b), transparent 60%),
+        var(--pv-surface);
+    }
+    .section-title .bar{width:72px;height:4px;border-radius:999px;background:var(--pv-primary)}
+    .footer{ background:var(--pv-bg) }
+
+    /* FAQ Accordion (ไม่พึ่งปลั๊กอินภายนอก) */
+    .faq-card{
+      background:var(--pv-surface-2);
+      border:1px dashed var(--pv-border);
+      border-radius:14px;
+      box-shadow: var(--pv-shadow);
+    }
+    .accordion-clean .accordion-item{
+      border:1px dashed var(--pv-border);
+      border-radius:12px; overflow:hidden; background:var(--pv-surface-2);
+      margin-bottom:10px;
+    }
+    .accordion-clean .accordion-title{
+      display:flex; align-items:center; gap:.6rem;
+      padding:14px 16px; cursor:pointer; font-weight:700; color:var(--pv-dark);
+      background:rgba(12,180,120,.03);
+    }
+    .accordion-clean .accordion-title i{ color:#44ce6f }
+    .accordion-clean .accordion-content{
+      display:none; padding:14px 16px; color:var(--pv-dark);
+      border-top:1px dashed var(--pv-border);
+    }
+    .accordion-clean .accordion-item.active .accordion-content{ display:block }
+    .accordion-clean .accordion-item.active .accordion-title{ background:rgba(68,206,111,.08) }
+    @media (min-width:1200px){
+      .container, .container-fluid{ max-width:100vw!important; padding-left:2rem; padding-right:2rem; }
+    }
+  </style>
+  <script>
+    (function syncBsTheme(){
+      const html = document.documentElement;
+      function apply(){ html.setAttribute('data-bs-theme', html.getAttribute('data-theme')==='dark'?'dark':'light'); }
+      apply(); window.addEventListener('themechange', apply);
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- HERO: Title -->
+  <section class="hero py-5">
+    <div class="container-fluid px-4 px-xl-5">
+      <div class="text-center">
+        <h1 class="display-5 fw-bold mb-2">คำถามที่พบบ่อย (FAQ)</h1>
+        <p class="text-secondary">สรุปทุกประเด็นยอดฮิตเกี่ยวกับการสั่งซื้อ ปั้มวิว ปั้มไลค์ ปั้มผู้ติดตาม ระบบเติมคืน และอื่น ๆ</p>
+        <div class="bar mx-auto my-3"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ AREA -->
+  <section class="py-4 py-md-5" style="background:var(--pv-bg)">
+    <div class="container-fluid px-4 px-xl-5">
+      <div class="faq-card p-3 p-md-4">
+        <div class="accordion-clean" id="faqList">
+          <!-- ===== เนื้อหา FAQ (คัดลอกจากโค้ดตัวอย่างของคุณแบบเต็ม) ===== -->
+          <ul class="list-unstyled m-0">
+            <li class="accordion-item active">
+              <div class="accordion-title">
+                <i class="fa-solid fa-circle-plus"></i>
+                🟠คำสั่งซื้อเปลี่ยนเป็น สถานะ "คืนบางส่วน" หมายความว่าอะไร?
+              </div>
+              <div class="accordion-content">
+                <p>&nbsp;&nbsp;&nbsp;บางครั้งด้วยเหตุผลบางอย่างของเซิพเวอร์นั้นๆ ไม่สามารถจัดส่งคำสั่งซื้อได้ครบถ้วน เช่น การลดลงระหว่างจัดส่งอยู่ / เซิพเวอร์มีปัญหา / เซิพเวอร์ทำงานหนัก / โซเชียลมีอัพเดทใหญ่ / เหตุผลบางอย่างที่ไม่สามารถจัดส่งได้อีกต่อไป ดังนั้นเซิพเวอร์จึงคืนเงินส่วนที่เหลือที่ยังไม่ได้จัดส่งให้คุณและเปลี่ยนสถานะคำสั่งซื้อเป็น <strong>"คืนบางส่วน"</strong></p>
+                <p><strong>ตัวอย่าง:</strong> คุณสั่งซื้อจำนวน 1,000 ผู้ติดตาม และ ค่าใช้จ่าย 100 บาท สมมติว่าเราจัดส่งไปแล้ว 700 ผู้ติดตาม และเหลือ 300 ผู้ติดตาม ที่ไม่สามารถจัดส่งได้อีก จากนั้นเซิพเวอร์ได้เปลี่ยนสถานะเป็น "คืนบางส่วน" และ คืนเงินส่วนที่เหลือ 300 ผู้ติดตามเข้าบัญชีคงเหลือของคุณ (สำหรับตัวอย่างนี้จะคืน 30 บาท)</p>
+                <p>👨‍🔬 วิธีคำนวณยอดคืนเบื้องต้น ค่าใช้จ่ายเต็มจำนวน คูณ ปริมาณที่ไม่ได้จัดส่ง และ หาร ปริมาณที่สั่งซื้อ = (100 บาท x 300 ปริมาณที่เหลือ) / 1000 ปริมาณที่สั่งซื้อ = 30 บาทเงินคืน หรือ ใช้วิธีเทียบบัญญัติไตรยางศ์ก็ได้</p>
+                <p>🛒 ป.ล. หากคุณต้องการให้จัดส่งส่วนที่เหลือ คุณสามารถสั่งซื้อใหม่ได้/หรือเลือกใช้งานเซิพเวอร์อื่นทดแทน เนื่องจากเงินสำหรับส่วนที่เหลือที่ไม่ได้จัดส่งจะถูกคืนไปยังยอดคงเหลือในบัญชีของคุณโดยอัตโนมัติ</p>
+                <p>🚨 ป.ล. เหตุการณ์ความผิดพลาดที่เราพบในบางเซิพเวอร์ คุณไม่ได้รับเงินคืนบางส่วน วิธีแก้ไขโปรด เปิดตั๋วข้อความ และไปที่หัวข้อ Ai 🔧 ทำงานผิดพลาด เพื่อให้เซิพเวอร์ส่งคืนค่าปัจจุบันที่ถูกต้องกลับมาอีกครั้ง</p>
+                <p>⚠️ ข้อควรทราบ: เราไม่สามารถควบคุมสถานะเหล่านี้ได้และสถานะนี้เป็นสิ่งที่เราไม่อยากให้เกิดขึ้น เนื่องจากถ้ามันเกิดขึ้นกับคำสั่งซื้อที่มีการรับประกัน คำสั่งซื้อดังกล่าวจะสิ้นสุดการรับประกันทันทีทุกประการ เนื่องจากเซิพเวอร์คืนเงินบางส่วนกลับมาเรียบร้อยและไม่สามารถทำงานได้อีกต่อไป</p>
+                <p>⚠️ ข้อควรทราบ: เมื่อคำสั่งซื้ออยู่ในสถานะ "คืนบางส่วน" จะถือว่าสิ้นสุดกระบวนการของคำสั่งซื้อทุกประการและไม่สามารถแก้ไขหรือรับประกันได้อีกเนื่องจาก เซิพเวอร์ได้คืนส่วนต่างกลับมาแล้ว</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> 🛒ฉันจะสั่งซื้อได้อย่างไร? | วิธีการสั่งซื้อเบื้องต้น</div>
+              <div class="accordion-content">
+                <p>1. ขั้นตอน: <strong>หมวดหมู่</strong> - เลือกแพลตฟอร์มโซเชียลมีเดียที่คุณต้องการใช้งาน</p>
+                <p>2. ขั้นตอน: <strong>บริการ</strong> - เลือกประเภทบริการ ในหมวดหมู่นั้นๆ</p>
+                <p>3. ขั้นตอน: <strong>รายละเอียด</strong> - อ่านรายละเอียดของแต่ละบริการอย่างละเอียดก่อนทำการสั่งซื้อ</p>
+                <p>4. ขั้นตอน: <strong>ลิงก์</strong> - ป้อนลิงก์ตามคำแนะนำในรายละเอียด</p>
+                <p>5. ขั้นตอน: <strong>จำนวน</strong> - ป้อนจำนวนที่ต้องการ (ควรเริ่มจากน้อยๆก่อน)</p>
+                <p>6. ขั้นตอน: <strong>ค่าใช้จ่าย</strong> - แสดงต้นทุนทั้งหมดของการสั่งซื้อ</p>
+                <p>ตรวจสอบให้มั่นใจ แล้วกด “ยืนยันคำสั่งซื้อ”</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> ระบบ Auto Like / Subscriptions ใช้งานอย่างไร?</div>
+              <div class="accordion-content">
+                <p>&nbsp;&nbsp;&nbsp;ระบบ Auto Like / Subscriptions จะทำงานอัตโนมัติตามช่วงที่กำหนด (เช่น 1/3/7/30 วัน)</p>
+                <p><strong>ตัวอย่าง</strong> ตั้งออโต้ไลก์ IG ให้ไลค์โพสต์ใหม่ทุกครั้ง</p>
+                <ul>
+                  <li>🔗 ลิงก์ใส่: @Username</li>
+                  <li>⭐ Minimum / Maximum = ช่วงปริมาณต่อโพสต์</li>
+                  <li>⭐ Posts = จำนวนโพสต์ในอนาคต</li>
+                  <li>⭐ Old posts = จำนวนโพสต์เก่า (ถ้ารองรับ)</li>
+                  <li>⭐ Delay / Expires = หน่วงเวลา / วันหมดอายุ (ถ้าไม่รู้เว้นว่างได้)</li>
+                  <li>⭐ ระบบคิดเงินเฉพาะเมื่อพบโพสต์ใหม่</li>
+                </ul>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> ⏳ฉันจะสั่งซื้อแบบ "ทยอยจัดส่ง" ได้อย่างไร?</div>
+              <div class="accordion-content">
+                <p>ตั้งให้คำสั่งเดียวกันถูกรันทุกรอบอัตโนมัติ เช่น ไลค์ 200 ทุกๆ 60 นาที จำนวน 5 ครั้ง</p>
+                <ul>
+                  <li>ลิงก์: ลิงก์โพสต์</li>
+                  <li>ปริมาณ: 200</li>
+                  <li>ระยะห่าง(นาที): 60</li>
+                  <li>จำนวนครั้ง: 5</li>
+                </ul>
+                <p>💰 สูตรราคา = ปริมาณ x จำนวนครั้ง • แนะนำช่วงห่าง ≥ 1440 นาที</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> ♻️กระบวนการ + กฏการ "เติมคืน" ทำงานอย่างไร?</div>
+              <div class="accordion-content">
+                <p>การ “เติมคืน” พิจารณาจาก Start Count → ปริมาณสิ้นสุด / เงื่อนไขการรับประกันของบริการนั้น ๆ</p>
+                <p>เวลาทำงาน 1 นาที – 24/72 ชม. แล้วแต่เซิร์ฟเวอร์ • ไม่ควรขอบัญชีที่ฐานเดิมใหญ่เกินไป (ควรสั่งปริมาณสูงพอ)</p>
+                <p>เป็นการ “เติมกลับ” ไม่ใช่เพิ่มใหม่ การตอบสนองขึ้นกับคิวของผู้ให้บริการ</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> ⛔ฉันได้ส่งคำขอ ยกเลิกคำสั่งซื้อไว้ จะใช้เวลานานเท่าใด?</div>
+              <div class="accordion-content">
+                <p>โดยมากไม่เกิน 24–72 ชม. (บางครั้งเร็วกว่า) ทั้งนี้ขึ้นกับต้องเข้าไปแตะงานที่เซิร์ฟเวอร์หรือไม่</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> ✅สถานะการสั่งซื้อ: ตอนนี้ถึงขั้นตอนไหนแล้ว?</div>
+              <div class="accordion-content">
+                <p><strong>สถานะสำคัญ:</strong> เสร็จสิ้น / รอดำเนินการ / กำลังดำเนินการ / ประมวลผล / คืนบางส่วน / ยกเลิก / เติมคืน / กำลังยกเลิก</p>
+                <p>ถ้าติด “ประมวลผล” นานมาก ให้ติดต่อทีมงานเพื่อเร่ง/รีสตาร์ต/ยกเลิก</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> 🛍️ฉันจะสั่งซื้อจำนวนมาก / สั่งเยอะทีเดียว ได้อย่างไร?</div>
+              <div class="accordion-content">
+                <p>ใช้เมนู “สั่งเยอะ” ใส่รูปแบบ: <code>IDบริการ|ลิงก์|ปริมาณ</code> ทีละบรรทัด</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> วิธีดูข้อมูล YouTube Share?</div>
+              <div class="accordion-content">
+                <p>เปลี่ยน YouTube เป็น English → Studio → Analytics → วิดีโอ → SEE MORE → More → Sharing Services → ส่ง Screenshot</p>
+                <p>รายงาน Shares อัปเดตช้าประมาณ 3–5 วันหลัง “เสร็จสิ้น”</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> ทำไมยอดวิว YouTube ไม่อัปเดตทั้งที่ขึ้น “เสร็จสิ้น”</div>
+              <div class="accordion-content">
+                <p>บางเซิร์ฟเวอร์ส่งเร็ว แต่ YouTube อัปเดตหน่วง 12–48 ชม. ลองไลก์/เปิดดู 30 วิ แล้วรีเฟรชหน้า</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> ยอดลดลง ขอเติมยอดที่ลด อย่างไร?</div>
+              <div class="accordion-content">
+                <p><strong>เติมได้เฉพาะบริการที่มีการรับประกัน (🛡️, Gxx, Rxx, ARxx)</strong> • ส่วนใหญ่ต้องลด >10% จาก “ยอดสั่ง + Start Count”</p>
+                <p><em>ตัวอย่าง:</em> สั่ง 1000, Start 515 → รวม 1515 → 10% = 151 → จุดเติม = 1515-151 = 1363 (ต่ำกว่านี้ขอเติมได้)</p>
+                <p><strong>ถ้าต่ำกว่า Start Count เดิม การรับประกันเป็นโมฆะ</strong></p>
+                <p><strong>ARxx</strong> = เติมอัตโนมัติจากเซิร์ฟเวอร์ทุก ~24 ชม. ไม่สามารถแจ้งเอง</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> Revenue , Monetizable คืออะไร?</div>
+              <div class="accordion-content">
+                <p>ตัวชี้วัดสำหรับคอนเทนต์ที่ทำเงินได้/มีโฆษณาแทรก</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> ♻️ปุ่ม “เติมคืน” ใช้งานอย่างไร? ทำไมถึงถูกปฏิเสธ?</div>
+              <div class="accordion-content">
+                <p>เป็นเพียง “ทริกเกอร์คำขอ” ไม่รับประกันสำเร็จทุกครั้ง • อาจถูกปฏิเสธเพราะไม่เข้าเงื่อนไข/บริการปิดรับ/กดถี่/ค่าเริ่มต้นเพี้ยน ฯลฯ</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> ทำไมคำสั่งซื้อของฉันจึงถูกยกเลิก?</div>
+              <div class="accordion-content">
+                <ul>
+                  <li>สั่งซ้อนลิงก์เดียวกันพร้อมกัน</li>
+                  <li>ลิงก์ไม่ถูกต้อง/ไม่ตรงตามคำอธิบาย</li>
+                  <li>บริการปิดปรับปรุง</li>
+                  <li>ปริมาณไม่เป็นทวีคูณตามที่บริการกำหนด</li>
+                </ul>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> เป็นไปได้ไหมที่ปริมาณจะลดลง?</div>
+              <div class="accordion-content">
+                <p>เป็นเรื่องปกติ จึงมีระบบรับประกันเติมคืน อ่านรายละเอียดบริการให้ครบก่อนสั่ง</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> จะส่งภาพหน้าจอไปให้ได้อย่างไร?</div>
+              <div class="accordion-content">
+                <p>อัปโหลดที่ <a href="https://imgur.com/upload" target="_blank">imgur.com/upload</a> หรือ <a href="https://prnt.sc" target="_blank">prnt.sc</a></p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> ⏰เวลาเริ่มทำงาน และความเร็วคืออะไร?</div>
+              <div class="accordion-content">
+                <p>ดูได้ในรายละเอียดบริการแต่ละตัว • เวลาเริ่มทำงาน = ช่วงเริ่มส่งหลังสั่ง • ความเร็ว = อัตราจัดส่งโดยเฉลี่ย (แนะนำทดสอบปริมาณน้อยๆ)</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> ❌จะถูกแบนบัญชีจากการใช้บริการหรือไม่?</div>
+              <div class="accordion-content">
+                <p>บริการออกแบบให้ปลอดภัย อย่างไรก็ตาม บัญชีที่มีความเสี่ยงผิดกฎอยู่เดิมอาจถูกตรวจสอบได้</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> 🛡️บริการต่างๆ มีการรับประกันไหม?</div>
+              <div class="accordion-content">
+                <p>ส่วนใหญ่มีทั้งตลอดชีพ/เป็นจำนวนวัน (7–365 วัน) รายละเอียดอยู่ที่ชื่อ/หน้าบริการ • บางบริการมีปุ่ม “เติมคืน” เสริม</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> 🔝การซื้อผู้ติดตาม/ยอดไลค์ คุ้มค่าหรือไม่?</div>
+              <div class="accordion-content">
+                <p>ลูกค้าจำนวนมากได้ผลเรื่องแบรนด์ ทราฟฟิก และยอดขายเพิ่มขึ้นอย่างชัดเจน</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> 💸จะเพิ่มเงินฝาก/เติมเงินได้อย่างไร?</div>
+              <div class="accordion-content">
+                <p>ที่หน้า “เงินฝาก/เติมเงิน” รองรับ QR, TrueMoney Wallet, LINE Pay/Credit Cards, Crypto, Binance Pay, ธนาคารไทย ฯลฯ</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> 💰ดูประวัติการธุรกรรมได้ที่ไหน?</div>
+              <div class="accordion-content">
+                <p>เมนู “เพิ่มเงิน → ประวัติเงินฝาก”</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> 💰เติมเงินแล้ว แต่ยอดไม่เข้า?</div>
+              <div class="accordion-content">
+                <p>อาจหน่วงจากเกตเวย์ชำระเงิน รอ ~15 นาที หากยังไม่เข้าให้ติดต่อทีมงาน</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> 🧬API คืออะไร ใช้อย่างไร?</div>
+              <div class="accordion-content">
+                <p>สำหรับรีเซล/เชื่อมต่อระบบตัวเอง มี API V1/V2 ให้เลือก ใช้ Provider URL เว็บไซต์ของเรา</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> 🔑เปลี่ยนรหัสผ่านอย่างไร?</div>
+              <div class="accordion-content">
+                <p>ไปที่ “ตั้งค่าข้อมูลส่วนตัว” (ไอคอนโปรไฟล์มุมขวาบน)</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> ⛔สถานะ “ยกเลิก” แต่ไม่ได้รับเงินคืน?</div>
+              <div class="accordion-content">
+                <p>ระบบแก้ไขแล้ว • ตรวจสอบว่าถูกเรียกเก็บหรือไม่ (ถ้า “0.00” แปลว่าไม่ถูกเก็บ) หรือดูที่ “เงินฝาก/เติมเงิน → เส้นทางการเงิน”</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> ⛔สถานะ “คืนบางส่วน” แต่ยอดไม่ถูกคืน?</div>
+              <div class="accordion-content">
+                <p>บางผู้ให้บริการอัปเดตสถานะด้วยมือ ทำให้ sync ผิด ให้เปิดตั๋ว “Ai 🔧 ทำงานผิดพลาด” ระบบจะอัปเดตกลับภายใน 0–12 ชม.</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> 🛒วิธีส่งคำสั่งซื้อให้ “สำเร็จ/เสร็จสิ้น” ตามต้องการ</div>
+              <div class="accordion-content">
+                <p>อ่านคำอธิบายก่อนทุกครั้ง อย่าเปลี่ยนลิงก์/ปิดบัญชีเป็นส่วนตัวระหว่างทำงาน เพราะไม่สามารถคืนเงิน/ยกเลิกได้</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> ⛔ปุ่ม “ขอยกเลิก” ทำงานอย่างไร?</div>
+              <div class="accordion-content">
+                <p>ยกเลิกได้ในประวัติคำสั่งซื้อ (หากบริการรองรับปุ่ม) หรือแจ้งบอทที่ตั๋ว • บางกรณีใช้เวลา 1–72 ชม.</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> ⛔จะไม่ได้รับเงินคืน หากสั่งซ้อนกับผู้ให้บริการอื่น</div>
+              <div class="accordion-content">
+                <p>กรณีสั่งซ้อน, เสร็จสิ้นแล้วไปเปลี่ยนลิงก์, หรือตรวจสอบต้นทางไม่ได้ — ไม่สามารถรับเรื่องคืนเงินได้</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> 🔴สั่งซ้อนไม่ได้: ลิงก์เดียวกัน เวลาเดียวกัน/คนละผู้ให้บริการ</div>
+              <div class="accordion-content">
+                <p>ระบบหยุดเมื่อถึงเป้าตาม API สาธารณะ หากสั่งพร้อมกันหลายแหล่งจะตรวจไม่ออกว่าใครผิดพลาด → ปฏิเสธกรณีนี้</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> 📖ต้องรู้อะไรก่อนใช้งาน?</div>
+              <div class="accordion-content">
+                <p>อ่านรายละเอียดให้ครบ ทดสอบปริมาณน้อยก่อน ทีมงานพร้อมช่วยเหลือ ฟรีสำหรับลูกค้าระดับสูง</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> 🚀เร่งความเร็วคำสั่งซื้อได้ไหม?</div>
+              <div class="accordion-content">
+                <p>ยื่นคำขอได้หลังสั่งเกิน 24 ชม. ผลลัพธ์ขึ้นกับเซิร์ฟเวอร์ อาจ “เร่ง/ยกเลิก/คืนบางส่วน” หากระบบมีปัญหา</p>
+              </div>
+            </li>
+
+            <li class="accordion-item">
+              <div class="accordion-title"><i class="fa-solid fa-circle-plus"></i> สั่งหลายบริการพร้อมกัน ลิงก์เดียวกัน ได้ไหม?</div>
+              <div class="accordion-content">
+                <p>ไม่แนะนำอย่างยิ่ง เพราะ Start Count ของแต่ละงานจะเพี้ยน ส่งผลต่อยอดรวม/การรับประกัน และการขอเติมคืนภายหลัง</p>
+              </div>
+            </li>
+          </ul>
+          <!-- ===== จบชุด FAQ ===== -->
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA (คงดีไซน์จาก index.ejs) -->
+  <section class="py-5 text-center" style="background:var(--pv-gradient); color:#fff">
+    <div class="container-fluid px-4 px-xl-5">
+      <h3 class="fw-semibold">ยังมีคำถามเพิ่มเติมอยู่ไหม?</h3>
+      <p class="mb-4">เปิดตั๋วคุยกับทีมงานได้ตลอดเวลา — เราพร้อมช่วยเหลือคุณ</p>
+      <a class="btn btn-outline-light btn-lg px-4" href="/register">สมัครสมาชิกฟรี</a>
+      <a class="btn btn-outline-light btn-lg px-4 ms-2" href="/login">เข้าสู่ระบบ</a>
+    </div>
+  </section>
+
+  <!-- FOOTER (เหมือน index.ejs) -->
+  <footer class="footer py-5">
+    <div class="container-fluid px-4 px-xl-5">
+      <div class="row g-4">
+        <div class="col-md-4">
+          <img src="/static/logo/logo-rtssm-th.png" alt="logo" height="150" class="mb-3">
+          <p class="text-secondary mb-0">
+            RTSSM-TH.COM ผู้ให้บริการการตลาดออนไลน์และโซเชียลระดับสากล มาตรฐานมืออาชีพ ดูแลลูกค้าทั่วโลก
+          </p>
+        </div>
+        <div class="col-md-2">
+          <h6 class="fw-bold">ผลิตภัณฑ์</h6>
+          <ul class="list-unstyled">
+            <li><a href="/">หน้าแรก</a></li>
+            <li><a href="/services">บริการทั้งหมด</a></li>
+            <li><a href="/order">คำสั่งซื้อใหม่</a></li>
+          </ul>
+        </div>
+        <div class="col-md-3">
+          <h6 class="fw-bold">FAQ</h6>
+          <ul class="list-unstyled">
+            <li><a href="/faq">คำถามที่พบบ่อย</a></li>
+            <li><a href="/blog">บทความ</a></li>
+          </ul>
+        </div>
+        <div class="col-md-3">
+          <h6 class="fw-bold">เกี่ยวกับเรา</h6>
+          <ul class="list-unstyled">
+            <li><a href="mailto:rtssm.th@gmail.com"><i class="fa-regular fa-envelope me-1"></i>Email: rtssm.th@gmail.com</a></li>
+            <li><a href="https://line.me/R/ti/p/%40iplusviewstore"><i class="fa-brands fa-line me-1"></i>Line: @rtssm-th</a></li>
+            <li><a href="https://line.me/R/ti/p/%40iplusviewstore"><i class="fa-regular fa-bug me-1"></i>แจ้งปัญหาคำสั่งซื้อ</a></li>
+            <li><a href="/page/terms-of-use"><i class="fa-solid fa-scale-balanced me-1"></i>เงื่อนไขและข้อตกลง</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://iplusview.store/assets-landing/js/wow.min.js"></script>
+  <script> new WOW().init(); </script>
+
+  <!-- Accordion Handler (ไม่พึ่งปลั๊กอิน) -->
+  <script>
+    (function(){
+      const root = document.getElementById('faqList');
+      root?.addEventListener('click', (e) => {
+        const t = e.target.closest('.accordion-title');
+        if(!t) return;
+        const item = t.parentElement;
+        item.classList.toggle('active');
+      });
+    })();
+  </script>
+</body>
+</html>

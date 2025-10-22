@@ -1,0 +1,469 @@
+<!-- views/terms-of-use.ejs -->
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="content-language" content="th" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title>เงื่อนไขและข้อตกลง | RTSSM-TH.COM</title>
+  <meta name="description" content="ปั้มวิว ปั้มไลค์ ปั้มผู้ติดตาม ครบวงจร ใช้งานง่าย ปลอดภัย ทดลองฟรี เริ่ม 0.01 บาท รองรับ Facebook Instagram YouTube TikTok และอีกมากมาย" />
+  <meta name="keywords" content="ปั้มวิว, ปั้มไลค์, ปั้มผู้ติดตาม, ปั้มวิวtiktok, ปั้มซับyoutube, เพิ่มผู้ติดตาม, โฆษณาออนไลน์" />
+
+  <!-- Favicon -->
+  <link rel="icon" href="/static/logo/icon-logo.png" type="image/png">
+  <link rel="shortcut icon" href="/static/logo/icon-logo.png" type="image/png">
+  <link rel="apple-touch-icon" href="/static/logo/icon-logo.png">
+
+  <!-- Fonts + Bootstrap + Icons -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/css/flag-icons.min.css"/>
+  <link rel="stylesheet" href="https://RTSMM-TH.COM/assets-landing/css/animate.min.css">
+  <link rel="stylesheet" href="https://RTSMM-TH.COM/assets-landing/css/main.css">
+
+  <!-- Bridge: sync data-theme -> CSS variables (เหมือน index.ejs) -->
+  <script>
+    (() => {
+      const html = document.documentElement;
+
+      const PALETTE_LIGHT = Object.assign({
+        primary:'#16a34a', accent:'#7c3aed', dark:'#0e314c', muted:'#6084a4',
+        surface:'#f7fafd', surface2:'#ffffff',
+        gradient:'linear-gradient(135deg,#22c55e 0%, #06b6d4 100%)'
+      }, (window.THEME_LIGHT||{}));
+
+      const PALETTE_DARK = Object.assign({
+        primary:'#22d3ee', accent:'#a78bfa', dark:'#e6edf3', muted:'#9fb6c6',
+        surface:'#0b1620', surface2:'#0f1e2b',
+        gradient:'linear-gradient(135deg,#06b6d4 0%, #14b8a6 100%)'
+      }, (window.THEME_DARK||{}));
+
+      function setVars(p){
+        const s = html.style;
+        s.setProperty('--theme-primary',   p.primary);
+        s.setProperty('--theme-accent',    p.accent);
+        s.setProperty('--theme-dark',      p.dark);
+        s.setProperty('--theme-muted',     p.muted);
+        s.setProperty('--theme-surface',   p.surface);
+        s.setProperty('--theme-surface-2', p.surface2);
+        s.setProperty('--theme-gradient',  p.gradient);
+        html.setAttribute('data-bs-theme', html.getAttribute('data-theme')==='dark'?'dark':'light');
+      }
+      function apply(){ setVars(html.getAttribute('data-theme')==='dark' ? PALETTE_DARK : PALETTE_LIGHT); }
+      apply();
+      window.addEventListener('themechange', apply);
+
+      // expose (optional)
+      window.ThemeBridge = {
+        setLight(v){ Object.assign(PALETTE_LIGHT, v||{}); apply(); },
+        setDark(v){  Object.assign(PALETTE_DARK,  v||{}); apply(); }
+      };
+    })();
+  </script>
+
+  <!-- ==== DARK THEME: FINAL PATCH (เหมือน index.ejs) ==== -->
+  <style>
+    /* ========= Tokens ========= */
+    :root{
+      --pv-primary:  var(--theme-primary, #22c55e);
+      --pv-accent:   var(--theme-accent,  #0ea5e9);
+      --pv-dark:     var(--theme-dark,    #0e314c);
+      --pv-muted:    var(--theme-muted,   #6084a4);
+      --pv-bg:       var(--theme-bg,        #f7fafd);
+      --pv-surface:  var(--theme-surface,   #ffffff);
+      --pv-surface-2:var(--theme-surface-2, #ffffff);
+      --pv-border:   var(--theme-border,    #e6eef5);
+      --pv-border-soft: var(--theme-border-soft, #cdf1d8);
+      --pv-soft-bg:     var(--theme-soft-bg,     #e7f8ee);
+      --pv-soft-text:   var(--theme-soft-text,   #198754);
+      --pv-soft-border: var(--theme-soft-border, #cdf1d8);
+      --pv-hero-a: rgba(68,206,111,.08);
+      --pv-hero-b: rgba(99,74,165,.06);
+      --pv-shadow: 0 12px 24px rgba(14,49,76,.08);
+      --pv-gradient: var(--theme-gradient, linear-gradient(135deg,#22c55e 0%, #06b6d4 100%));
+      --font-sans: "Inter", "Noto Sans Thai", system-ui, -apple-system,
+               "Segoe UI", Roboto, "Helvetica Neue", Arial, "Apple Color Emoji",
+               "Segoe UI Emoji", "Segoe UI Symbol";
+    }
+    html[data-theme="dark"], html.dark, html[data-bs-theme="dark"]{
+      --pv-primary:  var(--theme-primary, #22d3ee);
+      --pv-accent:   var(--theme-accent,  #a78bfa);
+      --pv-dark:     var(--theme-dark,    #e6edf3);
+      --pv-muted:    var(--theme-muted,   #9fb6c6);
+
+      --pv-bg:         var(--theme-bg,        #07131b);
+      --pv-surface:    var(--theme-surface,   #0b1620);
+      --pv-surface-2:  var(--theme-surface-2, #0f1e2b);
+      --pv-border:     var(--theme-border,    #173046);
+      --pv-border-soft:var(--theme-border-soft, #1d3b54);
+
+      --pv-soft-bg:     var(--theme-soft-bg,     #0f2a24);
+      --pv-soft-text:   var(--theme-soft-text,   #8fe3b4);
+      --pv-soft-border: var(--theme-soft-border, #1b3f34);
+
+      --pv-hero-a: rgba(34,211,238,.10);
+      --pv-hero-b: rgba(167,139,250,.08);
+      --pv-shadow: 0 12px 24px rgba(0,0,0,.35);
+      --pv-gradient: var(--theme-gradient, linear-gradient(135deg,#06b6d4 0%, #14b8a6 100%));
+
+      color-scheme: dark;
+    }
+    /* ===== Light Theme Polish (เฉพาะธีมสว่าง) ===== */
+    /* ปรับโทนพื้นหลัง/เส้นขอบ/เอฟเฟกต์ ให้มีมิติขึ้น */
+    html:not([data-theme="dark"]),
+    html[data-bs-theme="light"]{
+    /* ปรับ tokens เฉดสว่างให้มีอากาศมากขึ้น */
+    --pv-bg:        #f2f7ff;                  /* อ่อนฟ้า ไม่ขาวล้วน */
+    --pv-surface:   #ffffff;
+    --pv-surface-2: #ffffff;
+    --pv-border:    #e8eef6;
+    --pv-border-soft:#cdeee0;                  /* เขียวอ่อน สำหรับกรอบ dashed */
+    --pv-hero-a:    rgba(34,197,94,.10);       /* แต้มเขียวบาง ๆ */
+    --pv-hero-b:    rgba(14,165,233,.08);      /* แต้มฟ้าบาง ๆ */
+    --pv-shadow:    0 12px 24px rgba(14,49,76,.08);
+    --pv-gradient:  linear-gradient(135deg,#22c55e 0%, #06b6d4 100%);
+    }
+
+    /* HERO (สว่าง): เพิ่มเลเยอร์ไล่เฉดให้อุ่นตา ไม่แบน */
+    html:not([data-theme="dark"]) .hero,
+    html[data-bs-theme="light"] .hero{
+    background:
+        radial-gradient(1200px 600px at 85% 20%, var(--pv-hero-a), transparent 60%),
+        radial-gradient(1000px 600px at 10% 80%, var(--pv-hero-b), transparent 60%),
+        linear-gradient(180deg,#f9fbff 0%, #f3f8ff 60%, #f7fafd 100%);
+    }
+
+    /* แถบกลางหน้า: ใช้ไล่เฉดอ่อน ๆ ให้ทั้งหน้ามีมิติ */
+    html:not([data-theme="dark"]) .page-band,
+    html[data-bs-theme="light"] .page-band{
+    background:
+        radial-gradient(900px 500px at 10% -10%, rgba(34,197,94,.06), transparent 55%),
+        radial-gradient(900px 500px at 90% 110%, rgba(14,165,233,.06), transparent 55%),
+        #f5f9ff; /* fallback */
+    }
+
+    /* กล่องเนื้อหา: dashed ใช้สี soft, เงานุ่มขึ้น, มุมมนเด่นขึ้นบนจอใหญ่ */
+    html:not([data-theme="dark"]) .panel,
+    html[data-bs-theme="light"] .panel{
+    background: var(--pv-surface-2);
+    border-color: var(--pv-border-soft);
+    box-shadow: 0 10px 24px rgba(14,49,76,.06);
+    }
+    @media (min-width:1200px){
+    html:not([data-theme="dark"]) .panel,
+    html[data-bs-theme="light"] .panel{ border-radius: 28px; }
+    }
+
+    /* หัวข้อย่อย: ใส่แถบสีเล็ก ๆ ใต้ h2 ให้จับสายตา แต่คงความเรียบ */
+    html:not([data-theme="dark"]) .panel h2,
+    html[data-bs-theme="light"] .panel h2{ position: relative; }
+    html:not([data-theme="dark"]) .panel h2::after,
+    html[data-bs-theme="light"] .panel h2::after{
+    content:"";
+    display:block;
+    width:72px; height:4px; border-radius:999px;
+    background: var(--pv-primary);
+    margin-top:.35rem;
+    opacity:.9;
+    }
+
+    /* ลิงก์ในธีมสว่าง: สีหลัก → โฮเวอร์ไปที่ accent ให้รู้สึก interactive */
+    html:not([data-theme="dark"]) a,
+    html[data-bs-theme="light"] a{
+    color: var(--pv-primary);
+    }
+    html:not([data-theme="dark"]) a:hover,
+    html[data-bs-theme="light"] a:hover{
+    color: var(--pv-accent);
+    text-decoration: none;
+    }
+
+    /* breadcrumb อ่อนลงนิดเพื่อคอนทราสต์กับพื้นหลังใหม่ */
+    html:not([data-theme="dark"]) .breadcrumb .breadcrumb-item + .breadcrumb-item::before,
+    html[data-bs-theme="light"] .breadcrumb .breadcrumb-item + .breadcrumb-item::before{
+    color: #9fb6c6;
+    }
+
+    /* ปุ่มขอบเส้น (ถ้ามี) ให้คมขึ้นในสว่าง */
+    html:not([data-theme="dark"]) .btn-outline-secondary,
+    html[data-bs-theme="light"] .btn-outline-secondary{
+    color:#0e314c; border-color: var(--pv-border);
+    }
+    html:not([data-theme="dark"]) .btn-outline-secondary:hover,
+    html[data-bs-theme="light"] .btn-outline-secondary:hover{
+    background:#fff;
+    box-shadow: 0 6px 16px rgba(14,49,76,.08);
+    }
+
+    /* ========= Base ========= */
+    a, a:link, a:visited,
+    a:hover, a:focus, a:active,
+    .nav-link, .nav-link:hover,
+    .link-dark, .link-dark:hover,
+    .dropdown-item, .dropdown-item:hover,
+    .btn, .btn:hover,
+    .footer a, .footer a:hover { text-decoration:none!important; }
+    a, .nav-link, .dropdown-item, .footer a { border-bottom:0!important; }
+
+    html,body{
+      font-family: var(--font-sans);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+      font-feature-settings: "liga","kern","ss01";
+      font-variant-numeric: tabular-nums;
+      background: var(--pv-surface);   /* พื้นหลังทั้งหน้า เข้ากับ Dark/Light */
+    }
+    h1,h2,h3,h4,h5,h6{ font-weight:800; letter-spacing:-.01em; }
+    .display-5{ font-weight:900; }
+    .text-secondary{ color: var(--pv-muted)!important; }
+
+    /* HERO ให้เหมือนหน้าแรก */
+    .hero{
+      background:
+        radial-gradient(1200px 600px at 85% 20%, var(--pv-hero-a), transparent 60%),
+        radial-gradient(1000px 600px at 10% 80%, var(--pv-hero-b), transparent 60%),
+        var(--pv-surface);
+    }
+
+    /* แถบพื้นหลังกลางหน้า (เหมือนส่วน section สีอ่อนใน index.ejs) */
+    .page-band{
+      background: var(--pv-bg);
+    }
+
+    /* กล่องเนื้อหาให้เหมือนการ์ดใน index.ejs */
+    .panel{
+      background: var(--pv-surface-2);
+      border: 1px dashed var(--pv-border);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: var(--pv-shadow);
+      
+    }
+    .panel hr{ border:0; border-top:1px dashed var(--pv-border); margin:1rem 0; }
+
+    /* breadcrumb */
+    .breadcrumb{ background:transparent; padding:0; margin:0; }
+    .breadcrumb .breadcrumb-item + .breadcrumb-item::before{ content:"/"; color:var(--pv-muted); }
+    /* ทำ container ให้กว้างสุดจริง ๆ บน Desktop (เหมือน index.ejs) */
+    @media (min-width:1200px){
+      .container, .container-sm, .container-md, .container-lg,
+      .container-xl, .container-xxl, .container-fluid{
+        max-width:100vw!important;
+        padding-left:2rem; padding-right:2rem;
+      }
+      .panel{ border-radius: 32px; }
+    }
+    /* ===== Panel = full-bleed to container edges ===== */
+    /* ตั้งค่าค่า padding-x ของ container เป็นตัวแปรเดียว */
+    .container, .container-fluid{
+    --pv-container-px: 1.5rem;   /* เทียบกับ .px-4 */
+    }
+
+    /* ถ้าหน้าใช้ .px-xl-5 ให้เพิ่มช่องไฟบนจอใหญ่ */
+    @media (min-width: 1200px){
+        .container.px-xl-5,
+        .container-fluid.px-xl-5{
+            --pv-container-px: 3rem;   /* เทียบกับ .px-xl-5 */
+        }
+    }
+
+    /* ให้ .panel กว้างเท่ากับ container โดยหัก padding-x ออก */
+    .container > .panel,
+    .container-fluid > .panel{
+    margin-left:  calc(-1 * var(--pv-container-px));
+    margin-right: calc(-1 * var(--pv-container-px));
+    width: auto;                 /* ปล่อยให้กินเต็ม */
+    border-radius: 24px;         /* มุมมนสวย ๆ */
+    overflow: hidden;            /* ให้ขอบมนทำงานชัวร์ */
+    }
+
+    /* จอใหญ่: มุมมนเด่นขึ้น */
+    @media (min-width: 1200px){
+        .container > .panel,
+        .container-fluid > .panel{
+            border-radius: 32px;
+        }
+    }
+  </style>
+
+  <!-- sync data-bs-theme with data-theme -->
+  <script>
+    (function(){
+      const html = document.documentElement;
+      const apply = () => html.setAttribute('data-bs-theme', html.getAttribute('data-theme')==='dark'?'dark':'light');
+      apply(); window.addEventListener('themechange', apply);
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- HERO -->
+  <section class="hero py-5">
+    <div class="container-fluid px-4 px-xl-5">
+      <h1 class="display-5 mb-2">Terms of Use</h1>
+      <p class="text-secondary mb-0">เงื่อนไขและข้อตกลงการใช้งานบริการ RTSMM-TH.COM</p>
+      <nav aria-label="breadcrumb" style="margin-top:12px">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="/">หน้าแรก</a></li>
+          <li class="breadcrumb-item active" aria-current="page">Terms of Use</li>
+        </ol>
+      </nav>
+    </div>
+  </section>
+
+  <!-- CONTENT -->
+  <section class="py-4 page-band">
+    <div class="container-fluid px-4 px-xl-5">
+      <article class="panel">
+        <h1 class="text-center">เงื่อนไขและข้อตกลง (Terms of Use)</h1>
+        <p><strong>RTSMM-TH.COM</strong><br/>อัปเดตล่าสุด: ตุลาคม 2568</p>
+        <hr/>
+
+        <h2>ข้อ 1. บทนำ</h2>
+        <p>ข้อตกลงและเงื่อนไขฉบับนี้ (“ข้อตกลง”) เป็นสัญญาทางกฎหมายระหว่าง <strong>RTSMM-TH.COM</strong> (“ผู้ให้บริการ”) และผู้ใช้บริการทุกท่าน (“ผู้ใช้” หรือ “ท่าน”) การเข้าใช้งานเว็บไซต์ <a class="decorated-link" href="http://www.rtsmm-th.com" target="_blank" rel="noopener">RTSMM-TH.COM</a> บัญชีผู้ใช้ หรือบริการใด ๆ ถือว่าผู้ใช้ได้อ่าน ทำความเข้าใจ และยินยอมผูกพันตามข้อกำหนดนี้โดยสมบูรณ์ หากท่านไม่ยอมรับเงื่อนไขทั้งหมดหรือบางส่วน กรุณาหยุดใช้งานเว็บไซต์และบริการทันที</p>
+        <hr/>
+
+        <h2>ข้อ 2. คำจำกัดความ</h2>
+        <ul>
+          <li><strong>“ผู้ให้บริการ”</strong> หมายถึง RTSMM-TH.COM รวมถึงเว็บไซต์ แพลตฟอร์ม ระบบ เซิร์ฟเวอร์ และเครื่องหมายการค้าที่เกี่ยวข้อง</li>
+          <li><strong>“ผู้ใช้”</strong> หมายถึง บุคคลธรรมดาหรือนิติบุคคลที่สมัคร เปิดบัญชี หรือเข้าถึงบริการของ RTSMM-TH.COM</li>
+          <li><strong>“บัญชีผู้ใช้”</strong> หมายถึง บัญชีที่ผู้ใช้ลงทะเบียนเพื่อเข้าถึงและจัดการบริการ</li>
+          <li><strong>“เครดิต”</strong> หมายถึง มูลค่าเสมือนที่ผู้ใช้เติมเข้าสู่ระบบเพื่อใช้ชำระค่าบริการ ไม่สามารถโอน แลกเปลี่ยน หรือขอคืนเงินสดได้</li>
+          <li><strong>“บริการ”</strong> หมายถึง บริการโปรโมทและโฆษณาบนสื่อสังคมออนไลน์ และบริการอื่นใดที่ RTSMM-TH.COM เสนอ</li>
+        </ul>
+        <hr/>
+
+        <h2>ข้อ 3. การใช้บริการ</h2>
+        <ol>
+          <li>ผู้ใช้ต้องใช้บริการโดยสุจริต ถูกต้องตามกฎหมาย และไม่ละเมิดสิทธิของบุคคลอื่น</li>
+          <li>การกดปุ่ม “ยืนยันคำสั่งซื้อ” ถือเป็นการยอมรับข้อกำหนดและเงื่อนไขโดยอัตโนมัติ ไม่ว่าผู้ใช้จะได้อ่านหรือไม่ก็ตาม</li>
+          <li>ผู้ให้บริการมีสิทธิ์ปรับปรุง เปลี่ยนแปลง หรือยกเลิกบริการ ราคา หรือโปรโมชั่น โดยไม่ต้องแจ้งให้ทราบล่วงหน้า</li>
+        </ol>
+        <hr/>
+
+        <h2>ข้อ 4. การลงทะเบียนและบัญชีผู้ใช้</h2>
+        <ol>
+          <li>ผู้ใช้ต้องมีอายุไม่ต่ำกว่า 18 ปี หรืออย่างน้อย 13 ปีโดยได้รับความยินยอมจากผู้ปกครอง</li>
+          <li>ผู้ใช้ต้องให้ข้อมูลที่ถูกต้อง ครบถ้วน และเป็นปัจจุบัน รวมถึงอัปเดตข้อมูลเมื่อมีการเปลี่ยนแปลง</li>
+          <li>ผู้ใช้ต้องเก็บรักษาชื่อบัญชีและรหัสผ่านเป็นความลับ และรับผิดชอบต่อการใช้งานที่เกิดขึ้นจากบัญชีของตนเอง</li>
+          <li>บัญชีผู้ใช้ไม่สามารถโอน ให้ยืม หรือขายต่อได้ หากฝ่าฝืน RTSMM-TH.COM มีสิทธิ์ระงับหรือลบบัญชีโดยไม่ต้องแจ้งล่วงหน้า</li>
+        </ol>
+        <hr/>
+
+        <h2>ข้อ 5. เครดิตและการชำระเงิน</h2>
+        <ol>
+          <li>ผู้ใช้ใหม่ต้องเติมเครดิตขั้นต่ำตามที่กำหนดเพื่อเริ่มใช้บริการ</li>
+          <li>เครดิตที่เติมแล้วไม่สามารถโอน แลกเปลี่ยน หรือขอคืนเป็นเงินสดได้ ยกเว้นกรณีบริการไม่สามารถดำเนินการได้</li>
+          <li>เมื่อคำสั่งซื้อเข้าสู่สถานะ “เสร็จสิ้น” จะไม่สามารถขอคืนเงินได้ทุกกรณี</li>
+          <li>หากพบการฉ้อโกง เช่น การใช้หลักฐานการโอนปลอม ผู้ให้บริการมีสิทธิ์ระงับบัญชีทันที</li>
+        </ol>
+        <hr/>
+
+        <h2>ข้อ 6. นโยบายการคืนเงิน</h2>
+        <ol>
+          <li>เครดิตที่ได้รับอนุมัติแล้วจะไม่คืนเงินเข้าบัญชีผู้ใช้อีก</li>
+          <li>การคืนเครดิตจะทำได้เฉพาะกรณีที่คำสั่งซื้อไม่สามารถดำเนินการได้หรือถูกยกเลิกโดยระบบ</li>
+          <li>คำสั่งซื้อที่ผู้ใช้กรอกข้อมูลผิดพลาด หรือบัญชีโซเชียลที่ตั้งค่าเป็นส่วนตัวจะไม่เข้าข่ายคืนเงิน</li>
+          <li>หากผู้ใช้ยื่นข้อพิพาทการชำระเงินโดยมิชอบ RTSMM-TH.COM มีสิทธิ์ยกเลิกคำสั่งซื้อในอนาคตและระงับการใช้งาน</li>
+        </ol>
+        <hr/>
+
+        <h2>ข้อ 7. ข้อห้ามการใช้งาน</h2>
+        <p>ผู้ใช้ตกลงว่าจะไม่ใช้บริการเพื่อกระทำการใด ๆ ที่ผิดกฎหมาย หรือขัดต่อความสงบเรียบร้อย รวมถึงแต่ไม่จำกัดเพียง:</p>
+        <ul>
+          <li>การดูหมิ่นหรือทำลายชื่อเสียงบุคคลหรือสถาบัน</li>
+          <li>การส่งสแปมหรือข้อมูลเท็จ</li>
+          <li>การละเมิดลิขสิทธิ์ เครื่องหมายการค้า หรือสิทธิในทรัพย์สินทางปัญญา</li>
+          <li>การเผยแพร่เนื้อหาลามก อนาจาร ความรุนแรง หรือปลุกปั่นยุยง</li>
+          <li>การฉ้อโกง ทุจริต หรือการใช้เอกสารปลอม</li>
+        </ul>
+        <hr/>
+
+        <h2>ข้อ 8. ความรับผิดชอบของผู้ใช้</h2>
+        <ol>
+          <li>ผู้ใช้ต้องรับผิดชอบต่อข้อมูล เนื้อหา หรือสื่อใด ๆ ที่นำเข้าสู่ระบบ และผลทางกฎหมายที่อาจเกิดขึ้น</li>
+          <li>หากการกระทำของผู้ใช้ก่อให้เกิดความเสียหายแก่ผู้ให้บริการ หรือทำให้มีบุคคลภายนอกฟ้องร้อง ผู้ใช้ต้องชดใช้ค่าเสียหายทั้งหมดทันที</li>
+        </ol>
+        <hr/>
+
+        <h2>ข้อ 9. ความรับผิดชอบและข้อจำกัดของผู้ให้บริการ</h2>
+        <ol>
+          <li>ผู้ให้บริการจะพยายามอย่างเต็มที่เพื่อให้ระบบมีเสถียรภาพ แต่ไม่รับประกันว่าจะปราศจากข้อบกพร่องหรือการหยุดชะงัก</li>
+          <li>ผู้ให้บริการไม่รับผิดชอบต่อความเสียหายทางตรง ทางอ้อม หรือผลสืบเนื่องที่เกิดจากการใช้หรือไม่สามารถใช้บริการ</li>
+          <li>กรณีเหตุสุดวิสัย ผู้ให้บริการจะไม่ถือว่าผิดสัญญา</li>
+        </ol>
+        <hr/>
+
+        <h2>ข้อ 10. ทรัพย์สินทางปัญญา</h2>
+        <ol>
+          <li>เนื้อหา ระบบ ซอฟต์แวร์ และข้อมูลทั้งหมดบนเว็บไซต์เป็นทรัพย์สินของ RTSMM-TH.COM</li>
+          <li>ห้ามผู้ใช้คัดลอก ดัดแปลง เผยแพร่ แจกจ่าย หรือทำวิศวกรรมย้อนกลับ เว้นแต่ได้รับอนุญาตเป็นลายลักษณ์อักษร</li>
+        </ol>
+        <hr/>
+
+        <h2>ข้อ 11. นโยบายความเป็นส่วนตัว</h2>
+        <ol>
+          <li>RTSMM-TH.COM ไม่ร้องขอรหัสผ่านของผู้ใช้</li>
+          <li>ข้อมูลทั้งหมดจะถูกเข้ารหัสและเก็บรักษาอย่างปลอดภัย</li>
+          <li>ผู้ให้บริการสงวนสิทธิ์ในการปรับปรุงหรือแก้ไขนโยบายความเป็นส่วนตัวโดยไม่ต้องแจ้งล่วงหน้า</li>
+        </ol>
+        <hr/>
+
+        <h2>ข้อ 12. การแก้ไขข้อตกลง</h2>
+        <p>ผู้ให้บริการสงวนสิทธิ์ในการแก้ไข เพิ่มเติม หรือปรับปรุงข้อตกลง โดยมีผลทันทีเมื่อเผยแพร่บนเว็บไซต์ การใช้งานต่อไปของผู้ใช้ถือเป็นการยอมรับข้อตกลงที่แก้ไขแล้ว</p>
+        <hr/>
+
+        <h2>ข้อ 13. กฎหมายที่ใช้บังคับ</h2>
+        <p>ข้อตกลงนี้อยู่ภายใต้กฎหมายแห่งราชอาณาจักรไทย และข้อพิพาทใด ๆ ที่เกิดขึ้นให้อยู่ในเขตอำนาจศาลไทย</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- FOOTER (เหมือน index.ejs) -->
+  <footer class="footer py-5">
+    <div class="container-fluid px-4 px-xl-5">
+      <div class="row g-4">
+        <div class="col-md-4">
+          <img src="/static/logo/logo-rtssm-th.png" alt="logo" height="150" class="mb-3">
+          <p class="text-secondary mb-0">
+            RTSSM-TH.COM ผู้ให้บริการการตลาดออนไลน์และโซเชียลระดับสากล มาตรฐานมืออาชีพ ดูแลลูกค้าทั่วโลก
+          </p>
+        </div>
+        <div class="col-md-2">
+          <h6 class="fw-bold">ผลิตภัณฑ์</h6>
+          <ul class="list-unstyled">
+            <li><a href="/">หน้าแรก</a></li>
+            <li><a href="/services">บริการทั้งหมด</a></li>
+            <li><a href="/order">คำสั่งซื้อใหม่</a></li>
+          </ul>
+        </div>
+        <div class="col-md-3">
+          <h6 class="fw-bold">FAQ</h6>
+          <ul class="list-unstyled">
+            <li><a href="/faq">คำถามที่พบบ่อย</a></li>
+            <li><a href="/blog">บทความ</a></li>
+          </ul>
+        </div>
+        <div class="col-md-3">
+          <h6 class="fw-bold">เกี่ยวกับเรา</h6>
+          <ul class="list-unstyled">
+            <li><a href="mailto:rtssm.th@gmail.com"><i class="fa-regular fa-envelope me-1"></i>Email: rtssm.th@gmail.com</a></li>
+            <li><a href="https://line.me/R/ti/p/%40iplusviewstore"><i class="fa-brands fa-line me-1"></i>Line: @rtssm-th</a></li>
+            <li><a href="https://line.me/R/ti/p/%40iplusviewstore"><i class="fa-regular fa-bug me-1"></i>แจ้งปัญหาคำสั่งซื้อ</a></li>
+            <li><a href="/page/terms-of-use"><i class="fa-solid fa-scale-balanced me-1"></i>เงื่อนไขและข้อตกลง</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://RTSMM-TH.COM/assets-landing/js/wow.min.js"></script>
+  <script> new WOW().init(); </script>
+</body>
+</html>

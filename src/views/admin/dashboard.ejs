@@ -1,0 +1,22 @@
+<h2>หลังบ้าน</h2>
+<div class="grid cards">
+  <section class="card">
+    <h3>เครดิตผู้ให้บริการ</h3>
+    <div id="bal" class="big"><%= balance %></div>
+    <button class="btn" onclick="refreshBal()">รีเฟรชเครดิต</button>
+  </section>
+  <section class="card">
+    <h3>ซิงก์บริการ</h3>
+    <button class="btn" onclick="syncServices()">Sync Services</button>
+    <div id="syncRes" class="mt muted">ล่าสุด: <%= lastSyncAt ? new Date(lastSyncAt).toLocaleString() : '—' %></div>
+  </section>
+  <section class="card">
+    <h3>ตั้งค่าราคา</h3>
+    <a class="btn" href="/admin/pricing">ไปหน้ากฎปรับราคา</a>
+    <p class="muted mt">ปรับทั้งเว็บ, รายหมวด, หมวดย่อย หรือรายบริการ | โหมด: % / +คงที่ / set ราคา</p>
+  </section>
+</div>
+<script>
+async function refreshBal(){ const r=await fetch('/admin/refresh-balance',{method:'POST'}); const d=await r.json(); document.getElementById('bal').innerText=d.balance+(d.currency?(' '+d.currency):''); }
+async function syncServices(){ const r=await fetch('/admin/sync-services',{method:'POST'}); const d=await r.json(); document.getElementById('syncRes').innerText='ดึงบริการ '+d.count+' รายการแล้ว'; alert('ซิงก์สำเร็จ: '+d.count+' รายการ'); }
+</script>

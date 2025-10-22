@@ -1,0 +1,191 @@
+<% const fmt = n => (Number(n).toLocaleString(undefined, { maximumFractionDigits: 4 })); %>
+
+<h2 class="title">กฎปรับราคา</h2>
+
+<!-- คำอธิบาย -->
+<section class="card soft">
+  <h3>วิธีใช้งานกฎปรับราคา</h3>
+  <ul class="muted">
+    <li><b>ขอบเขต = ทั้งเว็บ</b> → ปรับราคาทุกบริการย่อยในทุกแพลตฟอร์ม</li>
+    <li><b>ขอบเขต = หมวดหลัก / หมวดย่อย</b> → ปรับเฉพาะบริการย่อยในขอบเขตนั้น</li>
+    <li><b>ขอบเขต = บริการ</b> → เลือก “บริการย่อย” รายการเดียว (เช่น <code>Telegram Stars for Post</code>)</li>
+    <li><b>โหมด</b>:
+      <ul>
+        <li><b>ปรับเป็น %</b> → ตัวอย่าง 15 = เพิ่ม 15%, -10 = ลด 10%</li>
+        <li><b>เพิ่ม/ลดเป็นจำนวนเงิน</b> → บวก/ลบคงที่ต่อ 1,000 หน่วย</li>
+        <li><b>ตั้งราคาใหม่</b> → กำหนดราคาใหม่แทนค่าเดิม</li>
+      </ul>
+    </li>
+    <li><b>Priority</b> มากกว่า จะถูกคำนวณก่อน (ใช้ซ้อนหลายกฎได้)</li>
+    <li>ทุกครั้งที่บันทึก/ลบกฎ ระบบจะอัปเดตราคาใน DB ให้ทันที ทั้งที่ <code>service.rate</code> และ <code>details.services[].rate</code></li>
+    <li>เมื่อ Sync ผู้ให้บริการเข้ามาใหม่ ระบบจะ apply กฎให้อัตโนมัติ เพื่อคงราคาที่ตั้งไว้</li>
+  </ul>
+</section>
+
+<!-- ฟอร์มสร้างกฎ -->
+<section class="card">
+  <h3 class="title">สร้างกฎใหม่</h3>
+  <form id="ruleForm" method="post" action="/admin/pricing" class="rule-grid">
+    <label>ขอบเขต
+      <select name="scope" id="scopeSel" required>
+        <option value="global">ทั้งเว็บ</option>
+        <option value="category">หมวดหลัก</option>
+        <option value="subcategory">หมวดย่อย</option>
+        <option value="service">บริการ</option>
+      </select>
+    </label>
+
+    <label id="catWrap" style="display:none">หมวดหลัก
+      <select id="catSel">
+        <option value="">-- เลือกหมวดหลัก --</option>
+        <% cats.forEach(c => { %>
+          <option value="<%= c._id %>"><%= c.name %></option>
+        <% }) %>
+      </select>
+    </label>
+
+    <label id="subWrap" style="display:none">หมวดย่อย
+      <select id="subSel"></select>
+    </label>
+
+    <label id="svcWrap" style="display:none">บริการ
+      <!-- ไม่มี name ที่นี่แล้ว -->
+      <select id="svcSel"></select>
+    </label>
+
+    <!-- เก็บ targetId ไว้ตัวเดียว -->
+    <input type="hidden" name="targetId" id="targetIdHidden"/>
+
+    <label>โหมด
+      <select name="mode" id="modeSel" required>
+        <option value="percent">ปรับเป็น % (เพิ่ม/ลด)</option>
+        <option value="delta">เพิ่ม/ลดเป็นจำนวนเงิน</option>
+        <option value="set">ตั้งราคาใหม่ (คงที่)</option>
+      </select>
+    </label>
+
+    <label>ค่า (เช่น 15 หรือ -10 หรือ 99)
+      <input id="valInput" type="number" step="0.0001" name="value" required>
+    </label>
+
+    <label>Priority (มากไว้ก่อน)
+      <input id="priInput" type="number" name="priority" value="100">
+    </label>
+
+    <div class="actions">
+      <button id="saveBtn" class="btn primary" disabled>บันทึก</button>
+    </div>
+  </form>
+</section>
+
+<!-- รายการกฎ -->
+<section class="card">
+  <h3 class="title">รายการกฎ</h3>
+  <div class="order-desktop">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ขอบเขต</th><th>Target</th><th>โหมด</th><th>ค่า</th><th>Priority</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% rules.forEach(r => { %>
+          <tr>
+            <td><%= r.scope %></td>
+            <td class="mono"><%= r.targetId || '-' %></td>
+            <td><%= r.mode %></td>
+            <td><%= fmt(r.value) %></td>
+            <td><%= r.priority %></td>
+            <td class="actions">
+              <form method="post" action="/admin/pricing/<%= r._id %>/delete">
+                <button class="btn sm outline">ลบ</button>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+const scopeSel = $('#scopeSel');
+const catWrap  = $('#catWrap');
+const subWrap  = $('#subWrap');
+const svcWrap  = $('#svcWrap');
+const catSel   = $('#catSel');
+const subSel   = $('#subSel');
+const svcSel   = $('#svcSel');
+const targetHidden = $('#targetIdHidden');
+const saveBtn  = $('#saveBtn');
+const valInput = $('#valInput');
+const modeSel  = $('#modeSel');
+
+function $(s){ return document.querySelector(s); }
+function enableSaveIfValid(){
+  const scope = scopeSel.value;
+  let ok = true;
+
+  if(scope === 'category'){ ok = !!catSel.value; }
+  if(scope === 'subcategory'){ ok = !!catSel.value && !!subSel.value; }
+  if(scope === 'service'){ ok = !!catSel.value && !!subSel.value && !!svcSel.value; }
+
+  // ฟิลด์ value ต้องกรอกเสมอ
+  ok = ok && valInput.value !== '';
+
+  saveBtn.disabled = !ok;
+}
+
+function updateVisibility(){
+  const s = scopeSel.value;
+  catWrap.style.display = (s === 'category' || s === 'subcategory' || s === 'service') ? '' : 'none';
+  subWrap.style.display = (s === 'subcategory' || s === 'service') ? '' : 'none';
+  svcWrap.style.display = (s === 'service') ? '' : 'none';
+
+  // อัปเดต targetHidden ตามลำดับ
+  if(s === 'global'){ targetHidden.value = ''; }
+  if(s === 'category'){ targetHidden.value = catSel.value || ''; }
+  if(s === 'subcategory'){ targetHidden.value = subSel.value || catSel.value || ''; }
+  if(s === 'service'){ targetHidden.value = svcSel.value || subSel.value || catSel.value || ''; }
+
+  enableSaveIfValid();
+}
+
+scopeSel.addEventListener('change', updateVisibility);
+valInput.addEventListener('input', enableSaveIfValid);
+
+catSel.addEventListener('change', async () => {
+  subSel.innerHTML = ''; svcSel.innerHTML = ''; targetHidden.value = catSel.value || '';
+  enableSaveIfValid();
+  if (!catSel.value) return;
+
+  const r = await fetch('/admin/pricing/lookup/subs/' + catSel.value);
+  const subs = await r.json();
+  subSel.innerHTML = '<option value="">-- เลือกหมวดย่อย --</option>' +
+    subs.map(s => `<option value="${s._id}">${s.name}</option>`).join('');
+  updateVisibility();
+});
+
+subSel.addEventListener('change', async () => {
+  svcSel.innerHTML = '';
+  targetHidden.value = subSel.value || catSel.value || '';
+  enableSaveIfValid();
+
+  if (!subSel.value) return;
+  const r = await fetch('/admin/pricing/lookup/services/' + subSel.value);
+  const svs = await r.json();
+  svcSel.innerHTML = '<option value="">-- เลือกบริการ --</option>' +
+    svs.map(s => `<option value="${s._id}">${s.name}</option>`).join('');
+  updateVisibility();
+});
+
+svcSel.addEventListener('change', () => {
+  targetHidden.value = svcSel.value || subSel.value || catSel.value || '';
+  enableSaveIfValid();
+});
+
+// init
+updateVisibility();
+enableSaveIfValid();
+</script>
+

@@ -1,0 +1,1540 @@
+/* =========================================================
+   RTSMM-TH • Global Styles (Theme + Responsive + Mobile Cards)
+   ========================================================= */
+
+/* -------------------------------
+   1) THEME CORE (Dark as default)
+--------------------------------- */
+:root{
+  /* Base palette */
+  --bg:#0b0b0c;
+  --page:var(--bg);
+  --card:#17171b;
+  --surface:var(--card);
+  --text:#fff3de;
+  --muted:#e6d4a3;
+  --accent:#e2c16e;
+  --border:#2a2a2e;
+  --success:#22c55e;
+  --warning:#f59e0b;
+  --danger:#ef4444;
+
+  /* Layout */
+  --sb-w:250px;
+  --sb-collapsed:64px;
+
+  /* Effects */
+  --shadow:0 6px 18px color-mix(in oklab, #000 16%, transparent);
+
+  /* Fluid radius + gaps */
+  --radius:clamp(12px,1.4vw,16px);
+  --radius-sm:clamp(9px,1vw,12px);
+  --gap:clamp(10px,1.2vw,16px);
+
+  /* Fluid type scale */
+  --fs-12:clamp(11px,2.4vw,12px);
+  --fs-14:clamp(12px,2.6vw,14px);
+  --fs-16:clamp(13px,2.9vw,16px);
+  --fs-18:clamp(14px,3.2vw,18px);
+  --fs-20:clamp(15px,3.6vw,20px);
+
+  /* Container */
+  --container-max:1640px;
+  --container-max-xxl:1840px;
+  --container-pad:clamp(12px,3.2vw,28px);
+
+  /* Global scrollbar palette */
+  --sb-track: color-mix(in oklab, var(--surface) 86%, transparent);
+  --sb-thumb: color-mix(in oklab, var(--text) 28%, transparent);
+  --sb-thumb-hover: color-mix(in oklab, var(--accent) 45%, transparent);
+}
+:root.light{
+  --bg:#f7f7fb; --page:#f7f7fb; --card:#ffffff; --surface:var(--card);
+  --text:#111827; --muted:#6b7280; --accent:#0ea5e9; --border:#e5e7eb;
+  --success:#16a34a; --warning:#d97706; --danger:#dc2626;
+}
+[data-theme="light"]{
+  --page:#f3f5f7; --surface:#ffffff; --text:#0c1020;
+  --muted:color-mix(in oklab,#0c1020 60%, transparent);
+  --border:color-mix(in oklab,#0c1020 13%, transparent);
+}
+[data-theme="dark"]{
+  --page:#0b0c0f; --surface:color-mix(in oklab,#13151a 90%, transparent);
+  --text:#e9edf3; --muted:color-mix(in oklab,#e9edf3 60%, transparent);
+  --border:color-mix(in oklab,#e9edf3 16%, transparent);
+}
+@media (prefers-color-scheme:light){
+  :root:not([data-theme]){
+    --page:#f3f5f7; --surface:#fff; --text:#0c1020;
+    --muted:color-mix(in oklab,#0c1020 60%,transparent);
+    --border:color-mix(in oklab,#0c1020 13%,transparent);
+  }
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme]){
+    --page:#0b0c0f; --surface:color-mix(in oklab,#13151a 90%,transparent);
+    --text:#e9edf3; --muted:color-mix(in oklab,#e9edf3 60%,transparent);
+    --border:color-mix(in oklab,#e9edf3 16%,transparent);
+  }
+}
+
+html,body{ background:var(--page); color:var(--text); height:100% }
+
+/* notch safe */
+@supports (padding: env(safe-area-inset-left)) {
+  .container{
+    padding-left: max(var(--container-pad), env(safe-area-inset-left));
+    padding-right: max(var(--container-pad), env(safe-area-inset-right));
+  }
+}
+
+/* -------------------------------
+   2) BASE / TYPOGRAPHY
+--------------------------------- */
+*{ box-sizing:border-box }
+body, body.container{
+  margin:0;
+  font-family:"Prompt",system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Thai",sans-serif;
+  font-size:var(--fs-16);
+  line-height:1.55;
+  -webkit-tap-highlight-color:transparent;
+  overflow-y:auto;
+}
+h1{ font-size:var(--fs-20); margin:.3rem 0 1rem; font-weight:700 }
+h2{ font-size:var(--fs-18); margin:.3rem 0 .8rem; font-weight:700 }
+h3{ font-size:var(--fs-16); margin:.3rem 0 .6rem; font-weight:700 }
+.title{ font-weight:600; font-size:var(--fs-16) }
+.muted{ color:var(--muted); font-size:var(--fs-14) }
+a{ color:var(--accent); text-decoration:none }
+a:focus-visible,button:focus-visible,input:focus-visible{
+  outline:none; box-shadow:0 0 0 3px color-mix(in oklab,var(--accent) 28%, transparent)
+}
+.mt{ margin-top:12px }
+.ellipsis{ max-width:360px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+
+/* Container */
+.container{
+  max-width:min(var(--container-max), 100% - 2*var(--container-pad));
+  margin-inline:auto;
+  padding:var(--container-pad);
+}
+.container.full{ max-width:none; padding-left:var(--container-pad); padding-right:var(--container-pad) }
+@media (min-width:1680px){
+  .container{ max-width:min(var(--container-max-xxl),100% - 2*var(--container-pad)) }
+}
+/* กว้างสุดสำหรับหน้าประวัติ */
+body.orders-wide .container{
+  max-width:none !important;
+  width:100% !important;
+  padding-left:16px !important;
+  padding-right:16px !important;
+}
+@media (min-width:1920px){
+  body.orders-wide .container{ --container-max-xxl: 1920px; --container-max: 1920px; }
+}
+
+/* -------------------------------
+   3) GLOBAL SCROLLBARS
+--------------------------------- */
+*{ scrollbar-width:thin; scrollbar-color:var(--sb-thumb) var(--sb-track) }
+*::-webkit-scrollbar{ width:10px; height:10px }
+*::-webkit-scrollbar-track{ background:var(--sb-track); border-radius:10px }
+*::-webkit-scrollbar-thumb{ background:var(--sb-thumb); border-radius:10px }
+*::-webkit-scrollbar-thumb:hover{ background:var(--sb-thumb-hover) }
+.scroll-x{ overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch }
+.scroll-y{ overflow-y:auto; -webkit-overflow-scrolling:touch }
+
+/* -------------------------------
+   4) CARD / GRID
+--------------------------------- */
+.card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:clamp(12px,2.4vw,18px);
+  margin:clamp(10px,2.2vw,18px) 0;
+  box-shadow:var(--shadow);
+}
+.card.soft{ background:color-mix(in oklab,var(--surface) 86%,transparent) }
+
+.grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:var(--gap) }
+.footer{ padding:24px; text-align:center; color:var(--muted) }
+
+@media (min-width: 901px){
+  /* การ์ดใช้ค่าคงที่ ไม่ยืด/หดตาม vw */
+  .card{
+    padding: 16px;     /* เดิม clamp(12px, 2.4vw, 18px) */
+    margin: 14px 0;    /* เดิม clamp(10px, 2.2vw, 18px) */
+  }
+  .card.soft{ background: color-mix(in oklab, var(--surface) 86%, transparent); }
+
+  /* รักษา gap ของ .grid ให้คงที่ (ไม่ใช่ตาม vw) */
+  .grid{ gap: 16px; }  /* คง template เดิมไว้, #platformGrid มี rule ของตัวเองแล้ว */
+
+  /* แถวค้นหาในการ์ด soft: กินเต็ม เสถียร ไม่ทำให้การ์ดเด้ง */
+  .card.soft .row{
+    display: grid;
+    grid-template-columns: 1fr auto; /* ช่องค้นหาเต็ม + ชิปอยู่ขวา */
+    align-items: center;
+    gap: 12px;
+  }
+  #chipBar{
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;   /* ถ้าชิปเยอะให้ลงบรรทัดใหม่ โดยไม่ดันความกว้างการ์ด */
+  }
+  /* วิธีใหม่ (ถ้าบราวเซอร์รองรับ) */
+  html{ scrollbar-gutter: stable both-edges; }
+
+  /* วิธีกันเหนียวให้แน่นอน: บังคับให้มีช่องสกรอลล์เสมอ */
+  body{ overflow-y: scroll; }   /* override ของเดิมที่เป็น auto */
+}
+
+/* -------------------------------
+   5) CONTROLS
+--------------------------------- */
+.input,.form input{
+  width:100%; padding:12px 14px; border:1px solid var(--border);
+  border-radius:var(--radius-sm); background:transparent; color:var(--text);
+  transition:border .15s, box-shadow .15s; min-height:44px; font-size:var(--fs-16);
+}
+.input:focus-visible,.form input:focus-visible{
+  border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in oklab,var(--accent) 25%, transparent);
+}
+.btn{
+  font-family:"Prompt";
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  padding:12px 16px; min-height:44px; min-width:44px;
+  margin-top: 5px;
+  border:1px solid var(--border); border-radius:var(--radius-sm);
+  background:transparent; color:var(--text); cursor:pointer;
+  transition:transform .03s, background .2s, border-color .2s; font-size:var(--fs-16);
+  text-decoration: none;
+}
+.btn:hover{ text-decoration: none; background:color-mix(in oklab,var(--accent) 10%, transparent) }
+.btn:active{ transform:translateY(1px) }
+.btn.primary{
+  background:linear-gradient(180deg,var(--accent), color-mix(in oklab,var(--accent) 85%, #0a53a0));
+  border-color:color-mix(in oklab,var(--accent) 65%, #00345a); color:#fff;
+  margin-top: 5px;
+  text-decoration: none;
+}
+.btn.block{ width:100%; text-decoration: none; }
+.btn.sm{ text-decoration: none; padding:8px 12px; min-height:40px; font-size:var(--fs-14) }
+.btn.outline{ text-decoration: none; background:transparent; color:var(--text); border:1px solid var(--border) }
+.btn.outline:hover{ text-decoration: none; background:color-mix(in oklab,var(--accent) 10%, transparent) }
+
+.row2.toggles { display: none !important; }
+
+/* -------------------------------
+   6) CHROME
+--------------------------------- */
+.topbar{ display:flex; justify-content:space-between; align-items:center;
+  padding:12px 16px; border-bottom:1px solid var(--border); background:var(--card);
+  position:sticky; top:0; z-index:120; }
+.brand{ font-weight:700; cursor:pointer }
+.nav a{ margin-left:12px }
+/* NAV layout ชิดขวาเรียงสวย */
+.topbar.desktop .nav{
+  display:flex; align-items:center; gap:12px;
+}
+
+/* ปุ่มยอดเงิน (เฉพาะ Desktop — mobile ใช้ m-pill เดิม) */
+.balance-pill{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:8px 12px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  background:color-mix(in oklab,var(--surface) 92%, transparent);
+  box-shadow:0 2px 10px color-mix(in oklab,#000 12%, transparent);
+  font-weight:700;
+  font-variant-numeric: tabular-nums; /* ตัวเลขระยะเท่ากัน */
+  user-select:none;
+}
+.balance-pill .bal-ico{
+  display:grid; place-items:center;
+  width:22px; height:22px; border-radius:999px;
+  background:color-mix(in oklab,var(--accent) 20%, transparent);
+}
+.balance-pill .bal-amt{ white-space:nowrap }
+
+/* โฮเวอร์/โฟกัสนิด ๆ ให้รู้สึกคลิกได้ (แต่เป็นข้อมูลแสดงผล) */
+.balance-pill:hover{
+  background:color-mix(in oklab,var(--accent) 8%, var(--surface));
+  border-color:color-mix(in oklab,var(--accent) 35%, var(--border));
+}
+
+.logout-pill{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:8px 12px;
+  border:1px solid var(--border);
+  color: #dc2626;
+  border-radius:999px;
+  background:color-mix(in oklab,var(--surface) 92%, transparent);
+  box-shadow:0 2px 10px color-mix(in oklab,#000 12%, transparent);
+  font-weight:700;
+  font-variant-numeric: tabular-nums; /* ตัวเลขระยะเท่ากัน */
+  user-select:none;
+}
+.logout-pill .bal-ico{
+  display:grid; place-items:center;
+  width:22px; height:22px; border-radius:999px;
+  background:color-mix(in oklab,var(--accent) 20%, transparent);
+}
+.logout-pill .bal-amt{ white-space:nowrap }
+
+/* โฮเวอร์/โฟกัสนิด ๆ ให้รู้สึกคลิกได้ (แต่เป็นข้อมูลแสดงผล) */
+.logout-pill:hover{
+  background:color-mix(in oklab,var(--accent) 8%, var(--surface));
+  border-color:color-mix(in oklab,var(--accent) 35%, var(--border));
+}
+
+/* Sidebar */
+.sidebar{ position:fixed; inset:0 auto 0 0; width:var(--sb-collapsed); background:var(--card);
+  border-right:1px solid var(--border); display:flex; flex-direction:column;
+  z-index:200; transition:width .18s ease, transform .18s ease; }
+.sidebar.pinned, .sidebar:not(.pinned):hover{ width:var(--sb-w) }
+.sb-head{ display:flex; align-items:center; justify-content:space-between; padding:12px 10px; border-bottom:1px solid var(--border) }
+.sb-brand{ display:flex; gap:10px; align-items:center; color:inherit; text-decoration:none; font-weight:700 }
+.sb-pin{ border:1px solid var(--border); background:transparent; color:inherit; border-radius:10px; padding:6px 8px; cursor:pointer }
+.sb-pin.active{ background:var(--accent); border-color:var(--accent); color:#fff }
+.sb-list{ padding:8px 6px 18px }
+.sb-group{ font-size:.86rem; color:var(--muted); padding:10px 10px 6px; margin-top:6px }
+.sb-item{ display:flex; align-items:center; gap:12px; padding:10px; margin:4px; border-radius:10px;
+  text-decoration:none; color:inherit; border:1px solid transparent; white-space:nowrap; overflow:hidden }
+.sb-item .ico{ width:28px; text-align:center; font-size:18px }
+.sb-item:hover{ background:color-mix(in oklab,var(--accent) 12%, transparent); border-color:color-mix(in oklab,var(--accent) 28%, transparent) }
+.sb-item.active{ background:color-mix(in oklab,var(--accent) 22%, transparent); border-color:var(--accent) }
+.sidebar:not(.pinned):not(:hover) .sb-item .txt,
+.sidebar:not(.pinned):not(:hover) .sb-group{ opacity:0; width:0; padding:0; margin:0; pointer-events:none }
+.sb-wrap{ margin-left:var(--sb-collapsed); transition:margin-left .18s ease; min-height:100dvh; display:flex; flex-direction:column; overflow-x:hidden }
+.sidebar.pinned ~ .sb-wrap, .sidebar:not(.pinned):hover ~ .sb-wrap{ margin-left:var(--sb-w) }
+.sb-wrap > .topbar{ position:sticky; top:0; z-index:150; background:var(--card); border-bottom:1px solid var(--border) }
+
+.sb-item {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+}
+.sb-item .ico {
+  width: 18px; height: 18px;
+  display: inline-block;
+  flex: 0 0 18px;
+  /* ปรับ vertical-align ให้พอดีกับตัวอักษรถ้าต้องการ */
+  vertical-align: -2px;
+}
+
+.hamburger{ display:none }
+@media (max-width:900px){
+  /* ซ่อนท็อปบาร์เดสก์ท็อป */
+  .topbar.desktop{ display:none; }
+  .balance-pill{ display:none }
+
+  .m-topbar{
+    position:sticky; top:0; z-index:200;
+    display:grid; grid-template-columns:40px 1fr 40px;
+    align-items:center; gap:10px;
+    padding:10px 12px;
+    border-bottom:1px solid var(--border);
+    background:color-mix(in oklab, var(--card) 92%, transparent);
+    backdrop-filter:saturate(120%) blur(8px);
+    box-shadow:0 2px 10px color-mix(in oklab, #000 16%, transparent);
+  }
+  .m-iconbtn{
+    display:grid; place-items:center;
+    width:40px; height:40px;
+    border:1px solid var(--border);
+    border-radius:12px; background:transparent; color:var(--text);
+  }
+  .m-iconbtn:active{ transform:translateY(1px) }
+  .m-brand{
+    justify-self:start; font-weight:800; letter-spacing:.2px;
+    text-decoration:none; color:var(--text);
+  }
+  .m-right{ display:flex; gap:8px; justify-self:end; }
+  .m-pill{
+    display:inline-flex; align-items:center; gap:6px;
+    height:40px; padding:0 12px;
+    border:1px solid var(--border); border-radius:999px;
+    background:color-mix(in oklab, var(--surface) 92%, transparent);
+    color:var(--text); font-weight:600;
+  }
+  .m-pill .ico{ opacity:.9; font-variant-numeric:tabular-nums }
+
+  /* ซับนาวชิปเลื่อนได้ */
+  .m-subnav{
+    position:sticky; top:56px; z-index:190;
+    display:flex; gap:8px;
+    padding:10px 12px 12px;
+    background:var(--page);
+    border-bottom:1px dashed var(--border);
+    overflow-x:auto; scrollbar-width:thin;
+  }
+  .m-subnav .chip{
+    display:inline-flex; align-items:center; height:36px;
+    padding:0 12px; border:1px solid var(--border);
+    border-radius:999px; background:transparent; color:var(--text);
+    text-decoration:none; white-space:nowrap; font-size:var(--fs-14);
+  }
+  .m-subnav .chip:active{ transform:translateY(1px) }
+  .sidebar{ transform:translateX(-100%); width:min(90vw,var(--sb-w)) }
+  .sidebar.open{ transform:translateX(0) }
+  .sb-wrap{ margin-left:0; overflow-y:auto }
+  .hamburger{ display:inline-flex; align-items:center; gap:6px }
+}
+
+/* เดสก์ท็อป: ซ่อน mobile bar */
+@media (min-width:901px){
+  .m-topbar, .m-subnav{ display:none; }
+}
+
+.topbar .nav a{ margin-left:8px }
+/* -------------------------------
+   7) TABS / FILTERS HEAD
+--------------------------------- */
+.tabs.chips{ display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 6px }
+.tabs .chip, .chip{
+  padding:clamp(6px,1vw,8px) clamp(10px,1.4vw,14px);
+  border-radius:999px; border:1px solid var(--border);
+  background:transparent; color:var(--text); cursor:pointer; min-height:clamp(34px,4.6vh,38px);
+  font-size:var(--fs-14);
+}
+.tabs .chip.active, .chip.active{ background:var(--accent); color:#fff; border-color:var(--accent) }
+/* tabs scroll on mobile */
+.orders-history .tabs{ overflow-x:auto; white-space:nowrap; padding-bottom:6px }
+
+/* Filters grid */
+.page-head{ display:flex; justify-content:space-between; align-items:end; margin:8px 0 14px }
+.page-title h1{ margin:0 }
+
+.orders-history .filters .row{ display:grid; gap:var(--gap); grid-template-columns:1fr }
+@media (min-width:1100px){
+  .orders-history .filters .row{ grid-template-columns:1.1fr 1.6fr 1fr }
+}
+.orders-history .inline{ display:flex; flex-direction:column; gap:8px; min-width:0 }
+.orders-history .input{
+  padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:transparent; color:var(--text)
+}
+.orders-history .input:focus-visible{
+  outline:none; box-shadow:0 0 0 3px color-mix(in oklab,var(--accent) 25%, transparent); border-color:var(--accent)
+}
+.orders-history .searchbox{ display:flex; align-items:center; gap:8px }
+
+/* ฟิลเตอร์เลื่อนแนวนอนเมื่อจอแคบ */
+@media (max-width:900px){
+  .orders-history .filters.card{ overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-gutter:stable both-edges }
+  .orders-history .filters .row{ grid-template-columns:1.1fr 1.6fr 1fr; min-width:620px }
+}
+
+/* hint ต่ำสุด/สูงสุด ใต้ช่องจำนวน */
+.hintline{
+  margin-top:6px;
+  font-size:var(--fs-14);
+  color:var(--muted);
+  display:flex; align-items:center; gap:6px;
+}
+.hintline .min{ color:#fb7185; }   /* โทนชมพูเตือนนิด ๆ */
+.hintline .dot{ opacity:.55 }
+
+/* กล่องค่าใช้จ่ายแบบมี prefix ฿ */
+.input-group{
+  display:flex; align-items:stretch; width:100%;
+}
+.input-prefix{
+  min-width:44px;
+  display:grid; place-items:center;
+  border:1px solid var(--border);
+  border-right:0;
+  border-radius:var(--radius-sm) 0 0 var(--radius-sm);
+  background:color-mix(in oklab, var(--surface) 92%, transparent);
+  color:var(--muted);
+  font-weight:700;
+}
+.input-group .input{
+  border:1px solid var(--border);
+  border-left:0;
+  border-radius:0 var(--radius-sm) var(--radius-sm) 0;
+  background:transparent;
+}
+.input.right{ text-align:right; }
+
+/* ทำให้ช่อง readonly ดูเหมือนช่องแสดงผล (ไม่เทาเกินไป) */
+.input[readonly]{
+  color:var(--text);
+  opacity:1;
+  cursor:default;
+}
+
+/* -------------------------------
+   8) TABLE (Desktop)
+--------------------------------- */
+.order-desktop{ padding:0; overflow:auto; -webkit-overflow-scrolling:touch; scrollbar-gutter:stable both-edges; max-width:100% }
+.order-table{ width:max(1100px, 100%); border-collapse:separate; border-spacing:0; table-layout:auto }
+
+.table{ width:100%; border-collapse:collapse; background:var(--surface); color:var(--text);
+  border:1px solid var(--border); border-radius:12px; overflow:hidden; font-size:var(--fs-14) }
+.table th,.table td{ padding:clamp(6px,.9vw,10px) 12px; border-bottom:1px solid var(--border) } /* เตี้ยลง */
+.table thead th{ background:color-mix(in oklab,var(--surface) 92%, transparent); font-weight:700; position:sticky; top:0; z-index:1 }
+.table tr:hover td{ background:color-mix(in oklab,var(--accent) 7%, var(--surface)) }
+
+.order-table .mono{ font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace }
+.order-table .svc-name{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:6px }
+.order-table .badge{ padding:4px 8px; border-radius:999px; border:1px solid var(--border); font-size:.78rem }
+.badge.soft{ background:color-mix(in oklab,var(--surface) 92%,transparent) }
+.badge.blue{ background:color-mix(in oklab,var(--accent) 14%,transparent); color:#fff; border-color:var(--accent) }
+.badge.flag{ background:color-mix(in oklab,var(--warning) 22%,transparent) }
+.order-table .link{ max-width:none; overflow-wrap:anywhere }
+.pill{ padding:6px 10px; border-radius:999px; border:1px solid var(--border); font-weight:600 }
+.pill.ok{ background:color-mix(in oklab,var(--success) 35%,transparent); color:#123 }
+.pill.warn{ background:color-mix(in oklab,var(--warning) 35%,transparent); color:#222 }
+.pill.blue{ background:color-mix(in oklab,var(--accent) 22%,transparent); color:#fff; border-color:var(--accent) }
+.pill.violet{ background:color-mix(in oklab,#a78bfa 26%,transparent) }
+.pill.danger{ background:color-mix(in oklab,var(--danger) 35%,transparent) }
+.actions .icon, .o-actions .icon{ display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border:1px solid var(--border); border-radius:8px; margin-left:6px; background:transparent; opacity:.9 }
+.actions .icon:hover, .o-actions .icon:hover{ border-color:var(--accent) }
+.orders-history .empty{ padding:18px; text-align:center }
+
+/* -------------------------------
+   9) MOBILE ORDER CARDS
+--------------------------------- */
+/* ซ่อนการ์ดบนจอใหญ่ */
+.order-cards{ display:none }
+
+@media (max-width:900px){
+  /* ซ่อนตาราง และแสดงการ์ดแทน */
+  .order-desktop{ display:none }
+  .order-cards{ display:block }
+
+  .o-card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:12px;
+    margin:12px 0;
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .o-head{
+    display:grid; grid-template-columns:1fr auto auto; gap:8px;
+    align-items:center; padding:12px 14px; background:color-mix(in oklab,var(--surface) 92%, transparent);
+    border-bottom:1px dashed var(--border);
+  }
+  .o-id a{ font-weight:700; text-decoration:none; color:var(--text) }
+  .o-date{ color:var(--muted); font-size:var(--fs-14); text-align:right }
+  .o-toggle{
+    border:1px solid var(--border); background:transparent; color:var(--text);
+    width:32px; height:32px; border-radius:8px; cursor:pointer;
+  }
+  .o-body{ display:none; padding:10px 14px }
+  .o-card.open .o-body{ display:block }
+
+  .o-row{ display:grid; grid-template-columns:110px 1fr; gap:10px; padding:8px 0; border-bottom:1px dotted var(--border) }
+  .o-row:last-child{ border-bottom:0 }
+  .o-label{ color:var(--muted); font-weight:700; font-size:var(--fs-14) }
+  .o-val .link{ overflow-wrap:anywhere }
+  .svc-name{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:6px }
+  .o-actions{ margin-top:8px }
+}
+
+/* -------------------------------
+   10) SELECT / DETAILS (unchanged)
+--------------------------------- */
+.sel-grid{ display:grid; grid-template-columns:1.2fr 1.8fr 1fr; gap:var(--gap) }
+@media (max-width:1280px){ .sel-grid{ grid-template-columns:1fr 1fr } }
+@media (max-width:720px){ .sel-grid{ grid-template-columns:1fr } }
+.sel label{ display:block; margin:0 0 6px; font-weight:700 }
+.select{ position:relative }
+.select-btn{
+  width:100%; display:flex; align-items:center; justify-content:space-between;
+  padding:clamp(10px,1.2vw,14px); border:1px solid var(--border); border-radius:var(--radius-sm);
+  background:transparent; color:var(--text); min-height:clamp(42px,5.2vh,50px);
+}
+.select-btn .chev{ opacity:.65 }
+.select.open .select-menu{ display:block }
+.select-menu{
+  display:none; position:absolute; inset-inline:0; top:calc(100% + 8px);
+  background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); z-index:50; max-height:70vh;
+}
+.select-search{ padding:8px; border-bottom:1px dashed var(--border) }
+.select-search input{ width:100%; padding:9px 11px; border:1px solid var(--border); border-radius:9px; background:transparent; color:var(--text) }
+.list{ max-height:70vh; overflow:auto }
+.opt{ padding:11px 14px; cursor:pointer; border-bottom:1px dashed var(--border); transition:background .15s, color .15s }
+.opt:last-child{ border-bottom:0 }
+.opt:hover{ background:color-mix(in oklab,var(--accent) 9%, transparent) }
+
+#hdr{ font-weight:700; font-size:var(--fs-16); margin-bottom:.25rem }
+#meta{ font-size:var(--fs-14); color:var(--muted) }
+.desc{ margin-top:10px; line-height:1.55; white-space:pre-wrap }
+details summary{ cursor:pointer; user-select:none; font-weight:700 }
+details{ border:1px dashed var(--border); border-radius:12px; padding:10px 12px; background:color-mix(in oklab,var(--surface) 92%, transparent) }
+
+.form{ margin-top:12px }
+.row2{ display:grid; grid-template-columns:1fr 1fr; gap:var(--gap) }
+@media (min-width:1536px){ .row2{ grid-template-columns:1fr 1fr 1fr } }
+@media (max-width:700px){ .row2{ grid-template-columns:1fr } }
+
+.toggles .toggle{ display:flex; flex-direction:column; align-items:flex-start; gap:4px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:color-mix(in oklab,var(--surface) 92%, transparent); transition:all .2s }
+.toggles .toggle:hover{ border-color:var(--accent); background:color-mix(in oklab,var(--accent) 7%, var(--surface)) }
+.toggles .lbl{ font-weight:600 }
+.toggles small{ color:var(--muted); font-size:.85rem }
+
+/* -------------------------------
+   11) FINAL OVERRIDES
+--------------------------------- */
+html[data-theme="light"]{
+  --bg:#f7f7fb !important; --page:#f7f7fb !important;
+  --card:#ffffff !important; --surface:var(--card) !important;
+  --text:#111827 !important; --muted:#6b7280 !important;
+  --accent:#0ea5e9 !important; --border:#e5e7eb !important;
+  --success:#16a34a !important; --warning:#d97706 !important; --danger:#dc2626 !important;
+}
+html[data-theme="dark"]{
+  --bg:#0b0b0c !important; --page:#0b0b0c !important;
+  --card:#17171b !important; --surface:var(--card) !important;
+  --text:#fff3de !important; --muted:#e6d4a3 !important;
+  --accent:#e2c16e !important; --border:#2a2a2e !important;
+  --success:#22c55e !important; --warning:#f59e0b !important; --danger:#ef4444 !important;
+}
+
+html,body{ background:var(--page); color:var(--text) }
+
+/* ============================
+   PLATFORM ICON BUTTONS
+   ============================ */
+
+/* โครงตารางทั่วไป */
+#platformGrid {
+  display: grid;
+  gap: clamp(10px, 1.2vw, 14px);
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); /* desktop การ์ด */
+}
+
+/* การ์ด/ปุ่มแพลตฟอร์ม */
+.p-tile{
+  display:flex; align-items:center; gap:12px;
+  padding:12px 14px; border:1px solid var(--border); border-radius:14px;
+  background:color-mix(in oklab, var(--surface) 92%, transparent);
+  cursor:pointer; transition:transform .05s, background .2s, border-color .2s, box-shadow .2s;
+}
+.p-tile:hover{ border-color:var(--accent); box-shadow:var(--shadow) }
+.p-tile.active{ outline:2px solid var(--accent); background:color-mix(in oklab, var(--accent) 7%, var(--surface)) }
+
+.p-icon{
+  width:48px; height:48px; border-radius:14px;
+  display:grid; place-items:center;
+  background:#fff; /* พื้นหลังขาวให้ไอคอนเด้ง */
+  box-shadow:0 2px 10px color-mix(in oklab, #000 16%, transparent);
+  flex:0 0 auto;
+}
+.p-icon img{ width:28px; height:28px; object-fit:contain; display:block }
+.p-name{ font-weight:600; line-height:1.2 }
+
+/* มือถือ: แสดงเป็นไอคอนล้วน 5 คอลัมน์ */
+@media (max-width:900px){
+  #platformGrid{
+    display:grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap:8px;                       /* ระยะห่างระหว่างปุ่ม */
+  }
+
+  .p-tile{
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    gap:6px;
+    padding:8px;
+    min-height:72px;               /* แตะง่าย ไม่เตี้ยเกิน */
+    border:1px solid var(--border);
+    border-radius:16px;
+    background:transparent;
+    text-decoration:none;          /* ถ้าเป็น <a> */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* กล่องไอคอน */
+  .p-icon{
+    display:grid; place-items:center;
+    width:46px; height:46px;
+    border-radius:16px;
+    background:var(--surface);
+    box-shadow: var(--shadow);
+  }
+  .p-icon img{
+    width:30px; height:30px; object-fit:contain;
+  }
+
+  /* ซ่อนชื่อแพลตฟอร์มบนมือถือ */
+  .p-name{ display:none !important; }
+
+  /* สถานะกด/โฟกัสให้รู้สึกเหมือนปุ่ม */
+  .p-tile:active{ transform: translateY(1px); }
+  .p-tile.active,
+  .p-tile:focus-visible{
+    outline:2px solid var(--accent);
+    border-color:var(--accent);
+  }
+}
+
+/* มือถือจอแคบมาก: บีบเป็น 6 คอลัมน์ + ลดขนาดไอคอนลงอีกนิด */
+@media (max-width:380px){
+  #platformGrid{
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap:6px;
+  }
+  .p-icon{ width:42px; height:42px; border-radius:12px; }
+  .p-icon img{ width:26px; height:26px; }
+}
+
+/* โหมด Light ให้ปุ่มสะอาดตา */
+html[data-theme="light"] .p-icon{ background:#fff }
+html[data-theme="dark"] .p-icon{ background:#111 }
+
+/* =========================================================
+   DESKTOP HARD-SIZE OVERRIDES (no auto-resize)
+   วางบล็อคนี้ "ท้ายไฟล์" เท่านั้น
+   ========================================================= */
+#chipBar .chip.disabled{ opacity:.45; pointer-events:none }
+
+@media (min-width:901px){
+
+  /* กัน layout กระดิกเมื่อมี/ไม่มีสกอลล์บาร์ */
+  html{ scrollbar-gutter: stable both-edges; }
+  body{ overflow-y: scroll; } /* บังคับให้เผื่อช่องสกอลล์บาร์เสมอ */
+
+  /* ค่าพื้นฐานแบบคงที่แทน clamp/vw */
+  :root{
+    --radius:16px;
+    --radius-sm:12px;
+    --gap:16px;
+
+    --fs-12:12px;
+    --fs-14:14px;
+    --fs-16:16px;
+    --fs-18:18px;
+    --fs-20:20px;
+
+    /* padding รอบ container คงที่ */
+    /* --container-pad:0px; */
+  }
+
+  /* ความกว้าง container และ padding คงที่ */
+  .container{
+    /* กว้างแบบคงที่ตามที่ใช้ แต่กันชนขอบจอเหลือ 5px */
+    width: 1720px;
+    max-width: calc(100% - 10px);  /* กันชนซ้าย+ขวารวม 10px */
+    margin: 5px auto 0;            /* ด้านบน 5px, จัดกึ่งกลางแนวนอน */
+    padding-left: 5px;
+    padding-right: 5px;
+    /* หากมี padding-top เดิมจากที่อื่น ให้ตรึงไว้ 5px เช่นกัน */
+    padding-top: 5px;
+  }
+
+  /* การ์ดใบแรกในหน้า: ลดช่องว่างหัวหน้าเหลือ 5px */
+  .container > .card:first-of-type{
+    margin-top: 0px !important;
+    margin-left: 0px !important;
+    margin-right: 0px !important;
+  }
+
+  /* หาก section คั่นด้วย .card.soft เป็นตัวบนสุด ให้ครอบด้วยเช่นกัน */
+  .container > .card.soft:first-of-type{
+    margin-top: 0px !important;
+    margin-left: 0px !important;
+    margin-right: 0px !important;
+  }
+
+  /* การ์ด/กริด: ค่าคงที่ทั้งหมด */
+  .card{
+    padding:16px;         /* เดิม clamp(12px,2.4vw,18px) */
+    margin:14px 0;        /* เดิม clamp(10px,2.2vw,18px) */
+    border-radius: var(--radius);
+  }
+  .card.soft{ background: color-mix(in oklab, var(--surface) 86%, transparent); }
+
+  .grid{ gap:16px; }      /* เดิมใช้ var(--gap) ที่ผูกกับ vw */
+
+  /* แถวค้นหาในการ์ด soft ให้เสถียร */
+  .card.soft .row{
+    display:grid;
+    grid-template-columns: 1fr auto; /* ช่องค้นหาเต็ม + ชิปด้านขวา */
+    align-items:center;
+    gap:12px;
+  }
+  #chipBar{ display:flex; gap:8px; flex-wrap:wrap; }
+
+  /* ปุ่ม/ชิป/อินพุต: ขนาดตายตัว */
+  .tabs .chip, .chip{
+    padding:8px 14px;
+    min-height:38px;
+    border-radius:999px;
+  }
+  .input, .form input{
+    min-height:44px;
+    padding:12px 14px;
+  }
+  .row2{ gap:16px; }
+
+  /* Select controls คงที่ */
+  .select-btn{
+    padding:12px 14px;
+    min-height:48px;
+    border-radius: var(--radius-sm);
+  }
+  .select-search{ padding:8px; }
+  details{ padding:10px 12px; }
+
+  /* ตาราง (ส่วนหน้าสั่งซื้อ history) */
+  .table th, .table td{ padding:10px 12px; }
+  .order-desktop{ scrollbar-gutter: stable both-edges; }
+
+  /* เฉพาะ grid ไอคอนแพลตฟอร์ม: ล็อกช่องว่างคงที่ */
+  #platformGrid{ gap:14px; } /* โครงคอลัมน์เดิมยัง responsive ตามความกว้างพื้นที่ */
+}
+
+/* ===== Brand slot ปรับเฉพาะหัวแถบข้าง ===== */
+.sb-head{
+  display:flex; align-items:center; gap:10px;
+  padding:12px 10px; border-bottom:1px dashed var(--border);
+}
+.sb-brand{
+  flex:1 1 auto;
+  display:flex; align-items:center; justify-content:center;
+  height:56px; padding:8px 10px;
+  border-radius:14px;
+  background:color-mix(in oklab, var(--surface) 92%, transparent);
+  text-decoration:none; color:inherit;
+  box-shadow:0 2px 10px color-mix(in oklab, #000 12%, transparent);
+  overflow:hidden; /* กันล้น/กะพริบ */
+}
+
+/* รูปทั้งสอง: เตรียม transition ให้สลับเนียน ๆ */
+.sb-brand .brand-icon,
+.sb-brand .brand-wordmark{
+  display:block; object-fit:contain;
+  transition:opacity .18s ease, width .18s ease, height .18s ease, margin .18s ease;
+  filter: drop-shadow(0 1px 4px rgba(0,0,0,.35));
+}
+
+/* สถานะเริ่มต้น = แถบหุบ: โชว์เฉพาะไอคอน กลางกล่อง */
+.sidebar{ width:var(--sb-collapsed); }
+.sidebar:not(.pinned):not(:hover) .sb-brand{ justify-content:center; }
+.sidebar:not(.pinned):not(:hover) .sb-brand .brand-icon{
+  width:28px; height:28px; opacity:1; margin:0;
+}
+.sidebar:not(.pinned):not(:hover) .sb-brand .brand-wordmark{
+  width:0; height:0; opacity:0; margin:0; pointer-events:none;
+}
+
+/* สถานะ “กาง” (ปักหมุด หรือ โฮเวอร์): ซ่อนไอคอน โชว์โลโก้เต็มแทนที่ */
+.sidebar.pinned .sb-brand,
+.sidebar:not(.pinned):hover .sb-brand{
+  justify-content:flex-start; padding-inline:12px;
+}
+
+.sidebar.pinned .sb-brand .brand-icon,
+.sidebar:not(.pinned):hover .sb-brand .brand-icon{
+  width:0; height:0; opacity:0; margin:0; pointer-events:none;
+}
+
+.sidebar.pinned .sb-brand .brand-wordmark,
+.sidebar:not(.pinned):hover .sb-brand .brand-wordmark{
+  /* ปรับขนาดให้เห็นชัด และยืดเต็มความกว้างที่เหลือ */
+  height:300px;            /* ลอง 34–38px ตามที่ชอบ */
+  width:auto;             /* รักษาอัตราส่วนภาพ */
+  max-width:100%;
+  opacity:1;
+  margin-left:0;          /* ไม่ต้องเหลือที่ไอคอนแล้ว */
+}
+
+/* ปุ่มปักหมุด */
+.sb-pin{
+  border:1px solid var(--border); background:transparent; color:inherit;
+  border-radius:14px; padding:8px 10px; cursor:pointer;
+  min-width:44px; height:44px;
+}
+.sb-pin.active{ background:var(--accent); border-color:var(--accent); color:#fff }
+
+/* ซ่อน group text ตอนหุบ (ของเดิมคุณมีแล้ว) */
+.sidebar:not(.pinned):not(:hover) .sb-group{ opacity:0; width:0; padding:0; margin:0; pointer-events:none }
+
+.rule-grid{
+  display:grid;
+  grid-template-columns: 1.2fr 1.4fr 1.4fr 1.4fr 1fr 1fr auto;
+  gap:16px;
+  align-items:end;
+}
+.rule-grid > label{ display:flex; flex-direction:column; gap:6px; }
+.rule-grid .actions{ display:flex; gap:8px }
+
+.card.info{ background: color-mix(in oklab, var(--surface) 92%, transparent); }
+.card.info .help{ margin:.2rem 0 0 1rem; line-height:1.6 }
+.card.info code{ padding:1px 6px; border:1px solid var(--border); border-radius:8px; font-family:ui-monospace,monospace }
+
+.mono{ font-family:ui-monospace,Menlo,Consolas,monospace }
+
+
+.o-card { cursor: pointer; }
+.o-card .o-actions,
+.o-card a,
+.o-card button { cursor: auto; } 
+
+
+
+
+/* Desktop: วางสถานะไว้ด้านบน ปุ่มอยู่ด้านล่าง พร้อมเส้นคั่นระหว่างปุ่ม */
+@media (min-width: 992px) {
+  /* กล่องที่ห่อ pill + ปุ่ม (ในตาราง desktop) */
+  .order-desktop .order-table td .row.justify-between{
+    display: flex;
+    flex-direction: column;     /* เรียงบน-ล่าง */
+    align-items: flex-start;    /* ยึดซ้าย */
+    gap: 10px;                  /* ช่องว่างระหว่าง pill กับปุ่ม */
+  }
+
+  /* แถวปุ่ม */
+  .order-desktop .order-table td .actions{
+    display: flex;
+    align-items: center;
+    gap: 12px;                  /* ระยะห่างหลักระหว่างปุ่ม */
+    margin-top: 2px;            /* เกาะใต้ pill นิดเดียวให้บาลานซ์ */
+  }
+
+  /* ไซซ์ปุ่มให้พอดี (ถ้าต้องการ) */
+  .order-desktop .order-table td .actions .icon{
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
+    justify-content: center;
+    align-items: center;
+    margin: 0;                  /* กัน margin ซ้อน */
+  }
+
+  /* เส้นคั่นระหว่างปุ่ม */
+  .order-desktop .order-table td .actions .icon + .icon{
+    position: relative;
+    padding-left: 10px;         /* ที่ว่างก่อนเส้นคั่น */
+  }
+  .order-desktop .order-table td .actions .icon + .icon::before{
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 4px;
+    bottom: 4px;
+    width: 1px;
+    background: rgba(255,255,255,.16); /* เส้นคั่นจาง ๆ */
+  }
+}
+
+/* ===== Mobile sidebar ===== */
+@media (max-width:900px){
+  /* เปิดเมนูแล้วต้องเห็นข้อความเมนู/หัวข้อ */
+  .sidebar.open:not(.pinned) .sb-item .txt,
+  .sidebar.open:not(.pinned) .sb-group{
+    display: inline !important;
+    opacity: 1 !important;
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    pointer-events: auto !important;
+    white-space: normal !important;
+  }
+  .sidebar.open:not(.pinned) .sb-group{ display:block !important; }
+
+  /* ขนาด/เลเยอร์ของแถบ */
+  .sidebar{
+    width:50vw; max-width:360px;
+    transform:translateX(-100%);
+    z-index:1000;                         /* อยู่เหนือ overlay */
+    box-shadow:8px 0 24px rgba(0,0,0,.45);
+  }
+  .sidebar.open{ transform:translateX(0); }
+  .sb-wrap{ margin-left:0 !important; }
+  .sb-pin{ display:none !important; }
+
+  /* ปรับกล่องหัวแถบให้พร้อมรับโลโก้เต็ม */
+  .sidebar .sb-brand{
+    display:flex;
+    align-items:center;
+    justify-content:flex-start;        /* ชิดซ้าย (เปลี่ยนเป็น center ได้ถ้าต้องการ) */
+    padding-inline:12px;
+    height:56px;                        /* ความสูงหัวแถบ */
+    overflow:hidden;
+  }
+
+  /* หัวแถบติดบนสุด */
+  .sb-head{
+    position:sticky; top:0; z-index:1001;
+    background:var(--card);
+    border-bottom:1px solid var(--border);
+  }
+
+  /* ฉากหลังมืด */
+  body:has(.sidebar.open)::before{
+    content:""; position:fixed; inset:0;
+    background:rgba(0,0,0,.52); backdrop-filter:blur(1.5px);
+    z-index:900;
+  }
+  body.sb-open{ overflow:hidden; }
+
+  /* ===== โลโก้: ไอคอน --> โลโก้เต็ม แบบ smooth ===== */
+  .sb-brand{
+    position:relative;
+    display:flex; align-items:center;
+    justify-content:flex-start;
+    padding-inline:12px;
+    height:56px;
+  }
+  .sb-brand img{ display:block; height:30px; width:auto; }
+
+  /* เมื่อเมนูเปิด และถูกสั่งให้ "สลับโลโก้" แล้ว */
+  .sidebar.open .sb-brand .brand-icon{ display:none !important; }
+  .sidebar.open .sb-brand .brand-wordmark{
+    position:static !important;        /* เอา absolute/translate ออก */
+    transform:none !important;
+    display:block !important;
+    width:100% !important;              /* เต็มความกว้าง */
+    height:auto !important;             /* รักษาอัตราส่วน */
+    max-height:170px !important;         /* สูงสุดภายในหัวแถบ 56px */
+    object-fit:contain;                 /* คุมสัดส่วนให้พอดี */
+    opacity:1 !important;
+    margin:0 !important;
+    pointer-events:auto !important;
+  }
+}
+
+
+/* ===== Auth Cards ===== */
+.auth-card{
+  max-width: 860px;
+  margin: 24px auto;
+  padding: clamp(16px,2.6vw,24px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--surface) 92%, transparent);
+  box-shadow: var(--shadow);
+}
+.auth-head{ text-align:center; margin-bottom: 18px; }
+.auth-title{ font-size: clamp(20px, 3vw, 24px); font-weight: 800; }
+.auth-sub{ color: var(--muted); margin-top: 4px; }
+
+.auth-form{
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 14px;
+  align-items: end;
+}
+.auth-form label{ display:flex; flex-direction:column; gap:6px; font-weight:700; }
+.auth-form input{
+  padding: 12px 14px;
+  border:1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  min-height: 44px;
+}
+.auth-form .btn{ min-height: 44px; }
+
+.auth-foot{ margin-top: 10px; color: var(--muted); text-align: right; }
+.auth-foot a{ color: var(--accent); }
+
+@media (max-width: 900px){
+  .auth-form{ grid-template-columns: 1fr; }
+  .auth-foot{ text-align: left; }
+}
+
+/* Alerts */
+.alert{
+  margin: 10px 0 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+.alert.error{ background: color-mix(in oklab, var(--danger) 20%, transparent); }
+
+/* ===== Modal (Success / Error) ===== */
+/* ===== Overlay / Dialog ===== */
+  dialog.rt-modal { border: 0; padding: 0; background: transparent; }
+  dialog.rt-modal[open] {
+    display: flex; align-items: center; justify-content: center;
+  }
+  dialog.rt-modal::backdrop {
+    background: rgba(0,0,0,.55);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
+
+  /* ===== Card ===== */
+  .rt-card {
+    width: min(420px, 92vw);
+    background: var(--card, #17171b);
+    color: var(--text, #fff);
+    border-radius: 20px;
+    padding: 24px 22px;
+    box-shadow: 0 10px 40px rgba(0,0,0,.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    animation: rtScaleIn .16s ease-out;
+  }
+
+  /* ===== Icon ===== */
+  .rt-icon {
+    width: 56px; height: 56px;
+    display: grid; place-items: center;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #32d583, #16a34a);
+    box-shadow: 0 6px 20px rgba(22,163,74,.35);
+  }
+  .rt-icon svg { width: 30px; height: 30px; }
+
+  /* ===== Text ===== */
+  .rt-title {
+    margin: 4px 0 0;
+    font-size: 20px; font-weight: 800; letter-spacing: .2px;
+    text-align: center;
+  }
+  .rt-desc {
+    margin: 0;
+    opacity: .85; text-align: center; line-height: 1.5;
+  }
+
+  /* ===== Actions ===== */
+  .rt-actions {
+    display: flex; gap: 10px; justify-content: center; width: 100%;
+    margin-top: 6px;
+  }
+  .rt-actions .btn { min-width: 120px; }
+
+  /* ===== States (optional – ใช้กับสคริปต์เดิม) ===== */
+  .rt-modal.ok    .rt-icon { background: linear-gradient(180deg, #32d583, #16a34a); }
+  .rt-modal.error .rt-icon { background: linear-gradient(180deg, #f97316, #dc2626); }
+  .rt-modal.loading .rt-icon { background: linear-gradient(180deg, #60a5fa, #2563eb); }
+
+  @keyframes rtScaleIn {
+    from { transform: translateY(6px) scale(.96); opacity: .0; }
+    to   { transform: none; opacity: 1; }
+  }
+
+  /* โทนเดียวกับที่เราตั้ง token ไว้ */
+.chip{
+  display:inline-flex; align-items:center; gap:.45rem;
+  padding:.38rem .8rem; border-radius:999px; line-height:1;
+  font-weight:600; text-decoration:none;
+  background:var(--pv-soft-bg);
+  color:var(--pv-soft-text);
+  border:1px dashed var(--pv-soft-border);
+}
+.chip:hover{ text-decoration:none; box-shadow:var(--pv-shadow); transform:translateY(-1px); }
+
+.chip-ico{
+  width:18px; height:18px; flex:0 0 18px; object-fit:contain;
+  display:block; /* กันขยับตาม baseline */
+}
+
+
+/* ===== Order Status Pill + Action Buttons (theme-aware) ===== */
+/* กลุ่มสถานะ */
+.st-stack{
+  display:flex; align-items:center; gap:.75rem;
+}
+
+/* ป้ายสถานะสีฟ้าอ่อนตามตัวอย่าง */
+.pill.progress{
+  background:#cfe6ff;         /* Light theme */
+  color:#0e3a5a;
+  border-radius:10px;
+  padding:.55rem .85rem;
+  font-weight:800;
+  line-height:1;
+  display:inline-flex; align-items:center; gap:.25rem;
+}
+
+/* Dark theme ให้เข้ากับของคุณ (มีโทเคนอยู่แล้ว) */
+html[data-theme="dark"] .pill.progress{
+  background:rgba(34,211,238,.14);
+  color:#9fdcff;
+}
+
+/* ปุ่มกลมเล็กใต้ป้าย */
+.st-actions{ display:flex; align-items:center; gap:.4rem; }
+.xbtn{
+  width:28px; height:28px; border:0; border-radius:999px;
+  display:grid; place-items:center;
+  font-size:16px; line-height:1; cursor:pointer;
+  background:#e9f1ff; color:#1b66ff;
+}
+.xbtn:hover{ transform:translateY(-1px); box-shadow:var(--pv-shadow); }
+.xbtn:disabled{ opacity:.55; cursor:default; transform:none; box-shadow:none; }
+
+.xbtn-info{ background:#e9fff6; color:#0aa36c; text-decoration:none; }
+html[data-theme="dark"] .xbtn{ background:#16283a; color:#79a8ff; }
+html[data-theme="dark"] .xbtn-info{ background:#0f2a24; color:#47d9a1; }
+
+/* ===== Order Modal (theme-aware) ===== */
+.omodal{ position:fixed; inset:0; z-index:1000; display:none; }
+.omodal.show{ display:block; }
+.omodal-backdrop{
+  position:absolute; inset:0;
+  background: rgba(14, 49, 76, 0.712);
+  backdrop-filter: blur(10px) saturate(1.05);
+  -webkit-backdrop-filter: blur(10px) saturate(1.05);
+}
+html[data-theme="dark"] .omodal-backdrop{
+  background: rgba(0,0,0,.45);
+}
+
+.omodal-dialog{
+  position:relative;
+  width:min(720px, calc(100vw - 32px));
+  margin: 28px auto;
+  background: var(--pv-surface-2);
+  border:1px dashed var(--pv-border);
+  border-radius: 12px;
+  box-shadow: var(--pv-shadow);
+  color: var(--pv-dark);
+}
+.omodal-head{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 16px; border-bottom:1px dashed var(--pv-border);
+}
+.omodal-title{ font-weight:800; font-size:18px; }
+.omodal-close{
+  appearance:none; background:transparent; border:0; font-size:20px;
+  line-height:1; cursor:pointer; color:var(--pv-muted);
+}
+.omodal-body{ padding:16px; }
+.omodal-sec{ margin-bottom:18px; }
+.omodal-sec h4{ margin:0 0 10px; font-weight:800; }
+
+.ometa{
+  display:grid; grid-template-columns: 160px 1fr;
+  row-gap:8px; column-gap:12px; font-weight:600;
+}
+.ometa .muted{ color:var(--pv-muted); font-weight:500; }
+
+/* time-line (radio) */
+.otimeline{ display:grid; gap:10px; }
+.ot-item{ display:flex; gap:8px; align-items:flex-start; }
+.ot-item input{ margin-top:4px; }
+.ottime{ font-size:12px; color:var(--pv-muted); margin-left:26px; }
+
+/* progress bar + helper */
+.oprog{
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+}
+.oprog .pill{
+  background:#cfe8ff; color:#0e314c; border-radius:10px; padding:6px 12px; font-weight:700;
+}
+html[data-theme="dark"] .oprog .pill{
+  background:#173b6a; color:#e6edf3;
+}
+.opbar{
+  width:100%; height:8px; border-radius:999px; background:rgba(0,0,0,.08);
+  overflow:hidden;
+}
+html[data-theme="dark"] .opbar{ background:#14202a; }
+.opbar > i{
+  display:block; height:100%; width:0%;
+  background: linear-gradient(90deg, #2f7cff, #21a1ff);
+}
+.opct{ font-weight:800; }
+
+/* footer */
+.omodal-foot{
+  padding:12px 16px; border-top:1px dashed var(--pv-border);
+  display:flex; justify-content:flex-end; gap:8px;
+}
+.btn-ghost{
+  background:transparent; border:1px dashed var(--pv-border); color:var(--pv-dark);
+  border-radius:10px; padding:8px 12px; font-weight:600; cursor:pointer;
+}
+.btn-primary{
+  background:var(--pv-primary); color:#fff; border:1px solid var(--pv-primary);
+  border-radius:10px; padding:8px 12px; font-weight:700; cursor:pointer;
+}
+
+/* ===== Modal: solid background + theme-aware contrast ===== */
+
+/* พื้นหลังเบลอด้านหลัง: ขุ่นขึ้นเล็กน้อยให้ตัดกับ dialog ชัด */
+.omodal-backdrop{
+  background: rgba(14,49,76,.35);            /* Light */
+  backdrop-filter: blur(12px) saturate(1.05);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+}
+html[data-theme="dark"] .omodal-backdrop{
+  background: rgba(0,0,0,.60);               /* Dark */
+}
+
+/* กล่องโมดัล: ใช้สีทึบจริง ๆ ตามธีมและเพิ่มคอนทราสต์ข้อความ */
+.omodal-dialog{
+  background:#ffffff !important;             /* Light: ขาวทึบ */
+  color:#0e314c !important;                  /* Light: ตัวอักษรเข้มอ่านง่าย */
+  border:1px dashed var(--pv-border);
+  box-shadow: 0 18px 50px rgba(14,49,76,.15);
+}
+
+/* Dark: พื้นทึบ, ขอบ, เงา และตัวอักษรให้อ่านง่าย */
+html[data-theme="dark"] .omodal-dialog{
+  background:#0f1e2b !important;             /* เข้มทึบ */
+  color:#e6edf3 !important;
+  border-color:#173046;
+  box-shadow: 0 18px 60px rgba(0,0,0,.55);
+}
+
+/* เส้นขอบส่วนหัว/ท้าย + ข้อความจางในทั้งสองธีมให้คมชัด */
+.omodal-head,
+.omodal-foot{ border-color: var(--pv-border) !important; }
+
+.ometa .muted,
+.ottime,
+.omodal-close{ color: var(--pv-muted) !important; }
+
+/* ลิงก์ในโมดัลให้เด่นตามธีม */
+#om-link{
+  color: var(--pv-primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+#om-link:hover{ text-decoration: underline; }
+
+/* ป้ายสถานะในบรรทัดความคืบหน้า (ให้คอนทราสต์เหมาะกับธีม) */
+.oprog .pill{
+  background:#e6f1ff;                        /* Light */
+  color:#0e314c;
+}
+html[data-theme="dark"] .oprog .pill{
+  background:#173b6a;                        /* Dark */
+  color:#e6edf3;
+}
+
+/* แถบเปอร์เซ็นต์: ราง + แถบสี */
+.opbar{ background: rgba(0,0,0,.08); }
+html[data-theme="dark"] .opbar{ background: #14202a; }
+.opbar > i{ background: linear-gradient(90deg,#2f7cff,#21a1ff); }
+
+/* ปุ่มปิด (X) โทนตามธีม + hover ชัด */
+.omodal-close{
+  color: var(--pv-muted);
+  transition: transform .15s ease, color .15s ease;
+}
+.omodal-close:hover{ color: var(--pv-dark); transform: scale(1.08); }
+html[data-theme="dark"] .omodal-close:hover{ color:#fff; }
+
+/* ปุ่มท้ายโมดัล */
+.btn-ghost{
+  background: transparent;
+  color: inherit;
+  border:1px dashed var(--pv-border);
+}
+.btn-primary{
+  background: var(--pv-primary);
+  border:1px solid var(--pv-primary);
+  color:#fff;
+}
+
+/* ===================== Accent tokens ===================== */
+:root{
+  /* เหลืองเน้นอ่านง่ายบน Light */
+  --pv-yellow:      #eab308;   /* Amber 500 */
+  --pv-yellow-ink:  #7c5800;   /* ข้อความบนพื้นเหลืองอ่อน */
+  --pv-link-blue:   #2563eb;   /* ลิงก์ */
+  --pv-band:        rgba(2,132,199,.06);   /* แถบอ่อนเบาๆ */
+}
+html[data-theme="dark"]{
+  /* เหลืองสำหรับ Dark (สว่างขึ้นเล็กน้อย) */
+  --pv-yellow:      #ffd24a;
+  --pv-yellow-ink:  #1d1600;
+  --pv-link-blue:   #7cb5ff;
+  --pv-band:        rgba(125,211,252,.06);
+}
+
+/* ===================== Header: Order ID ===================== */
+/* เส้นคั่นหัวข้อให้คมขึ้น */
+.omodal-head{ border-bottom:1px dashed rgba(255,255,255,.65); }
+html:not([data-theme="dark"]) .omodal-head{ border-bottom:1px dashed #9aa6b2; }
+
+/* ป้ายเลขออเดอร์ให้เด่น */
+.omodal-title .oid{
+  display:inline-flex; align-items:center; gap:.5rem;
+  padding:.35rem .6rem .35rem .5rem;
+  border-radius:10px;
+  background:#fdbe00;
+  color: var(--pv-yellow-ink);
+  font-weight: 900;
+  letter-spacing:.2px;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.06);
+}
+html[data-theme="dark"] .omodal-title .oid{
+  color:#1d1600; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25);
+}
+
+/* ===================== Money (ยอดรวม) ===================== */
+.omoney{
+  display:grid; grid-template-columns: 170px 1fr; align-items:center;
+  background: var(--pv-band);
+  border-radius:12px; padding:10px 12px;
+  box-shadow: inset 0 0 0 1px var(--pv-border);
+}
+.omoney .label{ font-weight:800; opacity:.9; }
+.omoney .value{
+  justify-self:start;
+  display:inline-flex; align-items:center; gap:.5rem;
+  padding:.2rem .55rem;
+  border-radius:10px;
+  background:#e2b632c0;
+  color: var(--pv-dark);
+  font-weight:900;
+}
+html[data-theme="dark"] .omoney .value{
+  background:#ffbf00c0;
+  color:#000000;
+}
+
+/* ===================== Timeline ===================== */
+.otimeline{
+  padding:12px; border-radius:12px;
+  background: var(--pv-band);
+  box-shadow: inset 0 0 0 1px var(--pv-border);
+}
+.ot-item{ position:relative; padding:8px 10px; border-radius:10px; }
+.ot-item:hover{ background: rgba(0,0,0,.04); }
+html[data-theme="dark"] .ot-item:hover{ background: rgba(255,255,255,.04); }
+
+/* Radio styling + state เน้นเหลืองตอนเลือก */
+.ot-item input[type="radio"]{ accent-color: var(--pv-yellow); }
+.ot-item input[type="radio"]:checked + label .ot-title{
+  color: var(--pv-yellow);
+  text-shadow: 0 0 0 transparent, 0 0 0 transparent, 0 0 12px rgba(250,204,21,.25);
+}
+.ot-title{ font-weight:800; }
+.ottime{ font-size:12px; color:var(--pv-muted); margin-left:26px; }
+
+/* ===================== Link ===================== */
+.olink a{
+  color: var(--pv-link-blue); font-weight:800;
+  text-decoration: none; position:relative;
+}
+.olink a::after{
+  text-decoration: none; content:""; position:absolute; left:0; right:0; bottom:-2px; height:2px;
+  background: currentColor; opacity:.2; border-radius:999px; transition:opacity .2s,width .2s;
+}
+.olink a:hover::after{ opacity:.5; }
+
+
+
+/* ===================== Progress บรรทัด & เส้นคั่น ===================== */
+/* เส้นบรรทัดความคืบหน้า ใส่ขอบพอให้ลอยจากพื้น */
+.opbar{ border:1px solid var(--pv-border); }
+
+/* เส้นคั่นส่วนใน Modal ให้ชัด (Dark = ขาว / Light = เทาเข้ม) */
+.omodal .hr,
+.omodal .section-sep{
+  height:1px; margin:14px 0; border:0;
+  background: rgba(255,255,255,.65);
+}
+html:not([data-theme="dark"]) .omodal .hr,
+html:not([data-theme="dark"]) .omodal .section-sep{
+  background:#9aa6b2;
+}
+
+/* โครงสร้างแถวสถานะ */
+.st-cell .st-block{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+/* แท่งสถานะยาว */
+.pill.long{
+  position:relative;
+  display:block;
+  border-radius:14px;
+  overflow:hidden;
+  padding:10px 14px;
+  font-weight:700;
+  background:#cfe2ff;          /* ฟ้าอ่อน (พื้นหลังด้านขวา) */
+  color:#ffffff;               /* ตัวอักษรสีขาว */
+}
+
+/* แถบสีเข้มทางซ้าย (ความกว้าง = % ความคืบหน้า) */
+.pill.long .bar{
+  position:absolute;
+  inset:0 auto 0 0;
+  height:100%;
+  width:0%;
+  background:#0d6efd;          /* ฟ้าเข้ม */
+  border-radius:14px;
+}
+
+/* ข้อความอยู่ด้านบน bar */
+.pill.long .label{
+  position:relative;
+  z-index:1;
+  white-space:nowrap;          /* ให้อยู่บรรทัดเดียว */
+}
+
+/* เสร็จสิ้น = เขียว */
+.pill.long.ok{
+  background:#d1e7dd;          /* เขียวอ่อน */
+  color:#ffffff;
+}
+.pill.long.ok .bar{
+  background:#198754;          /* เขียวเข้ม */
+  width:100%;
+}
+
+/* ปุ่มย้ายลงล่าง */
+.st-actions.under{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+/* กันธีมเดิมบังคับเป็น ... ตอน disabled */
+.btn.primary:disabled::after { content: none !important; }
+/* แค่ทำให้ซีดลงพอ */
+.btn.primary:disabled { opacity: .7; pointer-events: none; }
+/* ถ้าใช้คลาสโหลด */
+.btn.primary.is-loading::after { content: none; }
+
+/* =========================================================
+   Sidebar overlay (ไม่ปักหมุด = ทับ, ปักหมุด = ดัน)
+   + กำหนด container เหลือขอบซ้าย/ขวาเพียง 5px
+   วางท้ายไฟล์เพื่อให้ชนะกฏเดิม
+   ========================================================= */
+@media (min-width: 901px){
+
+  /* 1) ค่าเริ่มต้น: ไม่ปักหมุด = ไม่ดันคอนเทนต์ */
+  .sb-wrap{
+    margin-left: 60px !important;
+    margin-right: 5px !important;
+    overflow-x: hidden; 
+  }
+
+  /* 2) แม้ hover เพื่อขยายก็ยัง “ทับ” ไม่ให้คอนเทนต์ขยับ */
+  .sidebar:not(.pinned):hover ~ .sb-wrap{
+    margin-left: 0 !important;
+  }
+
+  /* 3) เฉพาะตอนปักหมุดเท่านั้น จึงกันพื้นที่ให้ sidebar จริง */
+  .sidebar.pinned ~ .sb-wrap{
+    margin-left: var(--sb-w) !important;
+  }
+
+  /* ให้ sidebar ลอยอยู่เหนือคอนเทนต์เวลา overlay */
+  .sidebar{ z-index: 200 !important; }
+
+  /* 4) คอนเทนต์ชิดขอบจอ เหลือข้างละ 5px เสมอ */
+  .sb-wrap .container{
+    max-width: none !important;
+    width: calc(100% - 10px) !important;  /* ซ้าย 5px + ขวา 5px */
+    padding-left: 5px !important;
+    padding-right: 5px !important;
+  }
+
+  /* เผื่ออยากลดช่องว่างใบแรกให้แนบกว่าเดิม */
+  .sb-wrap .container > .card:first-child{
+    margin-top: 6px !important;
+  }
+}

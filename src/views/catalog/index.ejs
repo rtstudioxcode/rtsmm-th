@@ -1,0 +1,576 @@
+<!-- //index.ejs -->
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="content-language" content="th" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title>โปรแกรมเพิ่มผู้ติดตาม 2025 | เว็บปั้มวิว ปั้มไลค์ การตลาดโซเชียล</title>
+  <meta name="description" content="ปั้มวิว ปั้มไลค์ ปั้มผู้ติดตาม ครบวงจร ใช้งานง่าย ปลอดภัย ทดลองฟรี เริ่ม 0.01 บาท รองรับ Facebook Instagram YouTube TikTok และอีกมากมาย" />
+  <meta name="keywords" content="ปั้มวิว, ปั้มไลค์, ปั้มผู้ติดตาม, ปั้มวิวtiktok, ปั้มซับyoutube, เพิ่มผู้ติดตาม, โฆษณาออนไลน์" />
+
+  <!-- Favicon -->
+  <link rel="icon" href="/static/logo/icon-logo.png" type="image/png">
+  <link rel="shortcut icon" href="/static/logo/icon-logo.png" type="image/png">
+  <link rel="apple-touch-icon" href="/static/logo/icon-logo.png">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Bootstrap & Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/css/flag-icons.min.css"/>
+  <!-- Effects (ให้ลื่นไหลเหมือนเว็บตัวอย่าง) -->
+  <link rel="stylesheet" href="https://iplusview.store/assets-landing/css/animate.min.css">
+  <link rel="stylesheet" href="https://iplusview.store/assets-landing/css/main.css">
+
+  <script>
+  /** Bridge: map data-theme (จาก layout.ejs) → CSS variables ที่หน้า Landing ใช้ */
+  (() => {
+    const html = document.documentElement;
+
+    // (ถ้ามี config ฝั่งเซิร์ฟเวอร์ ให้ฝังเข้ามาได้เลย)
+    const PALETTE_LIGHT = Object.assign({
+      primary:'#16a34a',
+      accent:'#7c3aed',
+      dark:'#0e314c',
+      muted:'#6084a4',
+      surface:'#f7fafd',
+      surface2:'#ffffff',
+      gradient:'linear-gradient(135deg,#22c55e 0%, #06b6d4 100%)'
+    }, (window.THEME_LIGHT||{}));
+
+    const PALETTE_DARK = Object.assign({
+      primary:'#22d3ee',
+      accent:'#a78bfa',
+      dark:'#e6edf3',
+      muted:'#9fb6c6',
+      surface:'#0b1620',
+      surface2:'#0f1e2b',
+      gradient:'linear-gradient(135deg,#06b6d4 0%, #14b8a6 100%)'
+    }, (window.THEME_DARK||{}));
+
+    function setVars(p) {
+      const s = html.style;
+      s.setProperty('--theme-primary',  p.primary);
+      s.setProperty('--theme-accent',   p.accent);
+      s.setProperty('--theme-dark',     p.dark);
+      s.setProperty('--theme-muted',    p.muted);
+      s.setProperty('--theme-surface',  p.surface);
+      s.setProperty('--theme-surface-2',p.surface2);
+      s.setProperty('--theme-gradient', p.gradient);
+
+      // เผื่อใช้ Bootstrap theme ด้วย
+      html.setAttribute('data-bs-theme', (html.getAttribute('data-theme') === 'dark') ? 'dark' : 'light');
+    }
+
+    function applyByCurrentTheme() {
+      const isDark = html.getAttribute('data-theme') === 'dark';
+      setVars(isDark ? PALETTE_DARK : PALETTE_LIGHT);
+    }
+
+    // ครั้งแรก
+    applyByCurrentTheme();
+
+    // เวลาเปลี่ยนธีมจากปุ่มใน layout.ejs
+    window.addEventListener('themechange', applyByCurrentTheme);
+
+    // ถ้าอยากเปลี่ยนสี runtime:
+    window.ThemeBridge = {
+      setLight(vars){ Object.assign(PALETTE_LIGHT, vars||{}); applyByCurrentTheme(); },
+      setDark(vars){  Object.assign(PALETTE_DARK,  vars||{}); applyByCurrentTheme(); }
+    };
+  })();
+  </script>
+
+  <!-- ==== DARK THEME: FINAL PATCH (put this after your existing CSS) ==== -->
+  <style>
+    /* ========= Single Source of Truth: tokens ========= */
+    :root{
+      --pv-primary:  var(--theme-primary, #22c55e);
+      --pv-accent:   var(--theme-accent,  #0ea5e9);
+      --pv-dark:     var(--theme-dark,    #0e314c);
+      --pv-muted:    var(--theme-muted,   #6084a4);
+      --pv-bg:       var(--theme-bg,        #f7fafd);
+      --pv-surface:  var(--theme-surface,   #ffffff);
+      --pv-surface-2:var(--theme-surface-2, #ffffff);
+      --pv-border:   var(--theme-border,    #e6eef5);
+      --pv-border-soft: var(--theme-border-soft, #cdf1d8);
+      --pv-soft-bg:     var(--theme-soft-bg,     #e7f8ee);
+      --pv-soft-text:   var(--theme-soft-text,   #198754);
+      --pv-soft-border: var(--theme-soft-border, #cdf1d8);
+      --pv-hero-a: rgba(68,206,111,.08);
+      --pv-hero-b: rgba(99,74,165,.06);
+      --pv-shadow: 0 12px 24px rgba(14,49,76,.08);
+      --pv-gradient: var(--theme-gradient, linear-gradient(135deg,#22c55e 0%, #06b6d4 100%));
+      --font-sans: "Inter", "Noto Sans Thai", system-ui, -apple-system,
+               "Segoe UI", Roboto, "Helvetica Neue", Arial, "Apple Color Emoji",
+               "Segoe UI Emoji", "Segoe UI Symbol";
+    }
+
+    /* ========= Dark tokens (ครบทุกตัวแปร) ========= */
+    html[data-theme="dark"],
+    html.dark,
+    html[data-bs-theme="dark"]{
+      --pv-primary:  var(--theme-primary, #22d3ee);
+      --pv-accent:   var(--theme-accent,  #a78bfa);
+      --pv-dark:     var(--theme-dark,    #e6edf3);
+      --pv-muted:    var(--theme-muted,   #9fb6c6);
+
+      --pv-bg:         var(--theme-bg,        #07131b);
+      --pv-surface:    var(--theme-surface,   #0b1620);
+      --pv-surface-2:  var(--theme-surface-2, #0f1e2b);
+      --pv-border:     var(--theme-border,    #173046);
+      --pv-border-soft:var(--theme-border-soft, #1d3b54);
+
+      --pv-soft-bg:     var(--theme-soft-bg,     #0f2a24);
+      --pv-soft-text:   var(--theme-soft-text,   #8fe3b4);
+      --pv-soft-border: var(--theme-soft-border, #1b3f34);
+
+      --pv-hero-a: rgba(34,211,238,.10);
+      --pv-hero-b: rgba(167,139,250,.08);
+      --pv-shadow: 0 12px 24px rgba(0,0,0,.35);
+      --pv-gradient: var(--theme-gradient, linear-gradient(135deg,#06b6d4 0%, #14b8a6 100%));
+
+      color-scheme: dark;
+    }
+
+    /* ========= Base (ทั้ง Light/Dark ใช้ร่วม) ========= */
+    /* ลบขีดเส้นใต้ทุกลิงก์ทั่วทั้งหน้า (รวม hover/focus) */
+    a, a:link, a:visited,
+    a:hover, a:focus, a:active,
+    .nav-link, .nav-link:hover,
+    .link-dark, .link-dark:hover,
+    .dropdown-item, .dropdown-item:hover,
+    .btn, .btn:hover,
+    .balance-pill a, .chip, .chip:hover,
+    .footer a, .footer a:hover {
+      text-decoration: none !important;
+    }
+
+    /* กันบางธีมใช้เส้นใต้โดยทำเป็น border-bottom */
+    a, .nav-link, .dropdown-item, .footer a {
+      border-bottom: 0 !important;
+    }
+    html,body{ 
+      font-family: var(--font-sans);
+      /* คุณภาพการเรนเดอร์ตัวอักษร */
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+      font-feature-settings: "liga","kern","ss01";
+      /* ตัวเลขอ่านง่าย/คอลัมน์ไม่ขยับ */
+      font-variant-numeric: tabular-nums;
+      /* ปิดการสังเคราะห์น้ำหนักให้คงที่ตามไฟล์ฟอนต์จริง */
+      background:var(--pv-surface); 
+    }
+    h1,h2,h3,h4,h5,h6{
+      font-weight: 800; /* เฮดเดอร์แน่นขึ้นดูมั่นใจ */
+      letter-spacing: -0.01em;
+    }
+    .hero h1 { line-height: 1.15; }
+    .hero{
+      background:
+        radial-gradient(1200px 600px at 85% 20%, var(--pv-hero-a), transparent 60%),
+        radial-gradient(1000px 600px at 10% 80%, var(--pv-hero-b), transparent 60%),
+        var(--pv-surface);
+    }
+    body, p, li { font-weight: 500; }
+    .btn, .badge, .chip, .balance-pill { text-decoration: none; font-weight: 600; }
+    /* ตัวเลข/ราคา/ยอด – ให้ชิดคอลัมน์และชัด */
+    .bal-amt, .price, .stat, .counter {
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+    }
+    html[data-theme="dark"] .text-secondary { color: var(--pv-muted) !important; }
+    .display-5, .section-title h2 { font-weight: 900; }
+    .btn-primary{ text-decoration: none; background:var(--pv-primary);border-color:var(--pv-primary)}
+    .btn-outline-light{ text-decoration: none; border-color:#fff;color:#fff}
+    .btn-outline-light:hover{ text-decoration: none; background:#fff;color:#0e314c}
+    .dash-card{
+      background:var(--pv-surface-2);
+      border:1px dashed var(--pv-border-soft)!important;
+      border-radius:16px; height:100%;
+      transition:transform .2s, box-shadow .2s;
+    }
+    .dash-card:hover{ box-shadow:var(--pv-shadow); transform:translateY(-3px) }
+    .dash-icon{
+      width:56px;height:56px;border-radius:12px;
+      display:grid;place-items:center;font-size:22px;color:#fff;
+      background:var(--pv-primary);
+    }
+    .feature-box{
+      background:var(--pv-surface-2);
+      border:1px dashed var(--pv-border);
+      border-radius:14px; padding:14px 16px;
+      display:flex; gap:.6rem; align-items:center;
+    }
+    .badge-soft{
+      background:var(--pv-soft-bg);
+      color:var(--pv-soft-text);
+      border:1px dashed var(--pv-soft-border);
+      border-radius:999px; font-weight:500;
+    }
+    .section-title .bar{width:72px;height:4px;border-radius:999px;background:var(--pv-primary)}
+    .ready{background:var(--pv-gradient); color:#fff}
+    .footer{background:var(--pv-bg)}
+
+    /* ========= Dark-only Overrides (แก้ทุกชิ้นที่คุณวงไว้) ========= */
+    /* 1) Bootstrap utilities ที่ขัดกับธีม */
+    html[data-theme="dark"] .bg-white,
+    html.dark .bg-white,
+    html[data-bs-theme="dark"] .bg-white { background:var(--pv-surface-2)!important; }
+
+    html[data-theme="dark"] .border,
+    html.dark .border,
+    html[data-bs-theme="dark"] .border { border-color:var(--pv-border)!important; }
+
+    html[data-theme="dark"] .text-dark,
+    html.dark .text-dark,
+    html[data-bs-theme="dark"] .text-dark { color:var(--pv-dark)!important; }
+
+    html[data-theme="dark"] .text-secondary,
+    html.dark .text-secondary,
+    html[data-bs-theme="dark"] .text-secondary { color:var(--pv-muted)!important; }
+
+    html[data-theme="dark"] a.link-dark,
+    html.dark a.link-dark,
+    html[data-bs-theme="dark"] a.link-dark { color:var(--pv-dark)!important; }
+    html[data-theme="dark"] a.link-dark:hover,
+    html.dark a.link-dark:hover,
+    html[data-bs-theme="dark"] a.link-dark:hover { color:var(--pv-primary)!important; text-decoration:none; }
+
+    /* 2) การ์ดใน “ทำไมต้องเลือกเรา?” */
+    html[data-theme="dark"] .rounded-4.border.h-100,
+    html.dark .rounded-4.border.h-100,
+    html[data-bs-theme="dark"] .rounded-4.border.h-100 {
+      background:var(--pv-surface-2)!important;
+      border-color:var(--pv-border)!important;
+      box-shadow:var(--pv-shadow);
+    }
+
+    /* 3) บังคับชนะ inline styles ที่ฝังอยู่ (ไอคอน/กรอบการ์ด) */
+    html[data-theme="dark"] .dash-icon[style],
+    html.dark .dash-icon[style],
+    html[data-bs-theme="dark"] .dash-icon[style]{
+      background:var(--pv-primary)!important; color:#fff!important;
+    }
+    html[data-theme="dark"] .dash-card[style],
+    html.dark .dash-card[style],
+    html[data-bs-theme="dark"] .dash-card[style]{
+      border-color:var(--pv-border)!important;
+    }
+
+    /* 4) ปุ่มเส้นใน Hero / CTA ให้คอนทราสต์เหมาะกับ Dark */
+    html[data-theme="dark"] .btn-outline-secondary,
+    html.dark .btn-outline-secondary,
+    html[data-bs-theme="dark"] .btn-outline-secondary{
+      color:var(--pv-dark); border-color:var(--pv-border);
+    }
+    html[data-theme="dark"] .btn-outline-secondary:hover,
+    html.dark .btn-outline-secondary:hover,
+    html[data-bs-theme="dark"] .btn-outline-secondary:hover{
+      background:var(--pv-surface-2);
+    }
+
+    /* 5) Footer – ทั้งหัวข้อ/ลิงก์/ข้อความ ให้สีอ่านง่าย */
+    html[data-theme="dark"] .footer h6,
+    html[data-theme="dark"] .footer p,
+    html[data-theme="dark"] .footer li,
+    html[data-theme="dark"] .footer a,
+    html.dark .footer h6,
+    html.dark .footer p,
+    html.dark .footer li,
+    html.dark .footer a{
+      color:var(--pv-dark)!important;
+    }
+
+    /* 6) ทำ container ให้กว้างสุดจริง ๆ บน Desktop */
+    @media (min-width:1200px){
+      .container, .container-sm, .container-md, .container-lg,
+      .container-xl, .container-xxl, .container-fluid{
+        max-width:100vw!important;
+        padding-left:2rem; padding-right:2rem;
+      }
+    }
+  </style>
+  <!-- ทำให้ Bridge ของคุณ trigger Bootstrap theme ด้วย และ sync ทุกครั้งที่สลับธีม -->
+  <script>
+    (function syncBsTheme(){
+      const html = document.documentElement;
+      function apply(){ html.setAttribute('data-bs-theme', html.getAttribute('data-theme')==='dark'?'dark':'light'); }
+      apply();
+      window.addEventListener('themechange', apply);
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- HERO (เต็มหน้าจอด้วย container-fluid) -->
+  <section class="hero py-5 py-lg-6">
+    <div class="container-fluid px-4 px-xl-5">
+      <div class="row align-items-center g-4">
+        <div class="col-lg-6">
+          <h1 class="display-5 mb-3">
+            โปรแกรมเพิ่มผู้ติดตาม 2025 โซลูชันการเติบโตบนโซเชียล
+            ที่ออกแบบมาเพื่อประสิทธิภาพและความน่าเชื่อถือ
+          </h1>
+          <p class="mb-3">
+            🏆 ผู้นำด้านการตลาดออนไลน์แบบครบวงจร — SEO • ปั้มวิวฟรี • ปั้มใจ TikTok • ปั้มไลค์ฟรี •
+            <strong>ปั้มผู้ติดตาม</strong> • ปั้มฟอลโล IG • ปั้มซับ YouTube • ระบบอัตโนมัติ 24 ชม.
+          </p>
+          <ul class="hero-bullets ps-3 mb-4">
+            <li>เราเป็นผู้นำบริการมากกว่า 30,xxx+ บริการ ครอบคลุมทุกโซเชียล</li>
+            <li>อันดับ 1: YouTube, Instagram, Facebook, Twitter, TikTok</li>
+            <li>รองรับไทย/ต่างประเทศ สั่งได้ตลอด 24 ชั่วโมง</li>
+            <li>ฟรี / ราคาดี อัปเดตบริการใหม่ทุกวัน</li>
+            <li>ประหยัดค่าโฆษณา ไม่มีค่าใช้จ่ายแอบแฝง</li>
+            <li>สมัครง่าย จ่ายเงินหลากหลาย เป็นความลับ</li>
+          </ul>
+          <div class="d-flex gap-2">
+            <a href="/register" class="btn btn-primary btn-lg px-4">สมัครสมาชิก</a>
+            <a href="/login" class="btn btn-primary btn-lg px-4">เข้าสู่ระบบ</a>
+          </div>
+        </div>
+        <div class="col-lg-6 text-center">
+          <img class="img-fluid" alt="illustration"
+               src="/static/assets/img/main-pic.png"/>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 Cards -->
+  <section class="py-5">
+    <div class="container-fluid px-4 px-xl-5">
+      <div class="row g-3 g-lg-4">
+        <div class="col-12 col-sm-6 col-lg-3">
+          <div class="p-4 dash-card">
+            <div class="dash-icon mb-3" style="background:#cdf1d8;color:#44ce6f"><i class="fa-solid fa-server"></i></div>
+            <h5 class="fw-bold">39K เซิร์ฟเวอร์บริการ</h5>
+            <p class="mb-0">มากกว่า 39,000+ ครอบคลุมทุกโซเชียล รองรับได้ทุกความต้องการ</p>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <div class="p-4 dash-card" style="border-color:#000">
+            <div class="dash-icon mb-3" style="background:#000"><i class="fa-solid fa-money-bill-trend-up"></i></div>
+            <h5 class="fw-bold">ฟรี ราคาถูก ราคาพิเศษ</h5>
+            <p class="mb-0">เริ่มเพียง 0.01 บาท — โอกาสดีสำหรับคุณเท่านั้น</p>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <div class="p-4 dash-card" style="border-color:#c679e3">
+            <div class="dash-icon mb-3" style="background:#c679e3"><i class="fa-solid fa-users"></i></div>
+            <h5 class="fw-bold">ทีมงานคนไทย 24/7</h5>
+            <p class="mb-0">ให้คำแนะนำ ประสานงานกับเซิร์ฟเวอร์โดยตรง ตอบไว ไม่ต้องรอ</p>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <div class="p-4 dash-card" style="border-color:#000">
+            <div class="dash-icon mb-3" style="background:#000"><i class="fa-solid fa-shield-heart"></i></div>
+            <h5 class="fw-bold">ปลอดภัย 100%</h5>
+            <p class="mb-0">ออกแบบเพื่อความปลอดภัย มีประสิทธิภาพ และรักษาความเป็นส่วนตัว</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Services grid -->
+  <section class="py-5" style="background:var(--pv-bg)">
+    <div class="container-fluid px-4 px-xl-5">
+      <div class="row align-items-center g-4">
+        <div class="col-lg-6">
+          <div class="section-title mb-3">
+            <h2 class="mb-2">ทดลองฟรี! <strong>ปั้มวิว</strong> เว็บปั้มไลค์ ปั้มผู้ติดตาม</h2>
+            <div class="bar mb-3"></div>
+          </div>
+          <p class="mb-4">
+            ราคาเบา ผลลัพธ์ปัง – เริ่มเพียง 0.01 บาท! ✔️ <strong>ปั้มไลก์ Facebook</strong> ✔️
+            <strong>เพิ่มผู้ติดตาม</strong> ทุกแพลตฟอร์ม ✔️ <strong>ปั้มวิว TikTok</strong> ที่กำลังแรง
+            ปรับแต่งได้อิสระ สมัครง่าย ทดลองได้เลย
+          </p>
+
+          <div class="row g-3">
+            <div class="col-12 col-sm-6"><div class="feature-box"><i class="fa-brands fa-youtube text-success"></i> Youtube เช่น ปั้มวิว ปั้มซับ</div></div>
+            <div class="col-12 col-sm-6"><div class="feature-box"><i class="fa-brands fa-facebook-f text-success"></i> Facebook เช่น ปั้มไลค์ เพิ่มแฟนเพจ</div></div>
+            <div class="col-12 col-sm-6"><div class="feature-box"><i class="fa-brands fa-instagram text-success"></i> Instagram เช่น ปั้มฟอลโล</div></div>
+            <div class="col-12 col-sm-6"><div class="feature-box"><i class="fa-brands fa-x-twitter text-success"></i> Twitter/X เช่น ปั้มรีทวิต</div></div>
+            <div class="col-12 col-sm-6"><div class="feature-box"><i class="fa-regular fa-heart text-success"></i> TikTok เช่น ปั้มใจ ปั้มแชร์</div></div>
+            <div class="col-12 col-sm-6"><div class="feature-box"><i class="fa-solid fa-chart-line text-success"></i> SEO Social Media</div></div>
+            <div class="col-12 col-sm-6"><div class="feature-box"><i class="fa-solid fa-globe text-success"></i> Web Traffic Thailand</div></div>
+            <div class="col-12 col-sm-6"><div class="feature-box"><i class="fa-solid fa-cloud text-success"></i> โซเชียลอื่นๆ อีกมากมาย</div></div>
+          </div>
+        </div>
+
+        <div class="col-lg-6 text-center">
+          <img class="img-fluid" src="/static/assets/img/main-pic-2.png" alt="services"/>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2025 Marketing -->
+  <section class="py-5">
+    <div class="container-fluid px-4 px-xl-5">
+      <div class="row align-items-center g-4">
+        <div class="col-lg-6 text-center">
+          <img class="img-fluid" src="/static/assets/img/main-pic-3.png" alt="marketing"/>
+        </div>
+        <div class="col-lg-6">
+          <div class="section-title mb-3">
+            <h2 class="mb-2">2025 ยุคใหม่ของการตลาดออนไลน์ ฟรี!</h2>
+            <div class="bar mb-3"></div>
+          </div>
+          <p class="mb-4">
+            โปรโมทเว็บไซต์/โซเชียลของคุณได้ตลอดเวลา ครอบคลุม YouTube, <strong>ปั้มไลค์ Facebook</strong>,
+            Instagram, Reddit, LinkedIn, <strong>ปั้มวิวtiktok</strong>, SEO และอีกมากมาย
+          </p>
+
+          <div class="row g-3">
+            <div class="col-sm-6"><span class="badge badge-soft w-100 py-2"><i class="fa-solid fa-trophy me-2"></i> เพิ่มการเป็น #1 ของธุรกิจ</span></div>
+            <div class="col-sm-6"><span class="badge badge-soft w-100 py-2"><i class="fa-solid fa-code me-2"></i> ครบทั้ง SEO/Traffic/โซเชียล</span></div>
+            <div class="col-sm-6"><span class="badge badge-soft w-100 py-2"><i class="fa-solid fa-bolt me-2"></i> ปั้มวิว/ผู้ติดตาม รวดเร็ว</span></div>
+            <div class="col-sm-6"><span class="badge badge-soft w-100 py-2"><i class="fa-solid fa-badge-percent me-2"></i> คุ้มสุด ประหยัดมาก</span></div>
+            <div class="col-sm-6"><span class="badge badge-soft w-100 py-2"><i class="fa-solid fa-robot me-2"></i> ระบบอัตโนมัติ ใช้งานง่าย</span></div>
+            <div class="col-sm-6"><span class="badge badge-soft w-100 py-2"><i class="fa-solid fa-check me-2"></i> ทีมงานดูแล ตลอดทาง</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Why choose us -->
+  <section class="py-5" style="background:var(--pv-bg)">
+    <div class="container-fluid px-4 px-xl-5">
+      <div class="text-center mb-5">
+        <h2>ทำไมต้องเลือกเรา?</h2>
+        <div class="bar mx-auto my-3"></div>
+        <p class="mb-0">
+          บริการคุณภาพอันดับหนึ่ง ในราคาที่คุ้มค่าที่สุดสำหรับลูกค้าไทย
+          ระบบเสถียร รองรับคำสั่งซื้อจำนวนมาก ไม่มีสะดุด — ได้รับความไว้วางใจจากผู้ใช้งานจริง
+        </p>
+      </div>
+
+      <div class="row g-4">
+        <div class="col-md-6">
+          <div class="p-4 bg-white rounded-4 border h-100">
+            <div class="d-flex align-items-center gap-3 mb-2">
+              <div class="dash-icon" style="background:#bfbfff;color:#3613ff"><i class="fa-brands fa-facebook-f"></i></div>
+              <h5 class="mb-0">เรามีบริการเกี่ยวกับ Facebook</h5>
+            </div>
+            <p class="mb-0">✅ เพิ่มวิววิดีโอ ✅ <strong>ปั๊มไลก์โพสต์</strong> ✅ โปรโมตโพสต์/แฟนเพจ ✅ ผู้ชมไลฟ์สด ✅ ขยายผู้ติดตามหลายแพลตฟอร์ม</p>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="p-4 bg-white rounded-4 border h-100">
+            <div class="d-flex align-items-center gap-3 mb-2">
+              <div class="dash-icon" style="background:#f1cdcd;color:#ff1313"><i class="fa-brands fa-youtube"></i></div>
+              <h5 class="mb-0">เรามีบริการเกี่ยวกับ YouTube</h5>
+            </div>
+            <p class="mb-0">✅ เพิ่มจำนวนการดู (<strong>ปั๊มวิว</strong>) ✅ โปรโมทวิดีโอ ✅ ปั๊มไลก์/คอมเมนต์ ✅ เพิ่ม Subscribers ✅ ดันติดอันดับค้นหา</p>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="p-4 bg-white rounded-4 border h-100">
+            <div class="d-flex align-items-center gap-3 mb-2">
+              <div class="dash-icon" style="background:#edc3fc;color:#c679e3"><i class="fa-brands fa-instagram"></i></div>
+              <h5 class="mb-0">เรามีบริการเกี่ยวกับ Instagram</h5>
+            </div>
+            <p class="mb-0">✅ <strong>เพิ่มผู้ติดตาม</strong> ✅ โปรโมทบัญชี ✅ เพิ่มไลก์/วิว ✅ ขยายการเข้าถึงโพสต์</p>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="p-4 bg-white rounded-4 border h-100">
+            <div class="d-flex align-items-center gap-3 mb-2">
+              <div class="dash-icon" style="background:#c2ecfc;color:#69cdf3"><i class="fa-brands fa-x-twitter"></i></div>
+              <h5 class="mb-0">เรามีบริการเกี่ยวกับ Twitter/X</h5>
+            </div>
+            <p class="mb-0">✅ เพิ่มผู้ติดตาม ✅ Follow-back Rate ✅ Retweet ✅ <strong>ปั๊มไลก์</strong></p>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="p-4 bg-white rounded-4 border h-100">
+            <div class="d-flex align-items-center gap-3 mb-2">
+              <div class="dash-icon" style="background:#e4c4fb;color:#7b00ce"><i class="fa-regular fa-heart"></i></div>
+              <h5 class="mb-0">เรามีบริการเกี่ยวกับ TikTok</h5>
+            </div>
+            <p class="mb-0">✅ ปั๊มผู้ติดตาม ✅ เพิ่มฟอลโลว์/ไลก์/วิว ✅ <strong>ปั๊มวิววิดีโอ</strong> ✅ โปรโมทติดหน้า For You</p>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="p-4 bg-white rounded-4 border h-100">
+            <div class="d-flex align-items-center gap-3 mb-2">
+              <div class="dash-icon" style="background:#000;color:#fff"><i class="fa-regular fa-file-lines"></i></div>
+              <h5 class="mb-0">เรามีบริการเกี่ยวกับ SEO</h5>
+            </div>
+            <p class="mb-0">✅ Backlink คุณภาพ ✅ เพิ่มทราฟฟิกจริง ✅ เสริม SEO/Referring Domains ✅ เร่งโอกาสติดหน้าแรก Google</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="ready py-5 text-center">
+    <div class="container-fluid px-4 px-xl-5">
+      <h3 class="fw-semibold">คุณพร้อมแล้วหรือยัง?</h3>
+      <p class="mb-4">“อย่าปล่อยให้ความลังเลชะลอการตัดสินใจ — คู่แข่งอาจกำลังก้าวนำไปแล้ว”</p>
+      <div class="d-flex justify-content-center gap-2">
+        <a class="btn btn-outline-light btn-lg px-47" href="/register">สมัครสมาชิกฟรี</a>
+        <a class="btn btn-outline-light btn-lg px-4" href="/login">หรือ เข้าสู่ระบบได้ทันที</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer py-5">
+    <div class="container-fluid px-4 px-xl-5">
+      <div class="row g-4">
+        <div class="col-md-4">
+          <img src="/static/logo/logo-rtssm-th.png" alt="logo" height="150" class="mb-3">
+          <p class="text-secondary mb-0">
+            RTSSM-TH.COM ผู้ให้บริการการตลาดออนไลน์และโซเชียลระดับสากล มาตรฐานมืออาชีพ ดูแลลูกค้าทั่วโลก
+          </p>
+        </div>
+        <div class="col-md-2">
+          <h6 class="fw-bold">ผลิตภัณฑ์</h6>
+          <ul class="list-unstyled" style="text-decoration: none;">
+            <li><a href="/" >หน้าแรก</a></li>
+            <li><a href="/services" >บริการทั้งหมด</a></li>
+            <li><a href="/order" >คำสั่งซื้อใหม่</a></li>
+          </ul>
+        </div>
+        <div class="col-md-3">
+          <h6 class="fw-bold">FAQ</h6>
+          <ul class="list-unstyled" style="text-decoration: none;">
+            <li><a href="/faq" >คำถามที่พบบ่อย</a></li>
+            <li><a href="/blog" >บทความ</a></li>
+          </ul>
+        </div>
+        <div class="col-md-3">
+          <h6 class="fw-bold">เกี่ยวกับเรา</h6>
+          <ul class="list-unstyled" style="text-decoration: none;">
+            <li><a href="mailto:rtssm.th@gmail.com" ><i class="fa-regular fa-envelope me-1"></i>Email: rtssm.th@gmail.com</a></li>
+            <li><a href="https://line.me/R/ti/p/%40iplusviewstore" ><i class="fa-brands fa-line me-1"></i>Line: @rtssm-th</a></li>
+            <li><a href="https://line.me/R/ti/p/%40iplusviewstore" ><i class="fa-regular fa-bug me-1"></i>แจ้งปัญหาคำสั่งซื้อ</a></li>
+            <li><a href="/page/terms-of-use" ><i class="fa-solid fa-scale-balanced me-1"></i>เงื่อนไขและข้อตกลง</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://iplusview.store/assets-landing/js/wow.min.js"></script>
+  <script> new WOW().init(); </script>
+</body>
+</html>

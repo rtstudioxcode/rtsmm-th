@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="content-language" content="th" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title><%= pageTitle || 'บทความ | RTSMM-TH' %></title>
+  <meta name="description" content="รวมบทความการตลาดออนไลน์ ปั้มวิว ปั้มไลค์ เพิ่มผู้ติดตาม เทคนิคไวรัล อัปเดต 2025" />
+  <meta name="keywords" content="บทความ, การตลาดออนไลน์, ปั้มวิว, ปั้มไลค์, เพิ่มผู้ติดตาม, TikTok, YouTube" />
+
+  <!-- Favicon -->
+  <link rel="icon" href="/static/logo/icon-logo.png" type="image/png">
+  <link rel="shortcut icon" href="/static/logo/icon-logo.png" type="image/png">
+  <link rel="apple-touch-icon" href="/static/logo/icon-logo.png">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Bootstrap & Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/css/flag-icons.min.css"/>
+  <!-- Effects -->
+  <link rel="stylesheet" href="https://iplusview.store/assets-landing/css/animate.min.css">
+  <link rel="stylesheet" href="https://iplusview.store/assets-landing/css/main.css">
+
+  <!-- Theme Bridge: map data-theme -> CSS variables (เหมือน index.ejs) -->
+  <script>
+  (() => {
+    const html = document.documentElement;
+    const PALETTE_LIGHT = Object.assign({
+      primary:'#16a34a', accent:'#7c3aed', dark:'#0e314c', muted:'#6084a4',
+      surface:'#f7fafd', surface2:'#ffffff',
+      gradient:'linear-gradient(135deg,#22c55e 0%, #06b6d4 100%)'
+    }, (window.THEME_LIGHT||{}));
+    const PALETTE_DARK = Object.assign({
+      primary:'#22d3ee', accent:'#a78bfa', dark:'#e6edf3', muted:'#9fb6c6',
+      surface:'#0b1620', surface2:'#0f1e2b',
+      gradient:'linear-gradient(135deg,#06b6d4 0%, #14b8a6 100%)'
+    }, (window.THEME_DARK||{}));
+    function setVars(p){
+      const s = html.style;
+      s.setProperty('--theme-primary',p.primary);
+      s.setProperty('--theme-accent',p.accent);
+      s.setProperty('--theme-dark',p.dark);
+      s.setProperty('--theme-muted',p.muted);
+      s.setProperty('--theme-surface',p.surface);
+      s.setProperty('--theme-surface-2',p.surface2);
+      s.setProperty('--theme-gradient',p.gradient);
+      html.setAttribute('data-bs-theme', html.getAttribute('data-theme')==='dark'?'dark':'light');
+    }
+    function apply(){ setVars(html.getAttribute('data-theme')==='dark'?PALETTE_DARK:PALETTE_LIGHT); }
+    apply();
+    window.addEventListener('themechange', apply);
+    window.ThemeBridge = {
+      setLight(vars){ Object.assign(PALETTE_LIGHT, vars||{}); apply(); },
+      setDark(vars){ Object.assign(PALETTE_DARK, vars||{}); apply(); }
+    };
+  })();
+  </script>
+
+  <!-- Dark tokens + overrides (เหมือน index.ejs) -->
+  <style>
+    :root{
+      --pv-primary:var(--theme-primary,#22c55e);
+      --pv-accent:var(--theme-accent,#0ea5e9);
+      --pv-dark:var(--theme-dark,#0e314c);
+      --pv-muted:var(--theme-muted,#6084a4);
+      --pv-bg:var(--theme-bg,#f7fafd);
+      --pv-surface:var(--theme-surface,#ffffff);
+      --pv-surface-2:var(--theme-surface-2,#ffffff);
+      --pv-border:var(--theme-border,#e6eef5);
+      --pv-border-soft:var(--theme-border-soft,#cdf1d8);
+      --pv-soft-bg:var(--theme-soft-bg,#e7f8ee);
+      --pv-soft-text:var(--theme-soft-text,#198754);
+      --pv-soft-border:var(--theme-soft-border,#cdf1d8);
+      --pv-hero-a:rgba(68,206,111,.08);
+      --pv-hero-b:rgba(99,74,165,.06);
+      --pv-shadow:0 12px 24px rgba(14,49,76,.08);
+      --pv-gradient:var(--theme-gradient,linear-gradient(135deg,#22c55e 0%, #06b6d4 100%));
+      --font-sans:"Inter","Noto Sans Thai",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol";
+    }
+    html[data-theme="dark"]{
+      --pv-primary:var(--theme-primary,#22d3ee);
+      --pv-accent:var(--theme-accent,#a78bfa);
+      --pv-dark:var(--theme-dark,#e6edf3);
+      --pv-muted:var(--theme-muted,#9fb6c6);
+      --pv-bg:var(--theme-bg,#07131b);
+      --pv-surface:var(--theme-surface,#0b1620);
+      --pv-surface-2:var(--theme-surface-2,#0f1e2b);
+      --pv-border:var(--theme-border,#173046);
+      --pv-border-soft:var(--theme-border-soft,#1d3b54);
+      --pv-soft-bg:var(--theme-soft-bg,#0f2a24);
+      --pv-soft-text:var(--theme-soft-text,#8fe3b4);
+      --pv-soft-border:var(--theme-soft-border,#1b3f34);
+      --pv-hero-a:rgba(34,211,238,.10);
+      --pv-hero-b:rgba(167,139,250,.08);
+      --pv-shadow:0 12px 24px rgba(0,0,0,.35);
+      --pv-gradient:var(--theme-gradient,linear-gradient(135deg,#06b6d4 0%, #14b8a6 100%));
+      color-scheme:dark;
+    }
+    a, a:hover, .nav-link, .dropdown-item, .btn, .btn:hover { text-decoration:none !important; border-bottom:0 !important; }
+    html,body{ font-family:var(--font-sans); -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility; font-variant-numeric:tabular-nums; background:var(--pv-surface); }
+    h1,h2,h3,h4,h5,h6{ font-weight:800; letter-spacing:-.01em; }
+    .hero{ background:
+      radial-gradient(1200px 600px at 85% 20%, var(--pv-hero-a), transparent 60%),
+      radial-gradient(1000px 600px at 10% 80%, var(--pv-hero-b), transparent 60%),
+      var(--pv-surface);
+    }
+    .section-title .bar{width:72px;height:4px;border-radius:999px;background:var(--pv-primary)}
+    .badge-soft{ background:var(--pv-soft-bg); color:var(--pv-soft-text); border:1px dashed var(--pv-soft-border); border-radius:999px; font-weight:500; }
+    .dash-card{ background:var(--pv-surface-2); border:1px dashed var(--pv-border-soft)!important; border-radius:16px; height:100%; transition:transform .2s, box-shadow .2s; }
+    .dash-card:hover{ box-shadow:var(--pv-shadow); transform:translateY(-3px) }
+    .footer{ background:var(--pv-bg) }
+    html[data-theme="dark"] .bg-white{ background:var(--pv-surface-2)!important; }
+    html[data-theme="dark"] .border{ border-color:var(--pv-border)!important; }
+    html[data-theme="dark"] .text-dark{ color:var(--pv-dark)!important; }
+    html[data-theme="dark"] .text-secondary{ color:var(--pv-muted)!important; }
+
+    /* การ์ดบทความ */
+    .post-card{ background:var(--pv-surface-2); border:1px dashed var(--pv-border); border-radius:16px; overflow:hidden; height:100%; display:flex; flex-direction:column; }
+    .post-thumb{ aspect-ratio:16/9; object-fit:cover; width:100%; }
+    .post-body{ padding:16px 16px 18px; display:flex; flex-direction:column; gap:.35rem; }
+    .post-title{ font-weight:800; font-size:1.05rem; line-height:1.35; }
+    .post-meta{ font-size:.85rem; color:var(--pv-muted); }
+    .post-excerpt{ color:var(--pv-dark); }
+    .read-more{ margin-top:auto; }
+    @media (min-width:1200px){
+      .container, .container-fluid{ max-width:100vw!important; padding-left:2rem; padding-right:2rem; }
+    }
+  </style>
+  <script>
+    (function syncBsTheme(){
+      const html=document.documentElement;
+      function apply(){ html.setAttribute('data-bs-theme', html.getAttribute('data-theme')==='dark'?'dark':'light'); }
+      apply(); window.addEventListener('themechange', apply);
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- HERO / Title -->
+  <section class="hero py-5">
+    <div class="container-fluid px-4 px-xl-5">
+      <div class="row align-items-center g-4">
+        <div class="col-lg-8">
+          <h1 class="display-5 mb-2">บทความ | RTSMM-TH</h1>
+          <p class="text-secondary mb-0">
+            อัปเดตความรู้การตลาดออนไลน์ ปั้มวิว ปั้มไลค์ เพิ่มผู้ติดตาม กลยุทธ์ทำไวรัล และเทคนิคใช้งานจริง
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BLOG GRID -->
+  <section class="py-4 py-lg-5" style="background:var(--pv-bg)">
+    <div class="container-fluid px-4 px-xl-5">
+      <div class="row g-3 g-md-4">
+        <% (posts||[]).forEach(function(p){ %>
+          <div class="col-12 col-md-6 col-lg-4">
+            <article class="post-card h-100">
+              <% if (p.thumbnail) { %>
+                <a href="/blog/<%= p.slug %>">
+                  <img class="post-thumb" src="<%= p.thumbnail %>" alt="<%= p.title %>">
+                </a>
+              <% } %>
+              <div class="post-body">
+                <div class="post-meta"><i class="fa-regular fa-calendar me-1"></i><%= p.dateText %> · <%= p.author %></div>
+                <h3 class="post-title">
+                  <a href="/blog/<%= p.slug %>"><%= p.title %></a>
+                </h3>
+                <% if (p.excerpt) { %>
+                  <p class="post-excerpt"><%= p.excerpt %></p>
+                <% } %>
+                <div class="read-more">
+                  <a class="btn btn-sm btn-primary" href="/blog/<%= p.slug %>">
+                    อ่านต่อ <i class="fa-solid fa-arrow-right ms-1"></i>
+                  </a>
+                </div>
+              </div>
+            </article>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="py-5 text-center" style="background:var(--pv-gradient); color:#fff">
+    <div class="container-fluid px-4 px-xl-5">
+      <h3 class="fw-semibold">พร้อมเริ่มโปรโมตแล้วหรือยัง?</h3>
+      <p class="mb-4">สมัครสมาชิกฟรี แล้วไปต่อยอดการเติบโตบนโซเชียลของคุณ</p>
+      <div class="d-flex justify-content-center gap-2">
+        <a class="btn btn-outline-light btn-lg px-4" href="/register">สมัครสมาชิกฟรี</a>
+        <a class="btn btn-outline-light btn-lg px-4" href="/login">เข้าสู่ระบบ</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER (เหมือน index.ejs) -->
+  <footer class="footer py-5">
+    <div class="container-fluid px-4 px-xl-5">
+      <div class="row g-4">
+        <div class="col-md-4">
+          <img src="/static/logo/logo-rtssm-th.png" alt="logo" height="150" class="mb-3">
+          <p class="text-secondary mb-0">
+            RTSSM-TH.COM ผู้ให้บริการการตลาดออนไลน์และโซเชียลระดับสากล มาตรฐานมืออาชีพ ดูแลลูกค้าทั่วโลก
+          </p>
+        </div>
+        <div class="col-md-2">
+          <h6 class="fw-bold">ผลิตภัณฑ์</h6>
+          <ul class="list-unstyled">
+            <li><a href="/">หน้าแรก</a></li>
+            <li><a href="/services">บริการทั้งหมด</a></li>
+            <li><a href="/order">คำสั่งซื้อใหม่</a></li>
+          </ul>
+        </div>
+        <div class="col-md-3">
+          <h6 class="fw-bold">FAQ</h6>
+          <ul class="list-unstyled">
+            <li><a href="/faq">คำถามที่พบบ่อย</a></li>
+            <li><a href="/blog">บทความ</a></li>
+          </ul>
+        </div>
+        <div class="col-md-3">
+          <h6 class="fw-bold">เกี่ยวกับเรา</h6>
+          <ul class="list-unstyled">
+            <li><a href="mailto:rtssm.th@gmail.com"><i class="fa-regular fa-envelope me-1"></i>Email: rtssm.th@gmail.com</a></li>
+            <li><a href="https://line.me/R/ti/p/%40iplusviewstore"><i class="fa-brands fa-line me-1"></i>Line: @rtssm-th</a></li>
+            <li><a href="https://line.me/R/ti/p/%40iplusviewstore"><i class="fa-regular fa-bug me-1"></i>แจ้งปัญหาคำสั่งซื้อ</a></li>
+            <li><a href="/page/terms-of-use"><i class="fa-solid fa-scale-balanced me-1"></i>เงื่อนไขและข้อตกลง</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://iplusview.store/assets-landing/js/wow.min.js"></script>
+  <script> new WOW().init(); </script>
+</body>
+</html>

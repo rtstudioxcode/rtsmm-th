@@ -1,0 +1,122 @@
+<% const title = "สมัครสมาชิก"; %>
+
+<section class="auth-card">
+  <div class="auth-head">
+    <div class="auth-title">สมัครสมาชิก</div>
+    <div class="auth-sub">สร้างบัญชีใหม่ของคุณ</div>
+  </div>
+
+  <% if (typeof error === 'string' && error) { %>
+    <div class="alert error"><%= error %></div>
+  <% } %>
+
+  <form id="registerForm" class="auth-form" action="/register" method="post" novalidate>
+    <input type="hidden" name="next" value="<%= next %>">
+    <label>ชื่อผู้ใช้
+      <input name="username" required autocomplete="username">
+    </label>
+    <label>อีเมล
+      <input type="email" name="email" placeholder="you@email.com" autocomplete="email">
+    </label>
+    <label>รหัสผ่าน
+      <input type="password" name="password" required autocomplete="new-password" minlength="6">
+    </label>
+    <button class="btn primary block" type="submit" id="btnRegister">สมัคร</button>
+    <div class="auth-foot">มีบัญชีอยู่แล้ว? <a href="/login">เข้าสู่ระบบ</a></div>
+  </form>
+</section>
+
+<!-- Modal ภายในหน้า (ไม่ auto-open) -->
+<dialog id="notifyDialog" class="rt-modal">
+  <div class="rt-card">
+    <div class="rt-icon" id="mdlIcon" aria-hidden="true">
+      <!-- checkmark icon -->
+      <svg viewBox="0 0 24 24" width="30" height="30">
+        <path fill="white" d="M9 16.2l-3.5-3.5L4 14.2 9 19l12-12-1.5-1.5z"/>
+      </svg>
+    </div>
+    <h3 class="rt-title" id="mdlTitle">เสร็จสิ้น!</h3>
+    <p class="rt-desc" id="mdlText">กำลังเข้าสู่ระบบ...</p>
+
+    <div class="rt-actions">
+      <button class="btn primary" id="mdlClose">ตกลง</button>
+    </div>
+  </div>
+</dialog>
+
+<style>
+  dialog.rt-modal::backdrop { background: rgba(0,0,0,.55); }
+  .rt-modal-card {
+    min-width: 320px; padding: 20px; border: 0; border-radius: 16px;
+    background: var(--card, #17171b); color: var(--text, #fff);
+  }
+  .rt-modal-icon { font-size: 32px; margin-bottom: 8px; text-align: center; }
+  .rt-modal-title { margin: 0 0 4px; text-align: center; }
+  .rt-modal-text { margin: 0 0 16px; opacity: .9; text-align: center; }
+  .rt-modal-actions { display: flex; justify-content: center; margin: 0; }
+  .btn[disabled] { opacity: .6; pointer-events: none; }
+</style>
+
+<script type="module">
+  const $ = (s, p=document)=>p.querySelector(s);
+
+  const form   = $('#registerForm');
+  const submit = $('#btnRegister');
+
+  const dlg    = $('#notifyDialog');
+  const iconEl = $('#mdlIcon');
+  const titleEl= $('#mdlTitle');
+  const textEl = $('#mdlText');
+  const closeEl= $('#mdlClose');
+
+  function showModal({ icon='✅', title='เสร็จสิ้น!', text='กำลังเข้าสู่ระบบ...' } = {}) {
+    iconEl.textContent  = icon;
+    titleEl.textContent = title;
+    textEl.textContent  = text;
+
+    if (typeof dlg.showModal === 'function') {
+      if (!dlg.open) dlg.showModal();
+    } else {
+      dlg.classList.add('show'); // fallback ใช้ CSS .rt-modal.show
+    }
+  }
+  function closeModal(){
+    if (typeof dlg.close === 'function' && dlg.open) dlg.close();
+    dlg.classList.remove('show'); // fallback
+  }
+  closeEl?.addEventListener('click', closeModal);
+  dlg.addEventListener('cancel', e => { e.preventDefault(); closeModal(); });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    submit.disabled = true;
+
+    const fd = new FormData(form);
+    const next = fd.get('next') || '/';
+
+    try {
+      const res = await fetch('/register', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' },
+        body: new URLSearchParams(fd),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data?.ok) {
+        showModal({ icon:'⚠️', title:'สมัครสมาชิกไม่สำเร็จ', text: data?.message || 'กรุณาตรวจสอบข้อมูล' });
+        submit.disabled = false;
+        return;
+      }
+
+      showModal({ icon:'✅', title:'สมัครสำเร็จ!', text:'กำลังเข้าสู่ระบบอัตโนมัติ...' });
+      setTimeout(() => location.assign(data.redirect || next || '/'), 500);
+
+    } catch (err) {
+      console.error(err);
+      showModal({ icon:'⚠️', title:'เครือข่ายมีปัญหา', text:'โปรดลองใหม่อีกครั้ง' });
+      submit.disabled = false;
+    }
+  });
+</script>

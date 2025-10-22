@@ -1,0 +1,552 @@
+<% const PAGE_TITLE = title || "บริการทั้งหมด"; %>
+<section class="page-head">
+  <div class="page-title">
+    <h1><%= PAGE_TITLE %></h1>
+    <small class="muted">หน้าหลัก → <%= PAGE_TITLE %></small>
+  </div>
+</section>
+
+<!-- ───────────────────────── Platform Selector ───────────────────────── -->
+<section class="card">
+  <h3 class="title">เลือกแพลตฟอร์ม</h3>
+  <div id="platformGrid" class="platform-grid"></div>
+</section>
+
+<!-- ───────────────────────── Filters (chips) ───────────────────────── -->
+<section class="card" id="filtersBar">
+  <div class="row" style="align-items:center; gap:12px;">
+    <div class="col grow">
+      <input id="searchAll" type="search" placeholder="ค้นหาได้ทั้ง ID / ชื่อบริการ" />
+    </div>
+  </div>
+
+  <!-- ชิปภาษาไทย -->
+  <div id="chipBar" class="chip-bar" style="margin-top:10px;"></div>
+</section>
+
+<!-- ───────────────────────── Services List ───────────────────────── -->
+<section class="card">
+  <h3 class="title" id="listTitle">บริการทั้งหมด</h3>
+  <div id="servicesContainer"></div>
+</section>
+
+<style>
+  /* -------- Platform grid: desktop = แบบการ์ดมีชื่อ, mobile = ไอคอนอย่างเดียว -------- */
+  .platform-grid {
+    display:grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap:12px;
+  }
+  .platform-card {
+    display:flex; align-items:center; gap:10px;
+    background: var(--card, #1c1f24);
+    border:1px solid var(--border, #2a2f36);
+    border-radius:16px; padding:12px 14px; cursor:pointer;
+    transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+  }
+  .platform-card:hover { transform: translateY(-1px); box-shadow:0 6px 20px rgba(0,0,0,.25); }
+  .platform-card.active { border-color: var(--accent, #3bd); box-shadow: 0 0 0 2px rgba(80,200,255,.15) inset; }
+  .platform-card img { width:28px; height:28px; border-radius:8px; }
+  .platform-card .name { font-weight:600; }
+
+  /* mobile: แสดงแบบไอคอนสี่เหลี่ยมมน (neumorphism เบาๆ) */
+  @media (max-width: 720px){
+    .platform-grid{ grid-template-columns: repeat(4, 1fr); gap:10px; }
+    .platform-card{ flex-direction:column; align-items:center; padding:12px; gap:8px; border-radius:18px; }
+    .platform-card img{ width:36px; height:36px; border-radius:10px; }
+    .platform-card .name,.platform-card .muted{ display:none; } /* โชว์แต่ไอคอน */
+  }
+
+  /* -------- Filters -------- */
+  #searchAll { width:100%; padding:10px 12px; border-radius:12px; border:1px solid var(--border,#2a2f36); background:var(--card,#1c1f24); color:var(--text,#fff); }
+  .chip-bar { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  .chip { border:1px solid var(--border,#2a2f36); background:var(--card,#1c1f24);
+          border-radius:999px; padding:6px 10px; font-size:13px; cursor:pointer; }
+  .chip.active { border-color: var(--accent,#39c); box-shadow:0 0 0 2px rgba(80,200,255,.12) inset; }
+  .chip.disabled { opacity:.5; cursor:not-allowed; }
+
+  /* -------- Group container (หมวด provider) -------- */
+  .group {
+    margin-bottom:16px; border:1px solid var(--border,#2a2f36); border-radius:16px; overflow:hidden;
+    background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,0));
+  }
+  .group .head {
+    display:flex; justify-content:space-between; align-items:center; padding:12px 14px; cursor:pointer;
+    background:rgba(56, 77, 78, 0.349);
+  }
+  .group .head h4 { margin:0; font-size:15px; }
+  .group .body { padding:10px 10px 12px; display:none; }
+  .group.open .body { display:block; }
+  .group .meta { font-size:12px; opacity:.8; }
+
+  /* -------- Desktop table (คงไว้สำหรับจอใหญ่) -------- */
+  .table { width:100%; border-collapse: collapse; font-size:14px; }
+  .table thead th { text-align:left; font-weight:600; padding:10px; border-bottom:1px solid var(--border,#2a2f36);
+                    position:sticky; top:0; background:var(--card,#1c1f24); }
+  .table tbody td { padding:10px; border-bottom:1px dashed rgba(255,255,255,.07); }
+
+  /* -------- Mobile card list -------- */
+  .m-cards{ display:none; gap:10px; }
+  .m-card{
+    display:flex; justify-content:space-between; align-items:flex-start; gap:8px;
+    border:1px dashed rgba(255,255,255,.08); border-radius:12px; padding:10px 12px;
+    background:rgba(255,255,255,.02);
+  }
+  .m-card .title{ font-weight:600; font-size:14px; line-height:1.4; }
+  .m-card .meta{ font-size:12px; opacity:.85; display:flex; gap:10px; margin-top:4px; flex-wrap:wrap; }
+  .m-card .actions{ display:flex; gap:6px; margin-top:6px; }
+  .m-card .id{ font-weight:700; opacity:.9; font-size:12px; }
+
+  /* แปลงเป็น mobile-first: ซ่อน table แล้วใช้ card */
+  @media (max-width: 720px){
+    .table-wrap{ display:none; }
+    .m-cards{ display:grid; }
+  }
+
+  /* -------- Modal -------- */
+  .modal.hidden { display:none; }
+  .modal { position:fixed; inset:0; z-index:60; }
+  .modal .overlay{ position:absolute; inset:0; background:rgba(0,0,0,.55); }
+  .modal .dialog{ position:relative; margin:6vh auto 0; max-width:760px; width:calc(100% - 24px);
+    background:var(--card,#1c1f24); border:1px solid var(--border,#2a2f36);
+    border-radius:14px; box-shadow:0 18px 60px rgba(0,0,0,.4); padding:16px 16px 18px; }
+  .modal .hdr{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .modal .title{ font-weight:700; font-size:16px; }
+  .modal .icon.close{ border:0; background:transparent; font-size:22px; color:var(--text,#fff); cursor:pointer; }
+  .modal .meta{ font-size:13px; opacity:.85; margin-top:6px; display:flex; flex-wrap:wrap; gap:8px; }
+  .modal .meta .tag{ background:rgba(255,255,255,.08); padding:3px 8px; border-radius:999px; }
+  .modal .sep{ border:0; border-top:1px solid var(--border,#2a2f36); margin:12px 0; }
+  .modal .body{
+      font-size:14px; line-height:1.6; word-break:break-word;
+      white-space:pre-wrap;            /* เคารพ \n จาก description */
+      max-height:60vh; overflow:auto;  /* เลื่อนดูได้ถ้ายาว */
+    }
+  .modal .body a{ text-decoration:underline; }
+</style>
+
+<!-- Modal: รายละเอียดบริการ -->
+<div id="svcModal" class="modal hidden">
+  <div class="overlay" data-close="1"></div>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <div class="hdr">
+      <div class="title" id="mTitle">รายละเอียดบริการ</div>
+      <button class="icon close" id="mClose" aria-label="ปิด">×</button>
+    </div>
+    <div class="meta" id="mMeta"></div>
+    <hr class="sep">
+    <div class="body" id="mBody">—</div>
+  </div>
+</div>
+
+<script>
+/* =============== Data from server =============== */
+window.__SERVICES__ = <%- JSON.stringify(servicesFlat || []) %>;
+
+/* =============== Helpers =============== */
+const $ = s => document.querySelector(s);
+const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+const uniq = a => [...new Set(a)];
+const safe = s => String(s ?? '').trim();
+const br = s => String(s||'').replace(/\r?\n/g,'<br>');
+const linkify = s => String(s||'').replace(/https?:\/\/\S+/g,m=>`<a href="${m}" target="_blank" rel="noopener">${m}</a>`);
+const fmt = n => Number(n||0).toLocaleString(undefined,{maximumFractionDigits:4});
+const enc = s => encodeURIComponent(String(s ?? ''));
+const dec = s => decodeURIComponent(String(s ?? ''));
+
+/* micro utils */
+const debounce = (fn, ms=250) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; };
+const schedule = (cb)=> (window.requestIdleCallback ? requestIdleCallback(cb,{timeout:120}) : requestAnimationFrame(cb));
+
+/* =============== State =============== */
+let CURRENT_PLATFORM = null;
+let SEARCH = '';
+let currentChipId = "";
+
+/* ========= platform icons ========= */
+const PLATFORM_ICON_URLS = {
+  tiktok:"/static/assets/platform/tiktok.png",
+  facebook:"/static/assets/platform/facebook.png",
+  youtube:"/static/assets/platform/youtube.png",
+  instagram:"/static/assets/platform/ig.png",
+  threads:"/static/assets/platform/threads.png",
+  twitter:"/static/assets/platform/twitter.png",
+  x:"/static/assets/platform/x.png",
+  line:"/static/assets/platform/line.png",
+  telegram:"/static/assets/platform/telegram.png",
+  discord:"/static/assets/platform/discord.png",
+  twitch:"/static/assets/platform/twitch.png",
+  spotify:"/static/assets/platform/spotify.png",
+  kick:"/static/assets/platform/kick.png",
+  premium:"/static/assets/platform/premium.png",
+  seo:"/static/assets/platform/seo.png",
+  traffic:"/static/assets/platform/traffic.png",
+  thailand:"/static/assets/platform/thailand.png",
+  shopee:"/static/assets/platform/shopee.png"
+};
+function pickIconUrl(name=''){
+  const s = String(name).toLowerCase();
+  if (s.includes('tiktok')) return PLATFORM_ICON_URLS.tiktok;
+  if (s.includes('facebook')) return PLATFORM_ICON_URLS.facebook;
+  if (s.includes('youtube') || s.includes('youtub')) return PLATFORM_ICON_URLS.youtube;
+  if (s.includes('instagram') || s.includes('ig')) return PLATFORM_ICON_URLS.instagram;
+  if (s.includes('thread')) return PLATFORM_ICON_URLS.threads;
+  if (s.includes('twitter') || s === 'x' || s.includes(' x ')) return PLATFORM_ICON_URLS.twitter;
+  if (s.includes('line')) return PLATFORM_ICON_URLS.line;
+  if (s.includes('telegram')) return PLATFORM_ICON_URLS.telegram;
+  if (s.includes('discord')) return PLATFORM_ICON_URLS.discord;
+  if (s.includes('twitch')) return PLATFORM_ICON_URLS.twitch;
+  if (s.includes('spotify')) return PLATFORM_ICON_URLS.spotify;
+  if (s.includes('kick')) return PLATFORM_ICON_URLS.kick;
+  if (s.includes('พรีเมีย') || s.includes('premium')) return PLATFORM_ICON_URLS.premium;
+  if (s.includes('seo')) return PLATFORM_ICON_URLS.seo;
+  if (s.includes('traffic') || s.includes('เพิ่มคนเข้าเว็บ')) return PLATFORM_ICON_URLS.traffic;
+  if (s.includes('ไทย') || s.includes('thailand')) return PLATFORM_ICON_URLS.thailand;
+  if (s.includes('shopee') || s.includes('ช้อป')) return PLATFORM_ICON_URLS.shopee;
+  return PLATFORM_ICON_URLS.seo;
+}
+
+/* ========= chips ========= */
+const CHIP_DEFS = [
+  {id:"",label:"ทั้งหมด",kw:[]},
+  {id:"views",label:"วิว",kw:["view","views","watch","play","ชม","วิว"]},
+  {id:"likes",label:"ไลก์",kw:["like","likes","heart","react","reactions","ถูกใจ","ไลก์"]},
+  {id:"members",label:"สมาชิก/ผู้ติดตาม",kw:["follow","follower","followers","subscriber","subscribers","subs","ติดตาม","ผู้ติดตาม","สมาชิก","members"]},
+  {id:"comments",label:"คอมเมนต์",kw:["comment","comments","คอมเมน"]},
+  {id:"shares",label:"แชร์",kw:["share","shares","รีโพสต์","repost","retweet","แชร์"]},
+  {id:"traffic",label:"คลิก/ทราฟฟิก",kw:["link click","click","traffic","คลิก","ทราฟฟิก"]},
+  {id:"shorts_reels",label:"Shorts/Reels/Live",kw:["short","shorts","reel","reels","live","สตรีม","ไลฟ์"]},
+  {id:"general",label:"ทั่วไป",kw:["general","รวม","รวมบริการ","all-in-one"]},
+];
+function itemMatchesChip(item, chip){
+  if (!chip || chip.id==="") return true;
+  const s = `${item.categoryName||''} ${item.name||''}`.toLowerCase();
+  return chip.kw.some(k => s.includes(k.toLowerCase()));
+}
+
+/* ========= platform grid ========= */
+function renderPlatforms(){
+  const root = $('#platformGrid');
+  const platforms = uniq(window.__SERVICES__.map(s=>s.platform).filter(Boolean)).sort();
+  const html = [
+    `<div class="platform-card${CURRENT_PLATFORM===null?' active':''}" data-platform="">
+      <img src="${pickIconUrl('All')}" alt="All"/>
+      <div><div class="name">ทั้งหมด</div><div class="muted">แสดงทุกแพลตฟอร์ม</div></div>
+    </div>`
+  ].concat(platforms.map(p => `
+    <div class="platform-card${CURRENT_PLATFORM===p?' active':''}" data-platform="${p}">
+      <img src="${pickIconUrl(p)}" alt="${p}"/>
+      <div><div class="name">${p}</div><div class="muted">${window.__SERVICES__.filter(s=>s.platform===p).length} บริการ</div></div>
+    </div>`));
+  root.innerHTML = html.join('');
+}
+
+/* ========= chips render ========= */
+function computeChipCounts(){
+  const base = window.__SERVICES__.filter(s=>!CURRENT_PLATFORM || s.platform===CURRENT_PLATFORM);
+  return CHIP_DEFS.map(ch=>{
+    if (ch.id==="") return {...ch,count:base.length};
+    return {...ch,count: base.filter(x=>itemMatchesChip(x,ch)).length};
+  }).filter(ch=>ch.id==="" || ch.count>0);
+}
+function renderChips(){
+  $('#chipBar').innerHTML = computeChipCounts().map(ch => `
+    <button type="button" class="chip ${currentChipId===ch.id?'active':''}" data-chip="${ch.id}">
+      ${ch.label}
+    </button>`).join('');
+}
+
+/* ========= service helpers ========= */
+const SVC_BY_PID = Object.create(null);
+window.__SERVICES__.forEach(it=>{
+  const pid = it?.providerServiceId;
+  if (pid!==undefined && pid!==null) SVC_BY_PID[String(pid)] = it;
+});
+const pickDesc = svc => (svc?.description || svc?.desc || svc?.details_description || svc?.providerDescription || '');
+const pickAvg  = svc => (svc?.average_delivery || svc?.avg_delivery || svc?.averageDelivery || '');
+function resolveService(pid){
+  const p = String(pid);
+  const direct = SVC_BY_PID[p];
+  if (direct && safe(pickDesc(direct))) return direct;
+  const hit = window.__SERVICES__.find(x => String(x.providerServiceId)===p && safe(pickDesc(x)));
+  return hit || direct || null;
+}
+
+/* ========= filter ========= */
+function computeFiltered(){
+  const chip = CHIP_DEFS.find(c=>c.id===currentChipId) || CHIP_DEFS[0];
+  let list = window.__SERVICES__;
+  if (CURRENT_PLATFORM) list = list.filter(s=>s.platform===CURRENT_PLATFORM);
+  list = list.filter(it => itemMatchesChip(it, chip));
+  if (SEARCH){
+    const q = SEARCH.toLowerCase();
+    list = list.filter(s =>
+      String(s.providerServiceId||'').toLowerCase().includes(q) ||
+      safe(s.name).toLowerCase().includes(q) ||
+      safe(s.categoryName).toLowerCase().includes(q)
+    );
+  }
+  return list;
+}
+
+/* ========= lazy groups (state + IO) ========= */
+const groupState = new Map();               // cat -> { rows, rendered }
+let io;                                     // IntersectionObserver
+
+function renderServicesList(){
+  const container = $('#servicesContainer');
+  const list = computeFiltered();
+  $('#listTitle').textContent = CURRENT_PLATFORM ? `บริการทั้งหมดใน ${CURRENT_PLATFORM}` : 'บริการทั้งหมด';
+
+  const byProvCat = list.reduce((m,s)=>{
+    (m[s.providerCategoryName||s.categoryName||'ทั่วไป'] ??= []).push(s); return m;
+  },{});
+
+  // สร้างเฉพาะ “หัวกลุ่ม + placeholder”
+  const frag = document.createDocumentFragment();
+  groupState.clear();
+
+  Object.keys(byProvCat).sort().forEach(cat=>{
+    groupState.set(cat, { rows: byProvCat[cat], rendered:false });
+
+    const wrap = document.createElement('div');
+    wrap.className = 'group';
+    wrap.dataset.cat = enc(cat);
+    wrap.innerHTML = `
+      <div class="head" role="button" tabindex="0">
+        <h4>${cat}</h4>
+        <div class="meta"><span class="badge">${byProvCat[cat].length} รายการ</span></div>
+      </div>
+      <div class="body"><div class="placeholder muted">คลิกเพื่อแสดงรายการ…</div></div>
+    `;
+    frag.appendChild(wrap);
+  });
+
+  container.innerHTML = '';
+  container.appendChild(frag);
+  if (io) io.disconnect();
+  io = new IntersectionObserver(onIntersect, { root:null, rootMargin:'200px 0px', threshold:0 });
+  $$('#servicesContainer .group').forEach(g => io.observe(g));
+}
+
+function onIntersect(entries){
+  entries.forEach(en=>{
+    if (!en.isIntersecting) return;
+    const cat = dec(en.target.dataset.cat || '');
+    renderGroupBody(cat);
+    io.unobserve(en.target);         // เรนเดอร์ครั้งเดียวพอ
+    en.target.classList.add('open'); // เปิดโชว์ทันที
+  });
+}
+
+function renderGroupBody(cat){
+  const st = groupState.get(cat);
+  if (!st || st.rendered) return;
+
+  const rows = st.rows;
+  const body = $(`.group[data-cat="${enc(cat)}"] .body`);
+  if (!body) return;
+  body.innerHTML = ''; // clear placeholder
+
+  // แบ่งเรนเดอร์เป็นก้อนเพื่อลด jank
+  const CHUNK = 60;                    // ปรับตามสเป็กเครื่อง
+  let i = 0;
+
+  const frag = document.createDocumentFragment();
+  (function build(){
+    const slice = rows.slice(i, i+CHUNK);
+    const wrap = document.createElement('div');
+    wrap.innerHTML = buildTableAndCards(slice);
+    frag.appendChild(wrap);
+    i += CHUNK;
+    if (i < rows.length) {
+      schedule(build);
+    } else {
+      body.appendChild(frag);
+      st.rendered = true;
+    }
+  })();
+}
+
+/* ========= build rows (desktop table + mobile cards) ========= */
+function buildTableAndCards(rows){
+  const tableHead = `
+    <thead>
+      <tr>
+        <th style="width:90px">ID</th>
+        <th>ชื่อบริการ</th>
+        <th style="width:140px">เรทราคา</th>
+        <th style="width:90px">Min</th>
+        <th style="width:90px">Max</th>
+        <th style="width:150px"></th>
+      </tr>
+    </thead>`;
+
+  const tableBody = rows.map(s=>{
+    const rate = (s.displayRate ?? s.rate ?? 0);
+    const cur  = (s.currency || 'THB');
+    const min  = (s.min ?? '');
+    const max  = (s.max ?? '');
+    const avg  = pickAvg(s);
+    const desc = pickDesc(s);
+    return `
+      <tr>
+        <td>${s.providerServiceId||''}</td>
+        <td>${s.name||''}</td>
+        <td><b>${Number(rate)}</b> ${cur}</td>
+        <td>${min}</td>
+        <td>${max}</td>
+        <td>
+          <a class="btn sm" href="/orders/new?type=service&id=${s.providerServiceId}&name=${enc(s.name)}">สั่งซื้อ</a>
+          <button class="btn sm ghost btn-desc"
+            data-pid="${s.providerServiceId}"
+            data-name="${enc(s.name)}"
+            data-rate="${rate}" data-cur="${enc(cur)}"
+            data-min="${min}" data-max="${max}"
+            data-avg="${enc(avg)}"
+            data-drip="${s.dripfeed ? 1 : 0}"
+            data-refill="${s.refill ? 1 : 0}"
+            data-cancel="${s.cancel ? 1 : 0}"
+            data-desc="${enc(desc)}">รายละเอียด</button>
+        </td>
+      </tr>`;
+  }).join('');
+
+  const table = `
+    <div class="table-wrap">
+      <table class="table">
+        ${tableHead}
+        <tbody>${tableBody}</tbody>
+      </table>
+    </div>`;
+
+  const cards = `
+    <div class="m-cards">
+      ${rows.map(s=>{
+        const rate = (s.displayRate ?? s.rate ?? 0);
+        const cur  = (s.currency || 'THB');
+        const min  = (s.min ?? 0);
+        const max  = (s.max ?? 0);
+        const avg  = pickAvg(s);
+        const desc = pickDesc(s);
+        return `
+          <div class="m-card">
+            <div class="left">
+              <div class="id">#${s.providerServiceId}</div>
+              <div class="title">${s.name||''}</div>
+              <div class="meta">
+                <div>💵 ${Number(rate)} ${cur}</div>
+                <div>ช่วง: ${min}-${max}</div>
+              </div>
+              <div class="actions">
+                <a class="btn sm" href="/orders/new?type=service&id=${s.providerServiceId}&name=${enc(s.name)}">สั่งซื้อ</a>
+                <button class="btn sm ghost btn-desc"
+                  data-pid="${s.providerServiceId}"
+                  data-name="${enc(s.name)}"
+                  data-rate="${rate}" data-cur="${enc(cur)}"
+                  data-min="${min}" data-max="${max}"
+                  data-avg="${enc(avg)}"
+                  data-drip="${s.dripfeed ? 1 : 0}"
+                  data-refill="${s.refill ? 1 : 0}"
+                  data-cancel="${s.cancel ? 1 : 0}"
+                  data-desc="${enc(desc)}">รายละเอียด</button>
+              </div>
+            </div>
+          </div>`;
+      }).join('')}
+    </div>`;
+
+  return table + cards;
+}
+
+/* ========= modal ========= */
+function openServiceModalFromEl(btn){
+  const d = btn.dataset;
+  $('#mTitle').textContent = dec(d.name || '') || 'รายละเอียดบริการ';
+
+  const bits = [];
+  const avg = dec(d.avg || '');
+  const rate = Number(d.rate || 0);
+  const cur  = d.cur ? dec(d.cur) : 'THB';
+  const min  = d.min ?? '';
+  const max  = d.max ?? '';
+  if (avg) bits.push(`⏱ เฉลี่ย: ${avg}`);
+  if (d.drip === '1')   bits.push('💧 Dripfeed');
+  if (d.refill === '1') bits.push('♻️ เติมคืนได้');
+  if (d.cancel === '1') bits.push('✖️ ยกเลิกได้');
+  bits.push(`💵 เรท: ${fmt(rate)} ${cur}/1,000`);
+  if (min !== '' && max !== '') bits.push(`ช่วง: ${min}-${max}`);
+  $('#mMeta').innerHTML = bits.map(t=>`<span class="tag">${t}</span>`).join(' ');
+
+  let desc = dec(d.desc || '');
+  if (!safe(desc)) {
+    const svc = resolveService(d.pid);
+    if (svc) desc = pickDesc(svc);
+  }
+  $('#mBody').innerHTML = safe(desc) ? linkify(br(desc)) : '—';
+  $('#svcModal').classList.remove('hidden');
+}
+
+/* ========= events (delegation ทีเดียว) ========= */
+function wireEvents(){
+  // platform switch
+  $('#platformGrid').addEventListener('click', e=>{
+    const card = e.target.closest('.platform-card'); if (!card) return;
+    CURRENT_PLATFORM = card.dataset.platform || null;
+    $$('.platform-card').forEach(el=>el.classList.remove('active'));
+    card.classList.add('active');
+    currentChipId = "";
+    renderChips();
+    renderServicesList();
+  });
+
+  // chips
+  $('#chipBar').addEventListener('click', e=>{
+    const b = e.target.closest('.chip'); if (!b) return;
+    currentChipId = b.dataset.chip;
+    renderChips();
+    renderServicesList();
+  });
+
+  // search (debounced)
+  $('#searchAll').addEventListener('input', debounce(e=>{
+    SEARCH = (e.target.value || '').trim();
+    renderServicesList();
+  }, 300));
+
+  // toggle group + lazy render on click
+  $('#servicesContainer').addEventListener('click', e=>{
+    const head = e.target.closest('.group .head');
+    if (head){
+      const root = head.parentElement;
+      root.classList.toggle('open');
+      if (root.classList.contains('open')){
+        const cat = dec(root.dataset.cat || '');
+        renderGroupBody(cat);
+      }
+      return;
+    }
+    const b = e.target.closest('.btn-desc');
+    if (b) openServiceModalFromEl(b);
+  });
+
+  // modal
+  $('#mClose').onclick = () => $('#svcModal').classList.add('hidden');
+  $('#svcModal').addEventListener('click', e=>{
+    if (e.target.dataset.close === '1') $('#svcModal').classList.add('hidden');
+  });
+  document.addEventListener('keydown', e=>{
+    if (e.key === 'Escape') $('#svcModal').classList.add('hidden');
+  });
+}
+
+/* ========= boot ========= */
+(function init(){
+  renderPlatforms();
+  renderChips();
+  renderServicesList();
+  wireEvents();
+})();
+</script>
+
+
+

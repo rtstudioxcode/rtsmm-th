@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="th">
+<% const _bodyClass = (typeof bodyClass !== 'undefined' ? bodyClass : (locals.bodyClass || '')); %>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Favicon -->
+  <link rel="icon" href="/static/logo/icon-logo.png" type="image/png">
+  <link rel="shortcut icon" href="/static/logo/icon-logo.png" type="image/png">
+  <link rel="apple-touch-icon" href="/static/logo/icon-logo.png">
+  <title><%= (typeof title !== 'undefined' ? title : 'RTSSM-TH.COM ผู้ให้บริการการตลาดออนไลน์และโซเชียลระดับสากล มาตรฐานมืออาชีพ ดูแลลูกค้าทั่วโลก') %></title>
+
+  <!-- THEME MANAGER: แหล่งความจริงเดียว -->
+  <script>
+  (function () {
+    const html = document.documentElement;
+
+    function applyTheme(name) {
+      const t = (name === 'light') ? 'light' : 'dark';
+      html.setAttribute('data-theme', t);
+      html.classList.toggle('light', t === 'light');
+      html.classList.toggle('dark',  t === 'dark');
+      try { html.style.colorScheme = (t === 'light') ? 'light' : 'dark'; } catch(e){}
+      // กัน body ไปมีธีมทับ
+      if (document.body) {
+        document.body.removeAttribute('data-theme');
+        document.body.classList.remove('light','dark');
+      } else {
+        document.addEventListener('DOMContentLoaded', () => {
+          document.body.removeAttribute('data-theme');
+          document.body.classList.remove('light','dark');
+        }, {once:true});
+      }
+      localStorage.setItem('theme', t);
+      window.dispatchEvent(new CustomEvent('themechange', { detail:{ theme:t } }));
+    }
+
+    // ธีมเริ่มต้น
+    let t = localStorage.getItem('theme');
+    if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    applyTheme(t);
+
+    // API สาธารณะ
+    window.setTheme   = (name) => applyTheme(name);
+    window.toggleTheme= () => {
+      const cur  = html.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+      const next = cur === 'light' ? 'dark' : 'light';
+      applyTheme(next);
+      return next;
+    };
+  })();
+  </script>
+
+  <!-- CSS หลัก -->
+  <link rel="stylesheet" href="/static/css/styles.css?v=27">
+</head>
+<body class="<%- _bodyClass %>">
+  <!-- Sidebar -->
+  <aside id="sb" class="sidebar" aria-label="Side navigation">
+    <div class="sb-head">
+      <a href="/" class="sb-brand" aria-label="หน้าแรก">
+        <img class="brand-icon" src="/static/logo/icon-logo.png" alt="" />
+        <img class="brand-wordmark" src="/static/logo/logo-rtssm-th.png" alt="RTSMM-TH" />
+      </a>
+      <button id="sbPin" class="sb-pin" title="ปักหมุด/เลิกปักหมุด" aria-pressed="false">📍</button>
+    </div>
+
+    <nav class="sb-list">
+      <% if (me) { %>
+        <a class="sb-item" href="/orders/new" style="text-decoration: none;">
+          <img class="ico" src="/static/assets/emoji/ordernew.png" alt="คำสั่งซื้อใหม่" width="18" height="18" loading="lazy" />
+          <span class="txt">คำสั่งซื้อใหม่</span>
+        </a>
+        <a class="sb-item" href="/my/orders" style="text-decoration: none;">
+          <img class="ico" src="/static/assets/emoji/history.png" alt="คำสั่งซื้อของฉัน" width="18" height="18" loading="lazy" />
+          <span class="txt">คำสั่งซื้อของฉัน</span>
+        </a>
+        <% if (me.role === 'admin') { %>
+          <a class="sb-item" href="/admin" style="text-decoration: none;">
+            <img class="ico" src="/static/assets/emoji/admin.png" alt="หลังบ้าน" width="18" height="18" loading="lazy" />
+            <span class="txt">หลังบ้าน</span>
+          </a>
+        <% } %>
+        <div class="sb-group">ข้อมูล/ระบบ</div>
+        <!-- <a class="sb-item" href="/catalog" style="text-decoration: none;"><span class="ico">🌐</span><span class="txt">บริการทั้งหมด</span></a> -->
+        <a class="sb-item" href="/services" style="text-decoration: none;">
+          <img class="ico" src="/static/assets/emoji/services.png" alt="บริการทั้งหมด" width="18" height="18" loading="lazy" />
+          <span class="txt">บริการทั้งหมด</span>
+        </a>
+        <a class="sb-item" href="/update" style="text-decoration: none;">
+          <img class="ico" src="/static/assets/emoji/update.png" alt="อัปเดต" width="18" height="18" loading="lazy" />
+          <span class="txt">อัปเดต</span>
+        </a>
+        <a class="sb-item" href="/faq" style="text-decoration: none;">
+          <img class="ico" src="/static/assets/emoji/faq.png" alt="คำถามที่พบบ่อย" width="18" height="18" loading="lazy" />
+          <span class="txt">คำถามที่พบบ่อย FAQ</span>
+        </a>
+        <a class="sb-item" href="/blog" style="text-decoration: none;">
+          <img class="ico" src="/static/assets/emoji/blog.png" alt="บทความ" width="18" height="18" loading="lazy" />
+          <span class="txt">บทความ</span>
+        </a>
+        <a class="sb-item" href="/page/terms-of-use" style="text-decoration: none;">
+          <img class="ico" src="/static/assets/emoji/terms-and-conditions.png" alt="เงื่อนไขและข้อตกลง" width="18" height="18" loading="lazy" />
+          <span class="txt">เงื่อนไขและข้อตกลง</span>
+        </a>
+      <% } else { %>
+        <a class="sb-item" href="/login" style="text-decoration: none;">
+          <img class="ico" src="/static/assets/emoji/login.png" alt="เข้าสู่ระบบ" width="18" height="18" loading="lazy" />
+          <span class="txt">เข้าสู่ระบบ</span>
+        </a>
+        <a class="sb-item" href="/register" style="text-decoration: none;">
+          <img class="ico" src="/static/assets/emoji/register.png" alt="สมัครสมาชิก" width="18" height="18" loading="lazy" />
+          <span class="txt">สมัครสมาชิก</span>
+        </a>
+      <% } %>
+    </nav>
+  </aside>
+
+  <!-- เนื้อหาหลัก -->
+  <div class="sb-wrap">
+    <!-- Desktop topbar (แสดงเฉพาะจอ > 900px) -->
+    <header class="topbar desktop">
+      <div class="left" style="display:flex;align-items:center;gap:12px">
+        <!-- <button class="btn hamburger" id="sbToggle" aria-label="เปิด/ปิดเมนู">☰ เมนู</button> -->
+        <span class="brand" onclick="location.href='/'" role="link" tabindex="0">RTSSM-TH.COM ผู้ให้บริการการตลาดออนไลน์และโซเชียลระดับสากล มาตรฐานมืออาชีพ ดูแลลูกค้าทั่วโลก</span>
+      </div>
+
+      <nav class="nav" aria-label="Top navigation">
+        <% if (me) { %>
+          <!-- Balance (desktop only) -->
+          <div class="balance-pill" aria-label="ยอดเงินคงเหลือ">
+            <span class="bal-ico">฿</span>
+            <span class="bal-amt"><%= balanceText %></span>
+          </div>
+
+          <div class="balance-pill" style="text-decoration: none;" aria-label="สั่งซื้อใหม่">
+            <img class="ico" src="/static/assets/emoji/ordernew.png" alt="คำสั่งซื้อใหม่" width="18" height="18" loading="lazy" />
+            <a href="/orders/new">สั่งซื้อใหม่</a>
+          </div>
+          <div class="balance-pill" style="text-decoration: none;" aria-label="คำสั่งซื้อของฉัน">
+            <img class="ico" src="/static/assets/emoji/history.png" alt="คำสั่งซื้อใหม่" width="18" height="18" loading="lazy" />
+            <a href="/my/orders">คำสั่งซื้อของฉัน</a>
+          </div>
+          <% if (me.role === 'admin') { %>
+            <div class="balance-pill" style="text-decoration: none;" aria-label="หลังบ้าน">
+              <img class="ico" src="/static/assets/emoji/admin.png" alt="คำสั่งซื้อใหม่" width="18" height="18" loading="lazy" />
+              <a href="/admin">หลังบ้าน</a>
+            </div>
+          <% } %>
+          
+          <div class="logout-pill" aria-label="หลังบ้าน">
+            <img class="ico" src="/static/assets/emoji/logout.png" alt="ออกระบบ" width="18" height="18" loading="lazy" />
+            <a style="text-decoration: none; color: #eb0b0b;" href="/logout">ออกระบบ</a>
+          </div>
+        <% } else { %>
+          <div class="balance-pill" style="text-decoration: none;" aria-label="หลังบ้าน">
+            <img class="ico" src="/static/assets/emoji/login.png" alt="คำสั่งซื้อใหม่" width="18" height="18" loading="lazy" />
+            <a href="/login">เข้าสู่ระบบ</a>
+          </div>
+          <div class="balance-pill" style="text-decoration: none;" aria-label="หลังบ้าน">
+            <img class="ico" src="/static/assets/emoji/register.png" alt="คำสั่งซื้อใหม่" width="18" height="18" loading="lazy" />
+            <a href="/register">สมัครสมาชิก</a>
+          </div>
+        <% } %>
+
+        <button class="btn outline" id="themeToggle" title="สลับธีม">🌗</button>
+      </nav>
+    </header>
+
+    <!-- Mobile Topbar (แสดงเฉพาะจอ ≤ 900px) -->
+    <div class="m-topbar">
+      <button id="sbToggle" class="m-iconbtn" aria-label="เมนู">☰</button>
+      <a href="/" class="m-brand" aria-label="RTSMM-TH">RTSMM-TH</a>
+      <div class="m-right">
+        <% if (me) { %>
+          <button class="m-pill" aria-label="ยอดเงินคงเหลือ">
+            <span class="muted" style="margin-right:8px"><%= balanceText %></span>
+          </button>
+        <% } %>
+        <button id="themeToggle" class="m-iconbtn" aria-label="สลับธีม">🌓</button>
+      </div>
+    </div>
+
+    <!-- Mobile subnav (เลื่อนได้แนวนอน) -->
+    <nav class="m-subnav" role="navigation" aria-label="เมนูหลักด่วน">
+      <% if (me) { %>
+        <a class="chip chip--with-ico" href="/orders/new">
+          <img class="chip-ico" src="/static/assets/emoji/ordernew.png"
+              alt="" width="18" height="18" loading="lazy" aria-hidden="true">
+          <span>สั่งซื้อใหม่</span>
+        </a>
+        <a class="chip chip--with-ico" href="/my/orders">
+          <img class="chip-ico" src="/static/assets/emoji/history.png"
+              alt="" width="18" height="18" loading="lazy" aria-hidden="true">
+          <span>ประวัติการสั่งซื้อ</span>
+        </a>
+        <% if (me.role === 'admin') { %>
+          <a class="chip chip--with-ico" href="/admin">
+            <img class="chip-ico" src="/static/assets/emoji/admin.png"
+                alt="" width="18" height="18" loading="lazy" aria-hidden="true">
+            <span>หลังบ้าน</span>
+          </a>
+        <% } %>
+        <a class="chip chip--with-ico" href="/logout">
+          <img class="chip-ico" src="/static/assets/emoji/logout.png"
+              alt="" width="18" height="18" loading="lazy" aria-hidden="true">
+          <span>ออกระบบ</span>
+        </a>
+      <% } else { %>
+        <a class="chip chip--with-ico" href="/login">
+          <img class="chip-ico" src="/static/assets/emoji/login.png"
+              alt="" width="18" height="18" loading="lazy" aria-hidden="true">
+          <span>เข้าสู่ระบบ</span>
+        </a>
+        <a class="chip chip--with-ico" href="/register">
+          <img class="chip-ico" src="/static/assets/emoji/register.png"
+              alt="" width="18" height="18" loading="lazy" aria-hidden="true">
+          <span>สมัครสมาชิก</span>
+        </a>
+      <% } %>
+    </nav>
+
+    <main class="container">
+      <%- body %>
+    </main>
+
+    <footer class="footer container">All Right Reserved © <%= new Date().getFullYear() %> Powered By RTStudioXCode</footer>
+  </div>
+
+  <script>
+  (() => {
+    const sb = document.getElementById('sb');
+    const sbBtns = document.querySelectorAll('[id=sbToggle]');
+    const sbBrand = document.querySelector('.sb-brand');
+
+    function toggleSidebar() {
+      const willOpen = !sb.classList.contains('open');
+      sb.classList.toggle('open', willOpen);
+      document.body.classList.toggle('sb-open', willOpen);
+
+      // สลับโลโก้แบบเนียน: รอสไลด์เมนูเริ่ม แล้วค่อยเฟด wordmark
+      if (willOpen) {
+        // ล้างก่อนเผื่อเปิดซ้ำเร็ว ๆ
+        sbBrand?.classList.remove('logo-swap');
+        requestAnimationFrame(() => {
+          setTimeout(() => sbBrand?.classList.add('logo-swap'), 120); // ดีเลย์ ~0.12s
+        });
+      } else {
+        sbBrand?.classList.remove('logo-swap');
+      }
+    }
+
+    sbBtns.forEach(btn => btn.addEventListener('click', toggleSidebar));
+
+    // คลิกฉากหลังปิดเมนู
+    document.addEventListener('click', (e) => {
+      if (!sb.classList.contains('open')) return;
+      const inside = e.target.closest('#sb');
+      const toggle = e.target.closest('[id=sbToggle]');
+      if (!inside && !toggle) {
+        sb.classList.remove('open');
+        document.body.classList.remove('sb-open');
+        sbBrand?.classList.remove('logo-swap');
+      }
+    });
+
+    /* ปุ่มธีม / ปักหมุด (ตามเดสก์ท็อป) เหมือนเดิมได้ */
+    const themeBtns = document.querySelectorAll('[id=themeToggle]');
+    const renderThemeIcon = () => {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      themeBtns.forEach(b => b.textContent = isDark ? '🌞' : '🌗');
+    };
+    renderThemeIcon();
+    themeBtns.forEach(b => b.addEventListener('click', () => {
+      window.toggleTheme?.();
+      renderThemeIcon();
+    }));
+    window.addEventListener?.('themechange', renderThemeIcon);
+
+    // ซ่อนปุ่ม pin บนมือถืออยู่แล้วใน CSS; เดสก์ท็อปใช้ได้ปกติ
+    const pinBtn = document.getElementById('sbPin');
+    const KEY = 'sidebarPinned';
+    const pinned = localStorage.getItem(KEY) === '1';
+    if (pinned) { sb?.classList.add('pinned'); pinBtn?.classList.add('active'); pinBtn?.setAttribute('aria-pressed','true'); }
+    pinBtn?.addEventListener('click', () => {
+      const willPin = !sb.classList.contains('pinned');
+      sb.classList.toggle('pinned', willPin);
+      pinBtn?.classList.toggle('active', willPin);
+      pinBtn?.setAttribute('aria-pressed', willPin ? 'true' : 'false');
+      localStorage.setItem(KEY, willPin ? '1' : '0');
+    });
+
+    // ไฮไลต์เมนูปัจจุบัน
+    const path = location.pathname.replace(/\/+$/,'') || '/';
+    document.querySelectorAll('.sb-item').forEach(a => {
+      const href = (a.getAttribute('href')||'').replace(/\/+$/,'') || '/';
+      if (href === '/' ? path === '/' : path.startsWith(href)) a.classList.add('active');
+    });
+  })();
+  </script>
+</body>
+</html>

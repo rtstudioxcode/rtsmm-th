@@ -1,0 +1,531 @@
+<!-- เลือกแพลตฟอร์ม -->
+<section class="card">
+  <h3 class="title">แพลตฟอร์ม</h3>
+  <div id="platformGrid" class="grid"></div>
+</section>
+
+<section class="card soft">
+  <div class="row">
+    <input id="searchAll" class="input" placeholder="ค้นหาได้ทั้ง ID / ชื่อบริการ">
+    <!-- ใช้ id="chipBar" เพื่อจับคลิกแบบ delegation -->
+    <div id="chipBar" class="chips">
+      <button type="button" class="chip active" data-sub="">ทั้งหมด</button>
+    </div>
+  </div>
+</section>
+<!-- ตัวเลือกหมวดหมู่ (กลุ่มบริการ) + บริการย่อย -->
+<section class="card">
+  <div class="sel-grid">
+    <!-- กลุ่มบริการ -->
+    <div class="sel">
+      <label>หมวดหมู่</label>
+      <div class="select" id="groupSel">
+        <button class="select-btn" id="groupBtn">
+          <span id="groupText">—</span><span class="chev">▾</span>
+        </button>
+        <div class="select-menu">
+          <div class="select-search">
+            <input id="groupSearch" placeholder="ค้นหากลุ่มบริการ…">
+          </div>
+          <div id="groupList" class="list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- บริการย่อย -->
+    <div class="sel">
+      <label>บริการ</label>
+      <div class="select wide" id="childSel">
+        <button class="select-btn" id="childBtn">
+          <span id="childText">—</span><span class="chev">▾</span>
+        </button>
+        <div class="select-menu">
+          <div class="select-search">
+            <input id="childSearch" placeholder="พิมพ์หา ID หรือชื่อบริการ…">
+          </div>
+          <div id="childList" class="list svc"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- รายละเอียด + ฟอร์มสั่งซื้อ -->
+<section class="card" id="detailBox" style="display:none">
+  <div id="hdr" class="hdr"></div>
+  <div id="meta" class="meta"></div>
+
+  <details class="mt" open>
+    <summary>รายละเอียดบริการ</summary>
+    <div id="desc" class="desc mt">—</div>
+  </details>
+
+  <form id="orderForm" class="form" onsubmit="return submitOrder(event)">
+    <input type="hidden" id="groupId" name="groupId">
+    <input type="hidden" id="providerServiceId" name="providerServiceId">
+
+    <label>ลิงก์/เป้าหมาย
+      <input id="link" name="link" required placeholder="https://…">
+    </label>
+
+    <div class="row2">
+      <!-- จำนวน + hint ต่ำสุด/สูงสุด -->
+      <label class="with-hint">ปริมาณ
+        <input id="qty" name="quantity" type="number" required>
+        <div id="qtyHint" class="hintline">
+          <span class="min">ขั้นต่ำ: <b id="minVal">—</b></span>
+          <span class="dot">•</span>
+          <span class="max">สูงสุด: <b id="maxVal">—</b></span>
+        </div>
+      </label>
+
+      <!-- ค่าใช้จ่ายแบบมี prefix ฿ -->
+      <label>ค่าใช้จ่าย
+        <div class="input-group">
+          <span class="input-prefix">฿</span>
+          <input id="est" class="input right" type="text" readonly value="0">
+        </div>
+      </label>
+    </div>
+
+    <div class="row2 toggles">
+      <label class="toggle">
+        <input id="drip" type="checkbox">
+        <span class="lbl">📦 ทยอยดำเนินการ (Dripfeed)</span>
+        <small class="hint">ระบบจะค่อย ๆ ทำงานเป็นรอบ เพื่อความปลอดภัย</small>
+      </label>
+      <label class="toggle">
+        <input id="sys" type="checkbox">
+        <span class="lbl">⚙️ ตั้งออเดอร์ตามระบบ</span>
+        <small class="hint">ให้ระบบตรวจสอบและสั่งซ้ำให้อัตโนมัติ</small>
+      </label>
+    </div>
+
+    <!-- <label>บันทึก
+      <input id="note" name="note" placeholder="บันทึก (ถ้ามี)">
+    </label> -->
+
+    <button class="btn primary block">ยืนยันคำสั่งซื้อ</button>
+  </form>
+
+  <div id="resp" class="mt"></div>
+</section>
+
+<script>
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const br = s=>String(s||'').replace(/\r?\n/g,'<br>');
+const linkify = s=>String(s||'').replace(/https?:\/\/\S+/g,m=>`<a href="${m}" target="_blank" rel="noopener">${m}</a>`);
+const fmt = n=>Number(n||0).toLocaleString(undefined,{maximumFractionDigits:4});
+
+let platforms=[], groups=[], children=[];
+let subcats=[];
+let currentPlatform=null, currentGroup=null, currentChild=null;
+let currentChipId="";          // <— ใช้แทน currentSubcatId เดิม
+let visibleChipList=[];        // ชิปที่เรนเดอร์หลังกรอง count แล้ว
+let rate=0, currency='THB';
+
+document.addEventListener('click',e=>{
+  const sel=e.target.closest('.select');
+  $$('.select.open').forEach(x=>{ if(x!==sel) x.classList.remove('open') });
+});
+
+init();
+
+/* --------- Utils --------- */
+// ObjectId -> string
+function oid(x){
+  if (!x) return '';
+  if (typeof x === 'string') return x;
+  if (typeof x === 'object'){
+    if (x.$oid) return String(x.$oid);
+    if (x._id)  return oid(x._id);
+  }
+  return String(x);
+}
+// subcategory id of group
+function groupSubId(g){ return oid(g?.subcategory); }
+
+/* --------- นิยามชิปภาษาไทย + คีย์เวิร์ด --------- */
+// id: ชื่อฐาน (ภายใน), label: แสดงผล, kw: คำใบ้ fallback
+const CHIP_DEFS = [
+  { id:"",               label:"ทั้งหมด",              kw:[] },
+  { id:"views",          label:"วิว",                  kw:["view","views","watch","play","ชม","วิว"] },
+  { id:"likes",          label:"ไลก์",                 kw:["like","likes","heart","react","reactions","ถูกใจ","ไลก์"] },
+  { id:"members",        label:"สมาชิก/ผู้ติดตาม",     kw:["follow","follower","followers","subscriber","subscribers","subs","ติดตาม","ผู้ติดตาม","สมาชิก","members"] },
+  { id:"comments",       label:"คอมเมนต์",            kw:["comment","comments","คอมเมน"] },
+  { id:"shares",         label:"แชร์",                 kw:["share","shares","รีโพสต์","repost","retweet","แชร์"] },
+  { id:"traffic",        label:"คลิก/ทราฟฟิก",        kw:["link click","click","traffic","คลิก","ทราฟฟิก"] },
+  { id:"shorts_reels",   label:"Shorts/Reels/Live",    kw:["short","shorts","reel","reels","live","สตรีม","ไลฟ์"] },
+  { id:"general",        label:"ทั่วไป",               kw:["general","รวม","รวมบริการ","all-in-one"] },
+];
+
+// ตรวจว่า group ตรงกับชิป (ล็อกด้วย ID จริงก่อน, ไม่ตรงค่อย fallback ด้วยคีย์เวิร์ด)
+function groupMatchesChip(group, chip){
+  if (!chip || chip.id==="") return true; // "ทั้งหมด"
+  // ถ้ามี realId (มาจาก subcategory ของ backend) และ group มี id ตรง ให้ผ่านเลย
+  if (chip.realId){
+    const gSub = groupSubId(group);
+    if (gSub && gSub === chip.realId) return true;
+  }
+  // fallback ชื่อกลุ่ม/รายละเอียด
+  const name = `${group?.name||''} ${group?.details?.name||''}`.toLowerCase();
+  return chip.kw.some(k => name.includes(k.toLowerCase()));
+}
+
+/* ---------- แพลตฟอร์ม & ไอคอน ---------- */
+const PLATFORM_ICON_URLS = {
+  tiktok:"/static/assets/platform/tiktok.png",
+  facebook:"/static/assets/platform/facebook.png",
+  youtube:"/static/assets/platform/youtube.png",
+  instagram:"/static/assets/platform/ig.png",
+  threads:"/static/assets/platform/threads.png",
+  twitter:"/static/assets/platform/twitter.png",
+  x:"/static/assets/platform/x.png",
+  line:"/static/assets/platform/line.png",
+  telegram:"/static/assets/platform/telegram.png",
+  discord:"/static/assets/platform/discord.png",
+  twitch:"/static/assets/platform/twitch.png",
+  spotify:"/static/assets/platform/spotify.png",
+  kick:"/static/assets/platform/kick.png",
+  premium:"/static/assets/platform/premium.png",
+  seo:"/static/assets/platform/seo.png",
+  traffic:"/static/assets/platform/traffic.png",
+  thailand:"/static/assets/platform/thailand.png",
+  shopee:"/static/assets/platform/shopee.png"
+};
+function pickIconUrl(name=''){
+  const s = name.toLowerCase();
+  if (s.includes('tiktok')) return PLATFORM_ICON_URLS.tiktok;
+  if (s.includes('facebook')) return PLATFORM_ICON_URLS.facebook;
+  if (s.includes('youtube') || s.includes('youtub')) return PLATFORM_ICON_URLS.youtube;
+  if (s.includes('instagram') || s.includes('ig')) return PLATFORM_ICON_URLS.instagram;
+  if (s.includes('thread')) return PLATFORM_ICON_URLS.threads;
+  if (s.includes('twitter') || s === 'x' || s.includes(' x ')) return PLATFORM_ICON_URLS.twitter;
+  if (s.includes('line')) return PLATFORM_ICON_URLS.line;
+  if (s.includes('telegram')) return PLATFORM_ICON_URLS.telegram;
+  if (s.includes('discord')) return PLATFORM_ICON_URLS.discord;
+  if (s.includes('twitch')) return PLATFORM_ICON_URLS.twitch;
+  if (s.includes('spotify')) return PLATFORM_ICON_URLS.spotify;
+  if (s.includes('kick')) return PLATFORM_ICON_URLS.kick;
+  if (s.includes('พรีเมีย') || s.includes('premium')) return PLATFORM_ICON_URLS.premium;
+  if (s.includes('seo')) return PLATFORM_ICON_URLS.seo;
+  if (s.includes('traffic') || s.includes('เพิ่มคนเข้าเว็บ')) return PLATFORM_ICON_URLS.traffic;
+  if (s.includes('ไทย') || s.includes('thailand')) return PLATFORM_ICON_URLS.thailand;
+  if (s.includes('shopee') || s.includes('ช้อป')) return PLATFORM_ICON_URLS.shopee;
+  return PLATFORM_ICON_URLS.seo; // fallback กลางๆ
+}
+
+/* ---------- Boot ---------- */
+async function init(){
+  await loadPlatforms();
+  await tryAutoSelectFromURL();
+  $('#searchAll').addEventListener('input', filterChildrenFromGlobal);
+  $('#groupBtn').onclick = ()=>$('#groupSel').classList.toggle('open');
+  $('#childBtn').onclick = ()=>$('#childSel').classList.toggle('open');
+  $('#groupSearch').addEventListener('input', renderGroupList);
+  $('#childSearch').addEventListener('input', renderChildList);
+  $('#qty').addEventListener('input', updateEstimate);
+  $('#chipBar').addEventListener('click', onChip);
+  $('#searchAll').value='';
+  $('#searchAll').dispatchEvent(new Event('input'));
+}
+
+/* ---------- auto-pick service from ?type=service&id=xxx ---------- */
+async function tryAutoSelectFromURL(){
+  const sp = new URLSearchParams(location.search);
+  const type = sp.get('type');
+  const pid  = sp.get('id');              // provider service id
+  if (type !== 'service' || !pid) return;
+
+  // 1) ถ้าแพลตฟอร์มปัจจุบันมีอยู่แล้ว ลองหาเลยก่อน
+  const pickInsideCurrent = ()=>{
+    const grp = (groups||[]).find(g =>
+      Array.isArray(g?.details?.services) &&
+      g.details.services.some(s => String(s.id) === String(pid))
+    );
+    if (!grp) return false;
+    chooseGroup(grp);
+    const svc = grp.details.services.find(s => String(s.id) === String(pid));
+    if (svc) chooseChild(svc);
+    // เปิดรายละเอียดให้เห็นชัด ๆ
+    document.getElementById('detailBox').style.display = '';
+    document.getElementById('qty')?.focus();
+    return true;
+  };
+
+  // 2) ลองหาในแพลตฟอร์มที่ถูกเลือกอยู่ก่อน
+  if (pickInsideCurrent()) return;
+
+  // 3) วนทุกแพลตฟอร์ม: โหลดกลุ่ม แล้วหา service id ที่ต้องการ
+  for (const p of platforms){
+    await choosePlatform(p._id);          // โหลด groups ของแพลตฟอร์มนั้น
+    if (pickInsideCurrent()){
+      // ทำไทล์แพลตฟอร์มให้ active ด้วย
+      $$('#platformGrid .p-tile').forEach(el=>{
+        el.classList.toggle('active', el.dataset.id === String(p._id));
+      });
+      break;
+    }
+  }
+}
+
+/* ---------- ชิปคลิก ---------- */
+function onChip(e){
+  const b = e.target.closest('.chip'); if(!b) return;
+  const chipId = b.dataset.chip;
+
+  // หาใน visibleChipList
+  const chip = visibleChipList.find(c => c.id===chipId);
+  // ถ้าเป็นชิปที่ไม่มีของ (count==0) และไม่ใช่ "ทั้งหมด" — ไม่ให้เลือก
+  if (chip && chip.id!=="" && chip.count===0) return;
+
+  currentChipId = chipId;
+  $('#chipBar').querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+
+  renderGroupList(true);
+}
+
+/* ---------- โหลดแพลตฟอร์ม ---------- */
+async function loadPlatforms(){
+  const res = await fetch('/api/platforms');
+  platforms = await res.json();
+
+  const grid = $('#platformGrid');
+  grid.innerHTML = platforms.map(p=>{
+    const img = pickIconUrl(p.name||'');
+    return `
+      <div class="p-tile" data-id="${p._id}" data-name="${p.name||''}">
+        <div class="p-icon"><img loading="lazy" src="${img}" alt="${p.name||''}"></div>
+        <div class="p-name">${p.name||''}</div>
+      </div>`;
+  }).join('');
+
+  grid.addEventListener('click', async e=>{
+    const t = e.target.closest('.p-tile'); if(!t) return;
+    $$('#platformGrid .p-tile').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    await choosePlatform(t.dataset.id);
+  });
+
+  if (platforms.length){
+    const first = $('#platformGrid .p-tile');
+    first?.classList.add('active');
+    choosePlatform(platforms[0]._id);
+  }
+}
+
+/* ---------- เมื่อเลือกแพลตฟอร์ม ---------- */
+async function choosePlatform(catId){
+  currentPlatform = catId;
+  currentChipId   = "";   // เริ่มที่ “ทั้งหมด”
+
+  // 1) subcategories (เพื่อ map id จริงให้ชิป)
+  try{
+    const subRes = await fetch(`/api/subcategories?cat=${catId}`);
+    subcats = await subRes.json(); // [{_id,name}]
+  }catch(e){ subcats = []; }
+
+  // 2) กลุ่มบริการ
+  const res = await fetch(`/api/service-groups?cat=${catId}`);
+  groups = await res.json();
+
+  // 3) ผูก realId + นับจำนวน
+  const chipsWithCount = CHIP_DEFS.map(ch=>{
+    const sub = subcats.find(s => (s.name||'').toLowerCase() === ch.label.toLowerCase());
+    const realId = sub ? oid(sub._id) : null;
+    const chipObj = { ...ch, realId, count:0 };
+    chipObj.count = groups.filter(g => groupMatchesChip(g, chipObj)).length;
+    return chipObj;
+  });
+
+  // 4) แสดงเฉพาะชิปที่มีจริง หรือ “ทั้งหมด”
+  visibleChipList = chipsWithCount.filter(ch => ch.id==="" || ch.count>0);
+  renderChipsTH();
+  renderGroupList(true);
+}
+
+/* ---------- วาดชิปภาษาไทย (เฉพาะที่มีจริง) ---------- */
+function renderChipsTH(){
+  const bar = $('#chipBar');
+  bar.innerHTML = visibleChipList.map(ch => `
+    <button type="button"
+            class="chip ${currentChipId===ch.id ? 'active' : ''} ${ch.id!=='' && ch.count===0 ? 'disabled' : ''}"
+            data-chip="${ch.id}">
+      ${ch.label}
+    </button>
+  `).join('');
+}
+
+/* ---------- กลุ่มบริการ (ซ้าย) กรองด้วยชิป + คำค้น ---------- */
+function renderGroupList(reset=false){
+  const q = ($('#groupSearch').value||'').toLowerCase();
+  const chip = visibleChipList.find(c => c.id===currentChipId) || visibleChipList[0];
+
+  const filtered = groups.filter(g =>
+    groupMatchesChip(g, chip) &&
+    String(g.name||'').toLowerCase().includes(q)
+  );
+
+  $('#groupList').innerHTML = filtered.map(x =>
+    `<div class="opt" data-id="${x._id}">${x.name||'-'}</div>`).join('');
+
+  $('#groupList').onclick = e=>{
+    const el=e.target.closest('.opt'); if(!el) return;
+    $('#groupSel').classList.remove('open');
+    const grp = filtered.find(v=>String(v._id)===el.dataset.id);
+    chooseGroup(grp);
+  };
+
+  if(reset){
+    if(filtered.length) chooseGroup(filtered[0]); else clearAll();
+  }
+}
+
+/* ---------- เลือกกลุ่ม → บริการย่อย ---------- */
+function chooseGroup(grp){
+  currentGroup=grp;
+  children = Array.isArray(grp?.details?.services) ? grp.details.services : [];
+  $('#groupText').textContent = grp?.name || '—';
+  $('#groupId').value = grp?._id || '';
+  renderChildList();
+  if(children.length) chooseChild(children[0]); else resetDetail();
+}
+
+/* ---------- รายการบริการย่อย ---------- */
+function renderChildList(){
+  const q = ($('#childSearch').value || '').toLowerCase();
+  const globalQ = ($('#searchAll').value || '').toLowerCase();
+  const list = children.filter(c=>{
+    const s = `${c.id} ${c.name}`.toLowerCase();
+    return s.includes(q) && s.includes(globalQ);
+  });
+
+  $('#childList').innerHTML = list.map(c=>`
+    <div class="opt" data-id="${c.id}">
+      <div class="row">
+        <div>
+          <span class="id">ID: ${c.id}</span>
+          <span class="name"> — ${c.name||''}</span>
+        </div>
+        <div class="rate">${fmt(c.rate||0)} ${c.currency||'THB'}</div>
+      </div>
+    </div>`).join('');
+
+  $('#childList').onclick = e=>{
+    const el=e.target.closest('.opt'); if(!el) return;
+    $('#childSel').classList.remove('open');
+    const svc = children.find(v=>String(v.id)===el.dataset.id);
+    chooseChild(svc);
+  };
+}
+function filterChildrenFromGlobal(){ renderChildList(); }
+
+/* ---------- รายละเอียด/ฟอร์ม ---------- */
+function chooseChild(svc){
+  currentChild = svc;
+
+  $('#childText').textContent = svc?.name || '—';
+  $('#providerServiceId').value = svc?.id || '';
+  rate     = Number(svc?.rate || 0);
+  currency = svc?.currency || 'THB';
+
+  const bits = [];
+  bits.push(`อัตรา: ${fmt(rate)} ${currency} / 1,000`);
+  bits.push(`ช่วง: ${svc.min||0}-${svc.max||0}${svc.step? ' | step '+svc.step: ''}`);
+  if (svc.average_delivery) bits.push(`เฉลี่ย: ${svc.average_delivery}`);
+  if (svc.dripfeed) bits.push('Dripfeed');
+  if (svc.refill)   bits.push('Refill');
+  if (svc.cancel)   bits.push('ยกเลิกได้');
+
+  $('#hdr').innerHTML  = currentGroup?.name || '';
+  $('#meta').innerHTML = bits.join(' | ');
+  $('#desc').innerHTML =
+    (svc?.description ? linkify(br(svc.description)) :
+    (currentGroup?.description ? linkify(br(currentGroup.description)) : '—'));
+
+  // จำนวน: เปิดอิสระ
+  const q    = $('#qty');
+  const min  = Math.max(1, Number(svc.min || 1));
+  const max  = Math.max(min, Number(svc.max || min));
+  const step = Number(svc.step || 1);
+
+  q.min  = String(min);
+  q.max  = String(max);
+  q.step = 'any';
+  q.value = '';
+  q.placeholder = `เช่น ${min.toLocaleString()} – ${max.toLocaleString()}`;
+
+  const minVal = $('#minVal'), maxVal = $('#maxVal'), help = $('#qtyHelp');
+  if (minVal) minVal.textContent = min.toLocaleString();
+  if (maxVal) maxVal.textContent = max.toLocaleString();
+  if (help){
+    help.innerHTML =
+      `<span class="label">ขั้นต่ำ:</span> <b>${min.toLocaleString()}</b>
+       <span class="sep">–</span>
+       <span class="label">สูงสุด:</span> <b>${max.toLocaleString()}</b>` +
+      (step>1 ? ` <span class="sep"></span><span class="muted">(แนะนำเพิ่มครั้งละ ${step.toLocaleString()})</span>` : '');
+  }
+
+  // live estimate
+  q.addEventListener('input', () => updateEstimate());
+
+  $('#drip').disabled = !svc.dripfeed;
+  $('#drip').checked  = !!svc.dripfeed;
+
+  updateEstimate();
+  $('#detailBox').style.display = '';
+}
+function resetDetail(){ $('#childText').textContent='—'; $('#detailBox').style.display='none'; }
+function updateEstimate(){
+  const n = Number($('#qty').value || 0);
+  const price = Math.max(0, (n/1000) * rate);
+  const estValue = document.getElementById('estValue');
+  if (estValue) estValue.textContent = fmt(price);
+  else document.getElementById('est').value = `${fmt(price)} ${currency}`;
+}
+async function submitOrder(ev){
+  ev.preventDefault();
+
+  const groupId = $('#groupId').value?.trim();
+  const childId = $('#providerServiceId').value?.trim();
+  const link = $('#link').value?.trim();
+  const qty  = Number($('#qty').value || 0);
+
+  const errs = [];
+  if(!groupId) errs.push('ไม่พบรหัสกลุ่มบริการ (groupId)');
+  if(!childId) errs.push('ยังไม่ได้เลือก “บริการย่อย”');
+  if(!link)    errs.push('กรุณากรอกลิงก์/เป้าหมาย');
+  if(!(qty > 0)) errs.push('จำนวนต้องมากกว่า 0');
+
+  if (errs.length){
+    $('#resp').innerHTML = `<div class="card soft">❌ ${errs.join(' • ')}</div>`;
+    return false;
+  }
+
+  const payload = {
+    groupId,
+    providerServiceId: childId,     // id ของบริการย่อยใน details.services[].id
+    link,
+    quantity: qty,
+    dripfeed: $('#drip').checked,
+    follow_system: $('#sys').checked
+  };
+
+  try{
+    const res  = await fetch('/orders', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(()=>({}));
+    $('#resp').innerHTML = data?.ok
+      ? `<div class="card soft">✅ สั่งซื้อสำเร็จ Provider Order: <b>${data.providerOrderId||'-'}</b></div>`
+      : `<div class="card soft">❌ ${data?.error||'สั่งซื้อไม่สำเร็จ'}<br><small class="muted">${data?.detail ? JSON.stringify(data.detail) : ''}</small></div>`;
+  }catch(err){
+    $('#resp').innerHTML = `<div class="card soft">❌ ส่งคำสั่งไม่สำเร็จ (${err.message})</div>`;
+  }
+  return false;
+}
+</script>
+
