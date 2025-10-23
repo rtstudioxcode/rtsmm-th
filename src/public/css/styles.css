@@ -1162,14 +1162,16 @@ html[data-theme="dark"] .pill.progress{
   width:28px; height:28px; border:0; border-radius:999px;
   display:grid; place-items:center;
   font-size:16px; line-height:1; cursor:pointer;
-  background:#e9f1ff; color:#1b66ff;
+  background:#e9f1ff00; colorgba(27, 103, 255, 0)ff;
 }
+.xbtn-danger { background:#e53935; color:#ffffff00; }
+.xbtn-danger:hover { filter:brightness(.92); }
 .xbtn:hover{ transform:translateY(-1px); box-shadow:var(--pv-shadow); }
 .xbtn:disabled{ opacity:.55; cursor:default; transform:none; box-shadow:none; }
 
-.xbtn-info{ background:#e9fff6; color:#0aa36c; text-decoration:none; }
-html[data-theme="dark"] .xbtn{ background:#16283a; color:#79a8ff; }
-html[data-theme="dark"] .xbtn-info{ background:#0f2a24; color:#47d9a1; }
+.xbtn-info{ background:#e9fff600; color:#0aa36b00; text-decoration:none; }
+html[data-theme="dark"] .xbtn{ background:#16283a00; color:#79a8ff00; }
+html[data-theme="dark"] .xbtn-info{ background:#0f2a2400; color:#47d9a1; }
 
 /* ===== Order Modal (theme-aware) ===== */
 .omodal{ position:fixed; inset:0; z-index:1000; display:none; }
@@ -1537,4 +1539,44 @@ html:not([data-theme="dark"]) .omodal .section-sep{
   .sb-wrap .container > .card:first-child{
     margin-top: 6px !important;
   }
+}
+
+/* .xbtn .icon { width: 16px; height: 16px; } */
+
+.xbtn:hover .icon {
+  transform: scale(1.1);
+}
+
+/* ปุ่มไอคอนให้โปร่งใส ไม่ต้องมีวงกลมหรือพื้นหลัง */
+.xbtn {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  padding: 6px;            /* หรือ 0 ถ้าอยากให้ชิดรูป */
+  border-radius: 0 !important;  /* กันถูกทำให้เป็นวงกลม */
+}
+
+/* โทนแต่ละสีไม่ต้องมีพื้นหลัง */
+.xbtn-danger,
+.xbtn-sync,
+.xbtn-primary,
+.xbtn-info {
+  background: transparent !important;
+}
+
+/* เวลาโฮเวอร์ก็ไม่ต้องมีพื้นหลัง */
+.xbtn:hover,
+.xbtn:active,
+.xbtn:focus {
+  background: transparent !important;
+  outline: none;
+}
+
+/* ไอคอนเอง */
+.xbtn .icon {
+  width: 22px;
+  height: 22px;
+  display: inline-block;
+  object-fit: contain;
+  background: transparent !important; /* กันเผื่อ */
 }

@@ -36,7 +36,7 @@ function decideDisplaySSR(o){
 
   <div class="right-actions">
     <button id="btnSync" class="btn primary">
-      <span style="font-size:14px">🔄</span> อัปเดตสถานะล่าสุด
+      <span style="font-size:14px;">🔄</span> อัปเดตสถานะล่าสุด
     </button>
   </div>
 </section>
@@ -133,27 +133,83 @@ function decideDisplaySSR(o){
           </td>
           <td class="mono"><%= o.quantity %></td>
           <td class="st-cell">
-            <% const dd = decideDisplaySSR(o); %>
-            <div class="st-block">
-              <!-- แถบสถานะยาว -->
-              <div class="pill long <%= dd.isDone ? 'ok' : '' %>" data-pct="<%= dd.donePct %>">
-                <i class="bar" style="width:<%= dd.isDone ? '100' : dd.donePct %>%"></i>
-                <span class="label">
-                  <% if (dd.showPct) { %>
-                    ดำเนินการ ~ <span class="pct"><%= dd.donePct.toFixed(2) %>%</span>
-                  <% } else { %>
-                    <%= dd.label %>
-                  <% } %>
-                </span>
-              </div>
+          <% const dd = decideDisplaySSR(o); %>
+          <% 
+            // ใช้ flags จากเซิร์ฟเวอร์ (ลด logic ซ้ำ)
+            const canCancel  = !!(o.uiFlags && o.uiFlags.canCancel);
+            const isDone     = !!(o.uiFlags && o.uiFlags.isDone);
+            // อนุญาตสั่งซ้ำก็ต่อเมื่อมี service._id (รู้แหล่ง) และออเดอร์เสร็จแล้ว
+            const canRepeat  = isDone && !!(o.service && o.service._id);
+          %>
 
-              <!-- ปุ่มย้ายมาไว้ใต้สถานะ -->
-              <div class="st-actions under">
-                <button type="button" class="xbtn xbtn-sync btn-refresh" data-id="<%= o._id %>" title="อัปเดตสถานะออเดอร์">🔄</button>
-                <button type="button" class="xbtn xbtn-info open-order"  data-id="<%= o._id %>" title="รายละเอียด">i</button>
-              </div>
+          <div class="st-block">
+            <!-- pill สถานะยาว -->
+            <div class="pill long <%= dd.isDone ? 'ok' : '' %>" data-pct="<%= dd.donePct %>">
+              <i class="bar" style="width:<%= dd.isDone ? '100' : dd.donePct %>%"></i>
+              <span class="label">
+                <% const isPartialRefund = (String(o.status||'').toLowerCase()==='canceled' && Number(o.refundAmount||0)>0 && o.refundType==='partial'); %>
+                <% if (isPartialRefund) { %>
+                  <span class="badge warn" style="margin-right:8px">คืนบางส่วน</span>
+                <% } %>
+
+                <% if (dd.showPct) { %>
+                  ดำเนินการ ~ <span class="pct"><%= dd.donePct.toFixed(2) %>%</span>
+                <% } else { %>
+                  <%= dd.label %>
+                <% } %>
+              </span>
             </div>
-          </td>
+
+            <!-- ปุ่มใต้สถานะ -->
+            <div class="st-actions under">
+              <!-- <% if (canCancel) { %>
+                <button
+                  type="button"
+                  class="xbtn xbtn-danger btn-cancel"
+                  data-id="<%= o._id %>"
+                  title="ยกเลิกและคืนเงิน"
+                  aria-label="ยกเลิกและคืนเงิน">
+                  <img src="/static/assets/emoji/cancel.png" alt="" class="icon" />
+                </button>
+                <button type="button" class="xbtn xbtn-danger btn-cancel" data-id="<%= o._id %>" title="ยกเลิกและคืนเงิน">−</button> -->
+              <!-- <% } %> --> 
+
+              <% if (!dd.isDone) { %>
+                <button
+                  type="button"
+                  class="xbtn xbtn-sync btn-refresh"
+                  data-id="<%= o._id %>"
+                  title="อัปเดตสถานะออเดอร์"
+                  aria-label="อัปเดตสถานะออเดอร์">
+                  <img src="/static/assets/emoji/updatestatus.png" alt="" class="icon" />
+                </button>
+                <!-- <button type="button" class="xbtn xbtn-sync btn-refresh" data-id="<%= o._id %>" title="อัปเดตสถานะออเดอร์">🔄</button> -->
+              <% } %>
+
+              <% if (canRepeat) { %>
+                <button
+                  type="button"
+                  class="xbtn xbtn-primary btn-repeat"
+                  data-id="<%= o._id %>"
+                  title="สั่งซ้ำรายการนี้"
+                  aria-label="สั่งซ้ำรายการนี้">
+                  <img src="/static/assets/emoji/repeat.png" alt="" class="icon" />
+                </button>
+                <!-- <button type="button" class="xbtn xbtn-primary btn-repeat" data-id="<%= o._id %>" title="สั่งซ้ำรายการนี้">⟳</button> -->
+              <% } %>
+
+              <button
+                type="button"
+                class="xbtn xbtn-info open-order"
+                data-id="<%= o._id %>"
+                title="รายละเอียด"
+                aria-label="รายละเอียด">
+                <img src="/static/assets/emoji/detail.png" alt="" class="icon" />
+              </button>
+              <!-- <button type="button" class="xbtn xbtn-info open-order"  data-id="<%= o._id %>" title="รายละเอียด">i</button> -->
+            </div>
+          </div>
+        </td>
         </tr>
       <% }) %>
     </tbody>
@@ -222,8 +278,20 @@ function decideDisplaySSR(o){
           <div class="o-label">สถานะ</div>
           <div class="o-val">
             <% const mdd = decideDisplaySSR(o); %>
+            <%
+              const canCancel = !!(o.uiFlags && o.uiFlags.canCancel);
+              const isDone    = !!(o.uiFlags && o.uiFlags.isDone);
+              const canRepeat = isDone && !!(o.service && o.service._id);
+            %>
             <div class="st-stack">
               <span class="pill progress <%= mdd.isDone ? 'ok' : '' %>">
+                <% const isPartialRefund = (String(o.status||'').toLowerCase()==='canceled'
+                    && Number(o.refundAmount||0) > 0 && o.refundType === 'partial'); %>
+
+                <% if (isPartialRefund) { %>
+                  <span class="badge warn" style="margin-right:8px">คืนบางส่วน</span>
+                <% } %>
+
                 <% if (mdd.showPct) { %>
                   ดำเนินการ ~ <span class="pct" data-pct="<%= mdd.donePct %>"><%= mdd.donePct.toFixed(2) %>%</span>
                 <% } else { %>
@@ -231,8 +299,49 @@ function decideDisplaySSR(o){
                 <% } %>
               </span>
               <div class="st-actions">
-                <button type="button" class="xbtn xbtn-sync btn-refresh" data-id="<%= o._id %>" title="อัปเดตสถานะออเดอร์">🔄</button>
-                <button type="button" class="xbtn xbtn-info open-order" title="รายละเอียด" data-id="<%= o._id %>">i</button>
+                <!-- <% if (canCancel) { %>
+                  <button
+                    type="button"
+                    data-id="<%= o._id %>"
+                    title="ยกเลิกและคืนเงิน"
+                    aria-label="ยกเลิกและคืนเงิน">
+                    <img src="/static/assets/emoji/cancel.png" alt="" class="icon" />
+                  </button>
+                <% } %> -->
+
+                <% if (!mdd.isDone) { %>
+                  <button
+                    type="button"
+                    class="xbtn xbtn-sync btn-refresh"
+                    data-id="<%= o._id %>"
+                    title="อัปเดตสถานะออเดอร์"
+                    aria-label="อัปเดตสถานะออเดอร์">
+                    <img src="/static/assets/emoji/updatestatus.png" alt="" class="icon" />
+                  </button>
+                  <!-- <button type="button" class="xbtn xbtn-sync btn-refresh" data-id="<%= o._id %>" title="อัปเดตสถานะออเดอร์">🔄</button> -->
+                <% } %>
+
+                <% if (canRepeat) { %>
+                  <button
+                    type="button"
+                    class="xbtn xbtn-primary btn-repeat"
+                    data-id="<%= o._id %>"
+                    title="สั่งซ้ำรายการนี้"
+                    aria-label="สั่งซ้ำรายการนี้">
+                    <img src="/static/assets/emoji/repeat.png" alt="" class="icon" />
+                  </button>
+                  <!-- <button type="button" class="xbtn xbtn-primary btn-repeat" data-id="<%= o._id %>" title="สั่งซ้ำรายการนี้">⟳</button> -->
+                <% } %>
+                
+                <button
+                  type="button"
+                  class="xbtn xbtn-info open-order"
+                  data-id="<%= o._id %>"
+                  title="รายละเอียด"
+                  aria-label="รายละเอียด">
+                  <img src="/static/assets/emoji/detail.png" alt="" class="icon" />
+                </button>
+                <!-- <button type="button" class="xbtn xbtn-info open-order" title="รายละเอียด" data-id="<%= o._id %>">i</button> -->
               </div>
             </div>
           </div>
@@ -265,6 +374,9 @@ function decideDisplaySSR(o){
         <div class="ometa">
           <div class="muted">ค่าใช้จ่าย ทั้งหมด</div>
           <div id="om-cost">-</div>
+
+          <div class="muted" id="om-refund-label" style="margin-top:8px; display:none;">ยอดคืนเงิน</div>
+          <div id="om-refund" style="display:none;">-</div>
         </div>
       </section>
 
@@ -341,7 +453,12 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
   createdAt: o.createdAt,
   updatedAt: o.updatedAt ?? o.createdAt,
   currency: (o.currency || o.service?.currency || 'THB'),
-  estCost: (o.estCost ?? o.cost ?? (((o.quantity||0)/1000) * (o.service?.rate||0)))
+  estCost: (o.estCost ?? o.cost ?? (((o.quantity||0)/1000) * (o.service?.rate||0))),
+  serviceId: (o.service && o.service._id) || null, 
+  svcProviderServiceId: (o.service && o.service.providerServiceId) || (o.providerServiceId || null),
+  providerServiceId: o.providerServiceId || null,
+  refundAmount: (o.refundAmount ?? 0),
+  refundType: (o.refundType || null)
 }))) %>;
 
 (function(){
@@ -419,6 +536,19 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
 
     qtyAbsEl.textContent  = Number(o.quantity)||0;
     leftAbsEl.textContent = (leftAbs==null ? '—' : leftAbs);
+
+    // refund display
+    const refund = Number(o.refundAmount||0);
+    const refLabel = document.getElementById('om-refund-label');
+    const refVal   = document.getElementById('om-refund');
+    if (refund > 0) {
+      refLabel.style.display = '';
+      refVal.style.display = '';
+      refVal.textContent = fmtMoney(refund, o.currency) + (o.refundType==='partial' ? ' (คืนบางส่วน)' : ' (คืนเต็ม)');
+    } else {
+      refLabel.style.display = 'none';
+      refVal.style.display = 'none';
+    }
   }
 
   function openModal(o){
@@ -454,11 +584,13 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
       const idx = arr.findIndex(x=>x._id===currentId);
       if (idx>-1){
         const o = arr[idx];
-        o.status       = data.status ?? o.status;
+        o.status        = data.status ?? o.status;
         if (typeof data.progress === 'number')      o.progress = data.progress;
         if (typeof data.remains  === 'number')      o.remains  = data.remains;
         if (typeof data.start_count === 'number')   o.startCount   = data.start_count;
         if (typeof data.current_count === 'number') o.currentCount = data.current_count;
+        if (typeof data.refundAmount === 'number')  o.refundAmount = data.refundAmount;
+        if (typeof data.refundType === 'string')    o.refundType   = data.refundType;
         o.updatedAt = data.updatedAt ?? new Date().toISOString();
         render(o);
       }
@@ -487,7 +619,9 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
         remains: payload.remains ?? arr[idx].remains,
         startCount: payload.startCount ?? arr[idx].startCount,
         currentCount: payload.currentCount ?? arr[idx].currentCount,
-        updatedAt: payload.updatedAt ?? arr[idx].updatedAt
+        updatedAt: payload.updatedAt ?? arr[idx].updatedAt,
+        refundAmount: (payload.refundAmount ?? arr[idx].refundAmount),
+        refundType: (payload.refundType ?? arr[idx].refundType)
       });
     }
 
@@ -498,7 +632,9 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
       startCount: payload.startCount,
       currentCount: payload.currentCount,
       quantity: (payload.quantity != null ? payload.quantity :
-                 (idx > -1 ? arr[idx].quantity : 0))
+                (idx > -1 ? arr[idx].quantity : 0)),
+      refundAmount: payload.refundAmount,
+      refundType: payload.refundType
     };
 
     // Desktop row
@@ -531,9 +667,18 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
     const lblEl = pillLong.querySelector('.label');
     if (barEl && lblEl) {
       barEl.style.width = (dd.isDone ? 100 : Math.max(0, Math.min(100, dd.donePct))) + '%';
-      lblEl.innerHTML = dd.showPct
+
+      const isPartialRefund = String(payload.status||'').toLowerCase()==='canceled'
+        && Number(payload.refundAmount||0) > 0
+        && payload.refundType === 'partial';
+
+      const mainLabel = dd.showPct
         ? `ดำเนินการ ~ <span class="pct">${Number(dd.donePct||0).toFixed(2)}%</span>`
         : dd.label;
+
+      lblEl.innerHTML = (isPartialRefund
+        ? `<span class="badge warn" style="margin-right:8px">คืนบางส่วน</span>${mainLabel}`
+        : mainLabel);
       return;
     }
 
@@ -549,6 +694,88 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
 (() => {
   const $  = (s,r=document)=>r.querySelector(s);
   const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
+
+  /* ===========================
+  * Auto Refresh-All (Smart Poller)
+  * =========================== */
+  const AutoRefresh = (() => {
+    // คอนฟิก
+    const MIN_INTERVAL = 60_000;   // 1 นาที
+    const MAX_INTERVAL = 120_000;  // 2 นาที
+    const ERR_BACKOFF  = 2.0;      // คูณเมื่อ error
+    let interval = MIN_INTERVAL;
+
+    let timer   = null;
+    let running = false; // กันซ้อน
+
+    const hasActiveOrders = () => {
+      // เช็คจาก DOM (ไวสุด ไม่ต้อง loop array ใหญ่)
+      return !!document.querySelector(
+        '#orderTable tbody tr[data-status="processing"], '+
+        '#orderTable tbody tr[data-status="inprogress"], '+
+        '.o-card[data-status="processing"], '+
+        '.o-card[data-status="inprogress"]'
+      );
+    };
+
+    const schedule = (ms = interval) => {
+     clearTimeout(timer);
+      timer = setTimeout(tick, ms);
+    };
+
+    const tick = async () => {
+      // พักถ้าไม่มีงาน active หรือแท็บไม่โฟกัส
+      if (!hasActiveOrders() || document.hidden) { 
+        schedule(MIN_INTERVAL);
+        return;
+      }
+      if (running) { 
+        // มีรอบค้าง ก็เลื่อนไปอีกหน่อย
+        schedule(5_000);
+        return;
+      }
+      running = true;
+      try {
+        // ใช้ปุ่มบนหน้าเป็น trigger เพื่อให้ UX เหมือนกดเอง (จะโชว์สถานะ busy เล็กน้อย)
+        const btnSync = $('#btnSync');
+        await refreshAll(btnSync || undefined);
+        // สำเร็จ: ลด backoff ลงทีละน้อยจนถึง MIN
+        interval = Math.max(MIN_INTERVAL, Math.floor(interval * 0.9));
+        schedule(interval);
+      } catch (e) {
+        console.error('auto refresh failed:', e);
+        // ล้มเหลว: เพิ่ม backoff แต่ไม่เกิน MAX
+        interval = Math.min(MAX_INTERVAL, Math.floor(interval * ERR_BACKOFF));
+        schedule(interval);
+      } finally {
+        running = false;
+      }
+    };
+
+    // เมื่อแท็บกลับมาโฟกัส → ยิงทันที (ไม่ต้องรอรอบ)
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && hasActiveOrders()) {
+        interval = MIN_INTERVAL;
+        clearTimeout(timer);
+        tick(); // ยิงทันที
+      }
+    });
+
+    // สตาร์ทเมื่อ load ถ้ามีงาน active
+    window.addEventListener('load', () => {
+      if (hasActiveOrders()) schedule(3_000); // เริ่มเร็วหน่อยใน 3s แรก
+    });
+
+    // ให้ปุ่ม “อัปเดตสถานะล่าสุด” รีเซ็ตนาฬิกา (ผู้ใช้กดเอง)
+    const manual = $('#btnSync');
+    manual?.addEventListener('click', () => {
+      interval = MIN_INTERVAL;
+      schedule(interval);
+    });
+
+    return { start: () => schedule(1_000), stop: () => clearTimeout(timer) };
+  })();
+
 
   /* === decideDisplay (ฝั่ง client) === */
   window.decideDisplay = function(o){
@@ -577,6 +804,160 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
       : { label: `ดำเนินการ ~ ${donePct.toFixed(2)}%`, donePct, showPct: true, isDone: false };
   };
 
+  /* ---------- ยกเลิก + คืนเงิน ---------- */
+  async function cancelOrder(btn){
+    const id = btn?.dataset?.id;
+    if (!id) return;
+
+    if (!confirm('ยืนยันการยกเลิกคำสั่งซื้อนี้และคืนเงินให้ผู้ใช้ทันที?')) return;
+
+    btn.disabled = true;
+    const keep = btn.textContent; btn.textContent = '…';
+
+    try{
+      const res = await fetch(`/api/orders/${id}/cancel`, { method:'POST' });
+      const data = await res.json();
+      if (!data?.ok) throw new Error(data?.error || 'cancel failed');
+
+      // อัปเดต cache/DOM
+      window.applyOrderPatch({
+        _id: id,
+        status: 'canceled',
+        progress: 0,
+        remains: null,
+        updatedAt: new Date().toISOString()
+      });
+
+      // ป้าย “คืนบางส่วน”
+      const rows = document.querySelectorAll(`[data-order-id="${id}"]`);
+      rows.forEach(row => {
+        if (data.refundType === 'partial') {
+          const existed = row.querySelector('.badge.warn');
+          if (!existed) {
+            const badge = document.createElement('span');
+            badge.className = 'badge warn';
+            badge.style.marginRight = '8px';
+            badge.textContent = 'คืนบางส่วน';
+            const act = row.querySelector('.st-actions') || row;
+            act.prepend(badge);
+          }
+        }
+        // เอาปุ่มยกเลิกออก
+        row.querySelectorAll('.btn-cancel').forEach(el => el.remove());
+      });
+
+      alert(`ยกเลิกสำเร็จ\nประเภทการคืนเงิน: ${data.refundType || 'none'}\nยอดคืน: ${Number(data.refundAmount||0).toLocaleString()} `);
+    }catch(e){
+      console.error(e);
+      alert('ยกเลิกไม่สำเร็จ: ' + (e.message||''));
+    }finally{
+      btn.textContent = keep;
+      btn.disabled = false;
+    }
+  }
+  // async function cancelOrder(btn){
+  //   const id = btn?.dataset?.id;
+  //   if (!id) return;
+
+  //   if (!confirm('ยืนยันการยกเลิกคำสั่งซื้อนี้และคืนเงินให้ผู้ใช้ทันที?')) return;
+
+  //   btn.disabled = true;
+  //   const keep = btn.textContent; btn.textContent = '…';
+
+  //   try{
+  //     const res = await fetch(`/api/orders/${id}/cancel`, { method:'POST' });
+  //     const data = await res.json();
+  //     if (!data?.ok) throw new Error(data?.error || 'cancel failed');
+
+  //     if (data?.cooldown) {
+  //       return; // ข้ามการอัปเดต DOM เพราะเซิร์ฟเวอร์ยังคูลดาวน์อยู่
+  //     }
+
+  //     window.applyOrderPatch({
+  //       _id: id,
+  //       status: 'canceled',
+  //       progress: 0,
+  //       remains: (data.remains ?? null),
+  //       updatedAt: new Date().toISOString()
+  //     });
+
+  //     document
+  //       .querySelectorAll(`[data-order-id="${id}"] .btn-cancel`)
+  //       .forEach(el => el.remove());
+
+  //     alert('ยกเลิกสำเร็จจากผู้ให้บริการ และคืนเงินเรียบร้อย');
+  //   }catch(e){
+  //     console.error(e);
+  //     alert('ยกเลิกไม่สำเร็จ: ' + (e.message||''));
+  //   }finally{
+  //     btn.textContent = keep;
+  //     btn.disabled = false;
+  //   }
+  // }
+
+  document.addEventListener('click', e=>{
+    const b = e.target.closest('.btn-cancel'); 
+    if (!b) return;
+    e.preventDefault();
+    cancelOrder(b);
+  });
+
+  /* ---------- สั่งซ้ำ (Repeat) ---------- */
+  async function repeatOrder(btn){
+    const id = btn?.dataset?.id;
+    if (!id) return;
+
+    const cache = (window.__ORDERS__||[]).find(x => x._id === id);
+    if (!cache) { alert('ไม่พบบันทึกออเดอร์'); return; }
+
+    if (!confirm('ต้องการสั่งซ้ำรายการนี้อีกครั้งใช่ไหม?')) return;
+
+    btn.disabled = true; const keep = btn.textContent; btn.textContent = '…';
+
+    try{
+      const childProvId = cache.providerServiceId; 
+      const parentProvId = cache.svcProviderServiceId;
+
+      let body;
+      if (childProvId && String(childProvId) !== String(parentProvId)) {
+        body = {
+          groupId: cache.serviceId,
+          providerServiceId: childProvId, 
+          link: cache.link,
+          quantity: cache.quantity
+        };
+      } else {
+        body = {
+          serviceId: cache.serviceId,
+          link: cache.link,
+          quantity: cache.quantity
+        };
+      }
+
+      const res = await fetch('/orders', {
+        method:'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!data?.ok) throw new Error(data?.error || 'repeat failed');
+
+      alert('สั่งซ้ำสำเร็จ! หมายเลขใหม่: ' + (data.providerOrderId || data.orderId || '—'));
+    }catch(e){
+      console.error(e);
+      alert('สั่งซ้ำไม่สำเร็จ: ' + (e.message||''));
+    }finally{
+      btn.textContent = keep; btn.disabled = false;
+    }
+  }
+
+  document.addEventListener('click', e=>{
+    const b = e.target.closest('.btn-repeat'); 
+    if (!b) return;
+    e.preventDefault();
+    repeatOrder(b);
+  });
+
   /* ---------- ปุ่ม/ยูทิล ---------- */
   function setBusy(btns, on=true){
     btns.forEach(b => {
@@ -594,7 +975,6 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
 
   /* ---------- refresh-all แบบไม่ reload หน้า ---------- */
   function setBusy(targets, on = true) {
-    // รองรับ single node หรือ array
     const list = Array.isArray(targets) ? targets : [targets];
     const seen = new Set();
 
@@ -603,14 +983,11 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
       seen.add(el);
 
       if (on) {
-        // เซฟ HTML เดิมไว้ 1 ครั้ง
         if (!el.dataset.savedHtml) el.dataset.savedHtml = el.innerHTML;
-        // ตั้งสถานะ busy (ไม่เปลี่ยนข้อความ)
-        el.disabled = true;                   // กันกดซ้ำ
-        el.setAttribute('aria-busy', 'true'); // สำหรับ CSS/assistive tech
+        el.disabled = true;
+        el.setAttribute('aria-busy', 'true');
         el.classList.add('is-loading');
       } else {
-        // คืนสภาพเดิม
         el.disabled = false;
         el.removeAttribute('aria-busy');
         el.classList.remove('is-loading');
@@ -620,10 +997,9 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
   }
 
   async function refreshAll(triggerBtn){
-    const btnSync = $('#btnSync');       // สมมติว่ามี helper $
-    const rowBtns = $$('.btn-refresh');  // สมมติว่ามี helper $$
+    const btnSync = $('#btnSync');
+    const rowBtns = $$('.btn-refresh');
 
-    // รวมเป้าหมายและลบตัวซ้ำ
     const targets = [triggerBtn, btnSync, ...rowBtns].filter(Boolean);
     const uniqTargets = [...new Set(targets)];
 
@@ -639,9 +1015,7 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
       });
     }catch(e){
       console.error(e);
-      // TODO: แจ้ง error ตาม UX ที่ต้องการ (toast/alert)
     }finally{
-      // ✅ ไม่ว่าผลจะเป็นอย่างไร คืนปุ่มเสมอ
       setBusy(uniqTargets, false);
     }
   }
@@ -699,7 +1073,7 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
     if (t) t.textContent = card.classList.contains('open') ? '−' : '＋';
   });
 
-  /* ---------- maps (เผื่อใช้ที่อื่น) ---------- */
+  /* ---------- maps ---------- */
   window.pillClass = window.pillClass || (s => {
     s = String(s||'').toLowerCase();
     if (s==='processing') return 'warn';

@@ -56,13 +56,25 @@ function normalizeOrderId(data) {
 }
 
 function normalizeStatus(data) {
-  const raw = (data?.status || data?.order_status || '').toString().toLowerCase();
+  const raw = (data?.status || data?.order_status || '').toString().toLowerCase().trim();
   if (!raw) return { status: 'processing', rawStatus: raw };
-  if (/(processing|pending|queue|created|received)/.test(raw)) return { status: 'processing', rawStatus: raw };
-  if (/(inprogress|running|doing|start)/.test(raw))      return { status: 'inprogress', rawStatus: raw };
-  if (/(completed|success|done|finished)/.test(raw))     return { status: 'completed',  rawStatus: raw };
-  if (/(partial|partially)/.test(raw))                   return { status: 'partial',    rawStatus: raw };
-  if (/(canceled|cancelled|fail|failed|refunded)/.test(raw)) return { status: 'canceled', rawStatus: raw };
+
+  // + เพิ่มคำพ้องจากผู้ให้บริการ
+  if (/(processing|pending|queue|queued|created|received|awaiting|waiting)/.test(raw))
+    return { status: 'processing', rawStatus: raw };
+
+  if (/(in\s*progress|running|doing|start|started|working)/.test(raw))
+    return { status: 'inprogress', rawStatus: raw };
+
+  if (/(completed|success|done|finished)/.test(raw))
+    return { status: 'completed', rawStatus: raw };
+
+  if (/(partial|partially)/.test(raw))
+    return { status: 'partial', rawStatus: raw };
+
+  if (/(canceled|cancelled|fail|failed|refunded|refund)/.test(raw))
+    return { status: 'canceled', rawStatus: raw };
+
   return { status: raw, rawStatus: raw };
 }
 
@@ -151,6 +163,18 @@ export async function getRefillStatus(refillIdOrOrderId) {
 
 export async function cancelOrder(orderId) {
   if (!orderId) throw new Error('cancelOrder: orderId is required');
-  const { data } = await client.post(`/orders/${orderId}/cancel`, {});
-  return { ok: true, raw: data };
+  const { data } = await client.post('/cancels', {
+    order_id: Number(orderId),
+  });
+
+  const cancelId = data?.id || data?.data?.id;
+  const status   = (data?.status || data?.data?.status || '').toLowerCase();
+
+  return { ok: true, cancelId, status, raw: data };
 }
+
+// export async function cancelOrder(orderId) {
+//   if (!orderId) throw new Error('cancelOrder: orderId is required');
+//   const { data } = await client.post(`/orders/${orderId}/cancel`, {});
+//   return { ok: true, raw: data };
+// }
