@@ -509,49 +509,38 @@ html[data-theme="light"] .static-input{
 
   // Avatar upload
   $('#btnChangeAvatar')?.addEventListener('click', () => $('#avatarInput')?.click());
+  let _tmpObjUrl = null;
   $('#avatarInput')?.addEventListener('change', async (e) => {
-    const f = e.currentTarget.files?.[0];
+    const f = e.currentTarget.files?.[0]; 
     if (!f) return;
 
-    // แสดงพรีวิวทันที (ก่อนอัปโหลด)
-    $('#avatarPreview').src = URL.createObjectURL(f);
+    // พรีวิวทันที
+    if (_tmpObjUrl) URL.revokeObjectURL(_tmpObjUrl);
+    _tmpObjUrl = URL.createObjectURL(f);
+    $('#avatarPreview').src = _tmpObjUrl;
 
-    // กันคลิกซ้ำระหว่างอัปโหลด
-    const btn = document.getElementById('btnChangeAvatar');
-    btn.disabled = true;
-
-    const fd = new FormData();
+    const fd = new FormData(); 
     fd.append('avatar', f);
-
-    try{
+    try {
       const r = await fetch('/account/profile', { method: 'POST', body: fd });
       const j = await r.json();
-
-      if (!j.ok) {
-        // ถ้าเซฟไม่สำเร็จ คืนพรีวิวเดิม
-        fail('อัปโหลดรูปไม่สำเร็จ', j.error || '');
-        return;
-      }
-
-      // ใช้ URL ที่กันแคชแล้วจาก server
-      const newUrl = j.user?.avatarUrl || $('#avatarPreview').src;
-
-      // อัปเดตรูปในหน้า Account
-      $('#avatarPreview').src = newUrl;
-
-      // อัปเดตรูปทุกที่ที่ติด data-avatar (เช่นใน sidebar)
-      document.querySelectorAll('img[data-avatar]').forEach(img => {
-        img.src = newUrl;
-      });
+      if (!j.ok) return fail('อัปโหลดรูปไม่สำเร็จ', j.error || '');
 
       ok('อัปโหลดรูปสำเร็จ');
+
+      // ใช้ URL ที่กันแคชจากเซิร์ฟเวอร์ → ไม่ติดแคช
+      if (j.user?.avatarUrl) {
+        $('#avatarPreview').src = j.user.avatarUrl;
+      }
+
+      // เผื่อมีส่วนอื่นบนหน้าใช้ avatar (ถ้ามี)
+      // document.querySelectorAll('img[data-avatar]').forEach(img => img.src = j.user.avatarUrl);
+
       if (j.user?.email && !j.user?.emailVerified) {
         document.getElementById('otpArea')?.removeAttribute('hidden');
       }
     } catch {
       fail('อัปโหลดรูปไม่สำเร็จ', 'เครือข่ายมีปัญหา');
-    } finally {
-      btn.disabled = false;
     }
   });
 

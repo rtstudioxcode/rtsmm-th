@@ -58,7 +58,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(expressLayouts);
 app.set('layout', 'layout');
 
-// app.set('trust proxy', 1);
+app.set('trust proxy', 1);
 
 // Static & parsers
 app.use('/static', express.static(path.join(__dirname, 'public')));
@@ -287,10 +287,9 @@ app.use((req, res) => res.status(404).send('Not found'));
 
 initDailyChangeSync();
 
-const HOST = config.host || 'localhost';
-const PORT = Number(config.port) || 5000;
-const PROTO = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+const PORT = Number(process.env.PORT || config.port || 3000);
+const HOST = '0.0.0.0';
 
 app.listen(PORT, HOST, () => {
-  console.log(`🚀 RTSMM-TH running at ${PROTO}://${HOST}:${PORT}`);
+  console.log(`🚀 RTSMM-TH listening on 0.0.0.0:${PORT}`);
 });

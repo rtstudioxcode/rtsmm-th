@@ -183,12 +183,14 @@ router.post('/account/profile', upload.single('avatar'), async (req, res) => {
     const u = await User.findById(uid);
     if (!u) return res.status(404).json({ ok:false, error: '⛔️ไม่พบข้อมูลผู้ใช้ เครือข่ายมีปัญหาโปรลองอีกครั้งภายหลัง' });
 
-    // --- avatar ---
+    // --- อัปเดตรูป + บันทึก ---
     if (req.file) {
-      u.avatarUrl = `/uploads/avatars/${req.file.filename}`;
+      const filePath = `/uploads/avatars/${req.file.filename}`; // path จริงในเว็บ
+      u.avatarUrl = filePath;
+      await u.save();
     } else if (!u.avatarUrl) {
-      // ตั้งค่าเริ่มต้นถ้ายังไม่มี
       u.avatarUrl = '/static/assets/img/user-blue.png';
+      await u.save();
     }
 
     // --- ชื่อ/อีเมล (ตั้งครั้งแรกเท่านั้น) ---
@@ -220,14 +222,14 @@ router.post('/account/profile', upload.single('avatar'), async (req, res) => {
     if (req.session?.user) req.session.user.avatarUrl = u.avatarUrl;
     res.locals.me = { ...(res.locals.me || {}), avatarUrl: u.avatarUrl };
 
-    const bustUrl = `${u.avatarUrl}?v=${Date.now()}`; // ใช้โชว์ทันที กันรูปเก่าค้างแคช
+    const bustUrl = `${u.avatarUrl}?v=${Date.now()}`;
 
     return res.json({
       ok: true,
       user: {
         name: u.name,
-        avatarUrl: bustUrl,   // ใช้แสดงผลทันที
-        avatarRaw: u.avatarUrl, // path จริงใน DB (ออปชัน)
+        avatarUrl: bustUrl,
+        avatarRaw: u.avatarUrl,
         email: u.email,
         emailVerified: u.emailVerified,
         level: u.level,
