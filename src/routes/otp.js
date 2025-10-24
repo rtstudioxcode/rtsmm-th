@@ -12,6 +12,9 @@ const router = Router();
 const limiter = rateLimit({ windowMs: 60_000, max: 20 });
 router.use(limiter);
 
+const BRAND_URL  = 'https://rtsmm-th.com';
+const BRAND_LOGO = `${BRAND_URL}/static/assets/logo/logo-rtssm-th.png`;
+
 // สร้างรหัส 6 หลัก
 function genCode() {
   return ('' + Math.floor(100000 + Math.random()*900000));
@@ -20,12 +23,44 @@ function genCode() {
 // หน้าตาอีเมล
 function emailTemplate(code) {
   return `
-  <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial">
-    <h2>รหัสยืนยันอีเมล</h2>
-    <p>รหัส OTP ของคุณคือ</p>
-    <div style="font-size:28px;font-weight:800;letter-spacing:4px">${code}</div>
-    <p style="color:#667085">รหัสหมดอายุใน ${config.otp.ttlSec/60} นาที</p>
-  </div>`;
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:24px 0;font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;">
+    <tr>
+      <td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e6e8eb;">
+          <tr>
+            <td style="background:#0b0f1a;padding:24px;text-align:center">
+              <a href="${BRAND_URL}" target="_blank" style="text-decoration:none">
+                <img src="${BRAND_LOGO}" alt="RTSMM-TH" height="42" style="display:inline-block;vertical-align:middle">
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 24px 8px;color:#111827;">
+              <h2 style="margin:0 0 4px;font-size:20px">รหัสยืนยันอีเมล (OTP)</h2>
+              <p style="margin:0;color:#6b7280">ใช้รหัสด้านล่างเพื่อยืนยันอีเมลของคุณ ภายใน ${Math.floor((config.otp.ttlSec||300)/60)} นาที</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:8px 24px 24px">
+              <div style="font-size:28px;font-weight:800;letter-spacing:8px;text-align:center;background:#f3f4f6;border-radius:10px;padding:14px 0;color:#111827;">
+                ${code}
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 24px 28px;color:#6b7280;font-size:12px;">
+              หากคุณไม่ได้ร้องขอรหัสนี้ สามารถละเว้นอีเมลได้อย่างปลอดภัย
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#f9fafb;color:#9ca3af;padding:16px 24px;text-align:center;font-size:12px;">
+              © RTSMM-TH
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>`;
 }
 
 // POST /otp/send  { email, channel: 'email' }

@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 const OtpTokenSchema = new mongoose.Schema({
   email: { type: String, index: true, required: true },
-  purpose: { type: String, default: 'email-verify' }, // เผื่ออนาคตมีหลายจุด
+  purpose: { type: String, default: 'email-verify' },
   codeHash: { type: String, required: true },
   expiresAt: { type: Date, required: true, index: true },
   attempts: { type: Number, default: 0 },

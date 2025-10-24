@@ -10,113 +10,465 @@
     <div class="alert error"><%= error %></div>
   <% } %>
 
-  <form id="registerForm" class="auth-form" action="/register" method="post" novalidate>
+  <form id="registerForm" class="auth-form stack" action="/register" method="post" novalidate>
     <input type="hidden" name="next" value="<%= next %>">
-    <label>ชื่อผู้ใช้
-      <input name="username" required autocomplete="username">
+
+    <!-- ชื่อผู้ใช้ -->
+    <label class="f-field">
+      <span class="f-label">ชื่อผู้ใช้</span>
+      <input class="f-input" name="username" required autocomplete="username" placeholder="เช่น rtssm-th">
+      <small class="f-hint">ใช้อักษร a–z, 0–9 และขีดกลางได้</small>
     </label>
-    <label>อีเมล
-      <input type="email" name="email" placeholder="you@email.com" autocomplete="email">
+
+    <!-- อีเมล -->
+    <label class="f-field">
+      <span class="f-label">อีเมล</span>
+      <input class="f-input" type="email" name="email" required placeholder="you@email.com" autocomplete="email">
+      <small class="f-hint">ใช้สำหรับยืนยันตัวตนและกู้รหัสผ่าน</small>
     </label>
-    <label>รหัสผ่าน
-      <input type="password" name="password" required autocomplete="new-password" minlength="6">
+
+    <!-- ชื่อจริง -->
+    <label class="f-field">
+      <span class="f-label">ชื่อ–นามสกุล (ชื่อจริงเท่านั้น มีผลทางกฎหมาย)</span>
+      <input class="f-input" name="name" required autocomplete="name" placeholder="ชื่อจริง นามสกุล">
     </label>
+
+    <!-- รหัสผ่าน + สวิตช์ แสดง/ซ่อน -->
+    <label class="f-field">
+      <span class="f-label">รหัสผ่าน</span>
+      <div class="f-password">
+        <input class="f-input" type="password" name="password" required autocomplete="new-password" minlength="6" placeholder="อย่างน้อย 6 ตัวอักษร" id="pwd">
+        <button type="button" class="pwd-toggle" id="togglePwd" aria-pressed="false" aria-controls="pwd">
+          <span class="knob" aria-hidden="true"></span>
+          <span class="txt"><b>ซ่อน</b>รหัส</span>
+        </button>
+      </div>
+    </label>
+
     <button class="btn primary block" type="submit" id="btnRegister">สมัคร</button>
     <div class="auth-foot">มีบัญชีอยู่แล้ว? <a href="/login">เข้าสู่ระบบ</a></div>
   </form>
 </section>
 
-<!-- Modal ภายในหน้า (ไม่ auto-open) -->
-<dialog id="notifyDialog" class="rt-modal">
-  <div class="rt-card">
-    <div class="rt-icon" id="mdlIcon" aria-hidden="true">
-      <!-- checkmark icon -->
-      <svg viewBox="0 0 24 24" width="30" height="30">
-        <path fill="white" d="M9 16.2l-3.5-3.5L4 14.2 9 19l12-12-1.5-1.5z"/>
-      </svg>
+<!-- Dialog แจ้งข้อความแบบการ์ด (HEAD แยกสีชัดเจน) -->
+<dialog id="msgDialog" class="toast-modal" data-variant="info">
+  <div class="toast-card" role="alertdialog" aria-labelledby="msgTitle" aria-describedby="msgText">
+    
+    <!-- แถบหัว (แยกส่วนจากตัวเนื้อหา) -->
+    <div class="toast-headbar">
+      <div class="toast-badge" id="msgBadge" aria-hidden="true">?</div>
+      <div class="toast-headtxt">
+        <h3 class="toast-title" id="msgTitle">หัวข้อ</h3>
+        <!-- (ถ้าอยากซ่อนบรรทัดย่อยใต้หัวข้อ ก็ลบทิ้งได้) -->
+      </div>
     </div>
-    <h3 class="rt-title" id="mdlTitle">เสร็จสิ้น!</h3>
-    <p class="rt-desc" id="mdlText">กำลังเข้าสู่ระบบ...</p>
 
-    <div class="rt-actions">
-      <button class="btn primary" id="mdlClose">ตกลง</button>
+    <!-- เนื้อหาข้อความ -->
+    <div class="toast-body">
+      <p class="toast-desc" id="msgText">รายละเอียดข้อความ</p>
+    </div>
+
+    <!-- ปุ่ม -->
+    <div class="toast-actions">
+      <button class="pill ghost" id="msgCancel" hidden>ยกเลิก</button>
+      <button class="pill primary" id="msgClose">ตกลง</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Dialog OTP -->
+<dialog id="otpDialog" class="rt-modal">
+  <div class="rt-card" style="min-width:360px">
+    <h3 class="rt-title">ยืนยันอีเมล</h3>
+    <p class="rt-desc" id="otpHelp">เราได้ส่งรหัส 6 หลักไปที่อีเมลของคุณแล้ว</p>
+
+    <label class="f-field">
+      <span class="f-label">รหัส OTP</span>
+      <input id="otpCode" class="f-input" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="______" style="letter-spacing:6px;text-align:center;font-weight:800">
+    </label>
+
+    <div class="muted" style="margin:6px 0 12px">
+      <span id="otpTimer">ส่งใหม่ได้ใน 60s</span>
+      • <button id="btnResend" class="link" disabled type="button">ส่งใหม่</button>
+    </div>
+
+    <div class="rt-actions" style="gap:8px">
+      <button class="btn" id="btnCancelOtp" type="button">ยกเลิก</button>
+      <button class="btn primary" id="btnVerifyOtp" type="button">ยืนยัน</button>
     </div>
   </div>
 </dialog>
 
 <style>
-  dialog.rt-modal::backdrop { background: rgba(0,0,0,.55); }
-  .rt-modal-card {
-    min-width: 320px; padding: 20px; border: 0; border-radius: 16px;
-    background: var(--card, #17171b); color: var(--text, #fff);
-  }
-  .rt-modal-icon { font-size: 32px; margin-bottom: 8px; text-align: center; }
-  .rt-modal-title { margin: 0 0 4px; text-align: center; }
-  .rt-modal-text { margin: 0 0 16px; opacity: .9; text-align: center; }
-  .rt-modal-actions { display: flex; justify-content: center; margin: 0; }
-  .btn[disabled] { opacity: .6; pointer-events: none; }
+/* =========================================
+   1) THEME TOKENS (Dark/Light)
+   ใช้ทั้งหน้า: พื้นหลัง การ์ด ตัวอักษร ขอบ เงา
+   ========================================= */
+:root[data-theme="dark"]{
+  --bg:#0b0e14; --card:#0f1117; --text:#e5e7eb; --muted:#9aa4b2; --border:#1f2937;
+  --accent:#6d5dfc; --accent-2:#8b5cf6;
+  --backdrop:rgba(0,0,0,.55); --shadow:0 24px 80px rgba(0,0,0,.55); --input-bg:#0b0e14;
+
+  /* toast palette */
+  --t-surface:#11141a; --t-surface-2:#151924; --t-text:#f4f6fb; --t-muted:#b6bfca;
+  --t-border:#202938; --t-shadow:0 24px 80px rgba(0,0,0,.55); --t-backdrop:rgba(0,0,0,.55);
+  --t-vlt-1:#a78bfa; --t-vlt-2:#8b5cf6; --t-grn-1:#34d399; --t-grn-2:#10b981;
+  --t-warm-1:#f59e0b; --t-warm-2:#fbbf24; --t-red-1:#ef4444; --t-red-2:#fb7185;
+}
+:root[data-theme="light"]{
+  --bg:#ffffff; --card:#ffffff; --text:#0f172a; --muted:#667085; --border:#e5e7eb;
+  --accent:#6d5dfc; --accent-2:#9b8cff;
+  --backdrop:rgba(2,8,23,.35); --shadow:0 30px 80px rgba(2,8,23,.15); --input-bg:#f9fafb;
+
+  /* toast palette */
+  --t-surface:#ffffff; --t-surface-2:#fffaf3; --t-text:#0f172a; --t-muted:#667085;
+  --t-border:#efe7de; --t-shadow:0 24px 80px rgba(2,8,23,.12); --t-backdrop:rgba(2,8,23,.25);
+  --t-vlt-1:#7c3aed; --t-vlt-2:#a78bfa; --t-grn-1:#10b981; --t-grn-2:#34d399;
+  --t-warm-1:#f59e0b; --t-warm-2:#fbbf24; --t-red-1:#ef4444; --t-red-2:#fb7185;
+}
+
+/* =========================================
+   2) AUTH LAYOUT + FORM
+   ========================================= */
+.auth-card{ padding-inline:clamp(16px,4vw,28px); }
+.auth-card .auth-head{ margin:0 auto 18px; text-align:center; max-width:1100px; }
+.auth-card .auth-form.stack{
+  display:flex; flex-direction:column; gap:16px;
+  width:calc(100% - clamp(16px,4vw,28px)*2); max-width:1100px; margin:0 auto;
+}
+
+/* fields */
+.f-field{ display:flex; flex-direction:column; gap:6px; width:100% }
+.f-label{ font-weight:800; color:var(--text); line-height:1.2 }
+.f-hint{ color:var(--muted); font-size:12px; }
+.f-input{
+  width:100%; background:var(--input-bg); border:1px solid var(--border); color:var(--text);
+  border-radius:14px; padding:14px 16px; outline:none; transition:border .15s, box-shadow .15s;
+}
+.f-input:focus{ border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent) }
+
+/* password toggle (modern pill) */
+.f-password{ position:relative; display:flex; align-items:center; }
+.pwd-toggle{
+  --sw:44px; --sh:28px;
+  position:absolute; right:8px; height:var(--sh); min-width:calc(var(--sw) + 68px);
+  padding:2px 10px 2px calc(var(--sw) + 10px);
+  border-radius:999px; border:1px solid var(--border);
+  background: color-mix(in srgb, var(--card) 92%, transparent); color:var(--text);
+  font-weight:800; cursor:pointer; display:flex; align-items:center; gap:10px;
+  transition: background .15s, border-color .15s;
+}
+.pwd-toggle .txt{ font-size:12px; opacity:.9 }
+.pwd-toggle .txt b{ font-weight:900 }
+.pwd-toggle .knob{
+  position:absolute; left:6px; top:50%; transform:translateY(-50%);
+  width:var(--sw); height:var(--sh); border-radius:999px;
+  background:linear-gradient(180deg,var(--accent),var(--accent));
+  box-shadow:0 6px 16px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.pwd-toggle[aria-pressed="true"]{ background:color-mix(in srgb, var(--accent) 14%, var(--card)); border-color:transparent }
+
+/* buttons */
+.btn{ border:1px solid transparent; border-radius:14px; padding:12px 16px; font-weight:800; }
+.btn.primary{ background:linear-gradient(180deg,var(--accent),var(--accent)); color:#fff }
+.btn.block{ width:100% }
+
+/* =========================================
+   3) <dialog> RESET / BACKDROP
+   ========================================= */
+dialog{ border:0; outline:0; padding:0; background:transparent; }
+dialog::backdrop{ background:var(--backdrop); backdrop-filter: blur(8px) }
+
+/* =========================================
+   4) TOAST DIALOG (msgDialog)
+   โครงสร้างที่ใช้: .toast-modal > .toast-card
+                      ├─ .toast-headbar (badge + title)
+                      ├─ .toast-body (.toast-desc)
+                      └─ .toast-actions (ปุ่ม)
+   ========================================= */
+
+/* ตัว dialog */
+.toast-modal{ border:0; outline:0; padding:0; background:transparent; }
+.toast-modal::backdrop{ background:var(--t-backdrop); backdrop-filter: blur(10px) saturate(120%); }
+
+/* สีหัวตามชนิดข้อความ */
+.toast-modal[data-variant="info"]    { --th-bg: linear-gradient(135deg,#8b5cf6,#6d5dfc); }
+.toast-modal[data-variant="success"] { --th-bg: linear-gradient(135deg,#22c55e,#16a34a); }
+.toast-modal[data-variant="warn"]    { --th-bg: linear-gradient(135deg,#f59e0b,#f97316); }
+.toast-modal[data-variant="error"]   { --th-bg: linear-gradient(135deg,#ef4444,#fb7185); }
+
+/* การ์ด */
+.toast-card{
+  width: clamp(360px, 92vw, 520px);
+  border-radius: 26px; overflow: hidden;
+  border: 1px solid var(--t-border);
+  box-shadow: var(--t-shadow); background: var(--t-surface);
+  display:flex; flex-direction:column;
+}
+
+/* headbar */
+.toast-headbar{
+  display:flex; align-items:center; gap:12px;
+  padding:14px 18px; color:#fff; background: var(--th-bg);
+  border-bottom: 1px solid color-mix(in srgb, #000 10%, transparent);
+}
+.toast-badge{
+  width:40px; height:40px; flex:0 0 40px; display:grid; place-items:center;
+  border-radius:14px; font-weight:900; font-size:20px;
+  background: color-mix(in srgb, #ffffff 22%, transparent);
+  box-shadow: 0 8px 18px rgba(0,0,0,.18) inset;
+}
+.toast-title{ margin:0; font-size:18px; font-weight:950; letter-spacing:.2px; color:#fff }
+
+/* body */
+.toast-body{ padding:16px 18px 8px; min-height:72px; }
+.toast-desc{ margin:0; color:var(--t-muted); font-size:15px; line-height:1.65; word-wrap:break-word }
+
+/* actions */
+.toast-actions{
+  display:flex; justify-content:flex-end; gap:10px;
+  padding:12px 18px 18px;
+  background: linear-gradient(180deg, var(--t-surface), color-mix(in srgb,var(--t-surface) 85%, transparent));
+}
+.pill{
+  --ring: var(--t-vlt-2);
+  border-radius:999px; padding:11px 18px; font-weight:900;
+  border:1px solid var(--t-border); cursor:pointer;
+  background: color-mix(in srgb, var(--t-surface-2) 96%, transparent); color: var(--t-text);
+  transition: transform .07s ease, box-shadow .14s ease, background .14s ease;
+}
+.pill:hover{ transform: translateY(-1px); }
+.pill:focus-visible{ outline:none; box-shadow:0 0 0 4px color-mix(in srgb, var(--ring) 26%, transparent); }
+.pill.primary{
+  background: linear-gradient(180deg, var(--t-vlt-2), var(--t-vlt-1)); color:#fff; border-color:transparent;
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--t-vlt-2) 35%, transparent);
+}
+
+/* motion เล็กน้อย */
+@media (prefers-reduced-motion:no-preference){
+  .toast-card{ animation: toast-pop .18s ease-out both; }
+}
+@keyframes toast-pop{
+  from{ transform: translateY(8px) scale(.985); opacity: 0 }
+  to  { transform: translateY(0)   scale(1);     opacity: 1 }
+}
+
+/* =========================================
+   5) OTP DIALOG (otpDialog)
+   ========================================= */
+.rt-card{
+  background:var(--card); color:var(--text);
+  border:1px solid var(--border); border-radius:18px;
+  padding:20px; box-shadow:var(--shadow)
+}
+.rt-title{ margin:0 0 6px; font-size:20px; font-weight:900 }
+.rt-desc{ margin:0 0 12px; color:var(--muted) }
+.rt-actions{ display:flex; justify-content:flex-end; gap:8px }
+.link{ background:none; border:0; color:var(--accent); cursor:pointer }
+.muted{ color:var(--muted) }
 </style>
 
 <script type="module">
-  const $ = (s, p=document)=>p.querySelector(s);
+/* ====== helpers ====== */
+const $ = (s, p=document)=>p.querySelector(s);
 
-  const form   = $('#registerForm');
-  const submit = $('#btnRegister');
+/* ===== Dialog helper (ใช้กับ .toast-desc เสมอ) ===== */
+const msgDlg    = document.getElementById('msgDialog');
+const msgBadge  = document.getElementById('msgBadge');
+const msgTitle  = document.getElementById('msgTitle');
+const msgText   = document.getElementById('msgText');   // <-- ข้อความจะมาอยู่ตรงนี้
+const msgClose  = document.getElementById('msgClose');
+const msgCancel = document.getElementById('msgCancel');
 
-  const dlg    = $('#notifyDialog');
-  const iconEl = $('#mdlIcon');
-  const titleEl= $('#mdlTitle');
-  const textEl = $('#mdlText');
-  const closeEl= $('#mdlClose');
+function showMsg({
+  variant = 'info',                   // 'info' | 'success' | 'warn' | 'error'
+  icon,                               // ถ้าไม่ส่ง จะเลือกตาม variant
+  title = 'ข้อความ',
+  text  = '',                         // จะถูกใส่ลง .toast-desc เสมอ
+  okText = 'ตกลง',
+  cancelText,
+  onOk,
+  onCancel
+} = {}) {
+  const iconMap = { info:'❔', success:'✅', warn:'⚠️', error:'✖' };
+  msgDlg.setAttribute('data-variant', variant);
+  msgBadge.textContent = icon || iconMap[variant] || '❔';
+  msgTitle.textContent = title;
+  msgText.textContent  = text;        // << อยู่ใน toast-desc ตามที่ต้องการ
 
-  function showModal({ icon='✅', title='เสร็จสิ้น!', text='กำลังเข้าสู่ระบบ...' } = {}) {
-    iconEl.textContent  = icon;
-    titleEl.textContent = title;
-    textEl.textContent  = text;
+  msgClose.textContent = okText || 'ตกลง';
+  if (cancelText) { msgCancel.hidden = false; msgCancel.textContent = cancelText; }
+  else { msgCancel.hidden = true; }
 
-    if (typeof dlg.showModal === 'function') {
-      if (!dlg.open) dlg.showModal();
+  msgClose.onclick  = () => { msgDlg.close(); onOk?.(); };
+  msgCancel.onclick = () => { msgDlg.close(); onCancel?.(); };
+
+  if (!msgDlg.open) msgDlg.showModal();
+  requestAnimationFrame(() => msgClose.focus());
+}
+
+msgDlg.addEventListener('cancel', (e) => { e.preventDefault(); msgDlg.close(); });
+
+// ===== ช่วยให้ debug ง่าย: พิมพ์ window.debugShow() ดูได้เลย =====
+window.debugShow = () => showMsg({ variant:'error', title:'ทดสอบ Dialog', text:'ถ้าเห็นอันนี้ แปลว่า dialog ใช้งานได้' });
+
+/* ====== password toggle (สวิตช์โมเดิร์น) ====== */
+const pwd = $('#pwd');
+const togglePwd = $('#togglePwd');
+togglePwd?.addEventListener('click', () => {
+  const show = pwd.type === 'password';
+  pwd.type = show ? 'text' : 'password';
+  togglePwd.setAttribute('aria-pressed', String(show));
+  // สลับข้อความ
+  togglePwd.querySelector('.txt').innerHTML = show ? '<b>แสดง</b>รหัส' : '<b>ซ่อน</b>รหัส';
+});
+
+/* ====== OTP dialog ====== */
+const otpDlg  = $('#otpDialog');
+const otpCode = $('#otpCode');
+const btnVerify = $('#btnVerifyOtp');
+const btnCancel = $('#btnCancelOtp');
+const btnResend = $('#btnResend');
+const otpTimer  = $('#otpTimer');
+const otpHelp   = $('#otpHelp');
+
+let pendingEmail = '';
+let nextUrl = '/';
+let timerId = null;
+
+function openOtp(email, ttl=300, cooldown=60) {
+  pendingEmail = email;
+  otpHelp.textContent = `เราได้ส่งรหัส 6 หลักไปที่ ${email}`;
+  otpCode.value = '';
+  btnResend.disabled = true;
+  startTimer(cooldown);
+  if (!otpDlg.open) otpDlg.showModal();
+  otpCode.focus();
+}
+function closeOtp(){
+  if (otpDlg.open) otpDlg.close();
+  clearInterval(timerId); timerId = null;
+}
+function startTimer(sec){
+  clearInterval(timerId);
+  let left = sec;
+  otpTimer.textContent = `ส่งใหม่ได้ใน ${left}s`;
+  timerId = setInterval(()=>{
+    left--;
+    if (left <= 0) {
+      clearInterval(timerId); timerId = null;
+      otpTimer.textContent = 'ส่งใหม่ได้ตอนนี้';
+      btnResend.disabled = false;
     } else {
-      dlg.classList.add('show'); // fallback ใช้ CSS .rt-modal.show
+      otpTimer.textContent = `ส่งใหม่ได้ใน ${left}s`;
     }
-  }
-  function closeModal(){
-    if (typeof dlg.close === 'function' && dlg.open) dlg.close();
-    dlg.classList.remove('show'); // fallback
-  }
-  closeEl?.addEventListener('click', closeModal);
-  dlg.addEventListener('cancel', e => { e.preventDefault(); closeModal(); });
+  }, 1000);
+}
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
+/* ====== Form submit ====== */
+const form   = $('#registerForm');
+const submit = $('#btnRegister');
 
-    submit.disabled = true;
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  submit.disabled = true;
 
-    const fd = new FormData(form);
-    const next = fd.get('next') || '/';
+  const fd = new FormData(form);
+  nextUrl = fd.get('next') || '/';
 
-    try {
-      const res = await fetch('/register', {
-        method: 'POST',
-        headers: { 'Accept': 'application/json' },
-        body: new URLSearchParams(fd),
-      });
+  try {
+    const res = await fetch('/register', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' },
+      body: new URLSearchParams(fd),
+    });
 
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok || !data?.ok) {
-        showModal({ icon:'⚠️', title:'สมัครสมาชิกไม่สำเร็จ', text: data?.message || 'กรุณาตรวจสอบข้อมูล' });
+    // server ควรตอบ { ok:true, needOtp:true, email, ttl }
+    let data = {};
+      try { data = await res.json(); } catch (_) {}
+      if (!res.ok || !data?.ok || !data?.needOtp) {
+        showMsg({
+          variant:'error',
+          title:'สมัครสมาชิกไม่สำเร็จ',
+          text: data?.message || 'กรุณาตรวจสอบข้อมูล'
+        });
         submit.disabled = false;
         return;
       }
 
-      showModal({ icon:'✅', title:'สมัครสำเร็จ!', text:'กำลังเข้าสู่ระบบอัตโนมัติ...' });
-      setTimeout(() => location.assign(data.redirect || next || '/'), 500);
+    openOtp(data.email, data.ttl || 300, 60);
+  } catch (err) {
+    console.error(err);
+    showMsg({ variant:'error', icon:'⚠️', title:'เครือข่ายมีปัญหา', text:'โปรดลองใหม่อีกครั้ง' });
+  } finally {
+    submit.disabled = false;
+  }
+});
 
-    } catch (err) {
-      console.error(err);
-      showModal({ icon:'⚠️', title:'เครือข่ายมีปัญหา', text:'โปรดลองใหม่อีกครั้ง' });
-      submit.disabled = false;
+/* ====== OTP actions ====== */
+btnVerify.addEventListener('click', async () => {
+  const code = (otpCode.value || '').trim();
+  if (!/^\d{6}$/.test(code)) {
+    showMsg({ variant:'warn', icon:'⚠️', title:'รหัสไม่ครบ', text:'กรอกรหัส OTP 6 หลักให้ถูกต้อง' });
+    return;
+  }
+
+  try {
+    const verifyRes = await fetch('/otp/verify', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/x-www-form-urlencoded', 'Accept':'application/json' },
+      body: new URLSearchParams({ email: pendingEmail, code })
+    });
+    const vr = await verifyRes.json().catch(()=> ({}));
+    if (!verifyRes.ok || !vr?.ok) {
+      showMsg({ variant:'error', icon:'✖', title:'ยืนยันไม่สำเร็จ', text: vr?.error || 'รหัสไม่ถูกต้อง' });
+      return;
     }
-  });
+
+    const finRes = await fetch('/register/finalize', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/x-www-form-urlencoded', 'Accept':'application/json' },
+      body: new URLSearchParams({ next: nextUrl })
+    });
+    const fr = await finRes.json().catch(()=> ({}));
+    if (!finRes.ok || !fr?.ok) {
+      showMsg({ variant:'error', icon:'✖', title:'สร้างบัญชีไม่ได้', text: fr?.message || 'โปรดลองใหม่' });
+      return;
+    }
+
+    closeOtp();
+    showMsg({ variant:'success', icon:'✅', title:'สมัครสำเร็จ!', text:'กำลังพาไปยังหน้าหลัก...' });
+    setTimeout(()=> location.assign(fr.redirect || nextUrl || '/'), 500);
+  } catch (e) {
+    console.error(e);
+    showMsg({ variant:'error', icon:'⚠️', title:'เกิดข้อผิดพลาด', text:'โปรดลองใหม่อีกครั้ง' });
+  }
+});
+
+btnResend.addEventListener('click', async () => {
+  btnResend.disabled = true;
+  try {
+    const rs = await fetch('/otp/send', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/x-www-form-urlencoded', 'Accept':'application/json' },
+      body: new URLSearchParams({ email: pendingEmail })
+    });
+    const data = await rs.json().catch(() => ({}));
+    if (!rs.ok || !data?.ok) {
+      showMsg({ variant:'error', icon:'✖', title:'ส่งรหัสไม่สำเร็จ', text: data?.error || 'โปรดลองใหม่' });
+      btnResend.disabled = false;
+      return;
+    }
+    startTimer(60);
+    showMsg({ variant:'success', icon:'🔐', title:'ส่งรหัสใหม่แล้ว', text:'โปรดตรวจที่อีเมลของคุณ' });
+  } catch (e) {
+    console.error(e);
+    showMsg({ variant:'error', icon:'⚠️', title:'ส่งรหัสไม่สำเร็จ', text:'โปรดลองใหม่' });
+    btnResend.disabled = false;
+  }
+});
+
+btnCancel.addEventListener('click', closeOtp);
+otpCode.addEventListener('input', () => { otpCode.value = otpCode.value.replace(/[^\d]/g, '').slice(0,6); });
+otpCode.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnVerify.click(); });
 </script>
