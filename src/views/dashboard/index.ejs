@@ -34,14 +34,12 @@
       </div>
 
       <div class="user-summary__avatar" aria-hidden="true">
-        <% const FALLBACK_REL = '/static/assets/img/user-blue.png'; %>
         <img
-          src="<%= me?.avatarUrl %>?v=<%= me?.avatarVer || Date.now() %>"
+          src="<%= me?.avatarUrl?.startsWith('http') ? me.avatarUrl : (me?.avatarUrl ? `${req.protocol}://${req.get('host')}${me.avatarUrl}` : '/static/assets/emoji/dashboard.png') %>"
           alt="<%= me?.username || 'avatar' %>"
           loading="lazy"
           decoding="async"
-          referrerpolicy="no-referrer"
-          onerror="this.onerror=null;this.src='<%= FALLBACK_REL %>';">
+          referrerpolicy="no-referrer">
       </div>
     </div>
   </div>

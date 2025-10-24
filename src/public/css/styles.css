@@ -1738,3 +1738,5 @@ html:not([data-theme="dark"]) .omodal .section-sep{
 .pill{border-radius:999px;padding:8px 14px;border:0;cursor:pointer}
 .pill.primary{background:#f0c662;color:#111}
 .pill.ghost{background:transparent;border:1px solid #434a5a;color:#ddd}
+
+.sb-item .ico { border-radius: 999px; object-fit: cover; }

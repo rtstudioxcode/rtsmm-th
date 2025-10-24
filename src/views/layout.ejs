@@ -82,7 +82,14 @@
       <div class="sb-group">แดชบอร์ด</div>
         <% if (me) { %>
         <a class="sb-item" href="/dashboard" style="text-decoration: none;">
-          <img class="ico" src="/static/assets/emoji/dashboard.png" alt="Dashboard" width="18" height="18" loading="lazy" />
+          <img
+            class="ico"
+            src="<%= me?.avatarUrl?.startsWith('http') ? me.avatarUrl : (me?.avatarUrl ? `${req.protocol}://${req.get('host')}${me.avatarUrl}` : '/static/assets/emoji/dashboard.png') %>"
+            alt="Dashboard"
+            width="18"
+            height="18"
+            loading="lazy"
+          />
           <span class="txt">Dashboard</span>
         </a>
         <% if (me.role === 'admin') { %>
