@@ -26,6 +26,7 @@ import changesRoute from './routes/changes.js';
 import { initDailyChangeSync } from './jobs/dailyChangeSync.js';
 
 import accountRouter from './routes/account.js';
+import resetPasswordRoutes from './routes/reset-password.js';
 import dashboardRouter from './routes/dashboard.js';
 
 import otpRouter from './routes/otp.js';
@@ -57,6 +58,8 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(expressLayouts);
 app.set('layout', 'layout');
 
+app.set('trust proxy', 1);
+
 // Static & parsers
 app.use('/static', express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'), { maxAge: '7d' }));
@@ -73,6 +76,27 @@ app.use(session({
 }));
 
 app.use(attachUser);
+
+app.use((req, res, next) => {
+  // defaults
+  res.locals.flash = null;
+  res.locals.resetAllowed = false;
+  res.locals.resetEmail = null;
+
+  // flash one-shot from session
+  if (req.session) {
+    if (req.session.flash) {
+      res.locals.flash = req.session.flash;
+      req.session.flash = null;
+    }
+    const g = req.session.resetGrant;
+    if (g && g.email && g.tokenId) {
+      res.locals.resetAllowed = true;
+      res.locals.resetEmail = g.email;
+    }
+  }
+  next();
+});
 
 // Inject user to views
 app.use(async (req, res, next) => {
@@ -133,14 +157,9 @@ app.use(async (req, res, next) => {
   next();
 });
 
-app.use((req, res, next) => {
-  res.locals.flash = req.session.flash || null;
-  delete req.session.flash;
-  next();
-});
-
 // Routes
 app.use(authRoutes);
+app.use(resetPasswordRoutes);
 app.use(catalogRoutes);
 app.use(requireAuth, orderRoutes);
 app.use('/admin', requireAuth, requireAdmin, adminRoutes);
@@ -151,7 +170,7 @@ app.use('/services', servicesRouter);
 app.use(requireAuth, changesRoute);
 app.use(requireAuth, accountRouter);  
 app.use('/', requireAuth, dashboardRouter);
-app.use('/otp', requireAuth, otpRouter);
+app.use('/otp', otpRouter);
 
 // Healthcheck (optional)
 app.get('/healthz', (_req, res) => res.json({ ok: true }));

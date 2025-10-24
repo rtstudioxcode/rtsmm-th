@@ -1723,3 +1723,18 @@ html:not([data-theme="dark"]) .omodal .section-sep{
 .user-summary__avatar img{
   width:100%; height:100%; object-fit:cover; display:block;
 }
+
+/* minimal modal styles (ใช้ร่วมกับสคริปต์เดิมของคุณ) */
+.modal[hidden]{display:none}
+.modal__backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5)}
+.modal__card{position:fixed;inset:50% auto auto 50%;transform:translate(-50%,-50%);
+  width:min(92vw,420px);background:var(--card,#17171b);color:var(--text,#fff);
+  border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:18px}
+.modal__title{margin:0 0 6px}
+.modal__desc{margin:0 0 14px;opacity:.9}
+.modal__field{display:block;margin:10px 0 16px}
+.modal__field input{width:100%;padding:10px;border-radius:10px;border:1px solid #2b2f3a;background:#0f1422;color:#fff}
+.modal__actions{display:flex;gap:10px;justify-content:flex-end}
+.pill{border-radius:999px;padding:8px 14px;border:0;cursor:pointer}
+.pill.primary{background:#f0c662;color:#111}
+.pill.ghost{background:transparent;border:1px solid #434a5a;color:#ddd}

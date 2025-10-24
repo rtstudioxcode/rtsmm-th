@@ -22,15 +22,35 @@ function genCode() {
 
 // หน้าตาอีเมล
 function emailTemplate(code) {
+  const LOGO_H_DESKTOP = 128;  // ปรับได้ 88–104
+  const LOGO_H_MOBILE  = 98;
+
   return `
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:24px 0;font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;">
-    <tr>
-      <td align="center">
-        <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e6e8eb;">
+  <!doctype html><html lang="th"><head>
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <style>
+      html,body{margin:0!important;padding:0!important;background:#f4f6f8!important}
+      img{border:0;outline:none;text-decoration:none;display:block}
+      table,td{border-collapse:collapse!important}
+      .container{width:560px;max-width:100%}
+      /* แบนเนอร์หัวแบบบาง โลโก้ชิดบนล่าง */
+      .head{background:#0b0f1a;padding:3px 16px;text-align:center;line-height:0;mso-line-height-rule:exactly}
+      .logo{height:${LOGO_H_DESKTOP}px;width:auto;max-width:100%;margin:0 auto}
+      @media(max-width:600px){
+        .container{width:100%!important}
+        .head{padding:0px 12px!important}
+        .logo{height:${LOGO_H_MOBILE}px!important}
+      }
+    </style>
+  </head>
+  <body>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:16px 0;font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial">
+      <tr><td align="center">
+        <table role="presentation" class="container" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e6e8eb">
           <tr>
-            <td style="background:#0b0f1a;padding:24px;text-align:center">
+            <td class="head">
               <a href="${BRAND_URL}" target="_blank" style="text-decoration:none">
-                <img src="${BRAND_LOGO}" alt="RTSMM-TH" height="42" style="display:inline-block;vertical-align:middle">
+                <img src="${BRAND_LOGO}" alt="RTSMM-TH" class="logo">
               </a>
             </td>
           </tr>
@@ -53,14 +73,14 @@ function emailTemplate(code) {
             </td>
           </tr>
           <tr>
-            <td style="background:#f9fafb;color:#9ca3af;padding:16px 24px;text-align:center;font-size:12px;">
+            <td style="background:#f9fafb;color:#9ca3af;padding:12px 20px;text-align:center;font-size:12px;">
               © RTSMM-TH
             </td>
           </tr>
         </table>
-      </td>
-    </tr>
-  </table>`;
+      </td></tr>
+    </table>
+  </body></html>`;
 }
 
 // POST /otp/send  { email, channel: 'email' }
@@ -95,7 +115,6 @@ router.post('/send', async (req, res) => {
       to: email,
       subject: 'รหัสยืนยันอีเมล (OTP)',
       html: emailTemplate(code),
-      attachments: [{ filename:'logo-smm-th.png', path:'/static/assets/logo/logo-rtsmm-th.png', cid:'brandlogo' }]
     });
 
     return res.json({ ok:true, ttl: config.otp.ttlSec });

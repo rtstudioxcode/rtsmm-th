@@ -18,8 +18,13 @@
     <label>รหัสผ่าน
       <input type="password" name="password" required autocomplete="current-password">
     </label>
-    <button class="btn primary block" type="submit" id="btnLogin">เข้าสู่ระบบ</button>
+    <button class="btn primary block" type="submit" id="btnLogin">เข้าสู่ระบบ</button> 
     <div class="auth-foot">ยังไม่มีบัญชี? <a href="/register">สมัครสมาชิก</a></div>
+    <div style="margin-top:8px;text-align:right">
+      <button id="linkForgot" type="button" class="muted link-btn" aria-haspopup="dialog">
+        ลืมรหัสผ่าน?
+      </button>
+    </div>
   </form>
 </section>
 
@@ -41,6 +46,25 @@
   </div>
 </dialog>
 
+<!-- Forgot Password Modal -->
+<div id="forgotModal" class="modal" hidden>
+  <div class="modal__backdrop" aria-hidden="true"></div>
+  <div class="modal__card" role="dialog" aria-modal="true" aria-labelledby="fgTitle">
+    <h3 class="modal__title" id="fgTitle">รีเซ็ตรหัสผ่าน</h3>
+    <p class="modal__desc">กรอกอีเมลที่ใช้สมัคร ระบบจะส่งลิงก์สำหรับตั้งรหัสผ่านใหม่ให้คุณ</p>
+
+    <label class="modal__field">
+      อีเมล
+      <input id="forgotEmail" type="email" autocomplete="email" placeholder="you@example.com">
+    </label>
+
+    <div class="modal__actions">
+      <button class="pill ghost" id="forgotCancel" type="button">ยกเลิก</button>
+      <button class="pill primary" id="forgotSubmit" type="button">ส่งลิงก์รีเซ็ต</button>
+    </div>
+  </div>
+</div>
+
 <style>
   dialog.rt-modal::backdrop { background: rgba(0,0,0,.55); }
   .rt-modal-card {
@@ -52,14 +76,36 @@
   .rt-modal-text { margin: 0 0 16px; opacity: .9; text-align: center; }
   .rt-modal-actions { display: flex; justify-content: center; margin: 0; }
   .btn[disabled] { opacity: .6; pointer-events: none; }
+  .link-btn{
+    background: none; border: 0; padding: 0;
+    color: inherit; font: inherit; cursor: pointer;
+    text-decoration: none;
+  }
+  .link-btn:hover, .link-btn:focus{ text-decoration: underline; }
+  /* minimal modal styles (ใช้ร่วมกับสคริปต์เดิมของคุณ) */
+  .modal[hidden]{display:none}
+  .modal__backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5)}
+  .modal__card{position:fixed;inset:50% auto auto 50%;transform:translate(-50%,-50%);
+    width:min(92vw,420px);background:var(--card,#17171b);color:var(--text,#fff);
+    border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:18px}
+  .modal__title{margin:0 0 6px}
+  .modal__desc{margin:0 0 14px;opacity:.9}
+  .modal__field{display:block;margin:10px 0 16px}
+  .modal__field input{width:100%;padding:10px;border-radius:10px;border:1px solid #2b2f3a;background:#0f1422;color:#fff}
+  .modal__actions{display:flex;gap:10px;justify-content:flex-end}
+  .pill{border-radius:999px;padding:8px 14px;border:0;cursor:pointer}
+  .pill.primary{background:#f0c662;color:#111}
+  .pill.ghost{background:transparent;border:1px solid #434a5a;color:#ddd}
 </style>
 
 <script type="module">
   const $ = (s,p=document)=>p.querySelector(s);
+
+  // ======= LOGIN SUBMIT เดิมของคุณ (คงไว้) =======
   const form = $('#loginForm');
   const submit = $('#btnLogin');
 
-  form.addEventListener('submit', async (e) => {
+  form?.addEventListener('submit', async (e) => {
     e.preventDefault();
     submit.disabled = true;
 
@@ -75,17 +121,71 @@
       const data = await res.json().catch(()=> ({}));
 
       if (!res.ok || !data?.ok) {
-        showMsg({ variant:'error', icon:'⚠️', title:'เข้าสู่ระบบไม่สำเร็จ', text: data?.message || 'ตรวจสอบชื่อผู้ใช้/รหัสผ่าน' });
+        window.showMsg?.({ variant:'error', icon:'⚠️', title:'เข้าสู่ระบบไม่สำเร็จ', text: data?.message || 'ตรวจสอบชื่อผู้ใช้/รหัสผ่าน' });
         submit.disabled = false;
         return;
       }
 
-      showMsg({ variant:'success', icon:'✅', title:'สำเร็จ!', text:'กำลังเข้าสู่ระบบ...' });
+      window.showMsg?.({ variant:'success', icon:'✅', title:'สำเร็จ!', text:'กำลังเข้าสู่ระบบ...' });
       setTimeout(()=> location.assign(data.redirect || next || '/'), 500);
     } catch (err) {
       console.error(err);
-      showMsg({ variant:'error', icon:'⚠️', title:'เครือข่ายมีปัญหา', text:'โปรดลองใหม่อีกครั้ง' });
+      window.showMsg?.({ variant:'error', icon:'⚠️', title:'เครือข่ายมีปัญหา', text:'โปรดลองใหม่อีกครั้ง' });
       submit.disabled = false;
+    }
+  });
+
+  // ======= ลืมรหัสผ่าน =======
+  const forgotModal = $('#forgotModal');
+  const openForgot  = () => { if (forgotModal.hidden) { forgotModal.hidden = false; document.body.classList.add('blurred'); } };
+  const closeForgot = () => { if (!forgotModal.hidden) { forgotModal.hidden = true; document.body.classList.remove('blurred'); } };
+
+  $('#linkForgot')?.addEventListener('click', e => { e.preventDefault(); openForgot(); });
+  $('#forgotCancel')?.addEventListener('click', closeForgot);
+  forgotModal?.querySelector('.modal__backdrop')?.addEventListener('click', closeForgot);
+
+  $('#forgotSubmit')?.addEventListener('click', async () => {
+    const email = ($('#forgotEmail')?.value || '').trim().toLowerCase();
+    if (!email) {
+      window.showMsg?.({ variant:'warn', icon:'⚠️', title:'กรอกอีเมล', text:'โปรดกรอกอีเมลที่ใช้สมัคร' });
+      return;
+    }
+
+    try {
+      const r = await fetch('/password/forgot', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const j = await r.json().catch(()=> ({}));
+
+      if (j.ok) {
+        closeForgot();
+        window.showMsg?.({
+          variant:'success',
+          icon:'✅',
+          title:'ส่งเรียบร้อย',
+          text:'ส่งลิงก์รีเซ็ตรหัสผ่านเข้าอีเมลของคุณแล้ว โปรดตรวจสอบกล่องจดหมาย'
+        });
+        return;
+      }
+
+      // กรณี error ตาม code ต่าง ๆ
+      if (j.code === 'not_found') {
+        window.showMsg?.({ variant:'error', icon:'✖', title:'ไม่พบอีเมลนี้', text:'ยังไม่มีอีเมลนี้ในระบบ' });
+      } else if (j.code === 'need_verify') {
+        closeForgot();
+        window.showMsg?.({
+          variant:'info',
+          icon:'✉️',
+          title:'ต้องยืนยันอีเมลก่อน',
+          text:'ได้ส่งลิงก์ยืนยันอีเมลไปให้แล้ว โปรดยืนยันให้เสร็จ จากนั้นกด “ลืมรหัสผ่าน?” อีกครั้ง'
+        });
+      } else {
+        window.showMsg?.({ variant:'error', icon:'✖', title:'ส่งไม่สำเร็จ', text: j.error || 'โปรดลองใหม่อีกครั้ง' });
+      }
+    } catch (e) {
+      window.showMsg?.({ variant:'error', icon:'✖', title:'เครือข่ายมีปัญหา', text:'โปรดลองใหม่อีกครั้ง' });
     }
   });
 </script>

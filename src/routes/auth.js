@@ -9,9 +9,6 @@ import crypto from 'crypto';
 const router = express.Router();
 const parseUrlencoded = express.urlencoded({ extended: false });
 
-const BRAND_URL  = 'https://rtsmm-th.com';
-const BRAND_LOGO = `${BRAND_URL}/static/assets/logo/logo-rtssm-th.png`;
-
 /** util: ตรวจ path ภายในเว็บเราเท่านั้น */
 function safeNext(input) {
   return (input && /^\/(?!\/)/.test(input)) ? input : '/';
@@ -20,8 +17,10 @@ function safeNext(input) {
 function emailTemplateVerifyLink(verifyUrl) {
   const BRAND_URL  = 'https://rtsmm-th.com';
   const BRAND_LOGO = `${BRAND_URL}/static/assets/logo/logo-rtssm-th.png`;
-  const LOGO_W_DESKTOP = 220; // ปรับได้ 180–240 กำลังสวย
-  const LOGO_W_MOBILE  = 180;
+
+  // โลโก้สูง (ยึดความสูงแทนความกว้าง เพื่อให้เต็มแถบมากขึ้น)
+  const LOGO_H_DESKTOP = 128; // ปรับได้ 88–104
+  const LOGO_H_MOBILE  = 98;
 
   return `
   <!doctype html>
@@ -32,51 +31,53 @@ function emailTemplateVerifyLink(verifyUrl) {
     <meta name="x-apple-disable-message-reformatting">
     <style>
       html,body{margin:0!important;padding:0!important;background:#f4f6f8!important}
-      img{border:0;line-height:100%;outline:none;text-decoration:none}
+      img{border:0;outline:none;text-decoration:none;display:block;line-height:0}
       table,td{border-collapse:collapse!important}
       a{color:#2563eb}
-      .brand-logo{width:${LOGO_W_DESKTOP}px;height:auto;max-width:100%}
+      .container{width:560px;max-width:100%}
+      /* แถบหัวแนวยาว โลโก้ชิดบนล่าง */
+      .head{background:#0b0f1a;padding:3px 16px;text-align:center;line-height:0;mso-line-height-rule:exactly}
+      .brand-logo{height:${LOGO_H_DESKTOP}px;width:auto;max-width:100%;margin:0 auto}
       @media(max-width:600px){
         .container{width:100%!important}
         .px{padding-left:16px!important;padding-right:16px!important}
-        .brand-logo{width:${LOGO_W_MOBILE}px!important}
+        .head{padding:0px 12px!important}
+        .brand-logo{height:${LOGO_H_MOBILE}px!important}
       }
       .btn{background:#111827;border-radius:8px;color:#fff!important;display:inline-block;font-weight:700;text-decoration:none;padding:12px 22px}
     </style>
   </head>
   <body style="margin:0;padding:0;background:#f4f6f8;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:24px 0;font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:16px 0;font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial,sans-serif;">
       <tr>
         <td align="center">
-          <table role="presentation" class="container" width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e6e8eb;">
+          <table role="presentation" class="container" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e6e8eb;">
             <tr>
-              <td style="background:#0b0f1a;padding:24px;text-align:center">
+              <td class="head">
                 <a href="${BRAND_URL}" target="_blank" style="text-decoration:none">
-                  <img src="${BRAND_LOGO}" alt="RTSMM-TH" class="brand-logo"
-                       width="${LOGO_W_DESKTOP}"
-                       style="display:inline-block;vertical-align:middle;height:auto;max-width:100%">
+                  <img src="${BRAND_LOGO}" alt="RTSMM-TH" class="brand-logo">
                 </a>
               </td>
             </tr>
             <tr>
-              <td class="px" style="padding:28px 24px 8px;color:#111827;">
+              <td class="px" style="padding:20px 24px 8px;color:#111827;">
                 <h2 style="margin:0 0 6px;font-size:20px">ยืนยันการสมัคร RTSMM-TH</h2>
                 <p style="margin:0;color:#6b7280">คลิกปุ่มด้านล่างเพื่อยืนยันอีเมลและเปิดใช้งานบัญชีของคุณ</p>
               </td>
             </tr>
             <tr>
-              <td style="padding:16px 24px 24px" align="center">
+              <td style="padding:16px 24px 20px" align="center">
                 <a href="${verifyUrl}" target="_blank" class="btn">ยืนยันอีเมลของฉัน</a>
               </td>
             </tr>
             <tr>
-              <td class="px" style="padding:0 24px 24px;color:#6b7280;font-size:12px;">
+              <td class="px" style="padding:0 24px 20px;color:#6b7280;font-size:12px;">
                 หากปุ่มกดไม่ได้ ให้คัดลอกลิงก์นี้ไปวางในเบราว์เซอร์ของคุณ:<br>
                 <a href="${verifyUrl}" style="color:#2563eb;word-break:break-all">${verifyUrl}</a>
               </td>
             </tr>
             <tr>
-              <td style="background:#f9fafb;color:#9ca3af;padding:16px 24px;text-align:center;font-size:12px;">
+              <td style="background:#f9fafb;color:#9ca3af;padding:12px 20px;text-align:center;font-size:12px;">
                 © RTSMM-TH
               </td>
             </tr>
@@ -109,10 +110,10 @@ router.post('/login', parseUrlencoded, async (req, res) => {
     const nextUrl  = safeNext(req.body.next);
 
     const user = await User.findOne({ username }).lean(false);
-    if (!user) return res.status(400).json({ ok:false, message:'ไม่พบบัญชีผู้ใช้' });
+    if (!user) return res.status(400).json({ ok:false, message:'⚠️ไม่พบบัญชีผู้ใช้' });
 
     const ok = await bcrypt.compare(password, user.passwordHash);
-    if (!ok) return res.status(400).json({ ok:false, message:'รหัสผ่านไม่ถูกต้อง' });
+    if (!ok) return res.status(400).json({ ok:false, message:'⛔️รหัสผ่านไม่ถูกต้อง' });
 
     req.session.user = { _id:String(user._id), username:user.username, role:user.role || 'user' };
     req.session.userId = String(user._id);
@@ -121,7 +122,7 @@ router.post('/login', parseUrlencoded, async (req, res) => {
     return res.json({ ok:true, redirect: nextUrl });
   } catch (e) {
     console.error(e);
-    return res.status(500).json({ ok:false, message:'เกิดข้อผิดพลาด' });
+    return res.status(500).json({ ok:false, message:'⚠️เกิดข้อผิดพลาด' });
   }
 });
 
@@ -148,12 +149,12 @@ router.post('/register', parseUrlencoded, async (req, res) => {
     const nextUrl  = safeNext(req.body.next);
 
     if (!username || !name || !email || !password) {
-      return res.status(400).json({ ok:false, message:'กรุณากรอกข้อมูลให้ครบ' });
+      return res.status(400).json({ ok:false, message:'⚠️กรุณากรอกข้อมูลให้ครบ' });
     }
 
     const dup = await User.findOne({ $or: [{ username }, { email }] }).lean();
     if (dup) {
-      return res.status(400).json({ ok:false, message: dup.username === username ? 'ชื่อผู้ใช้ถูกใช้งานแล้ว' : 'อีเมลถูกใช้งานแล้ว' });
+      return res.status(400).json({ ok:false, message: dup.username === username ? '⚠️ชื่อผู้ใช้ถูกใช้งานแล้ว' : '⚠️อีเมลถูกใช้งานแล้ว' });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -188,10 +189,10 @@ router.post('/register', parseUrlencoded, async (req, res) => {
       html: emailTemplateVerifyLink(verifyUrl),
     });
 
-    return res.json({ ok:true, needOtp:false, message:'ส่งอีเมลยืนยันแล้ว โปรดตรวจสอบกล่องจดหมายของคุณ' });
+    return res.json({ ok:true, needOtp:false, message:'✅ส่งอีเมลยืนยันแล้ว โปรดตรวจสอบกล่องจดหมายของคุณ' });
   } catch (e) {
     console.error(e);
-    return res.status(500).json({ ok:false, message:'สมัครไม่สำเร็จ' });
+    return res.status(500).json({ ok:false, message:'⛔️สมัครไม่สำเร็จ' });
   }
 });
 
@@ -206,24 +207,24 @@ router.get('/register/verify', async (req, res) => {
       return res.status(400).render('auth/register', {
         title: 'สมัครสมาชิก',
         next: '/',
-        flash: { variant:'error', title:'ลิงก์หมดอายุ', text:'ลิงก์หมดอายุหรือเซสชันหมดอายุ กรุณาสมัครใหม่' }
+        flash: { variant:'error', title:'ลิงก์หมดอายุ', text:'⛔️ลิงก์หมดอายุหรือเซสชันหมดอายุ กรุณาสมัครใหม่' }
       });
     }
 
     const doc = await OtpToken.findOne({ email, purpose:'email-verify-link', usedAt:null }).sort({ createdAt: -1 });
     if (!doc) return res.status(400).render('auth/register', {
       title:'สมัครสมาชิก', next:'/',
-      flash:{ variant:'error', title:'ลิงก์ไม่ถูกต้อง', text:'ลิงก์ไม่ถูกต้องหรือหมดอายุ' }
+      flash:{ variant:'error', title:'ลิงก์ไม่ถูกต้อง', text:'⚠️ลิงก์ไม่ถูกต้องหรือหมดอายุ' }
     });
     if (doc.expiresAt.getTime() < Date.now()) return res.status(400).render('auth/register', {
       title:'สมัครสมาชิก', next:'/',
-      flash:{ variant:'error', title:'ลิงก์หมดอายุ', text:'ลิงก์นี้หมดอายุแล้ว กรุณาสมัครใหม่' }
+      flash:{ variant:'error', title:'ลิงก์หมดอายุ', text:'⛔️ลิงก์นี้หมดอายุแล้ว กรุณาสมัครใหม่' }
     });
 
     const ok = await bcrypt.compare(token, doc.codeHash);
     if (!ok) return res.status(400).render('auth/register', {
       title:'สมัครสมาชิก', next:'/',
-      flash:{ variant:'error', title:'ลิงก์ไม่ถูกต้อง', text:'ไม่สามารถยืนยันอีเมลจากลิงก์นี้' }
+      flash:{ variant:'error', title:'ลิงก์ไม่ถูกต้อง', text:'⛔️ไม่สามารถยืนยันอีเมลจากลิงก์นี้' }
     });
 
     // mark used
@@ -237,7 +238,7 @@ router.get('/register/verify', async (req, res) => {
       await req.session.save();
       return res.status(400).render('auth/register', {
         title:'สมัครสมาชิก', next:'/',
-        flash:{ variant:'warn', title:'ข้อมูลซ้ำ', text:'ชื่อผู้ใช้หรืออีเมลถูกใช้งานแล้ว กรุณาสมัครใหม่' }
+        flash:{ variant:'warn', title:'ข้อมูลซ้ำ', text:'⚠️ชื่อผู้ใช้หรืออีเมลถูกใช้งานแล้ว กรุณาสมัครใหม่' }
       });
     }
 
@@ -263,7 +264,7 @@ router.get('/register/verify', async (req, res) => {
     console.error(e);
     return res.status(500).render('auth/register', {
       title:'สมัครสมาชิก', next:'/',
-      flash:{ variant:'error', title:'ยืนยันไม่สำเร็จ', text:'เกิดข้อผิดพลาด โปรดลองใหม่อีกครั้ง' }
+      flash:{ variant:'error', title:'ยืนยันไม่สำเร็จ', text:'⛔️เกิดข้อผิดพลาด โปรดลองใหม่อีกครั้ง' }
     });
   }
 });
@@ -278,7 +279,7 @@ router.post('/logout', async (req, res) => {
     return res.json({ ok:true, redirect:'/login' });
   } catch (e) {
     console.error(e);
-    return res.status(500).json({ ok:false, message:'ออกจากระบบไม่สำเร็จ' });
+    return res.status(500).json({ ok:false, message:'⛔️ออกจากระบบไม่สำเร็จ' });
   }
 });
 

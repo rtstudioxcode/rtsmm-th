@@ -267,9 +267,93 @@
     </div>
   </dialog>
 
+  <!-- Reset Password Modal (server-driven) -->
+  <div id="resetPwModal" class="modal" hidden>
+    <div class="modal__backdrop" aria-hidden="true"></div>
+    <div class="modal__card" role="dialog" aria-modal="true" aria-labelledby="rpTitle">
+      <h3 class="modal__title" id="rpTitle">ตั้งรหัสผ่านใหม่</h3>
+      <p class="modal__desc">
+        อีเมล: <span id="rpEmail"><%= resetEmail || '' %></span>
+      </p>
+
+      <label class="modal__field">
+        รหัสผ่านใหม่
+        <input id="newPw" type="password" autocomplete="new-password" minlength="6" placeholder="อย่างน้อย 6 ตัวอักษร">
+      </label>
+      <label class="modal__field">
+        ยืนยันรหัสผ่านใหม่
+        <input id="newPw2" type="password" autocomplete="new-password" minlength="6">
+      </label>
+
+      <div class="modal__actions">
+        <button class="pill ghost" id="resetCancel" type="button">ยกเลิก</button>
+        <button class="pill primary" id="resetSubmit" type="button">บันทึกรหัสผ่าน</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // กัน undefined เสมอ
+    window.__rp = {
+      allowed: <%- JSON.stringify(!!resetAllowed) %>,
+      email:   <%- JSON.stringify(resetEmail || null) %>
+    };
+  </script>
+
   <script>
     (function(){
       const $ = (s,p=document)=>p.querySelector(s);
+      // ======= RESET PASSWORD (server-driven grant) =======
+      const modal = $('#resetPwModal');
+      if (!modal) return; // ไม่มี modal ก็ไม่ต้องทำอะไร
+
+      const open  = () => { if (modal.hidden) { modal.hidden = false; document.body.classList.add('blurred'); } };
+      const close = () => { if (!modal.hidden) { modal.hidden = true;  document.body.classList.remove('blurred'); } };
+
+      // เปิดได้เฉพาะเมื่อเซิร์ฟเวอร์อนุญาต (ผู้ใช้มากดลิงก์ในเมลมาแล้ว)
+      if (window.__rp?.allowed === true) open();
+
+      // ปิด = ยกเลิก grant ฝั่ง server ด้วย
+      $('#resetCancel')?.addEventListener('click', async () => {
+        close();
+        try { await fetch('/password/reset/cancel', { method:'POST' }); } catch {}
+      });
+
+      // บันทึกรหัสใหม่ (ไม่ต้องส่ง token/email — server ดูจาก session grant)
+      $('#resetSubmit')?.addEventListener('click', async () => {
+        const p1 = ($('#newPw')?.value || '').trim();
+        const p2 = ($('#newPw2')?.value || '').trim();
+
+        if (p1.length < 6) return alert('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
+        if (p1 !== p2)     return alert('รหัสผ่านไม่ตรงกัน');
+
+        try {
+          const r = await fetch('/password/reset', {
+            method: 'POST',
+            headers: { 'Content-Type':'application/json' },
+            body: JSON.stringify({ newPassword: p1 })
+          });
+          const j = await r.json();
+          if (!j.ok) throw new Error(j.error || 'รีเซ็ตไม่สำเร็จ');
+
+          // สำเร็จ → login ให้แล้วในฝั่ง server
+          const t = document.createElement('div');
+          t.textContent = 'รีเซ็ตรหัสผ่านแล้ว กำลังเข้าสู่ระบบ...';
+          t.style.cssText = 'position:fixed;top:16px;right:16px;background:#10b981;color:#fff;padding:10px 14px;border-radius:10px;z-index:2000';
+          document.body.appendChild(t);
+          setTimeout(() => { t.remove(); location.href = '/'; }, 1200);
+        } catch (e) {
+          alert(e.message);
+        }
+      });
+
+      // คลิกฉากหลังเพื่อปิด (ทางเลือก)
+      modal.querySelector('.modal__backdrop')?.addEventListener('click', async () => {
+        close();
+        try { await fetch('/password/reset/cancel', { method:'POST' }); } catch {}
+      });
+
+      // ======= Modal Dialog Main =======
       const dlg = $('#msgDialog'), badge=$('#msgBadge'), title=$('#msgTitle'), text=$('#msgText');
       const btnOk = $('#msgClose'), btnCancel=$('#msgCancel');
 

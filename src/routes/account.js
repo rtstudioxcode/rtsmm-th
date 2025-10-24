@@ -45,44 +45,74 @@ function buildUserMatch(userId) {
 // รหัส 6 หลัก + เทมเพลตอีเมล
 const genCode = () => String(Math.floor(100000 + Math.random() * 900000));
 export const emailTemplate = (code) => `
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:24px 0;font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;">
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    html,body{margin:0!important;padding:0!important;background:#f4f6f8!important}
+    img{border:0;outline:none;text-decoration:none;display:block;line-height:0}
+    table,td{border-collapse:collapse!important}
+    .container{width:560px;max-width:100%}
+
+    /* แถบหัวแนวยาว โลโก้ชิดบนล่าง */
+    .head{background:#0b0f1a;padding:3px 16px;text-align:center;line-height:0;mso-line-height-rule:exactly}
+    .brand-logo{height:128px;width:auto;max-width:100%;margin:0 auto}
+
+    @media(max-width:600px){
+      .container{width:100%!important}
+      .head{padding:0px 12px!important}
+      .brand-logo{height:98px!important}
+      .px{padding-left:16px!important;padding-right:16px!important}
+    }
+
+    .code{font-size:28px;font-weight:800;letter-spacing:8px;text-align:center;background:#f3f4f6;border-radius:10px;padding:14px 0;color:#111827}
+  </style>
+</head>
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:16px 0;font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;">
     <tr>
       <td align="center">
-        <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e6e8eb;">
+        <table role="presentation" class="container" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e6e8eb;">
           <tr>
-            <td style="background:#0b0f1a;padding:24px;text-align:center">
+            <td class="head">
               <a href="${BRAND_URL}" target="_blank" style="text-decoration:none">
-                <img src="${BRAND_LOGO}" alt="RTSMM-TH" height="42" style="display:inline-block;vertical-align:middle">
+                <img src="${BRAND_LOGO}" alt="RTSMM-TH" class="brand-logo">
               </a>
             </td>
           </tr>
+
           <tr>
-            <td style="padding:28px 24px 8px;color:#111827;">
+            <td class="px" style="padding:20px 24px 8px;color:#111827;">
               <h2 style="margin:0 0 4px;font-size:20px">ยืนยันอีเมลของคุณ</h2>
               <p style="margin:0;color:#6b7280">นี่คือรหัส OTP ของคุณ (ใช้ได้ภายใน ${Math.floor((config.otp.ttlSec||300)/60)} นาที)</p>
             </td>
           </tr>
+
           <tr>
-            <td style="padding:8px 24px 24px">
-              <div style="font-size:28px;font-weight:800;letter-spacing:8px;text-align:center;background:#f3f4f6;border-radius:10px;padding:14px 0;color:#111827;">
-                ${code}
-              </div>
+            <td style="padding:10px 24px 24px">
+              <div class="code">${code}</div>
             </td>
           </tr>
+
           <tr>
-            <td style="padding:0 24px 28px;color:#6b7280;font-size:12px;">
+            <td style="padding:0 24px 20px;color:#6b7280;font-size:12px;">
               หากคุณไม่ได้ร้องขอรหัสนี้ สามารถละเว้นอีเมลได้อย่างปลอดภัย
             </td>
           </tr>
+
           <tr>
-            <td style="background:#f9fafb;color:#9ca3af;padding:16px 24px;text-align:center;font-size:12px;">
+            <td style="background:#f9fafb;color:#9ca3af;padding:12px 20px;text-align:center;font-size:12px;">
               © RTSMM-TH
             </td>
           </tr>
         </table>
       </td>
     </tr>
-  </table>`;
+  </table>
+</body>
+</html>`;
 
 /* ---------------- router ---------------- */
 const router = Router();
@@ -148,10 +178,10 @@ router.get('/account', async (req, res, next) => {
 router.post('/account/profile', upload.single('avatar'), async (req, res) => {
   try {
     const uid = getAuthUserId(req);
-    if (!uid) return res.status(401).json({ ok:false, error: 'unauthorized' });
+    if (!uid) return res.status(401).json({ ok:false, error: '⛔️คุณไม่ได้รับอนุญาต' });
 
     const u = await User.findById(uid);
-    if (!u) return res.status(404).json({ ok:false, error: 'not found' });
+    if (!u) return res.status(404).json({ ok:false, error: '⛔️ไม่พบข้อมูลผู้ใช้ เครือข่ายมีปัญหาโปรลองอีกครั้งภายหลัง' });
 
     // อัปเดตรูป
     if (req.file) {
@@ -222,21 +252,30 @@ router.post('/account/profile', upload.single('avatar'), async (req, res) => {
 router.post('/account/password', async (req, res) => {
   try {
     const uid = getAuthUserId(req);
-    if (!uid) return res.status(401).json({ ok:false, error:'unauthorized' });
+    if (!uid) return res.status(401).json({ ok:false, error:'⛔️คุณไม่ได้รับอนุญาต' });
 
-    const { currentPassword, newPassword } = req.body;
+    const { currentPassword, newPassword} = req.body;
+
     const u = await User.findById(uid);
-    if (!u) return res.status(404).json({ ok:false, error:'not found' });
+    if (!u) return res.status(404).json({ ok:false, error:'⛔️ไม่พบข้อมูลผู้ใช้ เครือข่ายมีปัญหาโปรลองอีกครั้งภายหลัง' });
 
-    const ok = await u.verifyPassword(currentPassword || '');
-    if (!ok) return res.status(400).json({ ok:false, error:'รหัสผ่านเดิมไม่ถูกต้อง' });
+    if (!newPassword || String(newPassword).length < 6) {
+      return res.status(400).json({ ok:false, error:'⚠️รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัว a-z 0-9 !@#$' });
+    }
+
+    const ok = await bcrypt.compare(String(currentPassword || ''), u.passwordHash);
+    if (!ok) return res.status(400).json({ ok:false, error:'⛔️รหัสผ่านเดิมไม่ถูกต้อง' });
+
+    const same = await bcrypt.compare(String(newPassword), u.passwordHash);
+    if (same) return res.status(400).json({ ok:false, error:'⚠️รหัสผ่านใหม่ซ้ำกับรหัสเดิม โปรดระบุรหัสผ่านใหม่อีกครั้ง' });
 
     await u.setPassword(String(newPassword || ''));
     await u.save();
-    res.json({ ok:true });
+    
+    return res.status(200).json({ ok: true });
   } catch (e) {
     console.error('POST /account/password', e);
-    res.status(500).json({ ok:false, error:'change password failed' });
+    res.status(500).json({ ok:false, error:'⛔️เปลี่ยนรหัสผ่านไม่สำเร็จ เครือข่ายมีปัญหาโปรดลองอีกครั้งภายหลัง!' });
   }
 });
 
@@ -244,10 +283,10 @@ router.post('/account/password', async (req, res) => {
 router.post('/account/email/request-otp', async (req, res) => {
   try {
     const uid = getAuthUserId(req);
-    if (!uid) return res.status(401).json({ ok:false, error:'unauthorized' });
+    if (!uid) return res.status(401).json({ ok:false, error:'⛔️คุณไม่ได้รับอนุญาต' });
 
     const u = await User.findById(uid);
-    if (!u?.email) return res.status(400).json({ ok:false, error:'ยังไม่มีอีเมลในบัญชี' });
+    if (!u?.email) return res.status(400).json({ ok:false, error:'⛔️ยังไม่มีอีเมลนี้ในบัญชี' });
 
     const email = String(u.email).toLowerCase();
 
@@ -257,7 +296,7 @@ router.post('/account/email/request-otp', async (req, res) => {
     const now = Date.now();
     if (last?.lastSentAt && (now - last.lastSentAt.getTime()) < config.otp.resendCooldownSec*1000) {
       const wait = Math.ceil((config.otp.resendCooldownSec*1000 - (now - last.lastSentAt.getTime()))/1000);
-      return res.status(429).json({ ok:false, error:`โปรดรอ ${wait}s ก่อนขอรหัสใหม่` });
+      return res.status(429).json({ ok:false, error:`⏳โปรดรอ ${wait}s ก่อนขอรหัสใหม่` });
     }
 
     const code = genCode();
@@ -284,7 +323,7 @@ router.post('/account/email/request-otp', async (req, res) => {
     res.json({ ok:true, ttl: config.otp.ttlSec });
   } catch (e) {
     console.error('request-otp', e);
-    res.status(500).json({ ok:false, error:'ส่งรหัสไม่สำเร็จ' });
+    res.status(500).json({ ok:false, error:'⛔️ส่งรหัสไม่สำเร็จ' });
   }
 });
 
@@ -292,29 +331,29 @@ router.post('/account/email/request-otp', async (req, res) => {
 router.post('/account/email/verify', async (req, res) => {
   try {
     const uid = getAuthUserId(req);
-    if (!uid) return res.status(401).json({ ok:false, error:'unauthorized' });
+    if (!uid) return res.status(401).json({ ok:false, error:'⛔️คุณไม่ได้รับอนุญาต' });
 
     const { code } = req.body;
     const u = await User.findById(uid);
-    if (!u?.email) return res.status(400).json({ ok:false, error:'ยังไม่มีอีเมลในบัญชี' });
+    if (!u?.email) return res.status(400).json({ ok:false, error:'⛔️ยังไม่มีอีเมลในบัญชี' });
 
     const email = String(u.email).toLowerCase();
     const doc = await OtpToken.findOne({ email, purpose: 'email-verify', usedAt: null })
       .sort({ createdAt: -1 });
-    if (!doc) return res.status(400).json({ ok:false, error:'รหัสหมดอายุหรือไม่ถูกต้อง' });
+    if (!doc) return res.status(400).json({ ok:false, error:'⛔️รหัสหมดอายุหรือไม่ถูกต้อง' });
 
     if (doc.expiresAt.getTime() < Date.now()) {
-      return res.status(400).json({ ok:false, error:'รหัสหมดอายุ' });
+      return res.status(400).json({ ok:false, error:'⛔️รหัสหมดอายุ' });
     }
     if (doc.attempts >= doc.maxAttempts) {
-      return res.status(400).json({ ok:false, error:'เกินจำนวนครั้งที่กำหนด' });
+      return res.status(400).json({ ok:false, error:'⛔️เกินจำนวนครั้งที่กำหนด' });
     }
 
     const ok = await bcrypt.compare(String(code||'').trim(), doc.codeHash);
     if (!ok) {
       doc.attempts += 1;
       await doc.save();
-      return res.status(400).json({ ok:false, error:'รหัสไม่ถูกต้อง' });
+      return res.status(400).json({ ok:false, error:'⛔️รหัสไม่ถูกต้อง' });
     }
 
     // สำเร็จ → ปิด token และอัปเดต user
@@ -327,7 +366,7 @@ router.post('/account/email/verify', async (req, res) => {
     res.json({ ok:true });
   } catch (e) {
     console.error('verify-otp', e);
-    res.status(500).json({ ok:false, error:'ยืนยันไม่สำเร็จ' });
+    res.status(500).json({ ok:false, error:'⛔️ยืนยันไม่สำเร็จ' });
   }
 });
 
