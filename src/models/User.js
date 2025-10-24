@@ -3,11 +3,16 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 
 const UserSchema = new mongoose.Schema({
+  level: { type: String, default: '1' },
+  name: { type: String, default: '' },
+  avatarUrl: { type: String, default: '/static/assets/img/user-blue.png' },
   username: { type: String, required: true, trim: true, unique: true },
-  email:    { type: String, trim: true, lowercase: true, unique: true, sparse: true },
+  email:    { type: String, trim: true, lowercase: true, index: true, unique: true, sparse: true },
+  emailVerified: { type: Boolean, default: false },
   passwordHash: { type: String, required: true },
   role: { type: String, default: 'user' },
   balance: { type: Number, default: 0 },
+  totalSpent: { type: Number, default: 0 },
   currency: { type: String, default: 'THB' },
 }, { timestamps: true });
 

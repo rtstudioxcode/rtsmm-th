@@ -10,5 +10,17 @@ export const config = {
   },
   currency: 'THB',
   initialBalance: 0,
-  signupBonus: 0, 
+  signupBonus: 0,
+  mail: {
+    host: process.env.MAIL_HOST,
+    port: Number(process.env.MAIL_PORT || 587),
+    user: process.env.MAIL_USER,
+    pass: process.env.MAIL_PASS,
+    from: process.env.MAIL_FROM || 'RTSSM-TH <no-reply@rtsmm-th.com>',
+  },
+  otp: {
+    ttlSec: Number(process.env.OTP_CODE_TTL || 600),
+    resendCooldownSec: Number(process.env.OTP_RESEND_COOLDOWN || 60),
+    maxAttempts: Number(process.env.OTP_MAX_ATTEMPTS || 5),
+  }
 };

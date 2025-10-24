@@ -24,6 +24,11 @@ import { servicesRouter } from './routes/services.js';
 import changesRoute from './routes/changes.js';
 import { initDailyChangeSync } from './jobs/dailyChangeSync.js';
 
+import accountRouter from './routes/account.js';
+import dashboardRouter from './routes/dashboard.js';
+
+import otpRouter from './routes/otp.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 
@@ -40,6 +45,7 @@ app.set('layout', 'layout');
 
 // Static & parsers
 app.use('/static', express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'), { maxAge: '7d' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
@@ -96,6 +102,9 @@ app.use(newOrderRoutes);
 app.use(walletRoutes);
 app.use('/services', servicesRouter);
 app.use(changesRoute);
+app.use(accountRouter);  
+app.use('/', dashboardRouter);
+app.use('/otp', otpRouter);
 
 // Healthcheck (optional)
 app.get('/healthz', (_req, res) => res.json({ ok: true }));

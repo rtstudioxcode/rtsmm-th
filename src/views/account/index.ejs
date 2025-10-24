@@ -1,0 +1,519 @@
+<section class="page account-v3">
+  <h1 class="page-title" style="align-items: center; text-align: center;" >ตั้งค่าข้อมูลส่วนตัว</h1>
+
+  <div class="acc-wrap">
+    <!-- = LEFT: Summary = -->
+    <aside class="acc-side">
+      <div class="prof-card">
+        <div class="prof-avatar">
+          <img id="avatarPreview" src="<%= userDoc.avatarUrl %>" alt="">
+        </div>
+
+        <div style="display:flex;justify-content:center">
+          <button id="btnChangeAvatar" type="button" class="btn-line">เปลี่ยนรูป</button>
+          <form id="formUploadAvatar" hidden enctype="multipart/form-data">
+            <input id="avatarInput" name="avatar" type="file" accept="image/png,image/jpeg,image/webp">
+          </form>
+        </div>
+
+        <div class="prof-name"><%= userDoc.name || (me?.username || '') %></div>
+        <div class="prof-mail">
+          <%= userDoc.email || '-' %>
+          <% if (userDoc.email) { %>
+            <% if (userDoc.emailVerified) { %>
+              <span class="badge ok">ยืนยันแล้ว</span>
+            <% } else { %>
+              <span class="badge warn">ยังไม่ยืนยัน</span>
+            <% } %>
+          <% } %>
+        </div>
+
+        <div class="kv">
+          <div>ระดับบัญชี</div>
+          <div><span class="badge warn">เลเวล <%= userDoc.level || '1' %></span></div>
+        </div>
+        <div class="kv">
+          <div>ยอดคงเหลือ</div>
+          <div><span class="badge balance"><%= balanceText %></span></div>
+        </div>
+
+        <div class="muted sm" style="margin-top:8px">ไฟล์ที่รองรับ: png, jpg, jpeg, webp (สูงสุด 2MB)</div>
+      </div>
+
+      <div class="prof-card" style="margin-top:14px">
+        <div class="kv"><div>ยืนยันตัวตน KYC</div><div><a class="badge danger">ยังไม่เปิดใช้งาน</a></div></div>
+        <div class="kv"><div>ช่วยเหลือ</div><div><a class="badge ok" href="https://line.me" target="_blank" rel="noopener">Line Official</a></div></div>
+      </div>
+    </aside>
+
+    <!-- = RIGHT: Tabs = -->
+    <div class="acc-main">
+      <div class="tabs">
+        <button class="tab active" data-tab="tab-general">การตั้งค่าทั่วไป</button>
+        <button class="tab" data-tab="tab-points">ข้อมูลระดับบัญชี</button>
+        <!-- <button class="tab" data-tab="tab-notify">การแจ้งเตือน</button> -->
+      </div>
+
+      <!-- GENERAL -->
+      <div class="tabpane show" id="tab-general">
+        <form id="formProfile" class="card" enctype="multipart/form-data">
+          <div class="card-header"><div class="title">ข้อมูลส่วนตัว</div></div>
+          <div class="form-grid">
+            <label>ชื่อ - นามสกุล
+              <input name="name" type="text" value="<%= userDoc.name || '' %>" <%= userDoc.name ? 'disabled' : '' %> placeholder="ระบุชื่อ-นามสกุล">
+              <% if (userDoc.name) { %><small class="muted sm">ตั้งแล้ว หากต้องการเปลี่ยนให้ติดต่อผู้ดูแล</small><% } %>
+            </label>
+
+            <label>Username
+              <div class="static-input" aria-readonly="true"><%= me?.username || '-' %></div>
+            </label>
+
+            <label>Email Address
+              <div class="email-row">
+                <input name="email" type="email" value="<%= userDoc.email || '' %>" <%= userDoc.email ? 'disabled' : '' %> placeholder="name@example.com">
+                <% if (userDoc.email) { %>
+                  <% if (userDoc.emailVerified) { %>
+                    <button type="button" class="badge2 ok" disabled>ยืนยันแล้ว</button>
+                  <% } else { %>
+                    <button id="btnSendOtp" type="button" class="btn" data-email="<%= userDoc.email %>">ส่งรหัสยืนยัน</button>
+                  <% } %>
+                <% } %>
+              </div>
+            </label>
+
+            <label>Timezone
+              <div class="static-input" aria-readonly="true">(GMT+7:00) Asia/Bangkok (Indochina Time)</div>
+            </label>
+
+            <label>สกุลเงิน
+              <div class="static-input" aria-readonly="true"><%= me?.currency || 'THB' %></div>
+            </label>
+          </div>
+
+          <% if (userDoc.email && !userDoc.emailVerified) { %>
+          <div id="otpArea" class="otp-row" hidden>
+            <input id="otpCode" type="text" inputmode="numeric" maxlength="6" placeholder="กรอกรหัส 6 หลัก">
+            <button id="btnVerifyOtp" type="button" class="btn primary">ยืนยัน</button>
+          </div>
+          <% } %>
+
+          <div class="card-actions">
+            <button class="btn primary" type="submit">บันทึกข้อมูล</button>
+          </div>
+        </form>
+
+        <form id="formPassword" class="card">
+          <div class="card-header"><div class="title">เปลี่ยนรหัสผ่าน</div></div>
+          <div class="form-grid">
+            <label>รหัสผ่านเดิม
+                <input name="currentPassword" type="password" required>
+            </label>
+            <label>รหัสผ่านใหม่
+                <input name="newPassword" type="password" minlength="6" required>
+            </label>
+          </div>
+          <div class="card-actions"><button class="btn primary" type="submit">เปลี่ยนรหัสผ่าน</button></div>
+        </form>
+      </div>
+
+      <!-- =========== Tab: Points (แทนที่บล็อกเดิมทั้งหมด) =========== -->
+      <div class="tabpane" id="tab-points">
+        <div class="card">
+            <div class="card-header">
+            <div class="title">ยอดใช้จ่ายสะสม</div>
+            <span class="pill lvl">เลเวล <%= userDoc.level || '1' %></span>
+            </div>
+
+            <%
+            const __spent = (typeof agg !== 'undefined' && agg && typeof agg.totalSpent === 'number') ? agg.totalSpent : 0;
+            const __level = Number(userDoc.level || 1);
+            const __need = [0, ...((levels||[]).map(l => Number(l.need||0)))];
+            const __nextMax = __need[__level + 1] || __need.at(-1) || 1;
+            const __pctRaw = (__spent / __nextMax) * 100;
+            const __pct = Math.max(0, Math.min(100, +__pctRaw.toFixed(2)));
+            %>
+
+            <div class="form-grid">
+              <div class="score-wrap">
+                <div>
+                    <div class="bignum">฿<%= __spent.toFixed(2) %></div>
+                    <div class="subcap">ใช้จ่ายไปแล้ว</div>
+                </div>
+                <div>
+                    <div class="prog"><div class="fill" style="width:<%= __pct %>%"></div></div>
+                    <div class="subcap" style="margin-top:6px">
+                        เป้าหมายเลเวลถัดไป: ฿<%= (__nextMax || 0).toLocaleString() %> (<%= __pct %>%)
+                    </div>
+                </div>
+              </div>
+            </div>
+        </div>
+
+        <!-- ระดับบัญชี (แสดงทีละ 2 การ์ด) -->
+        <div class="card">
+            <div class="card-header"><div class="title">ข้อมูลระดับบัญชี</div></div>
+
+            <div id="levelsTrack"><!-- เติมด้วย JS เดิม --></div>
+
+            <div class="level-nav">
+            <button class="btn" id="lvPrev" aria-label="ก่อนหน้า">‹</button>
+            <button class="btn primary" id="lvNext" aria-label="ถัดไป">›</button>
+            </div>
+        </div>
+      </div>
+
+      <!-- NOTIFY -->
+      <div class="tabpane" id="tab-notify">
+        <div class="card">
+          <div class="card-header"><div class="title">การแจ้งเตือน</div></div>
+          <div class="form-grid"><p class="muted">จะเพิ่มภายหลัง</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+/* ===== Theme tokens (sync กับ layout.ejs: html[data-theme]) ===== */
+:root{
+  --bg:#0b0c0f;
+  --surface:#121318;
+  --surface-2:#171922;
+  --line:#22252d;
+  --text:#eaf0f8;
+  --muted:#9aa6b2;
+  --accent:#2b8cff;
+  --accent-2:#5da3ff;
+  --danger:#f11212e3;
+  --success:#10b981;
+  --balance:#10a0b9;
+  --warn:#f59e0b;
+  --shadow:0 10px 30px rgba(0,0,0,.35);
+}
+html[data-theme="light"]{
+  --bg:#f6f8fb;
+  --surface:#ffffff;
+  --surface-2:#ffffff;
+  --line:#e7edf5;
+  --text:#111827;
+  --danger:#f11212e3;
+  --muted:#667085;
+  --accent:#2563eb;
+  --accent-2:#5b8cff;
+  --shadow:0 12px 28px rgba(16,24,40,.08);
+}
+
+/* ===== Layout base ===== */
+.page-title{margin:8px 0 18px;color:var(--text);font-weight:800;letter-spacing:.2px}
+.page-title.center{display:block;text-align:center}
+
+.acc-wrap{display:grid;grid-template-columns:300px 1fr;gap:22px}
+@media (max-width:980px){.acc-wrap{grid-template-columns:1fr}}
+
+/* ===== Sidebar summary ===== */
+.acc-side .prof-card{
+  background:linear-gradient(180deg,var(--surface),var(--surface-2));
+  border:1px solid var(--line);
+  border-radius:16px; padding:18px 16px; box-shadow:var(--shadow)
+}
+.prof-avatar{display:flex;justify-content:center;margin:4px 0 12px}
+.prof-avatar img{
+  width:108px;height:108px;object-fit:cover;border-radius:999px;
+  box-shadow:0 6px 16px rgba(0,0,0,.28); border:3px solid rgba(255,255,255,.06)
+}
+.prof-name{font-weight:800;margin:.25rem 0 .35rem;font-size:1.05rem}
+.prof-mail{color:var(--muted);font-size:.92rem;margin-bottom:.6rem;word-break:break-all}
+
+.kv{display:flex;justify-content:space-between;gap:10px;margin:10px 0}
+.pill{
+  display:inline-flex;align-items:center;gap:6px;
+  background:color-mix(in oklab,var(--accent) 10%, transparent);
+  border:1px solid color-mix(in oklab,var(--accent) 25%, var(--line));
+  color:var(--text); padding:6px 10px; border-radius:999px; font-weight:600
+}
+.pill.lvl{background:color-mix(in oklab,#f1c40f 16%, transparent);border-color:#f1c40f33;color:#f1c40f}
+
+.badge{
+  font-size:.78rem;padding:2px 8px;border-radius:999px;border:1px solid transparent
+}
+.badge.danger{background:color-mix(in oklab,var(--danger) 18%, transparent);border-color:#ff02027c;color:var(--danger)}
+.badge.balance{background:color-mix(in oklab,var(--balance) 18%, transparent);border-color:#10b3b955;color:var(--balance)}
+.badge.ok{background:color-mix(in oklab,var(--success) 18%, transparent);border-color:#10b98155;color:var(--success)}
+.badge.warn{background:color-mix(in oklab,var(--warn) 18%, transparent);border-color:#f59e0b55;color:var(--warn)}
+
+.badge2{
+  font-family: Prompt; font-size:.98rem;padding:6px 10px;border-radius:999px;border:1px solid transparent
+}
+.badge2.ok{background:color-mix(in oklab,var(--success) 18%, transparent);border-color:#10b98155;color:var(--success)}
+
+.muted{color:var(--muted)} .muted.sm{font-size:.84rem}
+
+/* ===== Tabs ===== */
+.tabs{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.tab{
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:12px;padding:10px 14px;cursor:pointer;
+  color:var(--text);font-weight:600;transition:all .15s ease
+}
+.tab:hover{border-color:color-mix(in oklab,var(--accent) 35%, var(--line))}
+.tab.active{
+  background:linear-gradient(180deg,var(--accent),var(--accent));
+  border-color:color-mix(in oklab,var(--accent) 80%,#000 20%);
+  color:#fff; box-shadow:0 6px 20px color-mix(in oklab,var(--accent) 30%, transparent)
+}
+.tabpane{display:none} .tabpane.show{display:block}
+
+/* ===== Cards / Forms (ส่วน general เดิมใช้ต่อได้) ===== */
+.card{
+  background:linear-gradient(180deg,var(--surface),var(--surface-2));
+  border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow)
+}
+.card-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:16px 18px;border-bottom:1px solid var(--line)
+}
+.card .title{font-weight:800}
+.card-actions{padding:14px 18px;border-top:1px solid var(--line);text-align:right}
+
+.form-grid{display:grid;grid-template-columns:1fr;gap:14px;padding:16px 18px}
+.form-grid.two{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+label{display:flex;flex-direction:column;gap:6px;color:var(--text)}
+input[type=text],input[type=email],input[type=password]{
+  background:color-mix(in oklab,var(--surface) 70%, #000 30%);
+  border:1px solid var(--line);border-radius:12px;padding:11px 12px;color:var(--text)
+}
+input:disabled{opacity:.75;cursor:not-allowed}
+.email-row{display:flex;gap:8px;align-items:center}
+.otp-row{display:flex;gap:8px;align-items:center}
+
+/* ===== Buttons ===== */
+.btn{
+  border-radius:12px;border:1px solid var(--line);
+  padding:10px 12px;cursor:pointer;background:var(--surface);color:var(--text);font-weight:600
+}
+.btn.primary{
+  background:linear-gradient(180deg,var(--accent),var(--accent));
+  color:#fff;border-color:color-mix(in oklab,var(--accent) 80%,#000 20%)
+}
+.btn.ghost{background:transparent;color:var(--success)}
+.btn-line{
+  display:inline-flex;align-items:center;gap:8px;border:1px dashed var(--line);
+  padding:7px 11px;border-radius:10px;cursor:pointer
+}
+
+/* ===== Progress (tab-points) ===== */
+.score-wrap{display:grid;grid-template-columns:260px 1fr;gap:18px}
+@media (max-width:720px){.score-wrap{grid-template-columns:1fr}}
+.bignum{font-size:2rem;font-weight:900;letter-spacing:.2px}
+.subcap{color:var(--muted);margin-top:4px}
+
+.prog{height:12px;border-radius:999px;background:color-mix(in oklab,#94a3b8 20%, transparent);overflow:hidden}
+.prog .fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+
+/* ===== Levels (2 cols “carousel” area) ===== */
+#levelsTrack{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:14px 18px}
+@media (max-width:880px){#levelsTrack{grid-template-columns:1fr}}
+.level{
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 14px
+}
+.level .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;
+  background:color-mix(in oklab,var(--accent) 12%, transparent);
+  border:1px solid color-mix(in oklab,var(--accent) 28%, var(--line)); font-weight:700
+}
+.rate{background:#0b1220;color:#fff;border:1px solid rgba(255, 255, 255, .15);border-radius:8px;padding:4px 8px;font-size:.85rem}
+html[data-theme="light"] .rate{background:#0f172a}
+.level ul{margin:8px 0 0 0;padding:0 0 0 18px;color:var(--text)}
+.level ul li{margin:.42rem 0}
+
+.level-nav{display:flex;justify-content:center;gap:10px;padding:8px 0 16px}
+.level-nav .btn{min-width:44px}
+
+/* --- Static (read-only) display field --- */
+.static-input{
+  display:flex; align-items:center; min-height:22px;
+  padding:4px 12px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:color-mix(in oklab, var(--surface) 70%, #000 30%);
+  color:var(--text);
+  font-weight:300;
+  letter-spacing:.2px;
+}
+html[data-theme="light"] .static-input{
+  background:color-mix(in oklab, #f2f4f8 60%, var(--surface) 40%);
+}
+
+.prog .fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2)); min-width: 2px}
+.prof-mail{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.prof-mail .badge{
+  margin-left: auto; /* ดัน badge ไปชิดขวา */
+}
+</style>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+
+  // ===== Data for levels (ใช้ของเซิร์ฟเวอร์ถ้ามี ไม่งั้นใช้ mock) =====
+  window.__LEVELS__ = <%- JSON.stringify(levels || []) %>;
+  if (!Array.isArray(window.__LEVELS__) || !window.__LEVELS__.length) {
+    window.__LEVELS__ = [
+        { name:'เลเวล 1',  need:0,       rate:'฿0.05', perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ช่วยเหลือผ่าน Line Official Account'] },
+        { name:'เลเวล 2',  need:5000,    rate:'฿0.1',  perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ช่วยเหลือผ่าน Line Official Account'] },
+        { name:'เลเวล 3',  need:10000,   rate:'฿0.15', perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ช่วยเหลือผ่าน Line Official Account'] },
+        { name:'เลเวล 4',  need:30000,   rate:'฿0.2',  perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ให้ความสำคัญการช่วยเหลือ'] },
+        { name:'เลเวล 5',  need:50000,   rate:'฿0.25', perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ให้ความสำคัญการช่วยเหลือ'] },
+        { name:'Retail',   need:80000,   rate:'฿0.3',  perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ให้ความสำคัญการช่วยเหลือ'] },
+        { name:'Wholesale',need:175000,  rate:'฿0.5',  perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ให้ความสำคัญการช่วยเหลือ'] },
+        { name:'Reseller', need:700000,  rate:'฿0.8',  perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ให้ความสำคัญการช่วยเหลือสูง'] },
+        { name:'VIP',      need:1000000, rate:'฿1',    perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ให้ความสำคัญการช่วยเหลือสูง'] },
+        { name:'Legendary',need:5000000, rate:'฿15',   perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ให้ความสำคัญการช่วยเหลือสูงสุด'] }
+    ];
+  }
+
+  // Tabs -> ใช้ .show
+  document.querySelectorAll('.tabs .tab').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.tabs .tab').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.tabpane').forEach(p=>p.classList.remove('show'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab)?.classList.add('show');
+    });
+  });
+
+  
+  // Avatar upload (quick)
+  $('#btnChangeAvatar')?.addEventListener('click', () => $('#avatarInput')?.click());
+  $('#avatarInput')?.addEventListener('change', async (e) => {
+    const f = e.currentTarget.files?.[0]; if (!f) return;
+    $('#avatarPreview').src = URL.createObjectURL(f);
+    const fd = new FormData(); fd.append('avatar', f);
+    const r = await fetch('/account/profile', { method: 'POST', body: fd });
+    const j = await r.json();
+    if (!j.ok) return alert(j.error || 'อัปโหลดรูปไม่สำเร็จ');
+    if (j.user?.email && !j.user?.emailVerified) document.getElementById('otpArea')?.removeAttribute('hidden');
+  });
+
+  // Save profile
+  $('#formProfile')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const r = await fetch('/account/profile', { method: 'POST', body: fd });
+    const j = await r.json();
+    if (!j.ok) return alert(j.error || 'บันทึกไม่สำเร็จ');
+    alert('อัปเดตเรียบร้อย');
+    if (j.user?.email && !j.user?.emailVerified) document.getElementById('otpArea')?.removeAttribute('hidden');
+  });
+
+  // Change password
+  $('#formPassword')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const body = Object.fromEntries(fd.entries());
+    const r = await fetch('/account/password', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+    const j = await r.json();
+    if (!j.ok) return alert(j.error || 'เปลี่ยนรหัสไม่สำเร็จ');
+    alert('เปลี่ยนรหัสผ่านเรียบร้อย');
+    e.currentTarget.reset();
+  });
+
+  // OTP
+  $('#btnSendOtp')?.addEventListener('click', async () => {
+    const r = await fetch('/account/email/request-otp', { method:'POST' });
+    const j = await r.json();
+    if (!j.ok) return alert(j.error || 'ส่งรหัสไม่สำเร็จ');
+    alert('ส่งรหัสไปที่อีเมลแล้ว');
+    document.getElementById('otpArea')?.removeAttribute('hidden');
+  });
+
+  const verifyBtn = document.getElementById('btnVerifyOtp');
+  verifyBtn?.addEventListener('click', async () => {
+    const code = (document.getElementById('otpCode')?.value || '').trim();
+    if (code.length < 4) return alert('กรุณากรอกรหัสให้ครบ');
+    verifyBtn.disabled = true;
+    try{
+      const r = await fetch('/account/email/verify', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ code })
+      });
+      const j = await r.json();
+      if (!j.ok) { verifyBtn.disabled = false; return alert(j.error || 'ยืนยันไม่สำเร็จ'); }
+      window.location.reload();
+    } catch {
+      verifyBtn.disabled = false; alert('เกิดข้อผิดพลาดในการยืนยัน');
+    }
+  });
+
+  // Levels renderer (2 columns slide)
+  const track = document.getElementById('levelsTrack');
+  const pages = [];
+  const _levels = window.__LEVELS__ || [];
+  for (let i=0;i<_levels.length;i+=2) pages.push(_levels.slice(i,i+2));
+  let page = 0;
+
+  function render() {
+    track.innerHTML = '';
+
+    // helper ดึงเลข% จากสตริง เช่น "โบนัสเติมเงิน 5%" -> "5%"
+    const pickPercent = s => {
+        const m = (s || '').match(/-?\d+(?:\.\d+)?%/);
+        return m ? m[0] : (s || '—');
+    };
+
+    (pages[page] || []).forEach(lv => {
+        const perks = lv.perks || [];
+        const bonusTxt    = perks.find(p => p.includes('โบนัสเติมเงิน')) || '';
+        const discountTxt = perks.find(p => p.includes('ส่วนลดทุกคำสั่งซื้อ')) || '';
+
+        const bonusVal    = pickPercent(bonusTxt);    // เช่น "0%"
+        const discountVal = pickPercent(discountTxt); // เช่น "0%"
+
+        track.insertAdjacentHTML('beforeend', `
+        <div class="prof-card" style="padding:14px">
+            <!-- ชื่อเลเวล + เกณฑ์ใช้จ่าย -->
+            <div class="kv" style="margin-bottom:8px">
+            <div><strong>${lv.name}</strong></div>
+            <div><span class="badge balance">ใช้จ่าย &gt; ฿${(lv.need||0).toLocaleString()}</span></div>
+            </div>
+
+            <!-- อัตราแลกเปลี่ยน -->
+            <div class="kv">
+            <div>อัตราการแลกเปลี่ยน ↔ (Point × Rate)</div>
+            <div><span class="badge balance">${lv.rate}</span></div>
+            </div>
+
+            <!-- โบนัสเติมเงิน -->
+            <div class="kv">
+            <div>โบนัสเติมเงิน</div>
+            <div><span class="badge warn">${bonusVal}</span></div>
+            </div>
+
+            <!-- ส่วนลดทุกคำสั่งซื้อ -->
+            <div class="kv">
+            <div>ส่วนลดทุกคำสั่งซื้อ</div>
+            <div><span class="badge warn">${discountVal}</span></div>
+            </div>
+
+            <!-- รายการสิทธิ์อื่น ๆ -->
+            ${perks
+            .filter(p => !p.includes('โบนัสเติมเงิน') && !p.includes('ส่วนลดทุกคำสั่งซื้อ'))
+            .map(p => `<div class="muted" style="margin:6px 0">• ${p}</div>`)
+            .join('')}
+        </div>
+        `);
+    });
+  }
+  render();
+  document.getElementById('lvPrev')?.addEventListener('click', () => { page = (page-1+pages.length)%pages.length; render(); });
+  document.getElementById('lvNext')?.addEventListener('click', () => { page = (page+1)%pages.length; render(); });
+})();
+</script>
+
+

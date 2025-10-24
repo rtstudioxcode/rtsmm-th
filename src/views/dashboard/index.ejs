@@ -1,0 +1,142 @@
+<section class="page">
+  <h1 class="page-title" style="align-items: center; text-align: center;">Dashboard</h1>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">ใช้งานไปแล้ว</div>
+      <div class="metric">฿<%= (agg.totalSpent || 0).toFixed(2) %></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">สั่งไปแล้ว</div>
+      <div class="metric"><%= agg.totalOrders || 0 %> ออเดอร์</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">ระดับผู้ใช้</div>
+      <div class="metric"><%= userLevel %></div>
+      <div class="muted">(* ตัวอย่าง placeholder — จะไปคำนวณจริงภายหลัง)</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">ข้อมูลผู้ใช้</div>
+      <a class="btn btn-primary" href="/account">ข้อมูลส่วนตัว</a>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* =========================
+     Theme Tokens (เชื่อมกับ html[data-theme])
+     ========================= */
+
+  /* Dark (ค่าพื้นฐาน) */
+  [data-theme="dark"] {
+    --elevated-bg:       #141518;
+    --elevated-border:   #24262b;
+    --elevated-shadow:   0 10px 24px rgba(0,0,0,.35);
+    --text-primary:      #f2f4f8;
+    --text-muted:        #a7b0bb;
+    --title:             #eadfb8;
+    --accent:            #2a84ff;
+    --accent-contrast:   #ffffff;
+    --focus-ring:        0 0 0 3px rgba(42,132,255,.35);
+  }
+
+  /* Light */
+  [data-theme="light"] {
+    --elevated-bg:       #ffffff;
+    --elevated-bg-grad:  linear-gradient(180deg,#ffffff 0%,#f9fbff 100%);
+    --elevated-border:   #e6ebf2;
+    --elevated-shadow:   0 8px 24px rgba(16,24,40,.08);
+    --text-primary:      #0f172a;
+    --text-muted:        #667085;
+    --title:             #0b1220;
+    --accent:            #2563eb;
+    --accent-contrast:   #ffffff;
+    --focus-ring:        0 0 0 3px rgba(37,99,235,.35);
+  }
+
+  /* =========================
+     Layout
+     ========================= */
+  .page { padding-bottom: 24px; }
+  .page-title { margin: 12px 0 16px; color: var(--title); }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 18px;
+  }
+
+  .card {
+    position: relative;
+    background: var(--elevated-bg);
+    border: 1px solid var(--elevated-border);
+    border-radius: 16px;
+    padding: 20px 22px;
+    box-shadow: var(--elevated-shadow);
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  }
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 32px rgba(0,0,0,.12);
+    border-color: rgba(100,116,139,.25);
+  }
+
+  .card-title {
+    font-weight: 700;
+    letter-spacing: .2px;
+    margin-bottom: 10px;
+    color: var(--text-muted);
+  }
+  .metric {
+    font-size: 32px;
+    line-height: 1.15;
+    font-weight: 800;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+  .muted { color: var(--text-muted); font-size: 12px; margin-top: 8px; }
+
+  /* ปรับหน้าตาการ์ดเมื่อเป็นธีมสว่าง ให้ไม่กลืน */
+  [data-theme="light"] .card {
+    background: var(--elevated-bg-grad);
+    border: 1px solid var(--elevated-border);
+    box-shadow: var(--elevated-shadow);
+  }
+  [data-theme="light"] .card::before {
+    content: "";
+    position: absolute; inset: 0; border-radius: 16px; pointer-events: none;
+    box-shadow: inset 0 0 0 1px rgba(38,94,235,.06);
+  }
+  [data-theme="light"] .card-title { color: #475467; }
+  [data-theme="light"] .metric     { color: #0b1220; }
+
+  /* ปุ่มหลัก */
+  .btn.btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: var(--accent);
+    color: var(--accent-contrast);
+    text-decoration: none;
+    border: 1px solid color-mix(in oklab, var(--accent) 70%, #000 30%);
+    box-shadow: 0 6px 14px rgba(37,99,235,.18);
+    transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+  }
+  .btn.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px rgba(37,99,235,.22);
+  }
+  .btn.btn-primary:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+  .btn.btn-primary:active { transform: translateY(0); opacity: .92; }
+
+  /* ลด motion สำหรับผู้ใช้ที่ตั้งค่า */
+  @media (prefers-reduced-motion: reduce) {
+    .card, .btn.btn-primary { transition: none; }
+  }
+</style>
