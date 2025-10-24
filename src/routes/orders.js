@@ -6,7 +6,7 @@ import { Service } from '../models/Service.js';
 import { User } from '../models/User.js';
 import { computePrice } from '../lib/pricing.js';
 import { ProviderSettings } from '../models/ProviderSettings.js';
-import { recalcUserTotalSpent } from '../services/spend.js';
+import { recalcUserTotals } from '../services/spend.js';
 
 import {
   createOrder as providerCreateOrder,
@@ -239,10 +239,12 @@ router.post('/orders', async (req, res) => {
     try {
       const order = await Order.create(fields);
 
+      await User.updateOne({ _id: userId }, { $inc: {totalOrders: 1 } }); 
       // อัปเดตเครดิตผู้ให้บริการอัตโนมัติหลังสั่งออเดอร์ (ไม่บล็อก response)
       setTimeout(() => {
         refreshProviderBalanceNow().catch(() => {});
         recalcUserTotalSpent(userId).catch(() => {});
+        recalcUserTotals(userId).catch(() => {});
       }, 0);
 
       return res.json({
@@ -365,7 +367,7 @@ router.get('/orders/:id/status', async (req, res) => {
 
     Object.assign(order, u);
     await order.save();
-    setTimeout(() => recalcUserTotalSpent(order.userId || order.user).catch(()=>{}), 0);
+    setTimeout(() => recalcUserTotals(order.userId || order.user).catch(()=>{}), 0);
 
     return res.json({ ok: true, status: order.status, provider: s });
   } catch (err) {
@@ -404,7 +406,7 @@ router.post('/api/orders/:id/refresh', async (req, res) => {
     const prevStatus = o.status; 
     Object.assign(o, upd);   
     await o.save();
-    setTimeout(() => recalcUserTotalSpent(o.userId || o.user).catch(()=>{}), 0);
+    setTimeout(() => recalcUserTotals(o.userId || o.user).catch(()=>{}), 0);
 
     if (st === 'canceled' && prevStatus !== 'canceled') {
       const est       = nz(o.estCost ?? o.cost ?? calcCost(o.quantity, o.rateAtOrder));
@@ -575,7 +577,7 @@ router.post('/api/orders/refresh-all', async (req, res) => {
         }
       } catch {}
     }
-    setTimeout(() => recalcUserTotalSpent(userId).catch(()=>{}), 0);
+    setTimeout(() => recalcUserTotals(userId).catch(()=>{}), 0);
 
     // รวมรายการที่ DB เพิ่งอัปเดตในช่วงสั้น ๆ เผื่อมีการเปลี่ยนสถานะ/คืนเงินจาก process อื่น
     const RECENT_WINDOW_MS = 10 * 60 * 1000; // 10 นาที

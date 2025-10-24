@@ -1,4 +1,5 @@
 // routes/account.js
+import mongoose from 'mongoose';
 import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
@@ -6,6 +7,7 @@ import fs from 'fs';
 import bcrypt from 'bcryptjs';
 import { requireAuth } from '../middleware/auth.js';
 import { User } from '../models/User.js';
+import { Order } from '../models/Order.js';
 
 // OTP ใหม่
 import { OtpToken } from '../models/OtpToken.js';
@@ -27,6 +29,17 @@ function getAuthUserId(req) {
     req.res?.locals?.me?._id ||
     null
   );
+}
+
+function buildUserMatch(userId) {
+  const idStr = String(userId || '');
+  const asOid = mongoose.Types.ObjectId.isValid(idStr)
+    ? new mongoose.Types.ObjectId(idStr)
+    : null;
+
+  const ors = [{ user: idStr }, { userId: idStr }];
+  if (asOid) ors.push({ user: asOid }, { userId: asOid });
+  return { $or: ors };
 }
 
 // รหัส 6 หลัก + เทมเพลตอีเมล
@@ -101,7 +114,6 @@ router.get('/account', async (req, res, next) => {
   try {
     const uid = getAuthUserId(req);
     if (!uid) return res.redirect('/login');
-    await recalcUserTotalSpent(uid);
 
     // (1) โหลด user
     let me = await User.findById(uid).lean();
@@ -160,16 +172,32 @@ router.post('/account/profile', upload.single('avatar'), async (req, res) => {
     }
 
     // ensure type
-    if (!u.level) u.level = 1;                       // เก็บเป็น Number
-    if (u.totalSpent == null) u.totalSpent = 0;      // Number เช่นกัน
+    if (!u.level) u.level = 1;                  // Number
+    if (u.totalSpent == null) u.totalSpent = 0; // Number
 
     await u.save();
 
-    // เซฟโปรไฟล์เสร็จ ลองคำนวณ level จาก totalSpent อีกครั้งให้ตรงสูตร
+    // อัปเดตเลเวลตามยอดใช้จ่าย
     const nextLevel = computeLevel(Number(u.totalSpent || 0));
-    if (nextLevel !== u.level) {
-      u.level = nextLevel;
+    const nextLevelNum = Number(nextLevel);
+    if (nextLevelNum !== Number(u.level)) {
+      u.level = nextLevelNum;
       await u.save();
+    }
+
+    // ✅ นับจำนวนออเดอร์จาก DB แล้วอัปเดตฟิลด์ totalOrders ใน users
+    try {
+      const match = { ...buildUserMatch(u._id), status: { $ne: 'canceled' } };
+      const counted = await Order.countDocuments(match);
+
+      // ตั้งค่าเมื่อยังไม่มี หรือค่าเดิมไม่ตรงกับที่นับได้
+      const cur = Number(u.totalOrders);
+      if (!Number.isFinite(cur) || cur !== counted) {
+        u.totalOrders = counted;
+        await u.save();
+      }
+    } catch (err) {
+      console.warn('recount totalOrders failed:', err?.message || err);
     }
 
     return res.json({
@@ -180,7 +208,8 @@ router.post('/account/profile', upload.single('avatar'), async (req, res) => {
         email: u.email,
         emailVerified: u.emailVerified,
         level: u.level,
-        totalSpent: u.totalSpent
+        totalSpent: u.totalSpent,
+        totalOrders: u.totalOrders ?? 0,
       }
     });
   } catch (e) {
@@ -248,7 +277,8 @@ router.post('/account/email/request-otp', async (req, res) => {
     await sendEmail({
       to: email,
       subject: 'รหัสยืนยันอีเมล (OTP)',
-      html: emailTemplate(code)
+      html: emailTemplate(code),
+      // attachments: [{ filename:'logo-smm-th.png', path:'/static/assets/logo/logo-rtsmm-th.png', cid:'brandlogo' }]
     });
 
     res.json({ ok:true, ttl: config.otp.ttlSec });

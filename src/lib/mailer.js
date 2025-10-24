@@ -141,17 +141,43 @@ export async function sendEmail({
 export function buildVerifyEmailHTML({
   verifyUrl,
   brandUrl = config.brand?.url || 'https://rtsmm-th.com',
-  // ถ้าใช้ CID ให้ส่งเป็น 'cid:brandlogo' (ดู helper ข้อ 5)
-  brandLogo = 'cid:brandlogo',
+  brandLogo = 'cid:brandlogo',               // ใช้ CID หรือ URL ก็ได้
   productName = config.brand?.name || 'RTSMM-TH',
   year = new Date().getFullYear(),
   supportUrl = 'mailto:support@rtsmm-th.com',
+
+  // ปรับขนาดโลโก้ได้ตามต้องการ
+  logoWidthDesktop = 220,    // 180–240 กำลังสวย
+  logoWidthMobile  = 180,
 } = {}) {
   const esc = s => String(s ?? '').replace(/"/g, '&quot;');
   const BRAND_URL  = esc(brandUrl);
   const BRAND_LOGO = esc(brandLogo);
   const VERIFY_URL = esc(verifyUrl);
   const PRODUCT    = esc(productName);
+
+  const css = `
+    html,body{margin:0!important;padding:0!important;background:#f4f6f8!important}
+    img{border:0;line-height:100%;outline:none;text-decoration:none}
+    table,td{border-collapse:collapse!important}
+    a{color:#2563eb}
+    .brand-logo{width:${logoWidthDesktop}px;height:auto;max-width:100%}
+    @media(max-width:600px){
+      .container{width:100%!important}
+      .px{padding-left:16px!important;padding-right:16px!important}
+      .brand-logo{width:${logoWidthMobile}px!important}
+    }
+    .btn{background:#111827;border-radius:8px;color:#fff!important;display:inline-block;font-weight:700;text-decoration:none;padding:12px 22px}
+    @media(prefers-color-scheme:dark){
+      body{background:#0b0f1a!important}
+      .card{background:#0f1422!important;border-color:#1f2a3a!important}
+      .muted{color:#9aa4b2!important}
+      .title{color:#f4f6fb!important}
+      .btn{background:#334155!important}
+      .head{background:#0b0f1a!important}
+      a{color:#8ab4ff}
+    }
+  `;
 
   return `<!doctype html>
 <html lang="th">
@@ -163,23 +189,7 @@ export function buildVerifyEmailHTML({
   <meta name="supported-color-schemes" content="light dark">
   <title>ยืนยันอีเมล • ${PRODUCT}</title>
   <!--[if mso]><style>*{font-family:Arial,sans-serif!important}</style><![endif]-->
-  <style>
-    html,body{margin:0!important;padding:0!important;background:#f4f6f8!important}
-    img{border:0;line-height:100%;outline:none;text-decoration:none}
-    table,td{border-collapse:collapse!important}
-    a{color:#2563eb}
-    @media(max-width:600px){.container{width:100%!important}.px{padding-left:16px!important;padding-right:16px!important}}
-    .btn{background:#111827;border-radius:8px;color:#fff!important;display:inline-block;font-weight:700;text-decoration:none;padding:12px 22px}
-    @media(prefers-color-scheme:dark){
-      body{background:#0b0f1a!important}
-      .card{background:#0f1422!important;border-color:#1f2a3a!important}
-      .muted{color:#9aa4b2!important}
-      .title{color:#f4f6fb!important}
-      .btn{background:#334155!important}
-      .head{background:#0b0f1a!important}
-      a{color:#8ab4ff}
-    }
-  </style>
+  <style>${css}</style>
 </head>
 <body style="margin:0;padding:0;background:#f4f6f8">
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">
@@ -190,15 +200,19 @@ export function buildVerifyEmailHTML({
     <tr>
       <td align="center">
         <table role="presentation" class="container" width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;border:1px solid #e6e8eb;overflow:hidden">
+          <!-- Header -->
           <tr>
             <td class="head" style="background:#0b0f1a;padding:24px;text-align:center">
               <a href="${BRAND_URL}" target="_blank" style="text-decoration:none">
-                <img src="${BRAND_LOGO}" alt="${PRODUCT}" width="160" height="42"
-                     style="display:inline-block;vertical-align:middle;width:160px;height:42px">
+                <!-- ใส่ทั้ง attribute width และ CSS; ไม่ใส่ height เพื่อรักษาสัดส่วน -->
+                <img src="${BRAND_LOGO}" alt="${PRODUCT}" class="brand-logo"
+                     width="${logoWidthDesktop}"
+                     style="display:inline-block;vertical-align:middle;height:auto;max-width:100%;border:0;outline:0;text-decoration:none">
               </a>
             </td>
           </tr>
 
+          <!-- Title + Intro -->
           <tr>
             <td class="px" style="padding:28px 24px 8px;color:#111827">
               <h2 class="title" style="margin:0 0 6px;font-size:20px;line-height:1.3;font-weight:800">ยืนยันการสมัคร ${PRODUCT}</h2>
@@ -208,6 +222,7 @@ export function buildVerifyEmailHTML({
             </td>
           </tr>
 
+          <!-- CTA -->
           <tr>
             <td align="center" style="padding:16px 24px 24px">
               <!--[if mso]>
@@ -216,12 +231,11 @@ export function buildVerifyEmailHTML({
                 <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:16px;font-weight:700">ยืนยันอีเมลของฉัน</center>
               </v:roundrect>
               <![endif]-->
-              <!--[if !mso]><!-- -->
-              <a class="btn" href="${VERIFY_URL}" target="_blank">ยืนยันอีเมลของฉัน</a>
-              <!--<![endif]-->
+              <!--[if !mso]><!-- --><a class="btn" href="${VERIFY_URL}" target="_blank">ยืนยันอีเมลของฉัน</a><!--<![endif]-->
             </td>
           </tr>
 
+          <!-- Fallback link -->
           <tr>
             <td class="px" style="padding:0 24px 24px;color:#6b7280;font-size:12px;line-height:1.6">
               หากปุ่มกดไม่ได้ ให้คัดลอกลิงก์นี้ไปวางในเบราว์เซอร์ของคุณ:<br>
@@ -229,6 +243,7 @@ export function buildVerifyEmailHTML({
             </td>
           </tr>
 
+          <!-- Footer -->
           <tr>
             <td style="background:#f9fafb;color:#9ca3af;padding:16px 24px;text-align:center;font-size:12px;line-height:1.6">
               © ${year} ${PRODUCT} • <a href="${supportUrl}" style="color:#9ca3af;text-decoration:underline">ติดต่อทีมงาน</a>

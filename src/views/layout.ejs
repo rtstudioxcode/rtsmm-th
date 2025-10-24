@@ -248,6 +248,64 @@
     <footer class="footer container">All Right Reserved © <%= new Date().getFullYear() %> Powered By RTStudioXCode</footer>
   </div>
 
+  <!-- Global Toast Modal (ใช้ทุกหน้า) -->
+  <dialog id="msgDialog" class="toast-modal" data-variant="info">
+    <div class="toast-card" role="alertdialog" aria-labelledby="msgTitle" aria-describedby="msgText">
+      <div class="toast-headbar">
+        <div class="toast-badge" id="msgBadge" aria-hidden="true">?</div>
+        <div class="toast-headtxt">
+          <h3 class="toast-title" id="msgTitle">หัวข้อ</h3>
+        </div>
+      </div>
+      <div class="toast-body">
+        <p class="toast-desc" id="msgText">รายละเอียดข้อความ</p>
+      </div>
+      <div class="toast-actions">
+        <button class="pill ghost" id="msgCancel" hidden>ยกเลิก</button>
+        <button class="pill primary" id="msgClose">ตกลง</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    (function(){
+      const $ = (s,p=document)=>p.querySelector(s);
+      const dlg = $('#msgDialog'), badge=$('#msgBadge'), title=$('#msgTitle'), text=$('#msgText');
+      const btnOk = $('#msgClose'), btnCancel=$('#msgCancel');
+
+      window.showMsg = function({
+        variant='info', icon, title:tt='ข้อความ', text:tx='', okText='ตกลง', cancelText,
+        onOk, onCancel
+      } = {}) {
+        const iconMap = { info:'❔', success:'✅', warn:'⚠️', error:'✖' };
+        dlg.setAttribute('data-variant', variant);
+        badge.textContent = icon || iconMap[variant] || '❔';
+        title.textContent = tt;
+        text.textContent  = tx;
+
+        btnOk.textContent = okText || 'ตกลง';
+        if (cancelText) { btnCancel.hidden=false; btnCancel.textContent=cancelText; } else { btnCancel.hidden=true; }
+
+        btnOk.onclick    = () => { dlg.close(); onOk && onOk(); };
+        btnCancel.onclick= () => { dlg.close(); onCancel && onCancel(); };
+
+        if (!dlg.open && dlg.showModal) dlg.showModal();
+        requestAnimationFrame(()=> btnOk.focus());
+      };
+
+      dlg?.addEventListener('cancel', (e)=>{ e.preventDefault(); dlg.close(); });
+    })();
+
+    // อ่าน flash ที่ฝั่ง server ยัดมาไว้ใน res.locals.flash (ตั้งแล้วใน index.js)
+    window.__flash = <%- JSON.stringify(flash || null) %>;
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.__flash && typeof window.showMsg === 'function') {
+        window.showMsg(window.__flash);
+        window.__flash = null;
+      }
+    });
+  </script>
+
   <script>
   (() => {
     const sb = document.getElementById('sb');

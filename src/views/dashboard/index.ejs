@@ -1,26 +1,48 @@
+<!-- //dashboard/index.ejs -->
 <section class="page">
   <h1 class="page-title" style="align-items: center; text-align: center;">Dashboard</h1>
 
   <div class="grid-2">
     <div class="card">
       <div class="card-title">ใช้งานไปแล้ว</div>
-      <div class="metric">฿<%= (agg.totalSpent || 0).toFixed(2) %></div>
+      <div class="big" style="font-weight: 400; font-size: 1.5em; color: #0aa123;">
+        ฿<%= (stats.totalSpent || 0).toFixed(2) %>
+      </div>
+      <div class="muted">TotalSpent | ยอดค่าใช้จ่ายที่ใช้ไปทั้งหมด</div>
     </div>
 
     <div class="card">
       <div class="card-title">สั่งไปแล้ว</div>
-      <div class="metric"><%= agg.totalOrders || 0 %> ออเดอร์</div>
+      <div class="big" style="font-weight: 400; font-size: 1.5em; color: #ce790b;">
+        <%= stats?.totalOrders || 0 %> ออเดอร์
+      </div>
+      <div class="muted">TotalOrders | จำนวนออเดอร์ที่สั่งใช้บริการไปแล้วทั้ง</div>
     </div>
 
     <div class="card">
       <div class="card-title">ระดับผู้ใช้</div>
-      <div class="metric"><%= userLevel %></div>
-      <div class="muted">(* ตัวอย่าง placeholder — จะไปคำนวณจริงภายหลัง)</div>
+      <div class="big" style="font-weight: 400; font-size: 1.5em; color: #1cc9c9;">
+        <%= userLevel %>
+      </div>
+      <div class="muted">สามารถดูข้อมูลเลื่อนระดับได้ที่ข้อมูลส่วนตัว -> ข้อมูลระดับบัญชี</div>
     </div>
 
-    <div class="card">
-      <div class="card-title">ข้อมูลผู้ใช้</div>
-      <a class="btn btn-primary" href="/account">ข้อมูลส่วนตัว</a>
+    <div class="card user-summary">
+      <div class="user-summary__left">
+        <div class="card-title">ข้อมูลผู้ใช้</div>
+        <a class="btn btn-primary" href="/account">ข้อมูลส่วนตัว</a>
+      </div>
+
+      <div class="user-summary__avatar" aria-hidden="true">
+        <% const FALLBACK_REL = '/static/assets/img/user-blue.png'; %>
+        <img
+          src="<%= me?.avatarUrl %>?v=<%= me?.avatarVer || Date.now() %>"
+          alt="<%= me?.username || 'avatar' %>"
+          loading="lazy"
+          decoding="async"
+          referrerpolicy="no-referrer"
+          onerror="this.onerror=null;this.src='<%= FALLBACK_REL %>';">
+      </div>
     </div>
   </div>
 </section>

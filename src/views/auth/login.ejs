@@ -55,39 +55,12 @@
 </style>
 
 <script type="module">
-  const $ = (s, p=document)=>p.querySelector(s);
-
-  const form   = $('#loginForm');
+  const $ = (s,p=document)=>p.querySelector(s);
+  const form = $('#loginForm');
   const submit = $('#btnLogin');
-
-  const dlg    = $('#notifyDialog');
-  const iconEl = $('#mdlIcon');
-  const titleEl= $('#mdlTitle');
-  const textEl = $('#mdlText');
-  const closeEl= $('#mdlClose');
-
-  function showModal({ icon='✅', title='สำเร็จ!', text='กำลังเข้าสู่ระบบ...' } = {}) {
-    iconEl.textContent  = icon;
-    titleEl.textContent = title;
-    textEl.textContent  = text;
-
-    if (typeof dlg.showModal === 'function') {
-      if (!dlg.open) dlg.showModal();
-    } else {
-      dlg.classList.add('show'); // fallback ใช้ CSS .rt-modal.show
-    }
-  }
-  function closeModal(){
-    if (typeof dlg.close === 'function' && dlg.open) dlg.close();
-    dlg.classList.remove('show'); // fallback
-  }
-  closeEl?.addEventListener('click', closeModal);
-  dlg.addEventListener('cancel', e => { e.preventDefault(); closeModal(); });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-
-    // กันคลิกซ้ำ
     submit.disabled = true;
 
     const fd = new FormData(form);
@@ -97,24 +70,21 @@
       const res = await fetch('/login', {
         method: 'POST',
         headers: { 'Accept': 'application/json' },
-        body: new URLSearchParams(fd), // ส่งเป็น x-www-form-urlencoded
+        body: new URLSearchParams(fd),
       });
-
-      const data = await res.json().catch(() => ({}));
+      const data = await res.json().catch(()=> ({}));
 
       if (!res.ok || !data?.ok) {
-        showModal({ icon:'⚠️', title:'เข้าสู่ระบบไม่สำเร็จ', text: data?.message || 'ตรวจสอบชื่อผู้ใช้/รหัสผ่าน' });
+        showMsg({ variant:'error', icon:'⚠️', title:'เข้าสู่ระบบไม่สำเร็จ', text: data?.message || 'ตรวจสอบชื่อผู้ใช้/รหัสผ่าน' });
         submit.disabled = false;
         return;
       }
 
-      // แสดง modal เฉพาะตอน submit สำเร็จ แล้วค่อยเด้ง
-      showModal({ icon:'✅', title:'สำเร็จ!', text:'กำลังเข้าสู่ระบบ...' });
-      setTimeout(() => location.assign(data.redirect || next || '/'), 500);
-
+      showMsg({ variant:'success', icon:'✅', title:'สำเร็จ!', text:'กำลังเข้าสู่ระบบ...' });
+      setTimeout(()=> location.assign(data.redirect || next || '/'), 500);
     } catch (err) {
       console.error(err);
-      showModal({ icon:'⚠️', title:'เครือข่ายมีปัญหา', text:'โปรดลองใหม่อีกครั้ง' });
+      showMsg({ variant:'error', icon:'⚠️', title:'เครือข่ายมีปัญหา', text:'โปรดลองใหม่อีกครั้ง' });
       submit.disabled = false;
     }
   });

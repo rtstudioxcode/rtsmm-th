@@ -24,32 +24,76 @@ export function computeLevel(total = 0) {
   return String(Math.max(1, idx + 1));
 }
 
-export async function recalcUserTotalSpent(userId) {
-  const uid = (userId instanceof mongoose.Types.ObjectId)
-    ? userId
-    : new mongoose.Types.ObjectId(String(userId));
+/** สร้างเงื่อนไขค้นหาให้ครอบคลุม user/userId ทั้ง ObjectId และ string */
+function buildUserMatch(userId) {
+  const idStr = String(userId || '');
+  const oid = mongoose.Types.ObjectId.isValid(idStr)
+    ? new mongoose.Types.ObjectId(idStr)
+    : null;
 
-  // รวมยอดทุกออเดอร์ของผู้ใช้ ยกเว้นที่ถูกยกเลิก
+  return {
+    $or: [
+      ...(oid ? [{ user: oid }, { userId: oid }] : []),
+      { user: idStr },
+      { userId: idStr },
+    ],
+  };
+}
+
+/**
+ * รีคำนวณยอดรวมจาก DB:
+ * - totalOrders: จำนวนออเดอร์ทั้งหมดของผู้ใช้ (ค่าเริ่มต้น “ไม่รวม canceled”)
+ * - totalSpent : (cost || estCost) - refundAmount (ต่อออเดอร์) แล้วรวม (ไม่รวม canceled)
+ *
+ * @param {string|ObjectId} userId
+ * @param {{ includeCanceled?: boolean }} opts
+ */
+export async function recalcUserTotals(userId, opts = {}) {
+  const includeCanceled = !!opts.includeCanceled;
+  const match = {
+    ...buildUserMatch(userId),
+    ...(includeCanceled ? {} : { status: { $ne: 'canceled' } }),
+  };
+
   const rows = await Order.aggregate([
-    { $match: {
-        $and: [
-          { $or: [{ userId: uid }, { user: uid }] },
-          { status: { $ne: 'canceled' } }
-        ]
-      }
-    },
-    { $group: {
+    { $match: match },
+    {
+      $group: {
         _id: null,
-        total: { $sum: { $ifNull: ['$cost', '$estCost'] } }
-      }
-    }
+        totalOrders: { $sum: 1 },
+        totalSpent: {
+          $sum: {
+            $subtract: [
+              { $ifNull: ['$cost', { $ifNull: ['$estCost', 0] }] },
+              { $ifNull: ['$refundAmount', 0] },
+            ],
+          },
+        },
+      },
+    },
   ]);
 
-  const total = Math.round((rows?.[0]?.total || 0) * 100) / 100;
-  const level = computeLevel(total);
+  const agg = rows[0] || { totalOrders: 0, totalSpent: 0 };
+  const totalSpentRounded = Math.round((agg.totalSpent || 0) * 100) / 100;
+  const level = computeLevel(totalSpentRounded);
 
-  await User.updateOne({ _id: uid }, { $set: { totalSpent: total, level } });
-  return { totalSpent: total, level };
+  await User.updateOne(
+    { _id: userId },
+    {
+      $set: {
+        totalOrders: agg.totalOrders,
+        totalSpent: totalSpentRounded,
+        level,
+      },
+    }
+  );
+
+  return { totalOrders: agg.totalOrders, totalSpent: totalSpentRounded, level };
+}
+
+/* รักษาความเข้ากันได้กับโค้ดเดิมที่เรียกชื่อฟังก์ชันนี้ */
+export async function recalcUserTotalSpent(userId, opts = {}) {
+  return recalcUserTotals(userId, opts);
 }
 
 export { LEVELS };

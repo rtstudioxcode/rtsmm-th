@@ -94,7 +94,8 @@ router.post('/send', async (req, res) => {
     await sendEmail({
       to: email,
       subject: 'รหัสยืนยันอีเมล (OTP)',
-      html: emailTemplate(code)
+      html: emailTemplate(code),
+      attachments: [{ filename:'logo-smm-th.png', path:'/static/assets/logo/logo-rtsmm-th.png', cid:'brandlogo' }]
     });
 
     return res.json({ ok:true, ttl: config.otp.ttlSec });

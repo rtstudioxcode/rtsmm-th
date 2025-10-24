@@ -1,3 +1,4 @@
+<!-- register.ejs -->
 <% const title = "สมัครสมาชิก"; %>
 
 <section class="auth-card">
@@ -268,6 +269,16 @@ dialog::backdrop{ background:var(--backdrop); backdrop-filter: blur(8px) }
 .muted{ color:var(--muted) }
 </style>
 
+<script>
+  window.__flash = <%- JSON.stringify(flash || null) %>;
+  document.addEventListener('DOMContentLoaded', () => {
+    if (window.__flash && typeof window.showMsg === 'function') {
+      window.showMsg(window.__flash);
+      window.__flash = null;
+    }
+  });
+</script>
+
 <script type="module">
 /* ====== helpers ====== */
 const $ = (s, p=document)=>p.querySelector(s);
@@ -310,6 +321,7 @@ function showMsg({
 msgDlg.addEventListener('cancel', (e) => { e.preventDefault(); msgDlg.close(); });
 
 // ===== ช่วยให้ debug ง่าย: พิมพ์ window.debugShow() ดูได้เลย =====
+window.showMsg = showMsg;
 window.debugShow = () => showMsg({ variant:'error', title:'ทดสอบ Dialog', text:'ถ้าเห็นอันนี้ แปลว่า dialog ใช้งานได้' });
 
 /* ====== password toggle (สวิตช์โมเดิร์น) ====== */

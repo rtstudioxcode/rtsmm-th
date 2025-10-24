@@ -2,122 +2,129 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import { requireAuth } from '../middleware/auth.js';
+import { User } from '../models/User.js';
 import { Order } from '../models/Order.js';
 
 const router = Router();
 router.use(requireAuth);
 
-// helper: ทำ match ผู้ใช้ให้ครอบคลุมทั้ง ObjectId และ string
+// รองรับทั้ง ObjectId และ string ในฟิลด์ user / userId
 function buildUserMatch(userId) {
-  const oid = (mongoose.Types.ObjectId.isValid(String(userId)))
-    ? new mongoose.Types.ObjectId(String(userId))
+  const idStr = String(userId || '');
+  const asOid = mongoose.Types.ObjectId.isValid(idStr)
+    ? new mongoose.Types.ObjectId(idStr)
     : null;
-  return {
-    $or: [
-      ...(oid ? [{ user: oid }, { userId: oid }] : []),
-      { user: String(userId) },
-      { userId: String(userId) },
-    ]
-  };
+
+  const ors = [{ user: idStr }, { userId: idStr }];
+  if (asOid) ors.push({ user: asOid }, { userId: asOid });
+  return { $or: ors };
 }
 
-/**
- * Dashboard (HTML)
- * - totalSpent: ยอดใช้จ่ายรวม (sum of cost || estCost) *ยกเว้น canceled โดยค่าเริ่มต้น*
- * - totalOrders: จำนวนออเดอร์ (ยกเว้น canceled โดยค่าเริ่มต้น)
- * ส่งไปเรนเดอร์ใน EJS
- *
- * query:
- *   ?all=1  -> รวมออเดอร์สถานะ canceled ด้วย
- */
-router.get('/dashboard', async (req, res, next) => {
+/** รวมยอดจาก orders (ไม่รวม canceled) และอัปเดตกลับ users */
+async function ensureUserTotals(userId, includeCanceled = false) {
+  const user = await User.findById(userId).select('totalSpent totalOrders level').lean();
+  const hasTotals =
+    user && Number.isFinite(Number(user.totalSpent)) && Number.isFinite(Number(user.totalOrders));
+
+  if (hasTotals && !includeCanceled) {
+    return {
+      totalSpent: Number(user.totalSpent || 0),
+      totalOrders: Number(user.totalOrders || 0),
+      level: Number(user.level || 1),
+    };
+  }
+
+  const match = {
+    ...buildUserMatch(userId),
+    ...(includeCanceled ? {} : { status: { $ne: 'canceled' } }),
+  };
+
+  const rows = await Order.aggregate([
+    { $match: match },
+    {
+      $group: {
+        _id: null,
+        totalOrders: { $sum: 1 },
+        totalSpent: {
+          $sum: {
+            $subtract: [
+              { $ifNull: ['$cost', { $ifNull: ['$estCost', 0] }] },
+              { $ifNull: ['$refundAmount', 0] },
+            ],
+          },
+        },
+      },
+    },
+  ]);
+
+  const agg = rows[0] || { totalOrders: 0, totalSpent: 0 };
+  const totalSpent = Math.round((agg.totalSpent || 0) * 100) / 100; // ปัด 2 ตำแหน่ง
+  const totalOrders = Number(agg.totalOrders || 0);
+
+  // คิดเลเวลอย่างง่าย (เหมือน services/spend.js)
+  const LEVELS = [
+    { need: 0 }, { need: 5000 }, { need: 10000 }, { need: 30000 }, { need: 50000 },
+    { need: 80000 }, { need: 175000 }, { need: 700000 }, { need: 1000000 }, { need: 5000000 },
+  ];
+  let idx = 0;
+  for (let i = 0; i < LEVELS.length; i++) {
+    if (totalSpent >= LEVELS[i].need) idx = i; else break;
+  }
+  const level = String(Math.max(1, idx + 1));
+
+  // อัปเดตกลับ user (เก็บเฉพาะตัวเลขหลัก ๆ)
+  await User.updateOne(
+    { _id: userId },
+    { $set: { totalSpent, totalOrders, level } }
+  );
+
+  return { totalSpent, totalOrders, level: Number(level) };
+}
+
+async function renderDashboard(req, res, next) {
   try {
-    const me = req.user || req.session?.user;
+    const me = res.locals?.me || req.user || req.session?.user;
     if (!me?._id) return res.redirect('/login');
 
     const includeCanceled = String(req.query.all || '') === '1';
+    const totals = await ensureUserTotals(me._id, includeCanceled);
 
-    const match = {
-      ...buildUserMatch(me._id),
-      ...(includeCanceled ? {} : { status: { $ne: 'canceled' } }),
+    const stats = {
+      totalSpent: totals.totalSpent,
+      totalOrders: totals.totalOrders,
     };
+    const userLevel = totals.level;
 
-    const rows = await Order.aggregate([
-      { $match: match },
-      {
-        $group: {
-          _id: null,
-          totalOrders: { $sum: 1 },
-          totalSpent: {
-            $sum: {
-                $subtract: [
-                { $ifNull: ['$cost', { $ifNull: ['$estCost', 0] }] },
-                { $ifNull: ['$refundAmount', 0] }
-                ]
-            }
-          }
-        }
-      }
-    ]);
-
-    const agg = rows[0] || { totalOrders: 0, totalSpent: 0 };
-
-    // level/เลเวล: ใส่ placeholder ไว้ก่อน
-    const userLevel = (me.level ?? '—');
-
-    res.render('dashboard/index', {
+    return res.render('dashboard/index', {
       title: 'Dashboard',
-      agg,
+      stats,
       userLevel,
-      me,
+      me: res.locals.me || me,
     });
   } catch (err) {
     next(err);
   }
-});
+}
 
-/**
- * Dashboard (JSON) สำหรับหน้า front ที่อยากโหลดแบบ async ก็ใช้ endpoint นี้ได้
- */
+router.get('/', renderDashboard);
+router.get('/dashboard', renderDashboard);
+
+// JSON สำหรับโหลดแบบ async
 router.get('/api/me/dashboard', async (req, res) => {
   try {
-    const me = req.user || req.session?.user;
-    if (!me?._id) return res.status(401).json({ error: 'unauthorized' });
+    const me = res.locals?.me || req.user || req.session?.user;
+    if (!me?._id) return res.status(401).json({ ok: false, error: 'unauthorized' });
 
     const includeCanceled = String(req.query.all || '') === '1';
+    const totals = await ensureUserTotals(me._id, includeCanceled);
 
-    const match = {
-      ...buildUserMatch(me._id),
-      ...(includeCanceled ? {} : { status: { $ne: 'canceled' } }),
-    };
-
-    const rows = await Order.aggregate([
-      { $match: match },
-      {
-        $group: {
-          _id: null,
-          totalOrders: { $sum: 1 },
-          totalSpent: {
-            $sum: {
-                $subtract: [
-                { $ifNull: ['$cost', { $ifNull: ['$estCost', 0] }] },
-                { $ifNull: ['$refundAmount', 0] }
-                ]
-            }
-          }
-        }
-      }
-    ]);
-
-    const agg = rows[0] || { totalOrders: 0, totalSpent: 0 };
-
-    res.json({
+    return res.json({
       ok: true,
       data: {
-        totalOrders: agg.totalOrders,
-        totalSpent: Math.round(agg.totalSpent * 100) / 100,
-        level: (me.level ?? '—'),
-      }
+        totalSpent: totals.totalSpent,
+        totalOrders: totals.totalOrders,
+        level: totals.level,
+      },
     });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message || 'internal error' });

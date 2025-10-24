@@ -1,3 +1,4 @@
+// src/index.js ตัวรันหลัก
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -29,11 +30,24 @@ import dashboardRouter from './routes/dashboard.js';
 
 import otpRouter from './routes/otp.js';
 
+import { attachUser, requireAuth, requireAdmin } from './middleware/auth.js';
+
+import { Order } from './models/Order.js'
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 
 // เชื่อมต่อ Mongo
 await connectMongo();
+
+try {
+  if (process.env.SYNC_INDEXES !== '0') {
+    await Order.syncIndexes();
+    console.log('✅ Order indexes synced');
+  }
+} catch (e) {
+  console.warn('⚠️ syncIndexes failed:', e?.message || e);
+}
 
 const app = express();
 
@@ -58,53 +72,86 @@ app.use(session({
   cookie: { httpOnly: true, sameSite: 'lax', maxAge: 7 * 24 * 3600 * 1000 }
 }));
 
+app.use(attachUser);
+
 // Inject user to views
 app.use(async (req, res, next) => {
-  const s = req.session?.user;
-  res.locals.me = null;
+  res.locals.me = res.locals.me || null;
   res.locals.balanceText = null;
 
-  const uid = s?._id || s?.id;
+  const sid = req.session?.user;
+  const uid = req.user?._id || sid?._id || sid?.id;
   if (!uid) return next();
 
   try {
-    // โหลดเฉพาะฟิลด์ที่ต้องใช้
-    const user = await User.findById(uid).select('username role balance currency').lean(false);
+    const user = await User.findById(uid)
+      .select('username role balance currency avatarUrl avatar name level totalSpent updatedAt')
+      .lean(false);
 
     if (user) {
-      // ถ้ายังไม่มี balance/currency ให้เติมให้
       if (typeof user.balance !== 'number') user.balance = config.initialBalance ?? 0;
       if (!user.currency) user.currency = config.currency || 'THB';
       if (user.isModified()) await user.save();
 
+      // base URL จาก request ปัจจุบัน
+      const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'http').split(',')[0];
+      const base  = `${proto}://${req.get('host')}`;
+
+      // สร้าง URL รูป
+      let raw = (user.avatarUrl ?? user.avatar ?? '').toString().trim();
+      let avatarUrl;
+      if (/^https?:\/\//i.test(raw)) {
+        avatarUrl = raw;
+      } else if (raw) {
+        raw = '/' + raw.replace(/^\/+/, '');
+        if (!raw.startsWith('/uploads/')) raw = '/uploads/' + raw.replace(/^\/+/, '');
+        avatarUrl = `${base}${raw}`;
+      } else {
+        avatarUrl = `${base}/static/assets/img/user-blue.png`;
+      }
+
       res.locals.me = {
+        ...(res.locals.me || {}),
         _id: user._id,
         username: user.username,
         role: user.role,
         balance: user.balance,
         currency: user.currency,
+        name: user.name || null,
+        level: user.level || 1,
+        totalSpent: typeof user.totalSpent === 'number' ? user.totalSpent : 0,
+        avatarUrl,
+        avatarVer: user.updatedAt ? user.updatedAt.getTime() : Date.now(),
       };
-      res.locals.balanceText = `${Number(user.balance||0).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${user.currency||'THB'}`;
+
+      res.locals.balanceText =
+        `${Number(user.balance || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${user.currency || 'THB'}`;
     }
   } catch (e) {
-    // เงียบ ๆ แล้วไปต่อ
+    // เงียบ ๆ
   }
+  next();
+});
+
+app.use((req, res, next) => {
+  res.locals.flash = req.session.flash || null;
+  delete req.session.flash;
   next();
 });
 
 // Routes
 app.use(authRoutes);
 app.use(catalogRoutes);
-app.use(orderRoutes);
-app.use(adminRoutes);
-app.use('/admin', adminPricingRoutes);
+app.use(requireAuth, orderRoutes);
+app.use('/admin', requireAuth, requireAdmin, adminRoutes);
+app.use('/admin', requireAuth, requireAdmin, adminPricingRoutes);
 app.use(newOrderRoutes);
-app.use(walletRoutes);
+app.use(requireAuth, walletRoutes);
 app.use('/services', servicesRouter);
-app.use(changesRoute);
-app.use(accountRouter);  
-app.use('/', dashboardRouter);
-app.use('/otp', otpRouter);
+app.use(requireAuth, changesRoute);
+app.use(requireAuth, accountRouter);  
+app.use('/', requireAuth, dashboardRouter);
+app.use('/otp', requireAuth, otpRouter);
 
 // Healthcheck (optional)
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
@@ -221,6 +268,10 @@ app.use((req, res) => res.status(404).send('Not found'));
 
 initDailyChangeSync();
 
-app.listen(config.port, () => {
-  console.log(`🚀 RTSMM-TH running at http://localhost:${config.port}`);
+const HOST = config.host || 'localhost';
+const PORT = Number(config.port) || 5000;
+const PROTO = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+
+app.listen(PORT, HOST, () => {
+  console.log(`🚀 RTSMM-TH running at ${PROTO}://${HOST}:${PORT}`);
 });

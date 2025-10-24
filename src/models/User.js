@@ -12,6 +12,7 @@ const UserSchema = new mongoose.Schema({
   passwordHash: { type: String, required: true },
   role: { type: String, default: 'user' },
   balance: { type: Number, default: 0 },
+  totalOrders: { type: Number, default: 0 },
   totalSpent: { type: Number, default: 0 },
   currency: { type: String, default: 'THB' },
 }, { timestamps: true });

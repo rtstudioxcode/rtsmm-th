@@ -1580,3 +1580,146 @@ html:not([data-theme="dark"]) .omodal .section-sep{
   object-fit: contain;
   background: transparent !important; /* กันเผื่อ */
 }
+
+/* ==== THEME TOKENS (GLOBAL) ================================= */
+:root {
+  /* ค่าพื้นฐาน (ใช้ตอนยังไม่ตั้ง data-theme) */
+  --bg:#ffffff; --card:#ffffff; --text:#0f172a; --muted:#667085; --border:#e5e7eb;
+  --accent:#6d5dfc; --accent-2:#9b8cff;
+  --backdrop:rgba(2,8,23,.35); --shadow:0 30px 80px rgba(2,8,23,.15); --input-bg:#f9fafb;
+
+  /* Toast palette (prefix --t- เพื่อแบ่ง domain) */
+  --t-surface:#ffffff; --t-surface-2:#fffaf3; --t-text:#0f172a; --t-muted:#667085;
+  --t-border:#efe7de; --t-shadow:0 24px 80px rgba(2,8,23,.12); --t-backdrop:rgba(2,8,23,.25);
+  --t-vlt-1:#a78bfa; --t-vlt-2:#8b5cf6; --t-grn-1:#34d399; --t-grn-2:#10b981;
+  --t-warm-1:#f59e0b; --t-warm-2:#fbbf24; --t-red-1:#ef4444; --t-red-2:#fb7185;
+}
+
+/* Light */
+:root[data-theme="light"]{
+  --bg:#ffffff; --card:#ffffff; --text:#0f172a; --muted:#667085; --border:#e5e7eb;
+  --accent:#6d5dfc; --accent-2:#9b8cff;
+  --backdrop:rgba(2,8,23,.35); --shadow:0 30px 80px rgba(2,8,23,.15); --input-bg:#f9fafb;
+
+  --t-surface:#ffffff; --t-surface-2:#fffaf3; --t-text:#0f172a; --t-muted:#667085;
+  --t-border:#efe7de; --t-shadow:0 24px 80px rgba(2,8,23,.12); --t-backdrop:rgba(2,8,23,.25);
+  --t-vlt-1:#a78bfa; --t-vlt-2:#8b5cf6; --t-grn-1:#34d399; --t-grn-2:#10b981;
+  --t-warm-1:#f59e0b; --t-warm-2:#fbbf24; --t-red-1:#ef4444; --t-red-2:#fb7185;
+}
+
+/* Dark */
+:root[data-theme="dark"]{
+  --bg:#0b0e14; --card:#0f1117; --text:#e5e7eb; --muted:#9aa4b2; --border:#1f2937;
+  --accent:#6d5dfc; --accent-2:#8b5cf6;
+  --backdrop:rgba(0,0,0,.55); --shadow:0 24px 80px rgba(0,0,0,.55); --input-bg:#0b0e14;
+
+  --t-surface:#11141a; --t-surface-2:#151924; --t-text:#f4f6fb; --t-muted:#b6bfca;
+  --t-border:#202938; --t-shadow:0 24px 80px rgba(0,0,0,.55); --t-backdrop:rgba(0,0,0,.55);
+  --t-vlt-1:#a78bfa; --t-vlt-2:#8b5cf6; --t-grn-1:#34d399; --t-grn-2:#10b981;
+  --t-warm-1:#f59e0b; --t-warm-2:#fbbf24; --t-red-1:#ef4444; --t-red-2:#fb7185;
+}
+
+/* (ออปชัน) ให้ default ตามระบบ ถ้ายังไม่ตั้ง data-theme เอง */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --bg:#0b0e14; --card:#0f1117; --text:#e5e7eb; --muted:#9aa4b2; --border:#1f2937;
+    --accent:#6d5dfc; --accent-2:#8b5cf6; --backdrop:rgba(0,0,0,.55);
+    --shadow:0 24px 80px rgba(0,0,0,.55); --input-bg:#0b0e14;
+
+    --t-surface:#11141a; --t-surface-2:#151924; --t-text:#f4f6fb; --t-muted:#b6bfca;
+    --t-border:#202938; --t-shadow:0 24px 80px rgba(0,0,0,.55); --t-backdrop:rgba(0,0,0,.55);
+  }
+}
+
+.toast-modal{ border:0; outline:0; padding:0; background:transparent; }
+.toast-modal::backdrop{
+  background: var(--t-backdrop, rgba(0,0,0,.55));
+  backdrop-filter: blur(10px) saturate(120%);
+}
+
+.toast-card{
+  width: clamp(360px, 92vw, 520px);
+  border-radius: 26px; overflow: hidden;
+  border: 1px solid var(--t-border, #202938);
+  box-shadow: var(--t-shadow, 0 24px 80px rgba(0,0,0,.55));
+  background: var(--t-surface, #11141a);
+  display:flex; flex-direction:column;
+}
+
+.toast-headbar{
+  display:flex; align-items:center; gap:12px;
+  padding:14px 18px; color:#fff;
+  background: var(--th-bg, linear-gradient(135deg,#8b5cf6,#6d5dfc));
+  border-bottom: 1px solid color-mix(in srgb, #000 10%, transparent);
+}
+/* variant mapping */
+.toast-modal[data-variant="info"]    { --th-bg: linear-gradient(135deg, var(--t-vlt-2,#8b5cf6), var(--t-vlt-1,#a78bfa)); }
+.toast-modal[data-variant="success"] { --th-bg: linear-gradient(135deg, var(--t-grn-2,#10b981), var(--t-grn-1,#34d399)); }
+.toast-modal[data-variant="warn"]    { --th-bg: linear-gradient(135deg, var(--t-warm-2,#fbbf24), var(--t-warm-1,#f59e0b)); }
+.toast-modal[data-variant="error"]   { --th-bg: linear-gradient(135deg, var(--t-red-2,#fb7185), var(--t-red-1,#ef4444)); }
+
+.toast-badge{
+  width:40px; height:40px; flex:0 0 40px; display:grid; place-items:center;
+  border-radius:14px; font-weight:900; font-size:20px;
+  background: color-mix(in srgb, #ffffff 22%, transparent);
+  box-shadow: inset 0 0 18px rgba(0,0,0,.18);
+}
+.toast-title{ margin:0; font-size:18px; font-weight:950; letter-spacing:.2px; color:#fff }
+.toast-body{ padding:16px 18px 8px; min-height:72px; }
+.toast-desc{ margin:0; color:var(--t-muted,#b6bfca); font-size:15px; line-height:1.65; word-wrap:break-word }
+.toast-actions{ display:flex; justify-content:flex-end; gap:10px; padding:12px 18px 18px; }
+
+.pill{
+  --ring: var(--t-vlt-2,#8b5cf6);
+  border-radius:999px; padding:11px 18px; font-weight:900;
+  border:1px solid var(--t-border,#202938); cursor:pointer;
+  background: color-mix(in srgb, var(--t-surface,#11141a) 96%, transparent);
+  color: var(--t-text,#f4f6fb);
+  transition: transform .07s ease, box-shadow .14s ease, background .14s ease;
+}
+.pill:hover{ transform: translateY(-1px); }
+.pill:focus-visible{ outline:none; box-shadow:0 0 0 4px color-mix(in srgb, var(--ring) 26%, transparent); }
+.pill.primary{
+  background: linear-gradient(180deg, var(--t-vlt-2,#8b5cf6), var(--t-vlt-1,#a78bfa));
+  color:#fff; border-color:transparent;
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--t-vlt-2,#8b5cf6) 35%, transparent);
+}
+
+/* Dashboard */
+/* การ์ดข้อมูลผู้ใช้ */
+.card.user-summary{
+  display:flex;
+  align-items:center;            /* กึ่งกลางแนวตั้ง */
+  justify-content:space-between; /* ดันซ้าย-ขวาให้เต็ม */
+  gap:16px;
+  min-height:110px;              /* ให้สัดส่วนกล่องดูเต็มกับรูป */
+}
+
+/* ฝั่งซ้าย: หัวข้อ+ปุ่ม */
+.user-summary__left{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+/* ฝั่งขวา: อวตาร (ขนาดใหญ่และชิดขวา) */
+.user-summary__avatar{
+  flex:0 0 auto;
+  width: clamp(72px, 10vw, 120px);  /* ปรับตามความกว้างกล่อง: ใหญ่ขึ้นอัตโนมัติ */
+  height: clamp(72px, 10vw, 120px);
+  border-radius:999px;
+  overflow:hidden;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  border:1px solid color-mix(in oklab, var(--line, #e5e7eb) 70%, transparent);
+  box-shadow: 0 6px 16px rgba(0,0,0,.12);
+  margin-left:auto;                 /* ชิดขวาสุด */
+  background: #f3f4f6; /* เฉดอ่อน ๆ */
+}
+
+/* รูปให้ครอบเต็มวงกลม */
+.user-summary__avatar img{
+  width:100%; height:100%; object-fit:cover; display:block;
+}

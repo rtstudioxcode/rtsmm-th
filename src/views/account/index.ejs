@@ -1,3 +1,4 @@
+<!-- /account/index.ejs -->
 <section class="page account-v3">
   <h1 class="page-title" style="align-items: center; text-align: center;" >ตั้งค่าข้อมูลส่วนตัว</h1>
 
@@ -360,24 +361,36 @@ html[data-theme="light"] .static-input{
 (() => {
   const $ = s => document.querySelector(s);
 
+  // helper เรียก modal แบบย่อ (ถ้า showMsg ไม่มี ให้ fallback เป็น alert)
+  const toast = (variant, title, text) => {
+    if (window.showMsg) window.showMsg({ variant, title, text });
+    else alert(`${title}\n${text || ''}`);
+  };
+
+  // เปลี่ยน ok() ให้ตั้งหัวข้อ "สำเร็จ" เสมอ แล้วเอา argument เป็นรายละเอียด
+  const ok   = (detail='ดำเนินการเรียบร้อย') => toast('success', 'สำเร็จ', detail);
+  const warn = (title, text='')  => toast('warn',   title, text);
+  const fail = (title, text='')  => toast('error',  title, text);
+  const info = (title, text='')  => toast('info',   title, text);
+
   // ===== Data for levels (ใช้ของเซิร์ฟเวอร์ถ้ามี ไม่งั้นใช้ mock) =====
   window.__LEVELS__ = <%- JSON.stringify(levels || []) %>;
   if (!Array.isArray(window.__LEVELS__) || !window.__LEVELS__.length) {
     window.__LEVELS__ = [
-        { name:'เลเวล 1',  need:0,       rate:'฿0.05', perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ช่วยเหลือผ่าน Line Official Account'] },
-        { name:'เลเวล 2',  need:5000,    rate:'฿0.1',  perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ช่วยเหลือผ่าน Line Official Account'] },
-        { name:'เลเวล 3',  need:10000,   rate:'฿0.15', perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ช่วยเหลือผ่าน Line Official Account'] },
-        { name:'เลเวล 4',  need:30000,   rate:'฿0.2',  perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ให้ความสำคัญการช่วยเหลือ'] },
-        { name:'เลเวล 5',  need:50000,   rate:'฿0.25', perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ให้ความสำคัญการช่วยเหลือ'] },
-        { name:'Retail',   need:80000,   rate:'฿0.3',  perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ให้ความสำคัญการช่วยเหลือ'] },
-        { name:'Wholesale',need:175000,  rate:'฿0.5',  perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ให้ความสำคัญการช่วยเหลือ'] },
-        { name:'Reseller', need:700000,  rate:'฿0.8',  perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ให้ความสำคัญการช่วยเหลือสูง'] },
-        { name:'VIP',      need:1000000, rate:'฿1',    perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ให้ความสำคัญการช่วยเหลือสูง'] },
-        { name:'Legendary',need:5000000, rate:'฿15',   perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ให้ความสำคัญการช่วยเหลือสูงสุด'] }
+      { name:'เลเวล 1',  need:0,       rate:'฿0.05', perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ช่วยเหลือผ่าน Line Official Account'] },
+      { name:'เลเวล 2',  need:5000,    rate:'฿0.1',  perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ช่วยเหลือผ่าน Line Official Account'] },
+      { name:'เลเวล 3',  need:10000,   rate:'฿0.15', perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ช่วยเหลือผ่าน Line Official Account'] },
+      { name:'เลเวล 4',  need:30000,   rate:'฿0.2',  perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ให้ความสำคัญการช่วยเหลือ'] },
+      { name:'เลเวล 5',  need:50000,   rate:'฿0.25', perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ให้ความสำคัญการช่วยเหลือ'] },
+      { name:'Retail',   need:80000,   rate:'฿0.3',  perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ให้ความสำคัญการช่วยเหลือ'] },
+      { name:'Wholesale',need:175000,  rate:'฿0.5',  perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ให้ความสำคัญการช่วยเหลือ'] },
+      { name:'Reseller', need:700000,  rate:'฿0.8',  perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ให้ความสำคัญการช่วยเหลือสูง'] },
+      { name:'VIP',      need:1000000, rate:'฿1',    perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ให้ความสำคัญการช่วยเหลือสูง'] },
+      { name:'Legendary',need:5000000, rate:'฿15',   perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ให้ความสำคัญการช่วยเหลือสูงสุด'] }
     ];
   }
 
-  // Tabs -> ใช้ .show
+  // Tabs
   document.querySelectorAll('.tabs .tab').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       document.querySelectorAll('.tabs .tab').forEach(b=>b.classList.remove('active'));
@@ -387,28 +400,36 @@ html[data-theme="light"] .static-input{
     });
   });
 
-  
-  // Avatar upload (quick)
+  // Avatar upload
   $('#btnChangeAvatar')?.addEventListener('click', () => $('#avatarInput')?.click());
   $('#avatarInput')?.addEventListener('change', async (e) => {
     const f = e.currentTarget.files?.[0]; if (!f) return;
     $('#avatarPreview').src = URL.createObjectURL(f);
     const fd = new FormData(); fd.append('avatar', f);
-    const r = await fetch('/account/profile', { method: 'POST', body: fd });
-    const j = await r.json();
-    if (!j.ok) return alert(j.error || 'อัปโหลดรูปไม่สำเร็จ');
-    if (j.user?.email && !j.user?.emailVerified) document.getElementById('otpArea')?.removeAttribute('hidden');
+    try{
+      const r = await fetch('/account/profile', { method: 'POST', body: fd });
+      const j = await r.json();
+      if (!j.ok) return fail('อัปโหลดรูปไม่สำเร็จ', j.error || '');
+      ok('อัปโหลดรูปสำเร็จ');
+      if (j.user?.email && !j.user?.emailVerified) document.getElementById('otpArea')?.removeAttribute('hidden');
+    } catch {
+      fail('อัปโหลดรูปไม่สำเร็จ', 'เครือข่ายมีปัญหา');
+    }
   });
 
   // Save profile
   $('#formProfile')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const r = await fetch('/account/profile', { method: 'POST', body: fd });
-    const j = await r.json();
-    if (!j.ok) return alert(j.error || 'บันทึกไม่สำเร็จ');
-    alert('อัปเดตเรียบร้อย');
-    if (j.user?.email && !j.user?.emailVerified) document.getElementById('otpArea')?.removeAttribute('hidden');
+    try{
+      const r = await fetch('/account/profile', { method: 'POST', body: fd });
+      const j = await r.json();
+      if (!j.ok) return fail('บันทึกไม่สำเร็จ', j.error || '');
+      ok('อัปเดตข้อมูลเรียบร้อย');
+      if (j.user?.email && !j.user?.emailVerified) document.getElementById('otpArea')?.removeAttribute('hidden');
+    } catch {
+      fail('บันทึกไม่สำเร็จเครือข่ายมีปัญหา', 'เครือข่ายมีปัญหา');
+    }
   });
 
   // Change password
@@ -416,38 +437,49 @@ html[data-theme="light"] .static-input{
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const body = Object.fromEntries(fd.entries());
-    const r = await fetch('/account/password', {
-      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
-    });
-    const j = await r.json();
-    if (!j.ok) return alert(j.error || 'เปลี่ยนรหัสไม่สำเร็จ');
-    alert('เปลี่ยนรหัสผ่านเรียบร้อย');
-    e.currentTarget.reset();
+    try{
+      const r = await fetch('/account/password', {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+      });
+      const j = await r.json();
+      if (!j.ok) return fail('เปลี่ยนรหัสไม่สำเร็จ', j.error || '');
+      ok('เปลี่ยนรหัสผ่านเรียบร้อย');
+      e.currentTarget.reset();
+    } catch {
+      fail('เปลี่ยนรหัสไม่สำเร็จ', 'เครือข่ายมีปัญหา');
+    }
   });
 
-  // OTP
+  // OTP: request
   $('#btnSendOtp')?.addEventListener('click', async () => {
-    const r = await fetch('/account/email/request-otp', { method:'POST' });
-    const j = await r.json();
-    if (!j.ok) return alert(j.error || 'ส่งรหัสไม่สำเร็จ');
-    alert('ส่งรหัสไปที่อีเมลแล้ว');
-    document.getElementById('otpArea')?.removeAttribute('hidden');
+    try{
+      const r = await fetch('/account/email/request-otp', { method:'POST' });
+      const j = await r.json();
+      if (!j.ok) return fail('ส่งรหัสไม่สำเร็จ', j.error || '');
+      info('ส่งรหัสแล้ว', 'โปรดตรวจอีเมลของคุณ');
+      document.getElementById('otpArea')?.removeAttribute('hidden');
+    } catch {
+      fail('ส่งรหัสไม่สำเร็จ', 'เครือข่ายมีปัญหา');
+    }
   });
 
+  // OTP: verify
   const verifyBtn = document.getElementById('btnVerifyOtp');
   verifyBtn?.addEventListener('click', async () => {
     const code = (document.getElementById('otpCode')?.value || '').trim();
-    if (code.length < 4) return alert('กรุณากรอกรหัสให้ครบ');
+    if (code.length < 4) return warn('รหัสไม่ครบ', 'กรุณากรอกรหัสให้ครบ');
     verifyBtn.disabled = true;
     try{
       const r = await fetch('/account/email/verify', {
         method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ code })
       });
       const j = await r.json();
-      if (!j.ok) { verifyBtn.disabled = false; return alert(j.error || 'ยืนยันไม่สำเร็จ'); }
+      if (!j.ok) { verifyBtn.disabled = false; return fail('ยืนยันไม่สำเร็จ', j.error || ''); }
+      ok('ยืนยันอีเมลเรียบร้อย');
       window.location.reload();
     } catch {
-      verifyBtn.disabled = false; alert('เกิดข้อผิดพลาดในการยืนยัน');
+      verifyBtn.disabled = false;
+      fail('ยืนยันไม่สำเร็จ', 'เครือข่ายมีปัญหา');
     }
   });
 
@@ -460,54 +492,31 @@ html[data-theme="light"] .static-input{
 
   function render() {
     track.innerHTML = '';
-
-    // helper ดึงเลข% จากสตริง เช่น "โบนัสเติมเงิน 5%" -> "5%"
     const pickPercent = s => {
-        const m = (s || '').match(/-?\d+(?:\.\d+)?%/);
-        return m ? m[0] : (s || '—');
+      const m = (s || '').match(/-?\d+(?:\.\d+)?%/);
+      return m ? m[0] : (s || '—');
     };
 
     (pages[page] || []).forEach(lv => {
-        const perks = lv.perks || [];
-        const bonusTxt    = perks.find(p => p.includes('โบนัสเติมเงิน')) || '';
-        const discountTxt = perks.find(p => p.includes('ส่วนลดทุกคำสั่งซื้อ')) || '';
+      const perks = lv.perks || [];
+      const bonusTxt    = perks.find(p => p.includes('โบนัสเติมเงิน')) || '';
+      const discountTxt = perks.find(p => p.includes('ส่วนลดทุกคำสั่งซื้อ')) || '';
+      const bonusVal    = pickPercent(bonusTxt);
+      const discountVal = pickPercent(discountTxt);
 
-        const bonusVal    = pickPercent(bonusTxt);    // เช่น "0%"
-        const discountVal = pickPercent(discountTxt); // เช่น "0%"
-
-        track.insertAdjacentHTML('beforeend', `
+      track.insertAdjacentHTML('beforeend', `
         <div class="prof-card" style="padding:14px">
-            <!-- ชื่อเลเวล + เกณฑ์ใช้จ่าย -->
-            <div class="kv" style="margin-bottom:8px">
+          <div class="kv" style="margin-bottom:8px">
             <div><strong>${lv.name}</strong></div>
             <div><span class="badge balance">ใช้จ่าย &gt; ฿${(lv.need||0).toLocaleString()}</span></div>
-            </div>
-
-            <!-- อัตราแลกเปลี่ยน -->
-            <div class="kv">
-            <div>อัตราการแลกเปลี่ยน ↔ (Point × Rate)</div>
-            <div><span class="badge balance">${lv.rate}</span></div>
-            </div>
-
-            <!-- โบนัสเติมเงิน -->
-            <div class="kv">
-            <div>โบนัสเติมเงิน</div>
-            <div><span class="badge warn">${bonusVal}</span></div>
-            </div>
-
-            <!-- ส่วนลดทุกคำสั่งซื้อ -->
-            <div class="kv">
-            <div>ส่วนลดทุกคำสั่งซื้อ</div>
-            <div><span class="badge warn">${discountVal}</span></div>
-            </div>
-
-            <!-- รายการสิทธิ์อื่น ๆ -->
-            ${perks
-            .filter(p => !p.includes('โบนัสเติมเงิน') && !p.includes('ส่วนลดทุกคำสั่งซื้อ'))
-            .map(p => `<div class="muted" style="margin:6px 0">• ${p}</div>`)
-            .join('')}
+          </div>
+          <div class="kv"><div>อัตราการแลกเปลี่ยน ↔ (Point × Rate)</div><div><span class="badge balance">${lv.rate}</span></div></div>
+          <div class="kv"><div>โบนัสเติมเงิน</div><div><span class="badge warn">${bonusVal}</span></div></div>
+          <div class="kv"><div>ส่วนลดทุกคำสั่งซื้อ</div><div><span class="badge warn">${discountVal}</span></div></div>
+          ${perks.filter(p => !p.includes('โบนัสเติมเงิน') && !p.includes('ส่วนลดทุกคำสั่งซื้อ'))
+                 .map(p => `<div class="muted" style="margin:6px 0">• ${p}</div>`).join('')}
         </div>
-        `);
+      `);
     });
   }
   render();

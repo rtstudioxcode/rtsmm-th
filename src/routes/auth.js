@@ -2,7 +2,6 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import { User } from '../models/User.js';
-import axios from 'axios';
 import { OtpToken } from '../models/OtpToken.js';
 import { sendEmail } from '../lib/mailer.js';
 import crypto from 'crypto';
@@ -19,47 +18,74 @@ function safeNext(input) {
 }
 
 function emailTemplateVerifyLink(verifyUrl) {
+  const BRAND_URL  = 'https://rtsmm-th.com';
+  const BRAND_LOGO = `${BRAND_URL}/static/assets/logo/logo-rtssm-th.png`;
+  const LOGO_W_DESKTOP = 220; // ปรับได้ 180–240 กำลังสวย
+  const LOGO_W_MOBILE  = 180;
+
   return `
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:24px 0;font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;">
-    <tr>
-      <td align="center">
-        <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e6e8eb;">
-          <tr>
-            <td style="background:#0b0f1a;padding:24px;text-align:center">
-              <a href="${BRAND_URL}" target="_blank" style="text-decoration:none">
-                <img src="${BRAND_LOGO}" alt="RTSMM-TH" height="42" style="display:inline-block;vertical-align:middle">
-              </a>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:28px 24px 8px;color:#111827;">
-              <h2 style="margin:0 0 6px;font-size:20px">ยืนยันการสมัคร RTSMM-TH</h2>
-              <p style="margin:0;color:#6b7280">คลิกปุ่มด้านล่างเพื่อยืนยันอีเมลและเปิดใช้งานบัญชีของคุณ</p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:16px 24px 24px" align="center">
-              <a href="${verifyUrl}" target="_blank"
-                 style="display:inline-block;background:#111827;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:700">
-                 ยืนยันอีเมลของฉัน
-              </a>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:0 24px 24px;color:#6b7280;font-size:12px;">
-              หากปุ่มกดไม่ได้ ให้คัดลอกลิงก์นี้ไปวางในเบราว์เซอร์ของคุณ:<br>
-              <a href="${verifyUrl}" style="color:#2563eb">${verifyUrl}</a>
-            </td>
-          </tr>
-          <tr>
-            <td style="background:#f9fafb;color:#9ca3af;padding:16px 24px;text-align:center;font-size:12px;">
-              © RTSMM-TH
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>`;
+  <!doctype html>
+  <html lang="th">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="x-apple-disable-message-reformatting">
+    <style>
+      html,body{margin:0!important;padding:0!important;background:#f4f6f8!important}
+      img{border:0;line-height:100%;outline:none;text-decoration:none}
+      table,td{border-collapse:collapse!important}
+      a{color:#2563eb}
+      .brand-logo{width:${LOGO_W_DESKTOP}px;height:auto;max-width:100%}
+      @media(max-width:600px){
+        .container{width:100%!important}
+        .px{padding-left:16px!important;padding-right:16px!important}
+        .brand-logo{width:${LOGO_W_MOBILE}px!important}
+      }
+      .btn{background:#111827;border-radius:8px;color:#fff!important;display:inline-block;font-weight:700;text-decoration:none;padding:12px 22px}
+    </style>
+  </head>
+  <body style="margin:0;padding:0;background:#f4f6f8;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:24px 0;font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial,sans-serif;">
+      <tr>
+        <td align="center">
+          <table role="presentation" class="container" width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e6e8eb;">
+            <tr>
+              <td style="background:#0b0f1a;padding:24px;text-align:center">
+                <a href="${BRAND_URL}" target="_blank" style="text-decoration:none">
+                  <img src="${BRAND_LOGO}" alt="RTSMM-TH" class="brand-logo"
+                       width="${LOGO_W_DESKTOP}"
+                       style="display:inline-block;vertical-align:middle;height:auto;max-width:100%">
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td class="px" style="padding:28px 24px 8px;color:#111827;">
+                <h2 style="margin:0 0 6px;font-size:20px">ยืนยันการสมัคร RTSMM-TH</h2>
+                <p style="margin:0;color:#6b7280">คลิกปุ่มด้านล่างเพื่อยืนยันอีเมลและเปิดใช้งานบัญชีของคุณ</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 24px 24px" align="center">
+                <a href="${verifyUrl}" target="_blank" class="btn">ยืนยันอีเมลของฉัน</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="px" style="padding:0 24px 24px;color:#6b7280;font-size:12px;">
+                หากปุ่มกดไม่ได้ ให้คัดลอกลิงก์นี้ไปวางในเบราว์เซอร์ของคุณ:<br>
+                <a href="${verifyUrl}" style="color:#2563eb;word-break:break-all">${verifyUrl}</a>
+              </td>
+            </tr>
+            <tr>
+              <td style="background:#f9fafb;color:#9ca3af;padding:16px 24px;text-align:center;font-size:12px;">
+                © RTSMM-TH
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+  </html>`;
 }
 
 // สุ่ม token แบบ base64url
@@ -116,7 +142,7 @@ router.get('/register', (req, res) => {
 router.post('/register', parseUrlencoded, async (req, res) => {
   try {
     const username = (req.body.username || '').trim();
-    const name     = (req.body.name || '').trim();        // ชื่อจริง
+    const name     = (req.body.name || '').trim(); 
     const email    = (req.body.email || '').trim().toLowerCase();
     const password = req.body.password || '';
     const nextUrl  = safeNext(req.body.next);
@@ -159,7 +185,7 @@ router.post('/register', parseUrlencoded, async (req, res) => {
     await sendEmail({
       to: email,
       subject: 'ยืนยันการสมัคร RTSMM-TH',
-      html: emailTemplateVerifyLink(verifyUrl)
+      html: emailTemplateVerifyLink(verifyUrl),
     });
 
     return res.json({ ok:true, needOtp:false, message:'ส่งอีเมลยืนยันแล้ว โปรดตรวจสอบกล่องจดหมายของคุณ' });
@@ -177,15 +203,28 @@ router.get('/register/verify', async (req, res) => {
 
     const pending = req.session?.regPending;
     if (!pending || pending.email !== email) {
-      return res.status(400).send('ลิงก์หมดอายุหรือเซสชันหมดอายุ กรุณาสมัครใหม่');
+      return res.status(400).render('auth/register', {
+        title: 'สมัครสมาชิก',
+        next: '/',
+        flash: { variant:'error', title:'ลิงก์หมดอายุ', text:'ลิงก์หมดอายุหรือเซสชันหมดอายุ กรุณาสมัครใหม่' }
+      });
     }
 
     const doc = await OtpToken.findOne({ email, purpose:'email-verify-link', usedAt:null }).sort({ createdAt: -1 });
-    if (!doc) return res.status(400).send('ลิงก์ไม่ถูกต้องหรือหมดอายุ');
-    if (doc.expiresAt.getTime() < Date.now()) return res.status(400).send('ลิงก์หมดอายุ');
+    if (!doc) return res.status(400).render('auth/register', {
+      title:'สมัครสมาชิก', next:'/',
+      flash:{ variant:'error', title:'ลิงก์ไม่ถูกต้อง', text:'ลิงก์ไม่ถูกต้องหรือหมดอายุ' }
+    });
+    if (doc.expiresAt.getTime() < Date.now()) return res.status(400).render('auth/register', {
+      title:'สมัครสมาชิก', next:'/',
+      flash:{ variant:'error', title:'ลิงก์หมดอายุ', text:'ลิงก์นี้หมดอายุแล้ว กรุณาสมัครใหม่' }
+    });
 
     const ok = await bcrypt.compare(token, doc.codeHash);
-    if (!ok) return res.status(400).send('ลิงก์ไม่ถูกต้อง');
+    if (!ok) return res.status(400).render('auth/register', {
+      title:'สมัครสมาชิก', next:'/',
+      flash:{ variant:'error', title:'ลิงก์ไม่ถูกต้อง', text:'ไม่สามารถยืนยันอีเมลจากลิงก์นี้' }
+    });
 
     // mark used
     doc.usedAt = new Date();
@@ -196,7 +235,10 @@ router.get('/register/verify', async (req, res) => {
     if (dupe) {
       req.session.regPending = null;
       await req.session.save();
-      return res.status(400).send('ข้อมูลซ้ำ กรุณาสมัครใหม่');
+      return res.status(400).render('auth/register', {
+        title:'สมัครสมาชิก', next:'/',
+        flash:{ variant:'warn', title:'ข้อมูลซ้ำ', text:'ชื่อผู้ใช้หรืออีเมลถูกใช้งานแล้ว กรุณาสมัครใหม่' }
+      });
     }
 
     // สร้าง user + emailVerified:true
@@ -219,7 +261,10 @@ router.get('/register/verify', async (req, res) => {
     return res.redirect(redirect);
   } catch (e) {
     console.error(e);
-    return res.status(500).send('ยืนยันไม่สำเร็จ');
+    return res.status(500).render('auth/register', {
+      title:'สมัครสมาชิก', next:'/',
+      flash:{ variant:'error', title:'ยืนยันไม่สำเร็จ', text:'เกิดข้อผิดพลาด โปรดลองใหม่อีกครั้ง' }
+    });
   }
 });
 
