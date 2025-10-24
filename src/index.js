@@ -58,7 +58,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(expressLayouts);
 app.set('layout', 'layout');
 
-app.set('trust proxy', 1);
+// app.set('trust proxy', 1);
 
 // Static & parsers
 app.use('/static', express.static(path.join(__dirname, 'public')));
