@@ -183,58 +183,51 @@ router.post('/account/profile', upload.single('avatar'), async (req, res) => {
     const u = await User.findById(uid);
     if (!u) return res.status(404).json({ ok:false, error: '⛔️ไม่พบข้อมูลผู้ใช้ เครือข่ายมีปัญหาโปรลองอีกครั้งภายหลัง' });
 
-    // อัปเดตรูป
+    // --- avatar ---
     if (req.file) {
       u.avatarUrl = `/uploads/avatars/${req.file.filename}`;
     } else if (!u.avatarUrl) {
+      // ตั้งค่าเริ่มต้นถ้ายังไม่มี
       u.avatarUrl = '/static/assets/img/user-blue.png';
     }
 
-    // ชื่อ-นามสกุล (อนุญาตเฉพาะตอนยังว่าง)
-    const fullName = String(req.body.name || '').trim();
-    if (!u.name && fullName) u.name = fullName;
-
-    // อีเมล (ตั้งครั้งแรกเท่านั้น)
+    // --- ชื่อ/อีเมล (ตั้งครั้งแรกเท่านั้น) ---
+    const fullName   = String(req.body.name  || '').trim();
     const emailInput = String(req.body.email || '').trim();
-    if (!u.email && emailInput) {
-      u.email = emailInput.toLowerCase();
-      u.emailVerified = false;
-    }
+    if (!u.name && fullName)            u.name = fullName;
+    if (!u.email && emailInput) { u.email = emailInput.toLowerCase(); u.emailVerified = false; }
 
-    // ensure type
-    if (!u.level) u.level = 1;                  // Number
-    if (u.totalSpent == null) u.totalSpent = 0; // Number
+    // --- ensure type ---
+    if (!u.level) u.level = 1;
+    if (u.totalSpent == null) u.totalSpent = 0;
 
     await u.save();
 
-    // อัปเดตเลเวลตามยอดใช้จ่าย
-    const nextLevel = computeLevel(Number(u.totalSpent || 0));
-    const nextLevelNum = Number(nextLevel);
-    if (nextLevelNum !== Number(u.level)) {
-      u.level = nextLevelNum;
-      await u.save();
-    }
+    // --- อัปเดตเลเวล/รวมออเดอร์ (ตามโค้ดเดิมของคุณ) ---
+    const nextLevelNum = Number(computeLevel(Number(u.totalSpent || 0)));
+    if (nextLevelNum !== Number(u.level)) { u.level = nextLevelNum; await u.save(); }
 
-    // ✅ นับจำนวนออเดอร์จาก DB แล้วอัปเดตฟิลด์ totalOrders ใน users
     try {
       const match = { ...buildUserMatch(u._id), status: { $ne: 'canceled' } };
       const counted = await Order.countDocuments(match);
-
-      // ตั้งค่าเมื่อยังไม่มี หรือค่าเดิมไม่ตรงกับที่นับได้
       const cur = Number(u.totalOrders);
-      if (!Number.isFinite(cur) || cur !== counted) {
-        u.totalOrders = counted;
-        await u.save();
-      }
+      if (!Number.isFinite(cur) || cur !== counted) { u.totalOrders = counted; await u.save(); }
     } catch (err) {
       console.warn('recount totalOrders failed:', err?.message || err);
     }
+
+    // --- อัปเดต session/res.locals และคืน URL แบบกันแคชสำหรับแสดงผลทันที ---
+    if (req.session?.user) req.session.user.avatarUrl = u.avatarUrl;
+    res.locals.me = { ...(res.locals.me || {}), avatarUrl: u.avatarUrl };
+
+    const bustUrl = `${u.avatarUrl}?v=${Date.now()}`; // ใช้โชว์ทันที กันรูปเก่าค้างแคช
 
     return res.json({
       ok: true,
       user: {
         name: u.name,
-        avatarUrl: u.avatarUrl,
+        avatarUrl: bustUrl,   // ใช้แสดงผลทันที
+        avatarRaw: u.avatarUrl, // path จริงใน DB (ออปชัน)
         email: u.email,
         emailVerified: u.emailVerified,
         level: u.level,

@@ -510,17 +510,48 @@ html[data-theme="light"] .static-input{
   // Avatar upload
   $('#btnChangeAvatar')?.addEventListener('click', () => $('#avatarInput')?.click());
   $('#avatarInput')?.addEventListener('change', async (e) => {
-    const f = e.currentTarget.files?.[0]; if (!f) return;
+    const f = e.currentTarget.files?.[0];
+    if (!f) return;
+
+    // แสดงพรีวิวทันที (ก่อนอัปโหลด)
     $('#avatarPreview').src = URL.createObjectURL(f);
-    const fd = new FormData(); fd.append('avatar', f);
+
+    // กันคลิกซ้ำระหว่างอัปโหลด
+    const btn = document.getElementById('btnChangeAvatar');
+    btn.disabled = true;
+
+    const fd = new FormData();
+    fd.append('avatar', f);
+
     try{
       const r = await fetch('/account/profile', { method: 'POST', body: fd });
       const j = await r.json();
-      if (!j.ok) return fail('อัปโหลดรูปไม่สำเร็จ', j.error || '');
+
+      if (!j.ok) {
+        // ถ้าเซฟไม่สำเร็จ คืนพรีวิวเดิม
+        fail('อัปโหลดรูปไม่สำเร็จ', j.error || '');
+        return;
+      }
+
+      // ใช้ URL ที่กันแคชแล้วจาก server
+      const newUrl = j.user?.avatarUrl || $('#avatarPreview').src;
+
+      // อัปเดตรูปในหน้า Account
+      $('#avatarPreview').src = newUrl;
+
+      // อัปเดตรูปทุกที่ที่ติด data-avatar (เช่นใน sidebar)
+      document.querySelectorAll('img[data-avatar]').forEach(img => {
+        img.src = newUrl;
+      });
+
       ok('อัปโหลดรูปสำเร็จ');
-      if (j.user?.email && !j.user?.emailVerified) document.getElementById('otpArea')?.removeAttribute('hidden');
+      if (j.user?.email && !j.user?.emailVerified) {
+        document.getElementById('otpArea')?.removeAttribute('hidden');
+      }
     } catch {
       fail('อัปโหลดรูปไม่สำเร็จ', 'เครือข่ายมีปัญหา');
+    } finally {
+      btn.disabled = false;
     }
   });
 
