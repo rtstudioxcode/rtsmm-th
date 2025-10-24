@@ -3,7 +3,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import { requireAuth } from '../middleware/auth.js';
 import { User } from '../models/User.js';
 

@@ -1,6 +1,6 @@
 // models/User.js
 import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 
 const UserSchema = new mongoose.Schema({
   level: { type: String, default: '1' },
