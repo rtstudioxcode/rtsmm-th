@@ -218,7 +218,56 @@ async function init(){
   await loadPlatforms();
   await tryAutoSelectFromURL();
 
-  $('#searchAll').addEventListener('input', debounce(filterChildrenFromGlobal, 120));
+  // ค้นหาโดยเลขบริการ: ลองในแพลตฟอร์มปัจจุบันก่อน แล้วค่อยไล่ทุกแพลตฟอร์ม
+  async function autoPickByServiceId(pid){
+    const pidStr = String(pid);
+
+    const pickInsideCurrent = () => {
+      const grp = (groups || []).find(g =>
+        Array.isArray(g?.details?.services) &&
+        g.details.services.some(s => String(s.id) === pidStr)
+      );
+      if (!grp) return false;
+
+      chooseGroup(grp);
+      const svc = grp.details.services.find(s => String(s.id) === pidStr);
+      if (svc) {
+        chooseChild(svc);
+        document.getElementById('detailBox').style.display = '';
+        document.getElementById('qty')?.focus();
+      }
+      return true;
+    };
+
+    // 1) หาในแพลตฟอร์มปัจจุบันก่อน
+    if (pickInsideCurrent()) return true;
+
+    // 2) ไม่เจอ -> วนทุกแพลตฟอร์ม
+    for (const p of platforms){
+      if (String(p._id) === String(currentPlatform)) continue;
+      await choosePlatform(p._id);
+      if (pickInsideCurrent()){
+        // ทำ tile ให้ active ให้ตรงแพลตฟอร์มที่เจอ
+        $$('#platformGrid .p-tile').forEach(el=>{
+          el.classList.toggle('active', el.dataset.id === String(p._id));
+        });
+        return true;
+      }
+    }
+    // ไม่พบ -> ไม่ทำอะไร (ตามที่ต้องการ)
+    return false;
+  }
+
+  const onGlobalSearch = debounce(async () => {
+    const v = ($('#searchAll').value || '').trim();
+    // กรองรายการในเมนู (คงพฤติกรรมเดิม)
+    filterChildrenFromGlobal();
+    // ถ้าเป็นเลขล้วน -> ลองจับคู่บริการแบบออโต้
+    if (/^\d+$/.test(v)) {
+      await autoPickByServiceId(v);
+    }
+  }, 120);
+  $('#searchAll').addEventListener('input', onGlobalSearch);
   $('#groupBtn').onclick = ()=>{
     $('#groupSel').classList.toggle('open');
     $('#groupBtn').setAttribute('aria-expanded', String($('#groupSel').classList.contains('open')));
@@ -398,6 +447,9 @@ function renderChildList(){
     return (!q || s.includes(q)) && (!globalQ || s.includes(globalQ));
   });
 
+  const gid = $('#groupId').value;
+
+  // ใส่ base rate ไว้ก่อน
   $('#childList').innerHTML = list.length ? list.map(c=>`
     <div class="opt" data-id="${c.id}">
       <div class="row">
@@ -405,9 +457,20 @@ function renderChildList(){
           <span class="id">ID: ${c.id}</span>
           <span class="name"> — ${c.name||''}</span>
         </div>
-        <div class="rate">${fmt(c.rate||0)} ${c.currency||'THB'}</div>
+        <div class="rate" data-rate-for="${c.id}">
+          ${fmt(c.rate||0)} ${c.currency||'THB'} / 1,000
+        </div>
       </div>
     </div>`).join('') : `<div class="empty muted">ไม่พบบริการที่ตรงกับคำค้น</div>`;
+
+  // แล้วค่อยอัปเดตเป็น effective rate ทีละตัว (async + cache)
+  list.forEach(async (c) => {
+    const er = await fetchEffectiveRateIfAvailable(gid, String(c.id), Number(c.rate||0));
+    if (er !== null) {
+      const el = document.querySelector(`.rate[data-rate-for="${CSS.escape(String(c.id))}"]`);
+      if (el) el.textContent = `${fmt(er)} ${c.currency||'THB'} / 1,000`;
+    }
+  });
 
   $('#childList').onclick = e=>{
     const el=e.target.closest('.opt'); if(!el) return;
@@ -417,23 +480,70 @@ function renderChildList(){
     chooseChild(svc);
   };
 }
+// function renderChildList(){
+//   const q = ($('#childSearch').value || '').toLowerCase().trim();
+//   const globalQ = ($('#searchAll').value || '').toLowerCase().trim();
+
+//   const list = children.filter(c=>{
+//     const s = `${c.id} ${c.name}`.toLowerCase();
+//     return (!q || s.includes(q)) && (!globalQ || s.includes(globalQ));
+//   });
+
+//   $('#childList').innerHTML = list.length ? list.map(c=>`
+//     <div class="opt" data-id="${c.id}">
+//       <div class="row">
+//         <div>
+//           <span class="id">ID: ${c.id}</span>
+//           <span class="name"> — ${c.name||''}</span>
+//         </div>
+//         <div class="rate">${fmt(c.rate||0)} ${c.currency||'THB'}</div>
+//       </div>
+//     </div>`).join('') : `<div class="empty muted">ไม่พบบริการที่ตรงกับคำค้น</div>`;
+
+//   $('#childList').onclick = e=>{
+//     const el=e.target.closest('.opt'); if(!el) return;
+//     $('#childSel').classList.remove('open');
+//     $('#childBtn').setAttribute('aria-expanded','false');
+//     const svc = children.find(v=>String(v.id)===el.dataset.id);
+//     chooseChild(svc);
+//   };
+// }
 function filterChildrenFromGlobal(){ renderChildList(); }
+let effectiveRateCache = new Map();
 
 /* ---------- ดึง effective rate (ถ้า endpoint มี) ---------- */
 async function fetchEffectiveRateIfAvailable(groupId, childId, baseRate){
-  // คุณสามารถเปิดใช้ endpoint ต่อไปนี้ได้ที่ฝั่งเซิร์ฟเวอร์:
-  //   GET /api/pricing/effective-rate?serviceId=<groupId>&childId=<providerServiceId>
-  // ให้คืน { ok:true, rate:number } หรือ { rate:number }
+  const key = `${groupId}:${childId}`;
+  if (effectiveRateCache.has(key)) return effectiveRateCache.get(key);
+
   try{
     const url = `/api/pricing/effective-rate?serviceId=${encodeURIComponent(groupId)}&childId=${encodeURIComponent(childId)}`;
     const r = await fetch(url);
-    if (!r.ok) return null;
+    if (!r.ok) { effectiveRateCache.set(key, null); return null; }
     const data = await r.json();
     const val = Number(data?.rate ?? data?.effectiveRate);
-    if (Number.isFinite(val) && val >= 0) return val;
+    if (Number.isFinite(val) && val >= 0) {
+      effectiveRateCache.set(key, val);
+      return val;
+    }
   }catch{}
+  effectiveRateCache.set(key, null);
   return null; // ไม่มี/ใช้ไม่ได้ -> fallback base
 }
+// async function fetchEffectiveRateIfAvailable(groupId, childId, baseRate){
+//   // คุณสามารถเปิดใช้ endpoint ต่อไปนี้ได้ที่ฝั่งเซิร์ฟเวอร์:
+//   //   GET /api/pricing/effective-rate?serviceId=<groupId>&childId=<providerServiceId>
+//   // ให้คืน { ok:true, rate:number } หรือ { rate:number }
+//   try{
+//     const url = `/api/pricing/effective-rate?serviceId=${encodeURIComponent(groupId)}&childId=${encodeURIComponent(childId)}`;
+//     const r = await fetch(url);
+//     if (!r.ok) return null;
+//     const data = await r.json();
+//     const val = Number(data?.rate ?? data?.effectiveRate);
+//     if (Number.isFinite(val) && val >= 0) return val;
+//   }catch{}
+//   return null; // ไม่มี/ใช้ไม่ได้ -> fallback base
+// }
 
 /* ---------- รายละเอียด/ฟอร์ม ---------- */
 async function chooseChild(svc){
@@ -449,7 +559,6 @@ async function chooseChild(svc){
   rateSource = 'base';
   $('#rateNote').style.display = 'none';
 
-  // ลองดึง effective rate (ถ้ามี endpoint)
   const gid = $('#groupId').value;
   const cid = String(svc?.id || '');
   const er = await fetchEffectiveRateIfAvailable(gid, cid, rate);
@@ -470,7 +579,12 @@ async function chooseChild(svc){
   if (svc.refill)   bits.push('Refill');
   if (svc.cancel)   bits.push('ยกเลิกได้');
 
-  $('#hdr').innerHTML  = currentGroup?.name || '';
+  // 🔴 เดิมเป็นชื่อกลุ่ม → เปลี่ยนเป็นชื่อบริการ
+  $('#hdr').innerHTML  = svc?.name || '';
+
+  // ถ้าอยากยังโชว์ชื่อกลุ่มไว้ด้วย ก็เติมบรรทัดนี้ด้านล่าง (ออปชัน):
+  // $('#hdr').innerHTML = `${svc?.name || ''} <span class="muted">(${currentGroup?.name || ''})</span>`;
+
   $('#meta').innerHTML = bits.join(' | ');
   $('#desc').innerHTML =
     (svc?.description ? linkify(br(svc.description)) :
@@ -500,6 +614,70 @@ async function chooseChild(svc){
   updateEstimate();
   $('#detailBox').style.display = '';
 }
+// async function chooseChild(svc){
+//   currentChild = svc;
+
+//   $('#childText').textContent = svc?.name || '—';
+//   $('#providerServiceId').value = svc?.id || '';
+
+//   // base
+//   rate     = Number(svc?.rate || 0);
+//   currency = svc?.currency || 'THB';
+//   effectiveRate = null;
+//   rateSource = 'base';
+//   $('#rateNote').style.display = 'none';
+
+//   // ลองดึง effective rate (ถ้ามี endpoint)
+//   const gid = $('#groupId').value;
+//   const cid = String(svc?.id || '');
+//   const er = await fetchEffectiveRateIfAvailable(gid, cid, rate);
+//   if (er !== null) {
+//     effectiveRate = er;
+//     rateSource = 'effective';
+//     $('#rateNote').style.display = '';
+//     $('#rateNote').textContent = `อัตรานี้เป็นราคาหลังปรับตามกฎของบัญชีคุณ (ต่อ 1,000 หน่วย)`;
+//   }
+
+//   const displayRate = rateSource==='effective' ? effectiveRate : rate;
+
+//   const bits = [];
+//   bits.push(`อัตรา: ${fmt(displayRate)} ${currency} / 1,000`);
+//   bits.push(`ช่วง: ${svc.min||0}-${svc.max||0}${svc.step? ' | ขั้นละ '+svc.step: ''}`);
+//   if (svc.average_delivery) bits.push(`เฉลี่ย: ${svc.average_delivery}`);
+//   if (svc.dripfeed) bits.push('Dripfeed');
+//   if (svc.refill)   bits.push('Refill');
+//   if (svc.cancel)   bits.push('ยกเลิกได้');
+
+//   $('#hdr').innerHTML  = currentGroup?.name || '';
+//   $('#meta').innerHTML = bits.join(' | ');
+//   $('#desc').innerHTML =
+//     (svc?.description ? linkify(br(svc.description)) :
+//     (currentGroup?.description ? linkify(br(currentGroup.description)) : '—'));
+
+//   const q    = $('#qty');
+//   const min  = Math.max(1, Number(svc.min || 1));
+//   const max  = Math.max(min, Number(svc.max || min));
+//   const step = Number(svc.step || 1);
+
+//   q.min  = String(min);
+//   q.max  = String(max);
+//   q.step = 'any';
+//   q.value = '';
+//   q.placeholder = `เช่น ${min.toLocaleString()} – ${max.toLocaleString()}`;
+
+//   const minVal = $('#minVal'), maxVal = $('#maxVal');
+//   if (minVal) minVal.textContent = min.toLocaleString();
+//   if (maxVal) maxVal.textContent = max.toLocaleString();
+
+//   q.removeEventListener('input', updateEstimate);
+//   q.addEventListener('input', updateEstimate);
+
+//   $('#drip').disabled = !svc.dripfeed;
+//   $('#drip').checked  = !!svc.dripfeed;
+
+//   updateEstimate();
+//   $('#detailBox').style.display = '';
+// }
 function resetDetail(){ $('#childText').textContent='—'; $('#detailBox').style.display='none'; }
 function clearAll(){
   $('#groupText').textContent = '—';

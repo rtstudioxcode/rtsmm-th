@@ -1859,3 +1859,150 @@ tr[data-status="processing"] .btn-cancel,
   width: 1.1px;          /* เส้นบางนิด ดูเรียบ */
   background: #c5c6c7;   /* เทาอ่อนขึ้นนิด */
 }
+
+/* =========================================================
+   Dropdown Theme Tokens + Components (Light/Dark aware)
+   ========================================================= */
+
+/* --- Tokens (ค่าเริ่มต้น) --- */
+:root{
+  --dd-text:        var(--text);
+  --dd-muted:       var(--muted);
+  --dd-border:      var(--border);
+  --dd-input-bg:    color-mix(in oklab, var(--surface) 96%, transparent);
+  --dd-menu-bg:     color-mix(in oklab, var(--surface) 96%, transparent);
+  --dd-hover-bg:    color-mix(in oklab, var(--accent) 9%, transparent);
+  --dd-chip-bg:     color-mix(in oklab, var(--surface) 92%, transparent);
+  --dd-chip-border: var(--border);
+  --dd-chip-text:   var(--text);
+  --dd-shadow:      0 10px 24px color-mix(in oklab, #000 45%, transparent);
+}
+
+/* Light */
+html[data-theme="light"]{
+  --dd-text:        var(--text);
+  --dd-muted:       var(--muted);
+  --dd-border:      var(--border);
+  --dd-input-bg:    #ffffff;
+  --dd-menu-bg:     #ffffff;
+  --dd-hover-bg:    color-mix(in oklab, var(--accent) 12%, transparent);
+  --dd-chip-bg:     #f9fafb;
+  --dd-chip-border: var(--border);
+  --dd-chip-text:   var(--text);
+  --dd-shadow:      0 14px 28px rgba(2,8,23,.12);
+}
+
+/* Dark */
+html[data-theme="dark"]{
+  --dd-text:        var(--text);
+  --dd-muted:       var(--muted);
+  --dd-border:      var(--border);
+  --dd-input-bg:    color-mix(in oklab, #0f1117 85%, transparent);
+  --dd-menu-bg:     color-mix(in oklab, #0f1117 92%, transparent);
+  --dd-hover-bg:    color-mix(in oklab, var(--accent) 10%, transparent);
+  --dd-chip-bg:     color-mix(in oklab, var(--surface) 92%, transparent);
+  --dd-chip-border: color-mix(in oklab, #fff 14%, transparent);
+  --dd-chip-text:   var(--text);
+  --dd-shadow:      0 12px 30px rgba(0,0,0,.55);
+}
+
+/* --- Single dropdown (.dd) --- */
+.dd{ display:flex; flex-direction:column; gap:8px; }
+.dd.hide{ display:none !important; }
+.dd__label{ font-size:.95rem; color:var(--dd-muted); }
+.dd__box{ position:relative; }
+
+.dd__input{
+  width:100%; padding:12px 14px;
+  border-radius:12px; border:1px solid var(--dd-border);
+  background:var(--dd-input-bg); color:var(--dd-text);
+  outline:none; transition:border-color .15s, box-shadow .15s;
+}
+.dd__input::placeholder{ color: color-mix(in oklab, var(--dd-text) 55%, transparent); }
+.dd__input:focus-visible{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px color-mix(in oklab, var(--accent) 25%, transparent);
+}
+
+.dd__list{
+  position:absolute; left:0; right:0; top:calc(100% + 6px);
+  max-height:300px; overflow:auto; list-style:none; margin:0; padding:6px;
+  border:1px solid var(--dd-border);
+  border-radius:12px; background:var(--dd-menu-bg);
+  box-shadow:var(--dd-shadow); display:none; z-index:9999;
+}
+.dd[data-open="1"] .dd__list{ display:block; }
+
+.dd__item{
+  padding:10px 12px; border-radius:10px; cursor:pointer;
+  display:flex; align-items:center; gap:8px; color:var(--dd-text);
+}
+.dd__item .sub{ color:var(--dd-muted); font-size:.86em }
+.dd__item:hover,
+.dd__item[aria-selected="true"]{ background:var(--dd-hover-bg); }
+
+/* --- Multi select (.ms) --- */
+.ms{ display:flex; flex-direction:column; gap:8px; }
+.ms.hide{ display:none !important; }
+.ms__box{ position:relative; }
+
+.ms__search{
+  width:100%; padding:12px 14px; border-radius:12px;
+  border:1px solid var(--dd-border); background:var(--dd-input-bg);
+  color:var(--dd-text); outline:none; transition:border-color .15s, box-shadow .15s;
+}
+.ms__search::placeholder{ color: color-mix(in oklab, var(--dd-text) 55%, transparent); }
+.ms__search:focus-visible{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px color-mix(in oklab, var(--accent) 25%, transparent);
+}
+
+.ms__list{
+  position:absolute; left:0; right:0; top:calc(100% + 6px);
+  max-height:320px; overflow:auto; margin:0; padding:8px; list-style:none;
+  border:1px solid var(--dd-border); border-radius:12px;
+  background:var(--dd-menu-bg); box-shadow:var(--dd-shadow);
+  display:none; z-index:9999;
+}
+.ms[data-open="1"] .ms__list{ display:block; }
+
+.ms__item{
+  display:flex; align-items:center; gap:10px;
+  padding:8px 10px; border-radius:10px; cursor:pointer; color:var(--dd-text);
+}
+.ms__item:hover{ background:var(--dd-hover-bg); }
+.ms__item img{ width:18px; height:18px; object-fit:contain }
+
+.ms__chips{ display:flex; flex-wrap:wrap; gap:8px; margin-top:8px }
+.chipx{
+  display:inline-flex; align-items:center; gap:8px; padding:6px 10px;
+  border-radius:999px; background:var(--dd-chip-bg);
+  border:1px solid var(--dd-chip-border); color:var(--dd-chip-text);
+  font-size:.9rem;
+}
+.chipx img{ width:16px; height:16px; object-fit:contain }
+.chipx button{ background:transparent; border:0; color:inherit; cursor:pointer; opacity:.7 }
+
+/* Scrollbar ของ list ให้ตามธีม */
+.dd__list, .ms__list{
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--dd-text) 28%, transparent)
+                   color-mix(in oklab, var(--dd-menu-bg) 86%, transparent);
+}
+.dd__list::-webkit-scrollbar,
+.ms__list::-webkit-scrollbar{ width:10px; height:10px }
+.dd__list::-webkit-scrollbar-track,
+.ms__list::-webkit-scrollbar-track{
+  background: color-mix(in oklab, var(--dd-menu-bg) 86%, transparent);
+  border-radius:10px;
+}
+.dd__list::-webkit-scrollbar-thumb,
+.ms__list::-webkit-scrollbar-thumb{
+  background: color-mix(in oklab, var(--dd-text) 28%, transparent);
+  border-radius:10px;
+}
+.dd__list::-webkit-scrollbar-thumb:hover,
+.ms__list::-webkit-scrollbar-thumb:hover{
+  background: color-mix(in oklab, var(--accent) 45%, transparent);
+}
+

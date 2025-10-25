@@ -7,7 +7,6 @@ import fs from 'fs';
 import bcrypt from 'bcryptjs';
 import { requireAuth } from '../middleware/auth.js';
 import { User } from '../models/User.js';
-import { Order } from '../models/Order.js';
 
 // OTP ใหม่
 import { OtpToken } from '../models/OtpToken.js';

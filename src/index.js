@@ -74,10 +74,11 @@ app.set('trust proxy', 1);
 // Static & parsers
 app.set('etag', 'strong');
 app.use('/static', express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'), { maxAge: '7d' }));
+// app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'), { maxAge: '7d' }));
+app.use('/static', express.static('plubic', { maxAge: '7d', immutable: true}));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(compression({ level: 6 }));
+app.use(compression());
 
 // Session
 app.use(session({

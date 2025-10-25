@@ -5,29 +5,29 @@
 
 <!-- คำอธิบาย -->
 <section class="card soft">
-  <h3>วิธีใช้งานกฎปรับราคา</h3>
+  <h3 style="color: rgba(255, 142, 12, 0.849);">วิธีใช้งานกฎปรับราคา</h3>
   <ul class="muted">
-    <li><b>ขอบเขต = ทั้งเว็บ</b> → ปรับราคาทุกบริการย่อยในทุกแพลตฟอร์ม</li>
-    <li><b>ขอบเขต = แพลตฟอร์ม</b> → ปรับเฉพาะบริการย่อยภายใต้แพลตฟอร์มนั้น</li>
-    <li><b>ขอบเขต = หมวดหมู่/กลุ่ม</b> → ปรับเฉพาะกลุ่มบริการ (Service document)</li>
-    <li><b>ขอบเขต = บริการ</b> → ปรับเฉพาะบริการย่อย (children ในกลุ่ม)</li>
-    <li><b>โหมด</b>:
+    <li><b style="color: rgba(12, 186, 255, 0.849);">ขอบเขต = ทั้งเว็บ</b> → ปรับราคาทุกบริการย่อยในทุกแพลตฟอร์ม</li>
+    <li><b style="color: rgba(12, 186, 255, 0.849);">ขอบเขต = แพลตฟอร์ม</b> → ปรับเฉพาะบริการย่อยภายใต้แพลตฟอร์มนั้น</li>
+    <li><b style="color: rgba(12, 186, 255, 0.849);">ขอบเขต = หมวดหมู่/กลุ่ม</b> → ปรับเฉพาะกลุ่มบริการ (Service document)</li>
+    <li><b style="color: rgba(12, 186, 255, 0.849);">ขอบเขต = บริการ</b> → ปรับเฉพาะบริการย่อย (children ในกลุ่ม)</li>
+    <li><b style="color: rgba(12, 186, 255, 0.849);">โหมด</b>:
       <ul>
-        <li><b>เปอร์เซ็นต์ (%)</b> → ตัวอย่าง 15 = เพิ่ม 15%, -10 = ลด 10%</li>
-        <li><b>เพิ่ม/ลด (คงที่/ต่อ 1,000)</b> → บวก/ลบคงที่ต่อ 1,000 หน่วย</li>
-        <li><b>ตั้งราคา (คงที่)</b> → กำหนดราคาใหม่แทนค่าเดิม</li>
+        <li><b style="color: rgba(5, 190, 5, 0.849);">เปอร์เซ็นต์ (%)</b> → ตัวอย่าง 15 = เพิ่ม 15%, -10 = ลด 10%</li>
+        <li><b style="color: rgba(255, 12, 12, 0.849);">เพิ่ม/ลด (คงที่/ต่อ 1,000)</b> → บวก/ลบคงที่ต่อ 1,000 หน่วย</li>
+        <li><b style="color: rgba(12, 239, 255, 0.849);">ตั้งราคา (คงที่)</b> → กำหนดราคาใหม่แทนค่าเดิม</li>
       </ul>
     </li>
-    <li><b>Priority</b> มากกว่า จะถูกคำนวณก่อน (ใช้ซ้อนหลายกฎได้)</li>
-    <li><b>ราคากลางใน DB</b>: ระบบจะ apply เฉพาะกฎที่ตั้งเป็น “ทุกคน” ให้กับ DB (ทั้ง <code>service.rate</code> และ <code>details.services[].rate</code>)</li>
-    <li><b>กฎเฉพาะบุคคล</b>: จะไม่แก้ราคาใน DB แต่จะถูกนำมาคำนวณตอน <b>แสดงผล/สั่งซื้อ</b> ตามผู้ใช้ที่ล็อกอิน</li>
-    <li>เมื่อ Sync บริการเข้ามาใหม่ ระบบจะ apply กฎ “ทุกคน” อัตโนมัติ เพื่อคงราคากลาง</li>
+    <li><b style="color: rgba(12, 186, 255, 0.849);">Priority</b> มากกว่า จะถูกคำนวณก่อน (ใช้ซ้อนหลายกฎได้)</li>
+    <li><b style="color: rgba(12, 186, 255, 0.849);">ราคากลางใน DB</b>: ระบบจะ apply เฉพาะกฎที่ตั้งเป็น “ทุกคน” ให้กับ DB (ทั้ง <code>service.rate</code> และ <code>details.services[].rate</code>)</li>
+    <li><b style="color: rgba(12, 186, 255, 0.849);">กฎเฉพาะบุคคล</b>: จะไม่แก้ราคาใน DB แต่จะถูกนำมาคำนวณตอน <b style="color: rgba(12, 186, 255, 0.849);">แสดงผล/สั่งซื้อ</b> ตามผู้ใช้ที่ล็อกอิน</li>
+    <li style="color: rgba(255, 101, 12, 0.849);">เมื่อ Sync บริการเข้ามาใหม่ ระบบจะ apply กฎ “ทุกคน” อัตโนมัติ เพื่อคงราคากลาง</li>
   </ul>
 </section>
 
 <!-- ====== ฟอร์มสร้างกฎ (UI ใหม่แบบ multi-select) ====== -->
 <section class="card">
-  <h3 class="title">สร้างกฎใหม่</h3>
+  <h3 class="title" style="color: rgba(255, 142, 12, 0.849);">สร้างกฎใหม่</h3>
 
   <form id="ruleForm" method="post" action="/admin/pricing" class="stack-form">
     <!-- ========= ขอบเขตบริการ (platform -> group -> service) ========= -->
@@ -133,7 +133,7 @@
 
 <!-- รายการกฎ -->
 <section class="card">
-  <h3 class="title">รายการกฎ</h3>
+  <h3 class="title" style="color: rgba(255, 142, 12, 0.849);">รายการกฎ</h3>
   <div class="order-desktop">
     <table class="table">
       <thead>
@@ -193,7 +193,7 @@
             <td><%= fmt(r.value) %></td>
             <td><%= r.priority %></td>
             <td class="actions">
-              <form method="post" action="/admin/pricing/<%= r._id %>/delete" onsubmit="return confirm('ยืนยันลบกฎนี้?')">
+              <form method="post" action="/admin/pricing/<%= r._id %>/delete">
                 <button class="btn sm outline">ลบ</button>
               </form>
             </td>
@@ -204,15 +204,16 @@
   </div>
 </section>
 
-<!-- // STYLE CSS -->
+<!-- // STYLE CSS (merged, theme-aware) -->
 <style>
+  /* ===== Layout/Structure (คงเดิม) ===== */
   .rule-grid.pro{
     display:grid; gap:14px;
     grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
     align-items:end;
   }
   .rule-grid.pro label{ display:flex; flex-direction:column; gap:6px }
-  .hide{ display:none }
+  .hide{ display:none !important; }
   .combo{ display:grid; grid-template-rows:auto 160px; gap:8px }
   #userSel{ width:100%; border:1px solid var(--border,#333); border-radius:10px; padding:6px }
   #userSearch{ border:1px solid var(--border,#333); border-radius:10px; padding:10px 12px }
@@ -222,62 +223,142 @@
   .block-head{ font-weight:700; margin-bottom:12px; opacity:.9 }
   .grid2{ display:grid; gap:14px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
   .fld .text{ width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--border,#333); background:transparent; color:inherit }
-
-  .dd{ display:flex; flex-direction:column; gap:8px; }
-  .dd.hide{ display:none }
-  .dd__label{ font-size:.95rem; opacity:.85 }
-  .dd__box{ position:relative; }
-  .dd__input{
-    width:100%; padding:12px 14px;
-    border-radius:12px; border:1px solid var(--border,#333);
-    background: rgba(255,255,255,0.03); color: inherit;
-    outline:none;
-  }
-  .dd__list{
-    position:absolute; left:0; right:0; top:calc(100% + 6px);
-    max-height:260px; overflow:auto; list-style:none; margin:0; padding:6px;
-    border:1px solid var(--border,#333);
-    border-radius:12px; background: rgba(12,12,12,.9);
-    box-shadow: 0 10px 24px rgba(0,0,0,.45);
-    display:none; z-index: 9999;
-  }
-  .dd[data-open="1"] .dd__list{ display:block; }
-  .dd__item{
-    padding:10px 12px; border-radius:10px; cursor:pointer;
-    display:flex; align-items:center; gap:8px;
-  }
-  .dd__item:hover, .dd__item[aria-selected="true"]{ background: rgba(255,255,255,0.08); }
-  .dd__item .sub{ opacity:.7; font-size:.86em }
   .muted{ opacity:.7; font-size:.9em }
   .actions{ display:flex; justify-content:flex-end; }
-
   .chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px }
-  .chip{ background:rgba(255,255,255,.08); border:1px solid var(--border,#333); border-radius:999px; padding:4px 8px; font-size:.85rem }
 
+  /* =========================================================
+     Dropdown Theme Tokens + Components (Light/Dark aware)
+     ========================================================= */
+
+  /* --- Tokens (default) --- */
+  :root{
+    --dd-text:        var(--text);
+    --dd-muted:       var(--muted);
+    --dd-border:      var(--border);
+    --dd-input-bg:    color-mix(in oklab, var(--surface) 96%, transparent);
+    --dd-menu-bg:     color-mix(in oklab, var(--surface) 96%, transparent);
+    --dd-hover-bg:    color-mix(in oklab, var(--accent) 9%, transparent);
+    --dd-chip-bg:     color-mix(in oklab, var(--surface) 92%, transparent);
+    --dd-chip-border: var(--border);
+    --dd-chip-text:   var(--text);
+    --dd-shadow:      0 10px 24px color-mix(in oklab, #000 45%, transparent);
+  }
+  /* Light */
+  html[data-theme="light"]{
+    --dd-input-bg:#ffffff; --dd-menu-bg:#ffffff;
+    --dd-hover-bg:color-mix(in oklab, var(--accent) 12%, transparent);
+    --dd-chip-bg:#f9fafb; --dd-chip-border:var(--border); --dd-chip-text:var(--text);
+    --dd-shadow:0 14px 28px rgba(2,8,23,.12);
+  }
+  /* Dark */
+  html[data-theme="dark"]{
+    --dd-input-bg:color-mix(in oklab, #0f1117 85%, transparent);
+    --dd-menu-bg: color-mix(in oklab, #0f1117 92%, transparent);
+    --dd-hover-bg:color-mix(in oklab, var(--accent) 10%, transparent);
+    --dd-chip-bg: color-mix(in oklab, var(--surface) 92%, transparent);
+    --dd-chip-border:color-mix(in oklab, #fff 14%, transparent);
+    --dd-chip-text:var(--text);
+    --dd-shadow:0 12px 30px rgba(0,0,0,.55);
+  }
+
+  /* --- Single dropdown (.dd) --- */
+  .dd{ display:flex; flex-direction:column; gap:8px; }
+  .dd__label{ font-size:.95rem; color:var(--dd-muted); }
+  .dd__box{ position:relative; }
+
+  .dd__input{
+    width:100%; padding:12px 14px;
+    border-radius:12px; border:1px solid var(--dd-border);
+    background:var(--dd-input-bg); color:var(--dd-text);
+    outline:none; transition:border-color .15s, box-shadow .15s;
+  }
+  .dd__input::placeholder{ color: color-mix(in oklab, var(--dd-text) 55%, transparent); }
+  .dd__input:focus-visible{
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px color-mix(in oklab, var(--accent) 25%, transparent);
+  }
+
+  .dd__list{
+    position:absolute; left:0; right:0; top:calc(100% + 6px);
+    max-height:300px; overflow:auto; list-style:none; margin:0; padding:6px;
+    border:1px solid var(--dd-border);
+    border-radius:12px; background:var(--dd-menu-bg);
+    box-shadow:var(--dd-shadow); display:none; z-index:9999;
+  }
+  .dd[data-open="1"] .dd__list{ display:block; }
+
+  .dd__item{
+    padding:10px 12px; border-radius:10px; cursor:pointer;
+    display:flex; align-items:center; gap:8px; color:var(--dd-text);
+  }
+  .dd__item .sub{ color:var(--dd-muted); font-size:.86em }
+  .dd__item:hover,
+  .dd__item[aria-selected="true"]{ background:var(--dd-hover-bg); }
+
+  /* --- Multi select (.ms) --- */
   .ms{ display:flex; flex-direction:column; gap:8px; }
   .ms__box{ position:relative; }
+
   .ms__search{
-    width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--border,#333);
-    background: rgba(255,255,255,0.03); color:inherit; outline:none;
+    width:100%; padding:12px 14px; border-radius:12px;
+    border:1px solid var(--dd-border); background:var(--dd-input-bg);
+    color:var(--dd-text); outline:none; transition:border-color .15s, box-shadow .15s;
   }
+  .ms__search::placeholder{ color: color-mix(in oklab, var(--dd-text) 55%, transparent); }
+  .ms__search:focus-visible{
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px color-mix(in oklab, var(--accent) 25%, transparent);
+  }
+
   .ms__list{
     position:absolute; left:0; right:0; top:calc(100% + 6px);
-    max-height:300px; overflow:auto; margin:0; padding:8px; list-style:none;
-    border:1px solid var(--border,#333); border-radius:12px; background: rgba(12,12,12,.92);
-    box-shadow:0 10px 24px rgba(0,0,0,.45); display:none; z-index:9999;
+    max-height:320px; overflow:auto; margin:0; padding:8px; list-style:none;
+    border:1px solid var(--dd-border); border-radius:12px;
+    background:var(--dd-menu-bg); box-shadow:var(--dd-shadow);
+    display:none; z-index:9999;
   }
   .ms[data-open="1"] .ms__list{ display:block; }
-  .ms__item{ display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:10px; cursor:pointer; }
-  .ms__item:hover{ background:rgba(255,255,255,.08) }
+
+  .ms__item{
+    display:flex; align-items:center; gap:10px;
+    padding:8px 10px; border-radius:10px; cursor:pointer; color:var(--dd-text);
+  }
+  .ms__item:hover{ background:var(--dd-hover-bg); }
   .ms__item img{ width:18px; height:18px; object-fit:contain }
+
   .ms__chips{ display:flex; flex-wrap:wrap; gap:8px; margin-top:8px }
   .chipx{
-    display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px;
-    background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); font-size:.9rem;
+    display:inline-flex; align-items:center; gap:8px; padding:6px 10px;
+    border-radius:999px; background:var(--dd-chip-bg);
+    border:1px solid var(--dd-chip-border); color:var(--dd-chip-text);
+    font-size:.9rem;
   }
   .chipx img{ width:16px; height:16px; object-fit:contain }
   .chipx button{ background:transparent; border:0; color:inherit; cursor:pointer; opacity:.7 }
-  .hide { display: none !important; }
+
+  /* Scrollbar ของ list ให้ตามธีม */
+  .dd__list, .ms__list{
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--dd-text) 28%, transparent)
+                     color-mix(in oklab, var(--dd-menu-bg) 86%, transparent);
+  }
+  .dd__list::-webkit-scrollbar,
+  .ms__list::-webkit-scrollbar{ width:10px; height:10px }
+  .dd__list::-webkit-scrollbar-track,
+  .ms__list::-webkit-scrollbar-track{
+    background: color-mix(in oklab, var(--dd-menu-bg) 86%, transparent);
+    border-radius:10px;
+  }
+  .dd__list::-webkit-scrollbar-thumb,
+  .ms__list::-webkit-scrollbar-thumb{
+    background: color-mix(in oklab, var(--dd-text) 28%, transparent);
+    border-radius:10px;
+  }
+  .dd__list::-webkit-scrollbar-thumb:hover,
+  .ms__list::-webkit-scrollbar-thumb:hover{
+    background: color-mix(in oklab, var(--accent) 45%, transparent);
+  }
 </style>
 
 <!-- //SCRIPT -->
