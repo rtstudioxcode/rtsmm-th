@@ -25,3 +25,9 @@ export function nextNeedFor(level) {
   const idx = Math.min(level, LEVELS.length - 1);
   return LEVELS[idx]?.need ?? LEVELS.at(-1).need;
 }
+
+export function getRateForLevelIndex(idx = 0) {
+  const raw = LEVELS?.[idx]?.rate ?? '';
+  const n = Number(String(raw).replace(/[^\d.]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}

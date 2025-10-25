@@ -142,7 +142,54 @@
         </form>
       </div>
 
-      <!-- =========== Tab: Points (แทนที่บล็อกเดิมทั้งหมด) =========== -->
+      <!-- =========== Tab: Points และ Level(แทนที่บล็อกเดิมทั้งหมด) =========== -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header">
+          <div class="title">คะแนนสะสม (Points)</div>
+          <span class="pill lvl">
+            <%= userDoc.levelName ? userDoc.levelName : ('เลเวล ' + (userDoc.level || '1')) %>
+          </span>
+        </div>
+
+        <div class="form-grid">
+          <div class="score-wrap">
+            <div>
+              <div class="bignum" data-id="points-num">
+                <%
+                  var __points = (agg && typeof agg.points === 'number') ? agg.points : 0;
+                %>
+                <%= __points.toLocaleString(undefined,{maximumFractionDigits:2}) %> คะแนน
+              </div>
+              <div class="subcap">ได้ 0.5 แต้ม ทุก ๆ การใช้จ่ายครบ ฿50</div>
+            </div>
+
+            <div>
+              <div class="kv" style="margin-bottom:8px">
+                <div>เรทแลกเป็นเงิน</div>
+                <%
+                  var __rate = (agg && typeof agg.pointRateTHB === 'number') ? agg.pointRateTHB : 0;
+                %>
+                <div><span class="badge balance" data-id="point-rate">฿<%= __rate.toLocaleString() %> / 1 แต้ม</span></div>
+              </div>
+              <div class="kv">
+                <div>มูลค่าแลกได้ (หากแลกทั้งหมด)</div>
+                <%
+                  var __val = (agg && typeof agg.pointValueTHB === 'number') ? agg.pointValueTHB : 0;
+                %>
+                <div><span class="badge balance" data-id="point-value">≈ ฿<%= __val.toLocaleString(undefined,{maximumFractionDigits:2}) %></span></div>
+              </div>
+
+              <div class="card-actions" style="text-align:right;padding:12px 0 0">
+                <% var __canRedeem = (__points >= 100); %>
+                <button id="btnRedeemPoints" class="btn <%= __canRedeem ? 'primary' : '' %>" <%= __canRedeem ? '' : 'disabled' %>>
+                  แลกแต้มเป็นเงิน (ขั้นต่ำ 100)
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="tabpane" id="tab-points">
         <div class="card">
             <div class="card-header">
@@ -151,25 +198,38 @@
             </div>
 
             <%
-            const __spent = (typeof agg !== 'undefined' && agg && typeof agg.totalSpent === 'number') ? agg.totalSpent : 0;
-            const __level = Number(userDoc.level || 1);
-            const __need = [0, ...((levels||[]).map(l => Number(l.need||0)))];
-            const __nextMax = __need[__level + 1] || __need.at(-1) || 1;
-            const __pctRaw = (__spent / __nextMax) * 100;
-            const __pct = Math.max(0, Math.min(100, +__pctRaw.toFixed(2)));
+              // ✅ ประกาศก่อนใช้งานเสมอ
+              const __spent = (typeof agg !== 'undefined' && agg && typeof agg.totalSpent === 'number') ? agg.totalSpent : 0;
+              const __level = Number(userDoc.level || 1);
+              const __need  = [0, ...((levels||[]).map(l => Number(l.need||0)))];
+              const __nextMax = __need[__level + 1] || __need.at(-1) || 1;
+              const __pctRaw  = (__spent / __nextMax) * 100;
+              const __pct     = Math.max(0, Math.min(100, +__pctRaw.toFixed(2)));
+
+              // ✅ ถ้าจะโชว์ breakdown ให้ประกาศตัวแปรของมัน “หลังจาก” __spent แล้ว
+              const __raw      = (agg && typeof agg.totalSpentRaw === 'number') ? agg.totalSpentRaw
+                                  : (typeof userDoc.totalSpentRaw === 'number' ? userDoc.totalSpentRaw : 0);
+              const __redeemed = (agg && typeof agg.redeemedSpent === 'number') ? agg.redeemedSpent
+                                  : (typeof userDoc.redeemedSpent === 'number' ? userDoc.redeemedSpent : 0);
             %>
 
             <div class="form-grid">
               <div class="score-wrap">
                 <div>
-                    <div class="bignum">฿<%= __spent.toFixed(2) %></div>
-                    <div class="subcap">ใช้จ่ายไปแล้ว</div>
+                  <div class="bignum">฿<%= __spent.toFixed(2) %></div>
+                  <div class="subcap">ใช้จ่ายไปแล้ว</div>
+                  <!-- (ออปชัน) breakdown -->
+                  <div class="subcap" style="margin-top:6px">
+                    ยอดดิบทั้งหมด: ฿<%= __raw.toLocaleString(undefined,{maximumFractionDigits:2}) %>
+                    · แลกไปแล้ว: ฿<%= __redeemed.toLocaleString(undefined,{maximumFractionDigits:2}) %>
+                    · ใช้คำนวณเลเวล: ฿<%= __spent.toLocaleString(undefined,{maximumFractionDigits:2}) %>
+                  </div>
                 </div>
                 <div>
-                    <div class="prog"><div class="fill" style="width:<%= __pct %>%"></div></div>
-                    <div class="subcap" style="margin-top:6px">
-                        เป้าหมายเลเวลถัดไป: ฿<%= (__nextMax || 0).toLocaleString() %> (<%= __pct %>%)
-                    </div>
+                  <div class="prog"><div class="fill" style="width:<%= __pct %>%"></div></div>
+                  <div class="subcap" style="margin-top:6px">
+                    เป้าหมายเลเวลถัดไป: ฿<%= (__nextMax || 0).toLocaleString() %> (<%= __pct %>%)
+                  </div>
                 </div>
               </div>
             </div>
@@ -748,6 +808,74 @@ html[data-theme="light"] .static-input{
     } catch {
       verifyBtn.disabled = false;
       fail('ยืนยันไม่สำเร็จ', 'เครือข่ายมีปัญหา');
+    }
+  });
+
+  // ===== Redeem Points =====
+  const btn = document.getElementById('btnRedeemPoints');
+  if (!btn) return;
+
+  btn.addEventListener('click', async () => {
+    if (btn.disabled) return;
+    btn.disabled = true;
+
+    // ใส่สถานะโหลดนิดหน่อย
+    const oldLabel = btn.textContent;
+    btn.textContent = 'กำลังแลก…';
+
+    try {
+      const r = await fetch('/account/points/redeem', { method: 'POST' });
+      const j = await r.json();
+
+      if (!r.ok || !j?.ok) {
+        fail('แลกแต้มไม่สำเร็จ', j?.error || 'โปรดลองใหม่');
+        return;
+      }
+
+      // ====== อัปเดต UI ทันที (ไม่ต้องรีเฟรช) ======
+      // 1) คะแนนคงเหลือ
+      const pointsNum = Number(j.remainPoints || 0);
+      const pointsEl = document.querySelector('[data-id="points-num"]');
+      if (pointsEl) {
+        pointsEl.innerHTML = `${pointsNum.toLocaleString(undefined,{ maximumFractionDigits: 2})} คะแนน`;
+      }
+
+      // 2) เรท/มูลค่าแลกได้ (ถ้าในหน้าใส่ตำแหน่ง badge เหล่านี้ไว้แล้ว)
+      const rateEl = document.querySelector('[data-id="point-rate"]'); // <span data-id="point-rate">
+      if (rateEl) rateEl.textContent = `฿${(j.rate || 0).toLocaleString()} / 1 แต้ม`;
+
+      const valEl = document.querySelector('[data-id="point-value"]'); // <span data-id="point-value">
+      if (valEl) valEl.textContent = `≈ ฿${(j.pointValueTHB || 0).toLocaleString(undefined,{ maximumFractionDigits: 2 })}`;
+
+      // 3) ปุ่มแลก (ถ้าคะแนน < 100 ให้ปิด)
+      if (pointsNum < 100) {
+        btn.classList.remove('primary');
+        btn.setAttribute('disabled', 'disabled');
+      }
+
+      // 4) แจ้งผลลัพธ์
+      const added = Number(j.addedBalance || 0);
+      if (window.showMsg) {
+        window.showMsg({
+          variant: 'success',
+          title: 'สำเร็จ',
+          text: `แลก ${j.redeemed} แต้ม เป็น ฿${added.toLocaleString(undefined,{ maximumFractionDigits: 2 })} แล้ว`,
+          // ถ้าอยากรีเฟรชให้แน่ใจว่าส่วนอื่น ๆ ตรงกันก็ปล่อย redirect นี้ไว้ได้
+          onClose: () => window.location.replace('/account')
+        });
+        // safety net เผื่อผู้ใช้ไม่ปิด modal
+        setTimeout(() => { try { window.location.replace('/account'); } catch {} }, 300);
+      } else {
+        alert(`แลกสำเร็จ: ${j.redeemed} แต้ม → ฿${added.toLocaleString(undefined,{ maximumFractionDigits: 2 })}`);
+        window.location.replace('/account');
+      }
+    } catch {
+      fail('แลกแต้มไม่สำเร็จ', 'เครือข่ายมีปัญหา');
+    } finally {
+      // คืนปุ่มถ้าไม่ได้ redirect ทันที
+      btn.textContent = oldLabel;
+      // อย่าปลดล็อกถ้าคะแนนต่ำกว่า 100 แล้ว—ปล่อยให้ disabled ต่อไป
+      if (!btn.hasAttribute('disabled')) btn.disabled = false;
     }
   });
 

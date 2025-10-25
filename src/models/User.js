@@ -3,20 +3,54 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 const UserSchema = new mongoose.Schema({
-  level: { type: String, default: '1' },
-  name: { type: String, default: '' },
-  avatarUrl: { type: String, default: '/static/assets/img/user-blue.png' },
+  // ── บัญชี ───────────────────────────────────────────────
   username: { type: String, required: true, trim: true, unique: true },
   email:    { type: String, trim: true, lowercase: true, index: true, unique: true, sparse: true },
   emailVerified: { type: Boolean, default: false },
   passwordHash: { type: String, required: true },
   role: { type: String, default: 'user' },
+
+  // ── โปรไฟล์ ─────────────────────────────────────────────
+  name: { type: String, default: '' },
+  avatarUrl: { type: String, default: '/static/assets/img/user-blue.png' },
+
+  // ── กระเป๋าเงิน ─────────────────────────────────────────
   balance: { type: Number, default: 0 },
-  totalOrders: { type: Number, default: 0 },
-  totalSpent: { type: Number, default: 0 },
   currency: { type: String, default: 'THB' },
+
+  // ── ค่าสถิติออเดอร์/การใช้จ่าย ─────────────────────────
+  totalOrders:     { type: Number, default: 0 },
+  totalOrdersPaid: { type: Number, default: 0 },
+
+  // totalSpentRaw = “ยอดดิบจากออเดอร์” (ซ่อมด้วย delta เสมอ)
+  totalSpentRaw: { type: Number, default: 0 },
+
+  // totalSpent = “ยอดแสดงผล” = totalSpentRaw - redeemedSpent
+  totalSpent: { type: Number, default: 0 },
+
+  // ใช้หักออกจากยอดดิบเมื่อแลกแต้มเป็นเงินไปแล้ว
+  redeemedSpent: { type: Number, default: 0 },
+
+  // ── เลเวล ───────────────────────────────────────────────
+  level:      { type: String, default: '1' }, // display (string)
+  levelIndex: { type: Number, default: 0 },   // 0..N
+  levelName:  { type: String, default: 'เลเวล 1' },
+  levelNeed:  { type: Number, default: 0 },   // threshold ปัจจุบัน
+  nextLevelName: { type: String, default: null },
+  toNextLevel:   { type: Number, default: 0 },
+  lastSpentAt:   { type: Date },
+
+  // ── แต้มสะสม ────────────────────────────────────────────
+  points:         { type: Number, default: 0 },
+  pointsAccrued:  { type: Number, default: 0 },
+  pointsRedeemed: { type: Number, default: 0 }, // << แก้เหลือครั้งเดียว
+
+  // ค่าการแปลงแต้มเป็นบาทตามเลเวล (ที่คำนวณไว้ล่าสุด)
+  pointRateTHB:  { type: Number, default: 0 },
+  pointValueTHB: { type: Number, default: 0 },
 }, { timestamps: true });
 
+// ── Methods ───────────────────────────────────────────────
 UserSchema.methods.setPassword = async function (password) {
   this.passwordHash = await bcrypt.hash(password, 10);
 };
@@ -34,5 +68,9 @@ UserSchema.methods.addBalance = async function(amount){
   await this.save();
   return this.balance;
 };
+
+// ── Indexes (ช่วย query/สรุปเร็วขึ้น) ────────────────────
+UserSchema.index({ totalSpentRaw: 1 });
+UserSchema.index({ levelIndex: 1 });
 
 export const User = mongoose.model('User', UserSchema);

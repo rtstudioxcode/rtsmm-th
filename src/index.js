@@ -301,6 +301,24 @@ app.use((req, res) => res.status(404).send('Not found'));
   }
 })();
 
+(async () => {
+  try {
+    const r = await User.updateMany(
+      { $or: [
+        { points: { $exists: false } },
+        { pointsAccrued: { $exists: false } },
+        { pointsRedeemed: { $exists: false } }
+      ]},
+      { $set: { points: 0, pointsAccrued: 0, pointsRedeemed: 0 } }
+    );
+    if (r.modifiedCount) {
+      console.log(`✅ Initialized points for ${r.modifiedCount} user(s).`);
+    }
+  } catch (e) {
+    console.error('❌ Points init failed:', e?.message || e);
+  }
+})()
+
 initDailyChangeSync();
 
 const PORT = Number(process.env.PORT || config.port || 3000);

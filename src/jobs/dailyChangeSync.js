@@ -1,5 +1,6 @@
 // jobs/dailyChangeSync.js
 import { runBootstrapIfNeeded, runSync } from '../services/changeSync.js';
+import { reconcileOrderSpend, recalcUserTotals } from '../services/spend.js';
 
 function millisUntilNext7am(tz = 'Asia/Bangkok') {
   const now = new Date();
@@ -27,7 +28,31 @@ export function initDailyChangeSync() {
       console.log('[changes] daily 07:00 — bootstrap-if-needed + sync starting…');
       await runBootstrapIfNeeded();
       const r = await runSync();
-      console.log('[changes] done:', r);
+      // ── NEW: reconcile แบบ delta หลังซิงก์ ─────────────────
+      // รองรับหลายฟอร์แมตที่ runSync อาจคืน:
+      const updatedOrderIds =
+        r?.updatedOrderIds || r?.touchedOrders || r?.orders || r?.orderIds || [];
+      const touchedUserIds =
+        r?.touchedUserIds || r?.users || r?.userIds || [];
+
+      if (Array.isArray(updatedOrderIds) && updatedOrderIds.length) {
+        // เดิน reconcile ต่อใบแบบไม่บล็อก long-tail
+        for (const id of updatedOrderIds) {
+          // ไม่ throw ทิ้งงานชุดอื่น
+          reconcileOrderSpend(id).catch(()=>{});
+        }
+      }
+      if (Array.isArray(touchedUserIds) && touchedUserIds.length) {
+        // ปิดท้ายด้วยการสรุปรวมให้ผู้ใช้ที่ถูกแตะ
+        for (const uid of touchedUserIds) {
+          recalcUserTotals(uid, { force:true, reason:'dailyChangeSync' }).catch(()=>{});
+        }
+      }
+
+      console.log('[changes] done:', {
+        updatedOrderIds: Array.isArray(updatedOrderIds) ? updatedOrderIds.length : 0,
+        touchedUserIds:  Array.isArray(touchedUserIds)  ? touchedUserIds.length  : 0
+      });
     } catch (e) {
       console.error('[changes] daily sync error:', e);
     }

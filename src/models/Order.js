@@ -44,11 +44,20 @@ const OrderSchema = new Schema({
   refundAmount: { type: Number, default: 0, min: 0 },
   refundType:   { type: String, enum: ['full','partial','none', null], default: null },
   lastCancelId: { type: String },
+  partialRefunds: [{
+    amount: { type: Number, default: 0 },
+    note:   { type: String, default: '' },
+    at:     { type: Date, default: Date.now }
+  }],
 
   // Refill
   lastRefillAt:       { type: Date },
   lastRefillResponse: { type: Schema.Types.Mixed },
   refillCount:        { type: Number, default: 0, min: 0 },
+
+  // Spent
+  spentAccounted:   { type: Number, default: 0 },
+  spentAccountedAt: { type: Date },
 }, {
   versionKey: false,
   timestamps: true, // createdAt / updatedAt
@@ -60,6 +69,7 @@ OrderSchema.index({ user: 1, status: 1 });
 OrderSchema.index({ userId: 1, status: 1 });
 OrderSchema.index({ user: 1, createdAt: -1 });
 OrderSchema.index({ userId: 1, createdAt: -1 });
+OrderSchema.index({ spentAccounted: 1 });
 
 // sync user <-> userId (กันโค้ดเก่า/ใหม่ใช้คนละคีย์)
 OrderSchema.pre('save', function(next){
@@ -72,16 +82,22 @@ OrderSchema.pre('save', function(next){
    ทุกครั้งที่มีการบันทึก/อัปเดตออเดอร์ จะคิวให้รีคำนวณยอดใช้จ่ายของผู้ใช้
    ใช้ dynamic import กัน circular dependency
 */
-function enqueueRecalc(userId, meta = {}) {
+async function enqueueRecalc(userId, meta = {}) {
   if (!userId) return;
-  import('../services/spend.js')
-    .then(({ recalcUserTotals }) => {
-      setTimeout(() => {
-        // ใช้ force:false ทั่วไป; จุดที่สำคัญ (refund/cancel) route ใส่ force:true อยู่แล้ว
-        recalcUserTotals(userId, { ...meta }).catch(()=>{});
-      }, 0);
-    })
-    .catch(()=>{});
+  try {
+    const mod = await import('../services/spend.js');
+    const { reconcileOrderSpend, recalcUserTotals } = mod;
+
+    // ถ้ามี orderId ให้ reconcile แบบต่อใบก่อน (กันนับซ้ำและเก็บ delta)
+    if (meta?.orderId) {
+      await reconcileOrderSpend(meta.orderId);
+    }
+
+    // แล้วค่อย recalc ภาพรวม (ไม่ต้อง force เว้นเคสหนัก ๆ)
+    await recalcUserTotals(userId, { reason: meta?.reason || 'order_event' });
+  } catch (e) {
+    // เงียบไว้ไม่ให้ throw ทำลาย flow สั่งซื้อ
+  }
 }
 
 OrderSchema.post('save', function docSaved(doc) {
@@ -91,9 +107,9 @@ OrderSchema.post('save', function docSaved(doc) {
 
 // สำหรับกรณีใช้ findOneAndUpdate / findByIdAndUpdate
 OrderSchema.post('findOneAndUpdate', function postF1U(res) {
-  // res คือ doc หลังอัปเดต หาก query ใช้ { new: true }
-  const doc = res;
-  const uid = doc?.userId || doc?.user || this.getUpdate()?.userId || this.getUpdate()?.user;
+  const doc = res; // new:true แล้วจะเป็น doc หลังอัปเดต
+  const upd = this.getUpdate?.() || {};
+  const uid = doc?.userId || doc?.user || upd.userId || upd.user;
   if (uid) enqueueRecalc(uid, { reason: 'order_f1u', orderId: doc?._id });
 });
 

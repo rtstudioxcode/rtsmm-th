@@ -15,8 +15,10 @@ import { sendEmail } from '../lib/mailer.js';
 import { config } from '../config.js';
 
 /* ==== NEW: loyalty & spend services (ไม่แตะ Order.js) ==== */
-import { LEVELS, computeLevel } from '../services/loyalty.js';
+import { LEVELS, getRateForLevelIndex } from '../services/loyalty.js';
 import { recalcUserTotalSpent } from '../services/spend.js';
+
+const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
 const BRAND_URL  = 'https://rtsmm-th.com';
 const BRAND_LOGO = `${BRAND_URL}/static/assets/logo/logo-rtssm-th.png`;
@@ -145,37 +147,60 @@ router.get('/account', async (req, res, next) => {
     const uid = getAuthUserId(req);
     if (!uid) return res.redirect('/login');
 
-    // (1) โหลด user
+    // (1) โหลด user เบื้องต้น
     let me = await User.findById(uid).lean();
     if (!me) return res.redirect('/login');
 
-    const levelNum = Math.max(1, Number(me.level || 1));
-    const levelName = LEVELS[levelNum - 1]?.name || `เลเวล ${levelNum}`;
+    // (2) รีคำนวณยอด/เลเวล/แต้ม แบบสด ๆ ครั้งเดียว
+     const snap = await recalcUserTotalSpent(me._id, { force: true });
+    const {
+      totalSpent,
+      totalSpentRaw,
+      redeemedSpent,
+      level,
+      levelInfo,
+      points,
+      pointRateTHB,
+      pointValueTHB,
+    } = snap || {};
 
-    // (2) ให้ยอด/เลเวล "สดใหม่" ทุกครั้งที่เปิดหน้า (ปลอดภัยและไม่กระทบ Order.js)
-    const { totalSpent, level } = await recalcUserTotalSpent(me._id);
-    if (typeof totalSpent === 'number') me.totalSpent = totalSpent;
-    if (typeof level === 'string')     me.level = level;
+    // sync ค่าให้ฝั่งมุมมอง (กำหนดค่า fallback เผื่อไม่คืนมา)
+    const levelNum  = Math.max(1, Number(level || me.level || 1));
+    const levelName = levelInfo?.name || LEVELS[levelNum - 1]?.name || `เลเวล ${levelNum}`;
 
-    // (3) ป้องกันกรณี user ยังไม่มีค่า -> ใส่ดีฟอลต์เลข (ไม่ใช่สตริง)
     const viewUser = {
       ...me,
+      // ใช้ค่าที่คำนวณล่าสุด
       level: String(levelNum),
       levelName,
-      totalSpent: Number(me.totalSpent || 0),
+      totalSpent: Number(totalSpent ?? me.totalSpent ?? 0),
+      points: Number(points ?? me.points ?? 0),
+      pointRateTHB: Number(pointRateTHB ?? me.pointRateTHB ?? 0),
+      pointValueTHB: Number(pointValueTHB ?? me.pointValueTHB ?? 0),
+
+      // default อื่น ๆ
       avatarUrl: me.avatarUrl || '/static/assets/img/user-blue.png',
-      emailVerified: !!me.emailVerified
+      emailVerified: !!me.emailVerified,
     };
 
-    // (4) ส่งค่าให้หน้า view
+    // (3) ส่งค่าให้หน้า view (agg ใช้กับการ์ดสรุปด้านบน)
     res.render('account/index', {
       title: 'ตั้งค่าข้อมูลส่วนตัว',
       userDoc: viewUser,
-      agg: { totalSpent: viewUser.totalSpent }, // ใช้ใน tab-points
-      levels: LEVELS,                            // ใช้ render ระดับบัญชี
-      bodyClass: 'page-account'
+      agg: {
+        totalSpent: viewUser.totalSpent,
+        totalSpentRaw: Number(totalSpentRaw ?? me.totalSpentRaw ?? 0),
+        redeemedSpent: Number(redeemedSpent ?? me.redeemedSpent ?? 0),
+        points: viewUser.points,
+        pointRateTHB: viewUser.pointRateTHB,
+        pointValueTHB: viewUser.pointValueTHB,
+      },
+      levels: LEVELS,
+      bodyClass: 'page-account',
     });
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 });
 
 /* ---------------- POST /account/profile ---------------- */
@@ -203,24 +228,9 @@ router.post('/account/profile', upload.single('avatar'), async (req, res) => {
     if (!u.name && fullName)            u.name = fullName;
     if (!u.email && emailInput) { u.email = emailInput.toLowerCase(); u.emailVerified = false; }
 
-    // --- ensure type ---
-    if (!u.level) u.level = 1;
-    if (u.totalSpent == null) u.totalSpent = 0;
-
     await u.save();
-
-    // --- อัปเดตเลเวล/รวมออเดอร์ (ตามโค้ดเดิมของคุณ) ---
-    const nextLevelNum = Number(computeLevel(Number(u.totalSpent || 0)));
-    if (nextLevelNum !== Number(u.level)) { u.level = nextLevelNum; await u.save(); }
-
-    try {
-      const match = { ...buildUserMatch(u._id), status: { $ne: 'canceled' } };
-      const counted = await Order.countDocuments(match);
-      const cur = Number(u.totalOrders);
-      if (!Number.isFinite(cur) || cur !== counted) { u.totalOrders = counted; await u.save(); }
-    } catch (err) {
-      console.warn('recount totalOrders failed:', err?.message || err);
-    }
+    // ให้ระบบ delta-based สรุปทุกอย่างให้เอง (orders/level/points…)
+    try { await recalcUserTotalSpent(u._id, { force:true, reason:'profile_update' }); } catch {}
 
     // --- อัปเดต session/res.locals และคืน URL แบบกันแคชสำหรับแสดงผลทันที ---
     if (req.session?.user) req.session.user.avatarUrl = u.avatarUrl;
@@ -369,4 +379,62 @@ router.post('/account/email/verify', async (req, res) => {
   }
 });
 
+// ====== NEW: แลกแต้มเป็น balance ======
+router.post('/account/points/redeem', async (req, res) => {
+  try {
+    const uid = getAuthUserId(req);
+    if (!uid) return res.status(401).json({ ok:false, error:'⛔️คุณไม่ได้รับอนุญาต' });
+
+    // sync before
+    const snap = await recalcUserTotalSpent(uid, { force:true });
+    if (!snap?.ok) return res.status(500).json({ ok:false, error:'คำนวณยอดไม่สำเร็จ' });
+
+    const u = await User.findById(uid);
+    if (!u) return res.status(404).json({ ok:false, error:'⛔️ไม่พบผู้ใช้' });
+
+    const pointsNow = Number(snap.points ?? u.points ?? 0);
+    if (!Number.isFinite(pointsNow) || pointsNow < 100) {
+      return res.status(400).json({ ok:false, error:'ต้องมีอย่างน้อย 100 แต้มจึงจะแลกได้' });
+    }
+
+    // แลกทั้งหมด (คง step 0.5)
+    const redeemPoints = Math.floor(pointsNow * 2) / 2;
+
+    // เรท ณ ขณะแลก
+    const levelIdx = Number(snap?.levelInfo?.index ?? u.levelIndex ?? 0);
+    const rate = Number(snap?.pointRateTHB) || getRateForLevelIndex(levelIdx);
+    const addTHB = round2(redeemPoints * rate);
+
+    // จำนวนยอดสดที่ต้องหักออกจาก totalSpentRaw เพื่อปรับ effectiveSpent
+    const decSpent = redeemPoints * 100;
+
+    const totalSpentRaw = Number(snap.totalSpentRaw ?? u.totalSpentRaw ?? 0);
+    const redeemedSpent = Number(u.redeemedSpent || 0);
+    const newRedeemedSpent = Math.min(round2(redeemedSpent + decSpent), totalSpentRaw);
+    await User.updateOne(
+      { _id: uid },
+      { $set: { redeemedSpent: newRedeemedSpent }, $inc: { balance: addTHB } }
+    );
+
+    // recalc หลังแลก เพื่อคืนค่าหน้า UI ที่อัปเดตแล้ว
+    const after = await recalcUserTotalSpent(uid, { force:true });
+
+    return res.json({
+      ok: true,
+      redeemed: redeemPoints,
+      addedBalance: addTHB,
+      rate,
+      remainPoints: after.points ?? 0,
+      balance: after?.balance ?? undefined,
+      totalSpent: after.totalSpent,
+      level: after.level,
+      levelInfo: after.levelInfo,
+      pointRateTHB: after.pointRateTHB,
+      pointValueTHB: after.pointValueTHB,
+    });
+  } catch (e) {
+    console.error('redeem points', e);
+    res.status(500).json({ ok:false, error:'แลกแต้มไม่สำเร็จ' });
+  }
+});
 export default router;

@@ -3,7 +3,8 @@ import mongoose from 'mongoose';
 
 const POKE_FIELDS = new Set([
   'status', 'cost', 'estCost', 'charged', 'refundAmount',
-  'quantity', 'rateAtOrder', 'rate'
+  'quantity', 'rateAtOrder', 'rate', 'partialRefunds'
+  // หมายเหตุ: ไม่ใส่ 'spentAccounted' เพราะเป็นฟิลด์ snapshot จาก reconcile เอง
 ]);
 
 const userQueue = new Map(); // userId -> timeoutId
@@ -35,22 +36,38 @@ export function startSpendAutoRecalc(mongooseConn = mongoose.connection) {
   cs.on('change', async (chg) => {
     try {
       const doc = chg.fullDocument || {};
-      const uid = doc.userId || doc.user || chg.updateDescription?.updatedFields?.userId || chg.updateDescription?.updatedFields?.user;
+      const uid =
+        doc.userId || doc.user ||
+        chg.updateDescription?.updatedFields?.userId ||
+        chg.updateDescription?.updatedFields?.user;
       if (!uid) return;
 
-      // ถ้าเป็น update ให้ดูว่ามีฟิลด์ที่กระทบ “ยอดจ่ายจริง” จริงไหม
+      const orderId = doc?._id;
+
+      // เฉพาะ update: ถ้าไม่ได้แตะฟิลด์ที่กระทบยอด → ข้าม
       if (chg.operationType === 'update') {
         const updated = Object.keys(chg.updateDescription?.updatedFields || {});
         const touched = updated.some(k => POKE_FIELDS.has(k));
         if (!touched) return;
       }
 
+      // 1) Reconcile ต่อใบ (delta-based) — ทำทันที, ไม่บล็อกงานอื่น
+      (async () => {
+        try {
+          const { reconcileOrderSpend } = await import('./spend.js');
+          await reconcileOrderSpend(orderId);
+        } catch (e) {
+          console.error('[spendWatcher] reconcileOrderSpend failed:', e?.message || e);
+        }
+      })();
+
+      // 2) Debounce ต่อผู้ใช้ → ค่อยสรุปเลเวล/แต้ม/ตัวเลขโชว์
       scheduleUser(uid, async () => {
         try {
           const { recalcUserTotals } = await import('./spend.js');
           await recalcUserTotals(uid, { force: true, reason: 'change_stream' });
         } catch (e) {
-          console.error('[spendWatcher] recalc failed:', e?.message || e);
+          console.error('[spendWatcher] recalcUserTotals failed:', e?.message || e);
         }
       });
     } catch (e) {
