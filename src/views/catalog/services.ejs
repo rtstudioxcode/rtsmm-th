@@ -1,4 +1,4 @@
-<!-- <% const PAGE_TITLE = title || "บริการทั้งหมด"; %>
+<% const PAGE_TITLE = title || "บริการทั้งหมด"; %>
 <section class="page-head">
   <div class="page-title">
     <h1><%= PAGE_TITLE %></h1>
@@ -353,27 +353,28 @@ function renderServicesList(){
     (m[s.providerCategoryName||s.categoryName||'ทั่วไป'] ??= []).push(s); return m;
   },{});
 
-  // เตรียม state กลาง
+  // สร้างเฉพาะ “หัวกลุ่ม + placeholder” ให้ปิดไว้ก่อนทุกกลุ่ม
+  const frag = document.createDocumentFragment();
   groupState.clear();
-  allCats = Object.keys(byProvCat).sort();
-  nextGroupIndex = 0;
 
-  // เคลียร์ DOM แล้วสร้าง batch แรก
+  Object.keys(byProvCat).sort().forEach(cat=>{
+    groupState.set(cat, { rows: byProvCat[cat], rendered:false });
+
+    const wrap = document.createElement('div');
+    wrap.className = 'group';                 // ไม่เพิ่ม .open → ซ่อนไว้
+    wrap.dataset.cat = enc(cat);
+    wrap.innerHTML = `
+      <div class="head" role="button" tabindex="0" aria-expanded="false">
+        <h4>${cat}</h4>
+        <div class="meta"><span class="badge">${byProvCat[cat].length} รายการ</span></div>
+      </div>
+      <div class="body"><div class="placeholder muted">กดด้านบนเพื่อแสดงรายการ…</div></div>
+    `;
+    frag.appendChild(wrap);
+  });
+
   container.innerHTML = '';
-  allCats.forEach(cat => groupState.set(cat, { rows: byProvCat[cat], rendered:false }));
-
-  // reset observers
-  if (groupIO) groupIO.disconnect();
-  if (moreIO) moreIO.disconnect();
-
-  // observer สำหรับ "เมื่อกรุ๊ปเข้าหน้าจอ ให้เรนเดอร์เนื้อหาในกรุ๊ป"
-  groupIO = new IntersectionObserver(onGroupIntersect, { root:null, rootMargin:'200px 0px', threshold:0 });
-
-  // observer สำหรับ "โหลดหัวกรุ๊ป batch ถัดไป" (เฝ้า sentinel ด้านล่าง)
-  moreIO = new IntersectionObserver(onMoreIntersect, { root:null, rootMargin:'600px 0px', threshold:0 });
-
-  // เติมหัวกรุ๊ป batch แรกและตั้ง sentinel
-  appendNextGroupBatch();
+  container.appendChild(frag);
 }
 
 // function renderServicesList(){
@@ -649,8 +650,9 @@ function wireEvents(){
     const head = e.target.closest('.group .head');
     if (head){
       const root = head.parentElement;
-      root.classList.toggle('open');
-      if (root.classList.contains('open')){
+      const opened = root.classList.toggle('open');
+      head.setAttribute('aria-expanded', opened ? 'true' : 'false');
+      if (opened){
         const cat = dec(root.dataset.cat || '');
         renderGroupBody(cat);
       }
@@ -677,4 +679,4 @@ function wireEvents(){
   renderServicesList();
   wireEvents();
 })();
-</script> -->
+</script>

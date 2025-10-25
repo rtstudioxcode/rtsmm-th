@@ -1,8 +1,6 @@
 // // /src/routes/services.js
 import express from 'express';
 import mongoose from 'mongoose';
-
-// ⬇️ ปรับ path โมเดลให้ตรงโปรเจกต์จริงของคุณ
 import { Service } from '../models/Service.js';
 import { Category } from '../models/Category.js';
 import { Subcategory } from '../models/Subcategory.js';
