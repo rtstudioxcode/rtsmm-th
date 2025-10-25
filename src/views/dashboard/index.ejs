@@ -3,7 +3,50 @@
   <h1 class="page-title" style="align-items: center; text-align: center;">Dashboard</h1>
 
   <div class="grid-2">
+    <%
+      const NAME   = me?.name || me?.username || '-';
+      const EMAIL  = me?.email || '-';
+      const AVATAR = me?.avatarUrl || '/static/assets/img/user-blue.png';
+      const AVVER  = me?.avatarVer || Date.now();
+    %>
+    <div class="card user-summary">
+      <!-- หัวข้อ -->
+      <div class="user-summary__title">ข้อมูลผู้ใช้</div>
+
+      <!-- ชื่อ/อีเมล (ตรงกลาง) -->
+      <div class="user-summary__center">
+        <div class="user-summary__name">
+          <%= (me && me.name) ? me.name : (me && me.username ? me.username : '-') %>
+        </div>
+        <div class="user-summary__email"><%= (me && me.email) ? me.email : '-' %></div>
+      </div>
+
+      <!-- รูปโปรไฟล์ -->
+      <div class="user-summary__avatar" aria-hidden="true">
+        <img
+          src="<%= me && me.avatarUrl ? me.avatarUrl : '/static/assets/img/user-blue.png' %>?v=<%= (me && me.avatarVer) || Date.now() %>"
+          alt=""
+          loading="lazy"
+          decoding="async"
+          referrerpolicy="no-referrer">
+      </div>
+
+      <!-- ปุ่ม -->
+      <div class="user-summary__actions">
+        <a class="btn btn-primary" href="/account">ข้อมูลส่วนตัว</a>
+      </div>
+    </div>
+
     <div class="card">
+      <div class="card-title">ระดับผู้ใช้</div>
+      <div class="badge warn" style="display: block; text-align: center; font-size: 18px;">
+        <%= typeof userLevelName !== 'undefined' ? userLevelName : userLevel %>
+      </div>
+      <div class="muted">สามารถดูข้อมูลเลื่อนระดับได้ที่ข้อมูลส่วนตัว -> ข้อมูลระดับบัญชี</div>
+    </div>
+  </div>
+
+  <div class="card">
       <div class="card-title">ใช้งานไปแล้ว</div>
       <div class="badge ok" style="display: block; text-align: center; font-size: 18px;">
         ฿<%= (stats.totalSpent || 0).toFixed(2) %>
@@ -18,38 +61,12 @@
       </div>
       <div class="muted">TotalOrders | จำนวนออเดอร์ที่สั่งใช้บริการไปแล้วทั้ง</div>
     </div>
-
-    <div class="card">
-      <div class="card-title">ระดับผู้ใช้</div>
-      <div class="badge warn" style="display: block; text-align: center; font-size: 18px;">
-        <%= typeof userLevelName !== 'undefined' ? userLevelName : userLevel %>
-      </div>
-      <div class="muted">สามารถดูข้อมูลเลื่อนระดับได้ที่ข้อมูลส่วนตัว -> ข้อมูลระดับบัญชี</div>
-    </div>
-
-    <div class="card user-summary">
-      <div class="user-summary__left">
-        <div class="card-title">ข้อมูลผู้ใช้</div>
-        <a class="btn btn-primary" href="/account">ข้อมูลส่วนตัว</a>
-      </div>
-
-      <div class="user-summary__avatar" aria-hidden="true">
-        <img
-          src="<%= me.avatarUrl %>?v=<%= (me && me.avatarVer) || Date.now() %>"
-          alt=""
-          loading="lazy"
-          decoding="async"
-          referrerpolicy="no-referrer">
-      </div>
-    </div>
-  </div>
 </section>
 
 <style>
-  /* =========================
-     Theme Tokens (เชื่อมกับ html[data-theme])
-     ========================= */
-
+/*======================================*\
+  Theme Tokens (เชื่อมกับ html[data-theme])
+\*======================================*/
   /* Dark (ค่าพื้นฐาน) */
   [data-theme="dark"] {
     --elevated-bg:       #141518;
@@ -179,4 +196,139 @@
   @media (prefers-reduced-motion: reduce) {
     .card, .btn.btn-primary { transition: none; }
   }
+  .card.user-summary{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px; padding:16px;
+  }
+
+  .user-summary__left{ display:flex; flex-direction:column; gap:10px; }
+
+  .user-summary__avatar img{
+    width:120px; height:120px; border-radius:999px; object-fit:cover;
+    display:block; 
+  }
+
+  .user-summary__avatar{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  /* ✅ กล่องกลาง */
+  .user-summary__info{
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-height:72px; /* ให้รู้สึกอยู่กลางแม้ซ้าย/ขวามีความสูงต่างกัน */
+    text-align:center;
+  }
+  .user-summary__info .user-name{
+    font-weight:800; font-size:1.05rem; line-height:1.3; max-width:100%;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .user-summary__info .user-email{
+    color:var(--muted, #9aa6b2); font-size:.95rem; line-height:1.3; max-width:100%;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+
+  /* mobile: ซ้อนเป็นสามแถว */
+  @media (max-width:700px){
+    .card.user-summary{
+      flex-direction:column;
+      align-items:center;    /* จัดทุกอย่างกึ่งกลางแนวนอน */
+      text-align:center;
+    }
+    .user-summary__left{
+      align-items:center;
+    }
+    .user-summary__avatar{
+      order:3;               /* ให้รูปมาอยู่บรรทัดล่างสุด (ถ้าต้องการ) */
+      margin:12px auto 10px; /* กึ่งกลาง */
+    }
+    .user-summary__avatar img{
+      width:71px;
+      height:71px;
+      margin:0 auto;         /* กึ่งกลางตัวรูป */
+    }
+  }
+  /* เดสก์ท็อป: ใช้ Grid จัดวาง */
+  .card.user-summary{
+    display:grid;
+    grid-template-columns: 1fr 1fr auto;
+    grid-template-areas:
+      "title  center  avatar"
+      "actions center  avatar";
+    gap:14px;
+    align-items:center;
+  }
+
+  /* map ช่อง */
+  .user-summary__title   { grid-area: title;   font-weight:700; text-align:left; }
+  .user-summary__actions { grid-area: actions; }
+  .user-summary__center  { grid-area: center;  text-align:center; }
+  .user-summary__avatar  { grid-area: avatar;  justify-self:end; display:flex; align-items:center; }
+
+  .user-summary__avatar img{
+    width:120px; height:120px; border-radius:50%; object-fit:cover; display:block;
+  }
+
+  /* ชื่อ/อีเมล */
+  .user-summary__name  { font-weight:800; margin-top:4px; }
+  .user-summary__email { opacity:.9; }
+
+  /* มือถือ: เรียงเป็นคอลัมน์ (หัวข้อ → รูป → ชื่อ → อีเมล → ปุ่ม) */
+  @media (max-width:700px){
+    .card.user-summary{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      text-align:center;
+    }
+    .user-summary__title   { order:1; }
+    .user-summary__avatar  { order:2; margin:10px 0 4px; justify-content:center; }
+    .user-summary__center  { order:3; }
+    .user-summary__actions { order:4; margin-top:10px; }
+
+    .user-summary__avatar img{
+      width:71px; height:71px; margin:0 auto;
+    }
+  }
+  /* ===== Desktop: จัดให้อยู่กลางการ์ดจริง ๆ ===== */
+.card.user-summary{
+  display:grid;
+  grid-template-columns: auto 1fr auto; /* ซ้าย-กลาง-ขวา */
+  grid-template-rows: auto auto;
+  gap:14px;
+  align-items:center;
+}
+
+/* หัวข้อ/ปุ่ม/อวตารอยู่ตามปกติ */
+.user-summary__title   { grid-column: 1; font-weight:700; text-align:left; position:relative; z-index:1; }
+.user-summary__actions { grid-column: 1; position:relative; z-index:1; }
+.user-summary__avatar  { grid-column: 3; display:flex; align-items:center; justify-self:end; position:relative; z-index:1; }
+
+/* 👇 บล็อกชื่อ/อีเมล “พาดทั้งการ์ด” แล้วจัดให้กลางจริง ๆ */
+.user-summary__center{
+  grid-column: 1 / 4;   /* span ทุกคอลัมน์ */
+  grid-row: 1 / 3;      /* ครอบ 2 แถว */
+  justify-self: center; /* จัดกึ่งกลางแนวนอน */
+  align-self: center;   /* จัดกึ่งกลางแนวตั้ง */
+  text-align: center;
+  z-index: 0;           /* อยู่ชั้นล่าง ไม่บังปุ่มทางซ้าย */
+  pointer-events: none; /* กันการทับคลิกปุ่มทางซ้าย */
+}
+.user-summary__name  { font-weight:800; margin-top:4px; pointer-events:auto; }
+.user-summary__email { opacity:.9; pointer-events:auto; }
+
+/* ===== Mobile: เรียง หัวข้อ → รูป → ชื่อ/อีเมล → ปุ่ม ===== */
+@media (max-width:700px){
+  .card.user-summary{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    text-align:center;
+  }
+  .user-summary__title   { order:1; }
+  .user-summary__avatar  { order:2; margin:10px 0 4px; justify-content:center; }
+  .user-summary__center  { order:3; width:100%; z-index:1; pointer-events:auto; }
+  .user-summary__actions { order:4; margin-top:10px; }
+}
 </style>

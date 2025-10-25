@@ -92,6 +92,11 @@ async function renderDashboard(req, res, next) {
     const levelIndex = Math.max(1, Number(totals.level || 1)) - 1;
     const userLevelName = LV[levelIndex]?.name || `เลเวล ${totals.level}`;
 
+    const fresh = await User.findById(me._id)
+      .select('name email avatarUrl avatarVer username')
+      .lean();
+    const viewMe = { ...(me || {}), ...(fresh || {}) };
+
     const stats = {
       totalSpent: totals.totalSpent,
       totalOrders: totals.totalOrders,
@@ -103,7 +108,7 @@ async function renderDashboard(req, res, next) {
       stats,
       userLevel: totals.level,
       userLevelName,
-      me: res.locals.me || me,
+      me: viewMe, 
     });
   } catch (err) {
     next(err);
