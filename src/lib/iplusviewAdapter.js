@@ -172,9 +172,3 @@ export async function cancelOrder(orderId) {
 
   return { ok: true, cancelId, status, raw: data };
 }
-
-// export async function cancelOrder(orderId) {
-//   if (!orderId) throw new Error('cancelOrder: orderId is required');
-//   const { data } = await client.post(`/orders/${orderId}/cancel`, {});
-//   return { ok: true, raw: data };
-// }

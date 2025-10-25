@@ -149,15 +149,19 @@ router.get('/account', async (req, res, next) => {
     let me = await User.findById(uid).lean();
     if (!me) return res.redirect('/login');
 
+    const levelNum = Math.max(1, Number(me.level || 1));
+    const levelName = LEVELS[levelNum - 1]?.name || `เลเวล ${levelNum}`;
+
     // (2) ให้ยอด/เลเวล "สดใหม่" ทุกครั้งที่เปิดหน้า (ปลอดภัยและไม่กระทบ Order.js)
     const { totalSpent, level } = await recalcUserTotalSpent(me._id);
     if (typeof totalSpent === 'number') me.totalSpent = totalSpent;
-    if (typeof level === 'number')     me.level = level;
+    if (typeof level === 'string')     me.level = level;
 
     // (3) ป้องกันกรณี user ยังไม่มีค่า -> ใส่ดีฟอลต์เลข (ไม่ใช่สตริง)
     const viewUser = {
       ...me,
-      level: Number(me.level || 1),
+      level: String(levelNum),
+      levelName,
       totalSpent: Number(me.totalSpent || 0),
       avatarUrl: me.avatarUrl || '/static/assets/img/user-blue.png',
       emailVerified: !!me.emailVerified

@@ -7,7 +7,7 @@
     <aside class="acc-side">
       <div class="prof-card">
         <div class="prof-avatar">
-          <img id="avatarPreview" src="<%= userDoc.avatarUrl %>" alt="">
+          <img id="avatarPreview" src="<%= userDoc.avatarUrl %>?v=<%= (me && me.avatarVer) || Date.now() %>" alt="">
         </div>
 
         <div style="display:flex;justify-content:center">
@@ -31,7 +31,7 @@
 
         <div class="kv">
           <div>ระดับบัญชี</div>
-          <div><span class="badge warn">เลเวล <%= userDoc.level || '1' %></span></div>
+          <div><span class="badge warn"><%= userDoc.levelName || `เลเวล ${userDoc.level || '1'}` %></span></div>
         </div>
         <div class="kv">
           <div>ยอดคงเหลือ</div>
@@ -147,7 +147,7 @@
         <div class="card">
             <div class="card-header">
             <div class="title">ยอดใช้จ่ายสะสม</div>
-            <span class="pill lvl">เลเวล <%= userDoc.level || '1' %></span>
+            <span class="pill lvl"><%= userDoc.levelName || `เลเวล ${userDoc.level || '1'}` %></span>
             </div>
 
             <%
@@ -524,23 +524,35 @@ html[data-theme="light"] .static-input{
     try {
       const r = await fetch('/account/profile', { method: 'POST', body: fd });
       const j = await r.json();
-      if (!j.ok) return fail('อัปโหลดรูปไม่สำเร็จ', j.error || '');
 
+      if (!r.ok || !j?.ok) {
+        return fail('อัปโหลดรูปไม่สำเร็จ', j?.error || '');
+      }
+
+      // แสดงข้อความสำเร็จ
       ok('อัปโหลดรูปสำเร็จ');
 
-      // ใช้ URL ที่กันแคชจากเซิร์ฟเวอร์ → ไม่ติดแคช
+      // ใช้ URL กันแคชที่เซิร์ฟเวอร์ส่งกลับมา แสดงทันที
       if (j.user?.avatarUrl) {
         $('#avatarPreview').src = j.user.avatarUrl;
       }
 
-      // เผื่อมีส่วนอื่นบนหน้าใช้ avatar (ถ้ามี)
-      // document.querySelectorAll('img[data-avatar]').forEach(img => img.src = j.user.avatarUrl);
-
+      // ถ้ามีส่วน OTP
       if (j.user?.email && !j.user?.emailVerified) {
         document.getElementById('otpArea')?.removeAttribute('hidden');
       }
+
+      // หน่วงสั้น ๆ แล้วรีเฟรชหน้า 1 รอบ (กันแคช + sync ส่วนอื่น ๆ)
+      setTimeout(() => {
+        window.location.replace('/account');
+      }, 500);
+
     } catch {
       fail('อัปโหลดรูปไม่สำเร็จ', 'เครือข่ายมีปัญหา');
+    } finally {
+      // ล้างค่า input เพื่อให้เลือกไฟล์เดิมซ้ำได้ในอนาคต
+      const input = document.getElementById('avatarInput');
+      if (input) input.value = '';
     }
   });
 
@@ -548,12 +560,23 @@ html[data-theme="light"] .static-input{
   $('#formProfile')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    try{
+
+    try {
       const r = await fetch('/account/profile', { method: 'POST', body: fd });
       const j = await r.json();
       if (!j.ok) return fail('บันทึกไม่สำเร็จ', j.error || '');
+
       ok('อัปเดตข้อมูลเรียบร้อย');
-      if (j.user?.email && !j.user?.emailVerified) document.getElementById('otpArea')?.removeAttribute('hidden');
+
+      // โชว์ช่อง OTP ถ้ายังไม่ยืนยันอีเมล
+      if (j.user?.email && !j.user?.emailVerified) {
+        document.getElementById('otpArea')?.removeAttribute('hidden');
+      }
+
+      setTimeout(() => {
+        window.location.replace('/account');
+      }, 500);
+
     } catch {
       fail('บันทึกไม่สำเร็จเครือข่ายมีปัญหา', 'เครือข่ายมีปัญหา');
     }
@@ -570,6 +593,13 @@ html[data-theme="light"] .static-input{
     const fd   = new FormData(form);
     const body = Object.fromEntries(fd.entries());
 
+    // เช็คก่อนยิง API
+    if ((body.newPassword || '') !== (body.newPassword2 || '')) {
+      fail('เปลี่ยนรหัสไม่สำเร็จ', '⚠️รหัสผ่านใหม่ทั้งสองช่องไม่ตรงกัน');
+      btn.disabled = false;
+      return;
+    }
+
     try {
       const r = await fetch('/account/password', {
         method: 'POST',
@@ -577,25 +607,33 @@ html[data-theme="light"] .static-input{
         body: JSON.stringify(body)
       });
 
-      // พยายามอ่าน JSON แต่ถ้าไม่มี/อ่านไม่ได้ก็ไม่ให้พัง
       let j = null;
-      try { j = await r.json(); } catch { /* ignore */ }
-
-      if ((body.newPassword || '') !== (body.newPassword2 || '')) {
-        return fail('เปลี่ยนรหัสไม่สำเร็จ','⚠️รหัสใหม่ทั้งสองช่องไม่ตรงกัน');
-      }
+      try { j = await r.json(); } catch {}
 
       if (r.ok && j?.ok) {
-        ok('✅เปลี่ยนรหัสผ่านเรียบร้อย');
         form.reset();
+
+        // ✅ แสดงผลลัพธ์ แล้ว redirect เมื่อปิดโมดอล (ถ้ามี onClose)
+        if (window.showMsg) {
+          window.showMsg({
+            variant: 'success',
+            title: 'สำเร็จ',
+            text: 'เปลี่ยนรหัสผ่านเรียบร้อย',
+            onClose: () => window.location.replace('/account')
+          });
+          // safety net: ไม่ว่าปุ่มจะกดหรือไม่ ให้เปลี่ยนหน้าใน 2 วิ
+          setTimeout(() => { try{ window.location.replace('/account'); }catch{} }, 300);
+        } else {
+          alert('เปลี่ยนรหัสผ่านเรียบร้อย');
+          window.location.replace('/account');
+        }
         return;
       }
 
-      // error message ที่อ่านได้จาก server หรือ fallback ตามสถานะ
       const msg = j?.error || (r.status >= 500 ? 'เซิร์ฟเวอร์มีปัญหา' : '⚠️ดำเนินการไม่สำเร็จเครือข่ายมีปัญหา');
       fail('เปลี่ยนรหัสไม่สำเร็จ', msg);
-    } catch (err) {
-      // error จริง ๆ ระหว่าง fetch (เช่น เน็ตหลุด)
+
+    } catch {
       fail('เปลี่ยนรหัสผ่านไม่สำเร็จ', '⚠️เครือข่ายมีปัญหา');
     } finally {
       btn.disabled = false;

@@ -84,7 +84,7 @@
         <a class="sb-item" href="/dashboard" style="text-decoration: none;">
           <img
             class="ico"
-            src="<%= me?.avatarUrl || '/static/assets/emoji/dashboard.png' %>"
+            src="<%= me?.avatarUrl %>?v=<%= (me && me.avatarVer) || Date.now() %>"
             alt="Dashboard"
             width="18"
             height="18"
@@ -395,6 +395,54 @@
         window.__flash = null;
       }
     });
+
+    // ===== Override alert/confirm ให้ใช้ dialog กลางระบบ =====
+    (function(){
+      const ensure = () => typeof window.showMsg === 'function';
+
+      // แทนที่ window.alert
+      window.alert = function(msg) {
+        if (ensure()) {
+          window.showMsg({
+            variant: 'info',
+            title: 'แจ้งเตือน',
+            text: String(msg ?? ''),
+            okText: 'ตกลง'
+          });
+        } else {
+          // fallback กรณีโหลด showMsg ไม่ทัน
+          console.log('[alert->dialog]', msg);
+        }
+      };
+
+      // เพิ่ม confirm แบบ dialog (คืนค่า Promise<boolean>)
+      window.confirm = function(msg) {
+        return new Promise((resolve) => {
+          if (ensure()) {
+            window.showMsg({
+              variant: 'warn',
+              title: 'ยืนยันการทำรายการ',
+              text: String(msg ?? ''),
+              okText: 'ตกลง',
+              cancelText: 'ยกเลิก',
+              onOk:    () => resolve(true),
+              onCancel:() => resolve(false)
+            });
+          } else {
+            // fallback
+            resolve(window.originalConfirm ? window.originalConfirm(msg) : false);
+          }
+        });
+      };
+
+      // ยูทิลสรุ่นย่อ (สะดวกเรียกทั่วเว็บ)
+      window.toast = {
+        info   : (t, d='') => window.showMsg({ variant:'info',    title:t, text:d }),
+        success: (t, d='') => window.showMsg({ variant:'success', title:t, text:d }),
+        warn   : (t, d='') => window.showMsg({ variant:'warn',    title:t, text:d }),
+        error  : (t, d='') => window.showMsg({ variant:'error',   title:t, text:d })
+      };
+    })();
   </script>
 
   <script>

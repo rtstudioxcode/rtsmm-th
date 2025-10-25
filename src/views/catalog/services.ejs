@@ -291,6 +291,58 @@ function computeFiltered(){
 /* ========= lazy groups (state + IO) ========= */
 const groupState = new Map();               // cat -> { rows, rendered }
 let io;                                     // IntersectionObserver
+const GROUP_BATCH = 6;     // จำนวนกรุ๊ปที่จะ “สร้างหัวกลุ่ม” ต่อหนึ่งชุด
+const PRELOAD_AHEAD = 2;    // สร้างล่วงหน้าอีกกี่ชุดเมื่อใกล้ถึงขอบล่าง
+const ROW_CHUNK = 20;       // ขนาดก้อนเรนเดอร์แถวภายในกรุ๊ป (เดิม 60 ก็ได้)
+let allCats = [];           // รายการชื่อกรุ๊ปทั้งหมด (เรียงแล้ว)
+let nextGroupIndex = 0;     // ชี้ว่ากำลังจะเติมกรุ๊ปจาก index ไหน
+let groupIO = null;         // observer สำหรับเปิดกรุ๊ปแล้วเรนเดอร์ข้างใน
+let moreIO = null;          // observer สำหรับโหลด batch ถัดไปเมื่อเลื่อนลง
+
+function appendNextGroupBatch(){
+  const container = $('#servicesContainer');
+  if (nextGroupIndex >= allCats.length) return; // หมดแล้ว
+
+  const end = Math.min(allCats.length, nextGroupIndex + GROUP_BATCH);
+  const frag = document.createDocumentFragment();
+
+  for (let i = nextGroupIndex; i < end; i++){
+    const cat = allCats[i];
+    const rows = groupState.get(cat)?.rows || [];
+    const wrap = document.createElement('div');
+    wrap.className = 'group';
+    wrap.dataset.cat = enc(cat);
+    wrap.innerHTML = `
+      <div class="head" role="button" tabindex="0">
+        <h4>${cat}</h4>
+        <div class="meta"><span class="badge">${rows.length} รายการ</span></div>
+      </div>
+      <div class="body"><div class="placeholder muted">เลื่อนถึงฉันแล้วค่อยโหลด…</div></div>
+    `;
+    frag.appendChild(wrap);
+  }
+
+  // ลบ sentinel เก่าถ้ามี แล้วใส่ batch ใหม่ + sentinel ใหม่
+  const oldSentinel = container.querySelector('.more-sentinel');
+  if (oldSentinel) oldSentinel.remove();
+
+  container.appendChild(frag);
+
+  // สังเกตทุกกรุ๊ปใหม่ให้เรนเดอร์ภายในเมื่อถึง viewport
+  $$('#servicesContainer .group').slice(-GROUP_BATCH).forEach(g => groupIO.observe(g));
+
+  // เพิ่ม sentinel ท้ายสุดเพื่อกระตุ้นโหลด batch ต่อไปตอนเลื่อนใกล้ถึง
+  if (end < allCats.length){
+    const sentinel = document.createElement('div');
+    sentinel.className = 'more-sentinel';
+    sentinel.style.cssText = 'height:1px;opacity:0;';
+    sentinel.dataset.idx = String(end);   // จำตำแหน่ง batch ล่าสุด
+    container.appendChild(sentinel);
+    moreIO.observe(sentinel);
+  }
+
+  nextGroupIndex = end;
+}
 
 function renderServicesList(){
   const container = $('#servicesContainer');
@@ -301,41 +353,83 @@ function renderServicesList(){
     (m[s.providerCategoryName||s.categoryName||'ทั่วไป'] ??= []).push(s); return m;
   },{});
 
-  // สร้างเฉพาะ “หัวกลุ่ม + placeholder”
-  const frag = document.createDocumentFragment();
+  // เตรียม state กลาง
   groupState.clear();
+  allCats = Object.keys(byProvCat).sort();
+  nextGroupIndex = 0;
 
-  Object.keys(byProvCat).sort().forEach(cat=>{
-    groupState.set(cat, { rows: byProvCat[cat], rendered:false });
-
-    const wrap = document.createElement('div');
-    wrap.className = 'group';
-    wrap.dataset.cat = enc(cat);
-    wrap.innerHTML = `
-      <div class="head" role="button" tabindex="0">
-        <h4>${cat}</h4>
-        <div class="meta"><span class="badge">${byProvCat[cat].length} รายการ</span></div>
-      </div>
-      <div class="body"><div class="placeholder muted">คลิกเพื่อแสดงรายการ…</div></div>
-    `;
-    frag.appendChild(wrap);
-  });
-
+  // เคลียร์ DOM แล้วสร้าง batch แรก
   container.innerHTML = '';
-  container.appendChild(frag);
-  if (io) io.disconnect();
-  io = new IntersectionObserver(onIntersect, { root:null, rootMargin:'200px 0px', threshold:0 });
-  $$('#servicesContainer .group').forEach(g => io.observe(g));
+  allCats.forEach(cat => groupState.set(cat, { rows: byProvCat[cat], rendered:false }));
+
+  // reset observers
+  if (groupIO) groupIO.disconnect();
+  if (moreIO) moreIO.disconnect();
+
+  // observer สำหรับ "เมื่อกรุ๊ปเข้าหน้าจอ ให้เรนเดอร์เนื้อหาในกรุ๊ป"
+  groupIO = new IntersectionObserver(onGroupIntersect, { root:null, rootMargin:'200px 0px', threshold:0 });
+
+  // observer สำหรับ "โหลดหัวกรุ๊ป batch ถัดไป" (เฝ้า sentinel ด้านล่าง)
+  moreIO = new IntersectionObserver(onMoreIntersect, { root:null, rootMargin:'600px 0px', threshold:0 });
+
+  // เติมหัวกรุ๊ป batch แรกและตั้ง sentinel
+  appendNextGroupBatch();
 }
 
-function onIntersect(entries){
-  entries.forEach(en=>{
-    if (!en.isIntersecting) return;
+// function renderServicesList(){
+//   const container = $('#servicesContainer');
+//   const list = computeFiltered();
+//   $('#listTitle').textContent = CURRENT_PLATFORM ? `บริการทั้งหมดใน ${CURRENT_PLATFORM}` : 'บริการทั้งหมด';
+
+//   const byProvCat = list.reduce((m,s)=>{
+//     (m[s.providerCategoryName||s.categoryName||'ทั่วไป'] ??= []).push(s); return m;
+//   },{});
+
+//   // สร้างเฉพาะ “หัวกลุ่ม + placeholder”
+//   const frag = document.createDocumentFragment();
+//   groupState.clear();
+
+//   Object.keys(byProvCat).sort().forEach(cat=>{
+//     groupState.set(cat, { rows: byProvCat[cat], rendered:false });
+
+//     const wrap = document.createElement('div');
+//     wrap.className = 'group';
+//     wrap.dataset.cat = enc(cat);
+//     wrap.innerHTML = `
+//       <div class="head" role="button" tabindex="0">
+//         <h4>${cat}</h4>
+//         <div class="meta"><span class="badge">${byProvCat[cat].length} รายการ</span></div>
+//       </div>
+//       <div class="body"><div class="placeholder muted">คลิกเพื่อแสดงรายการ…</div></div>
+//     `;
+//     frag.appendChild(wrap);
+//   });
+
+//   container.innerHTML = '';
+//   container.appendChild(frag);
+//   if (io) io.disconnect();
+//   io = new IntersectionObserver(onIntersect, { root:null, rootMargin:'200px 0px', threshold:0 });
+//   $$('#servicesContainer .group').forEach(g => io.observe(g));
+// }
+
+function onGroupIntersect(entries){
+  for (const en of entries){
+    if (!en.isIntersecting) continue;
     const cat = dec(en.target.dataset.cat || '');
+    // เปิดกรุ๊ปอัตโนมัติเมื่อถึง viewport และเรนเดอร์ภายในแบบ chunk
+    en.target.classList.add('open');
     renderGroupBody(cat);
-    io.unobserve(en.target);         // เรนเดอร์ครั้งเดียวพอ
-    en.target.classList.add('open'); // เปิดโชว์ทันที
-  });
+    groupIO.unobserve(en.target); // เรนเดอร์ครั้งเดียวพอ
+  }
+}
+
+function onMoreIntersect(entries){
+  for (const en of entries){
+    if (!en.isIntersecting) continue;
+    // ถึง sentinel แล้ว → เติมกรุ๊ป batch ถัดไป และเลิกดู sentinel เก่า
+    moreIO.unobserve(en.target);
+    appendNextGroupBatch();
+  }
 }
 
 function renderGroupBody(cat){
@@ -347,25 +441,62 @@ function renderGroupBody(cat){
   if (!body) return;
   body.innerHTML = ''; // clear placeholder
 
-  // แบ่งเรนเดอร์เป็นก้อนเพื่อลด jank
-  const CHUNK = 60;                    // ปรับตามสเป็กเครื่อง
   let i = 0;
-
-  const frag = document.createDocumentFragment();
   (function build(){
-    const slice = rows.slice(i, i+CHUNK);
+    const end = Math.min(i + ROW_CHUNK, rows.length);
+    const slice = rows.slice(i, end);
+
     const wrap = document.createElement('div');
     wrap.innerHTML = buildTableAndCards(slice);
-    frag.appendChild(wrap);
-    i += CHUNK;
+    body.appendChild(wrap);
+
+    i = end;
     if (i < rows.length) {
-      schedule(build);
+      schedule(build); // requestIdleCallback / rAF
     } else {
-      body.appendChild(frag);
       st.rendered = true;
     }
   })();
 }
+
+// function onIntersect(entries){
+//   entries.forEach(en=>{
+//     if (!en.isIntersecting) return;
+//     const cat = dec(en.target.dataset.cat || '');
+//     renderGroupBody(cat);
+//     io.unobserve(en.target);         // เรนเดอร์ครั้งเดียวพอ
+//     en.target.classList.add('open'); // เปิดโชว์ทันที
+//   });
+// }
+
+// function renderGroupBody(cat){
+//   const st = groupState.get(cat);
+//   if (!st || st.rendered) return;
+
+//   const rows = st.rows;
+//   const body = $(`.group[data-cat="${enc(cat)}"] .body`);
+//   if (!body) return;
+//   body.innerHTML = ''; // clear placeholder
+
+//   // แบ่งเรนเดอร์เป็นก้อนเพื่อลด jank
+//   const CHUNK = 60;                    // ปรับตามสเป็กเครื่อง
+//   let i = 0;
+
+//   const frag = document.createDocumentFragment();
+//   (function build(){
+//     const slice = rows.slice(i, i+CHUNK);
+//     const wrap = document.createElement('div');
+//     wrap.innerHTML = buildTableAndCards(slice);
+//     frag.appendChild(wrap);
+//     i += CHUNK;
+//     if (i < rows.length) {
+//       schedule(build);
+//     } else {
+//       body.appendChild(frag);
+//       st.rendered = true;
+//     }
+//   })();
+// }
 
 /* ========= build rows (desktop table + mobile cards) ========= */
 function buildTableAndCards(rows){
@@ -547,6 +678,3 @@ function wireEvents(){
   wireEvents();
 })();
 </script>
-
-
-

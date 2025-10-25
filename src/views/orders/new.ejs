@@ -13,6 +13,7 @@
     </div>
   </div>
 </section>
+
 <!-- ตัวเลือกหมวดหมู่ (กลุ่มบริการ) + บริการย่อย -->
 <section class="card">
   <div class="sel-grid">
@@ -20,10 +21,10 @@
     <div class="sel">
       <label>หมวดหมู่</label>
       <div class="select" id="groupSel">
-        <button class="select-btn" id="groupBtn">
+        <button class="select-btn" id="groupBtn" aria-haspopup="listbox" aria-expanded="false">
           <span id="groupText">—</span><span class="chev">▾</span>
         </button>
-        <div class="select-menu">
+        <div class="select-menu" role="listbox">
           <div class="select-search">
             <input id="groupSearch" placeholder="ค้นหากลุ่มบริการ…">
           </div>
@@ -36,10 +37,10 @@
     <div class="sel">
       <label>บริการ</label>
       <div class="select wide" id="childSel">
-        <button class="select-btn" id="childBtn">
+        <button class="select-btn" id="childBtn" aria-haspopup="listbox" aria-expanded="false">
           <span id="childText">—</span><span class="chev">▾</span>
         </button>
-        <div class="select-menu">
+        <div class="select-menu" role="listbox">
           <div class="select-search">
             <input id="childSearch" placeholder="พิมพ์หา ID หรือชื่อบริการ…">
           </div>
@@ -80,11 +81,12 @@
       </label>
 
       <!-- ค่าใช้จ่ายแบบมี prefix ฿ -->
-      <label>ค่าใช้จ่าย
+      <label>ค่าใช้จ่ายโดยประมาณ
         <div class="input-group">
           <span class="input-prefix">฿</span>
           <input id="est" class="input right" type="text" readonly value="0">
         </div>
+        <small class="muted" id="rateNote" style="display:none"></small>
       </label>
     </div>
 
@@ -101,10 +103,6 @@
       </label>
     </div>
 
-    <!-- <label>บันทึก
-      <input id="note" name="note" placeholder="บันทึก (ถ้ามี)">
-    </label> -->
-
     <button class="btn primary block">ยืนยันคำสั่งซื้อ</button>
   </form>
 
@@ -116,23 +114,28 @@ const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.quer
 const br = s=>String(s||'').replace(/\r?\n/g,'<br>');
 const linkify = s=>String(s||'').replace(/https?:\/\/\S+/g,m=>`<a href="${m}" target="_blank" rel="noopener">${m}</a>`);
 const fmt = n=>Number(n||0).toLocaleString(undefined,{maximumFractionDigits:4});
+const debounce = (fn,ms=220)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; };
 
 let platforms=[], groups=[], children=[];
 let subcats=[];
 let currentPlatform=null, currentGroup=null, currentChild=null;
-let currentChipId="";          // <— ใช้แทน currentSubcatId เดิม
-let visibleChipList=[];        // ชิปที่เรนเดอร์หลังกรอง count แล้ว
+let currentChipId="";
+let visibleChipList=[];
 let rate=0, currency='THB';
+let effectiveRate=null; // อัตราตามกฎ (ถ้า endpoint มี)
+let rateSource='base';  // 'base' | 'effective'
 
 document.addEventListener('click',e=>{
   const sel=e.target.closest('.select');
-  $$('.select.open').forEach(x=>{ if(x!==sel) x.classList.remove('open') });
+  $$('.select.open').forEach(x=>{ if(x!==sel) x.classList.remove('open'); x.querySelector('.select-btn')?.setAttribute('aria-expanded','false'); });
+});
+document.addEventListener('keydown',e=>{
+  if (e.key==='Escape') $$('.select.open').forEach(x=>x.classList.remove('open'));
 });
 
 init();
 
 /* --------- Utils --------- */
-// ObjectId -> string
 function oid(x){
   if (!x) return '';
   if (typeof x === 'string') return x;
@@ -142,11 +145,9 @@ function oid(x){
   }
   return String(x);
 }
-// subcategory id of group
 function groupSubId(g){ return oid(g?.subcategory); }
 
 /* --------- นิยามชิปภาษาไทย + คีย์เวิร์ด --------- */
-// id: ชื่อฐาน (ภายใน), label: แสดงผล, kw: คำใบ้ fallback
 const CHIP_DEFS = [
   { id:"",               label:"ทั้งหมด",              kw:[] },
   { id:"views",          label:"วิว",                  kw:["view","views","watch","play","ชม","วิว"] },
@@ -159,15 +160,12 @@ const CHIP_DEFS = [
   { id:"general",        label:"ทั่วไป",               kw:["general","รวม","รวมบริการ","all-in-one"] },
 ];
 
-// ตรวจว่า group ตรงกับชิป (ล็อกด้วย ID จริงก่อน, ไม่ตรงค่อย fallback ด้วยคีย์เวิร์ด)
 function groupMatchesChip(group, chip){
-  if (!chip || chip.id==="") return true; // "ทั้งหมด"
-  // ถ้ามี realId (มาจาก subcategory ของ backend) และ group มี id ตรง ให้ผ่านเลย
+  if (!chip || chip.id==="") return true;
   if (chip.realId){
     const gSub = groupSubId(group);
     if (gSub && gSub === chip.realId) return true;
   }
-  // fallback ชื่อกลุ่ม/รายละเอียด
   const name = `${group?.name||''} ${group?.details?.name||''}`.toLowerCase();
   return chip.kw.some(k => name.includes(k.toLowerCase()));
 }
@@ -200,7 +198,7 @@ function pickIconUrl(name=''){
   if (s.includes('youtube') || s.includes('youtub')) return PLATFORM_ICON_URLS.youtube;
   if (s.includes('instagram') || s.includes('ig')) return PLATFORM_ICON_URLS.instagram;
   if (s.includes('thread')) return PLATFORM_ICON_URLS.threads;
-  if (s.includes('twitter') || s === 'x' || s.includes(' x ')) return PLATFORM_ICON_URLS.twitter;
+  if (s.includes('twitter') || s==='x' || s.includes(' x ')) return PLATFORM_ICON_URLS.x || PLATFORM_ICON_URLS.twitter;
   if (s.includes('line')) return PLATFORM_ICON_URLS.line;
   if (s.includes('telegram')) return PLATFORM_ICON_URLS.telegram;
   if (s.includes('discord')) return PLATFORM_ICON_URLS.discord;
@@ -212,20 +210,28 @@ function pickIconUrl(name=''){
   if (s.includes('traffic') || s.includes('เพิ่มคนเข้าเว็บ')) return PLATFORM_ICON_URLS.traffic;
   if (s.includes('ไทย') || s.includes('thailand')) return PLATFORM_ICON_URLS.thailand;
   if (s.includes('shopee') || s.includes('ช้อป')) return PLATFORM_ICON_URLS.shopee;
-  return PLATFORM_ICON_URLS.seo; // fallback กลางๆ
+  return PLATFORM_ICON_URLS.seo;
 }
 
 /* ---------- Boot ---------- */
 async function init(){
   await loadPlatforms();
   await tryAutoSelectFromURL();
-  $('#searchAll').addEventListener('input', filterChildrenFromGlobal);
-  $('#groupBtn').onclick = ()=>$('#groupSel').classList.toggle('open');
-  $('#childBtn').onclick = ()=>$('#childSel').classList.toggle('open');
-  $('#groupSearch').addEventListener('input', renderGroupList);
-  $('#childSearch').addEventListener('input', renderChildList);
+
+  $('#searchAll').addEventListener('input', debounce(filterChildrenFromGlobal, 120));
+  $('#groupBtn').onclick = ()=>{
+    $('#groupSel').classList.toggle('open');
+    $('#groupBtn').setAttribute('aria-expanded', String($('#groupSel').classList.contains('open')));
+  };
+  $('#childBtn').onclick = ()=>{
+    $('#childSel').classList.toggle('open');
+    $('#childBtn').setAttribute('aria-expanded', String($('#childSel').classList.contains('open')));
+  };
+  $('#groupSearch').addEventListener('input', debounce(()=>renderGroupList(false), 120));
+  $('#childSearch').addEventListener('input', debounce(renderChildList, 120));
   $('#qty').addEventListener('input', updateEstimate);
   $('#chipBar').addEventListener('click', onChip);
+
   $('#searchAll').value='';
   $('#searchAll').dispatchEvent(new Event('input'));
 }
@@ -234,10 +240,9 @@ async function init(){
 async function tryAutoSelectFromURL(){
   const sp = new URLSearchParams(location.search);
   const type = sp.get('type');
-  const pid  = sp.get('id');              // provider service id
+  const pid  = sp.get('id');
   if (type !== 'service' || !pid) return;
 
-  // 1) ถ้าแพลตฟอร์มปัจจุบันมีอยู่แล้ว ลองหาเลยก่อน
   const pickInsideCurrent = ()=>{
     const grp = (groups||[]).find(g =>
       Array.isArray(g?.details?.services) &&
@@ -247,20 +252,16 @@ async function tryAutoSelectFromURL(){
     chooseGroup(grp);
     const svc = grp.details.services.find(s => String(s.id) === String(pid));
     if (svc) chooseChild(svc);
-    // เปิดรายละเอียดให้เห็นชัด ๆ
     document.getElementById('detailBox').style.display = '';
     document.getElementById('qty')?.focus();
     return true;
   };
 
-  // 2) ลองหาในแพลตฟอร์มที่ถูกเลือกอยู่ก่อน
   if (pickInsideCurrent()) return;
 
-  // 3) วนทุกแพลตฟอร์ม: โหลดกลุ่ม แล้วหา service id ที่ต้องการ
   for (const p of platforms){
-    await choosePlatform(p._id);          // โหลด groups ของแพลตฟอร์มนั้น
+    await choosePlatform(p._id);
     if (pickInsideCurrent()){
-      // ทำไทล์แพลตฟอร์มให้ active ด้วย
       $$('#platformGrid .p-tile').forEach(el=>{
         el.classList.toggle('active', el.dataset.id === String(p._id));
       });
@@ -272,12 +273,9 @@ async function tryAutoSelectFromURL(){
 /* ---------- ชิปคลิก ---------- */
 function onChip(e){
   const b = e.target.closest('.chip'); if(!b) return;
-  const chipId = b.dataset.chip;
-
-  // หาใน visibleChipList
+  const chipId = b.dataset.chip ?? b.dataset.sub ?? ''; // เผื่อ template เดิม
   const chip = visibleChipList.find(c => c.id===chipId);
-  // ถ้าเป็นชิปที่ไม่มีของ (count==0) และไม่ใช่ "ทั้งหมด" — ไม่ให้เลือก
-  if (chip && chip.id!=="" && chip.count===0) return;
+  if (chip && chip.id!=="" && chip.count===0) return; // กันคลิกอันที่ไม่มี
 
   currentChipId = chipId;
   $('#chipBar').querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
@@ -318,19 +316,16 @@ async function loadPlatforms(){
 /* ---------- เมื่อเลือกแพลตฟอร์ม ---------- */
 async function choosePlatform(catId){
   currentPlatform = catId;
-  currentChipId   = "";   // เริ่มที่ “ทั้งหมด”
+  currentChipId   = "";
 
-  // 1) subcategories (เพื่อ map id จริงให้ชิป)
   try{
     const subRes = await fetch(`/api/subcategories?cat=${catId}`);
-    subcats = await subRes.json(); // [{_id,name}]
+    subcats = await subRes.json();
   }catch(e){ subcats = []; }
 
-  // 2) กลุ่มบริการ
   const res = await fetch(`/api/service-groups?cat=${catId}`);
   groups = await res.json();
 
-  // 3) ผูก realId + นับจำนวน
   const chipsWithCount = CHIP_DEFS.map(ch=>{
     const sub = subcats.find(s => (s.name||'').toLowerCase() === ch.label.toLowerCase());
     const realId = sub ? oid(sub._id) : null;
@@ -339,7 +334,6 @@ async function choosePlatform(catId){
     return chipObj;
   });
 
-  // 4) แสดงเฉพาะชิปที่มีจริง หรือ “ทั้งหมด”
   visibleChipList = chipsWithCount.filter(ch => ch.id==="" || ch.count>0);
   renderChipsTH();
   renderGroupList(true);
@@ -352,27 +346,29 @@ function renderChipsTH(){
     <button type="button"
             class="chip ${currentChipId===ch.id ? 'active' : ''} ${ch.id!=='' && ch.count===0 ? 'disabled' : ''}"
             data-chip="${ch.id}">
-      ${ch.label}
+      ${ch.label}${ch.id===''?'':` (${ch.count})`}
     </button>
   `).join('');
 }
 
 /* ---------- กลุ่มบริการ (ซ้าย) กรองด้วยชิป + คำค้น ---------- */
 function renderGroupList(reset=false){
-  const q = ($('#groupSearch').value||'').toLowerCase();
+  const q = ($('#groupSearch').value||'').toLowerCase().trim();
   const chip = visibleChipList.find(c => c.id===currentChipId) || visibleChipList[0];
 
   const filtered = groups.filter(g =>
     groupMatchesChip(g, chip) &&
-    String(g.name||'').toLowerCase().includes(q)
+    (String(g.name||'').toLowerCase().includes(q))
   );
 
-  $('#groupList').innerHTML = filtered.map(x =>
-    `<div class="opt" data-id="${x._id}">${x.name||'-'}</div>`).join('');
+  $('#groupList').innerHTML = filtered.length
+    ? filtered.map(x => `<div class="opt" data-id="${x._id}">${x.name||'-'}</div>`).join('')
+    : `<div class="empty muted">ไม่พบกลุ่มบริการที่ตรงกับคำค้น</div>`;
 
   $('#groupList').onclick = e=>{
     const el=e.target.closest('.opt'); if(!el) return;
     $('#groupSel').classList.remove('open');
+    $('#groupBtn').setAttribute('aria-expanded','false');
     const grp = filtered.find(v=>String(v._id)===el.dataset.id);
     chooseGroup(grp);
   };
@@ -394,14 +390,15 @@ function chooseGroup(grp){
 
 /* ---------- รายการบริการย่อย ---------- */
 function renderChildList(){
-  const q = ($('#childSearch').value || '').toLowerCase();
-  const globalQ = ($('#searchAll').value || '').toLowerCase();
+  const q = ($('#childSearch').value || '').toLowerCase().trim();
+  const globalQ = ($('#searchAll').value || '').toLowerCase().trim();
+
   const list = children.filter(c=>{
     const s = `${c.id} ${c.name}`.toLowerCase();
-    return s.includes(q) && s.includes(globalQ);
+    return (!q || s.includes(q)) && (!globalQ || s.includes(globalQ));
   });
 
-  $('#childList').innerHTML = list.map(c=>`
+  $('#childList').innerHTML = list.length ? list.map(c=>`
     <div class="opt" data-id="${c.id}">
       <div class="row">
         <div>
@@ -410,29 +407,64 @@ function renderChildList(){
         </div>
         <div class="rate">${fmt(c.rate||0)} ${c.currency||'THB'}</div>
       </div>
-    </div>`).join('');
+    </div>`).join('') : `<div class="empty muted">ไม่พบบริการที่ตรงกับคำค้น</div>`;
 
   $('#childList').onclick = e=>{
     const el=e.target.closest('.opt'); if(!el) return;
     $('#childSel').classList.remove('open');
+    $('#childBtn').setAttribute('aria-expanded','false');
     const svc = children.find(v=>String(v.id)===el.dataset.id);
     chooseChild(svc);
   };
 }
 function filterChildrenFromGlobal(){ renderChildList(); }
 
+/* ---------- ดึง effective rate (ถ้า endpoint มี) ---------- */
+async function fetchEffectiveRateIfAvailable(groupId, childId, baseRate){
+  // คุณสามารถเปิดใช้ endpoint ต่อไปนี้ได้ที่ฝั่งเซิร์ฟเวอร์:
+  //   GET /api/pricing/effective-rate?serviceId=<groupId>&childId=<providerServiceId>
+  // ให้คืน { ok:true, rate:number } หรือ { rate:number }
+  try{
+    const url = `/api/pricing/effective-rate?serviceId=${encodeURIComponent(groupId)}&childId=${encodeURIComponent(childId)}`;
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const data = await r.json();
+    const val = Number(data?.rate ?? data?.effectiveRate);
+    if (Number.isFinite(val) && val >= 0) return val;
+  }catch{}
+  return null; // ไม่มี/ใช้ไม่ได้ -> fallback base
+}
+
 /* ---------- รายละเอียด/ฟอร์ม ---------- */
-function chooseChild(svc){
+async function chooseChild(svc){
   currentChild = svc;
 
   $('#childText').textContent = svc?.name || '—';
   $('#providerServiceId').value = svc?.id || '';
+
+  // base
   rate     = Number(svc?.rate || 0);
   currency = svc?.currency || 'THB';
+  effectiveRate = null;
+  rateSource = 'base';
+  $('#rateNote').style.display = 'none';
+
+  // ลองดึง effective rate (ถ้ามี endpoint)
+  const gid = $('#groupId').value;
+  const cid = String(svc?.id || '');
+  const er = await fetchEffectiveRateIfAvailable(gid, cid, rate);
+  if (er !== null) {
+    effectiveRate = er;
+    rateSource = 'effective';
+    $('#rateNote').style.display = '';
+    $('#rateNote').textContent = `อัตรานี้เป็นราคาหลังปรับตามกฎของบัญชีคุณ (ต่อ 1,000 หน่วย)`;
+  }
+
+  const displayRate = rateSource==='effective' ? effectiveRate : rate;
 
   const bits = [];
-  bits.push(`อัตรา: ${fmt(rate)} ${currency} / 1,000`);
-  bits.push(`ช่วง: ${svc.min||0}-${svc.max||0}${svc.step? ' | step '+svc.step: ''}`);
+  bits.push(`อัตรา: ${fmt(displayRate)} ${currency} / 1,000`);
+  bits.push(`ช่วง: ${svc.min||0}-${svc.max||0}${svc.step? ' | ขั้นละ '+svc.step: ''}`);
   if (svc.average_delivery) bits.push(`เฉลี่ย: ${svc.average_delivery}`);
   if (svc.dripfeed) bits.push('Dripfeed');
   if (svc.refill)   bits.push('Refill');
@@ -444,7 +476,6 @@ function chooseChild(svc){
     (svc?.description ? linkify(br(svc.description)) :
     (currentGroup?.description ? linkify(br(currentGroup.description)) : '—'));
 
-  // จำนวน: เปิดอิสระ
   const q    = $('#qty');
   const min  = Math.max(1, Number(svc.min || 1));
   const max  = Math.max(min, Number(svc.max || min));
@@ -456,19 +487,12 @@ function chooseChild(svc){
   q.value = '';
   q.placeholder = `เช่น ${min.toLocaleString()} – ${max.toLocaleString()}`;
 
-  const minVal = $('#minVal'), maxVal = $('#maxVal'), help = $('#qtyHelp');
+  const minVal = $('#minVal'), maxVal = $('#maxVal');
   if (minVal) minVal.textContent = min.toLocaleString();
   if (maxVal) maxVal.textContent = max.toLocaleString();
-  if (help){
-    help.innerHTML =
-      `<span class="label">ขั้นต่ำ:</span> <b>${min.toLocaleString()}</b>
-       <span class="sep">–</span>
-       <span class="label">สูงสุด:</span> <b>${max.toLocaleString()}</b>` +
-      (step>1 ? ` <span class="sep"></span><span class="muted">(แนะนำเพิ่มครั้งละ ${step.toLocaleString()})</span>` : '');
-  }
 
-  // live estimate
-  q.addEventListener('input', () => updateEstimate());
+  q.removeEventListener('input', updateEstimate);
+  q.addEventListener('input', updateEstimate);
 
   $('#drip').disabled = !svc.dripfeed;
   $('#drip').checked  = !!svc.dripfeed;
@@ -477,13 +501,25 @@ function chooseChild(svc){
   $('#detailBox').style.display = '';
 }
 function resetDetail(){ $('#childText').textContent='—'; $('#detailBox').style.display='none'; }
+function clearAll(){
+  $('#groupText').textContent = '—';
+  $('#childText').textContent = '—';
+  $('#groupList').innerHTML = '';
+  $('#childList').innerHTML = '';
+  resetDetail();
+}
+function calcUnitRate(){
+  return rateSource==='effective' && Number.isFinite(effectiveRate) ? effectiveRate : rate;
+}
 function updateEstimate(){
   const n = Number($('#qty').value || 0);
-  const price = Math.max(0, (n/1000) * rate);
-  const estValue = document.getElementById('estValue');
-  if (estValue) estValue.textContent = fmt(price);
-  else document.getElementById('est').value = `${fmt(price)} ${currency}`;
+  const unit = calcUnitRate();
+  const price = Math.max(0, (n/1000) * unit);
+  const el = document.getElementById('est');
+  el.value = `${fmt(price)} ${currency}`;
 }
+
+/* ---------- ส่งคำสั่งซื้อ ---------- */
 async function submitOrder(ev){
   ev.preventDefault();
 
@@ -521,11 +557,10 @@ async function submitOrder(ev){
     const data = await res.json().catch(()=>({}));
     $('#resp').innerHTML = data?.ok
       ? `<div class="card soft">✅ สั่งซื้อสำเร็จ Provider Order: <b>${data.providerOrderId||'-'}</b></div>`
-      : `<div class="card soft">❌ ${data?.error||'สั่งซื้อไม่สำเร็จ'}<br><small class="muted">${data?.detail ? JSON.stringify(data.detail) : ''}</small></div>`;
+      : `<div class="card soft">❌ ${data?.error||'สั่งซื้อไม่สำเร็จ'}<br><small class="muted">${data?.detail ? (typeof data.detail==='string'? data.detail : JSON.stringify(data.detail)) : ''}</small></div>`;
   }catch(err){
     $('#resp').innerHTML = `<div class="card soft">❌ ส่งคำสั่งไม่สำเร็จ (${err.message})</div>`;
   }
   return false;
 }
 </script>
-

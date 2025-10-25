@@ -1,4 +1,5 @@
 // src/index.js ตัวรันหลัก
+import mongoose from 'mongoose';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -8,38 +9,48 @@ import { connectMongo } from './db/mongo.js';
 import { User } from './models/User.js';
 import { config } from './config.js';
 import expressLayouts from 'express-ejs-layouts';
-
 import authRoutes from './routes/auth.js';
 import catalogRoutes from './routes/catalog.js';
 import orderRoutes from './routes/orders.js';
 import adminRoutes from './routes/admin.js';
 import adminPricingRoutes from './routes/admin-pricing.js';
 import walletRoutes from './routes/wallet.js';
-
 import newOrderRoutes from './routes/newOrder.js';
-
 import { syncServicesFromProvider } from './lib/syncServices.js';
 import { Category } from './models/Category.js';
 import { servicesRouter } from './routes/services.js';
-
 import changesRoute from './routes/changes.js';
 import { initDailyChangeSync } from './jobs/dailyChangeSync.js';
-
 import accountRouter from './routes/account.js';
 import resetPasswordRoutes from './routes/reset-password.js';
 import dashboardRouter from './routes/dashboard.js';
-
 import otpRouter from './routes/otp.js';
-
 import { attachUser, requireAuth, requireAdmin } from './middleware/auth.js';
-
 import { Order } from './models/Order.js'
+import apiPricingRouter from './routes/api-pricing.js';
+import compression from 'compression';
+import { startSpendAutoRecalc } from './services/spendWatcher.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 
 // เชื่อมต่อ Mongo
 await connectMongo();
+
+let stopSpendWatcher = null;
+mongoose.connection.once('open', () => {
+  if (!stopSpendWatcher) {
+    stopSpendWatcher = startSpendAutoRecalc(mongoose.connection);
+    console.log('[spendWatcher] started');
+  }
+});
+
+for (const sig of ['SIGINT','SIGTERM']) {
+  process.on(sig, () => {
+    try { stopSpendWatcher?.(); } catch {}
+    process.exit(0);
+  });
+}
 
 try {
   if (process.env.SYNC_INDEXES !== '0') {
@@ -61,10 +72,12 @@ app.set('layout', 'layout');
 app.set('trust proxy', 1);
 
 // Static & parsers
+app.set('etag', 'strong');
 app.use('/static', express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'), { maxAge: '7d' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(compression({ level: 6 }));
 
 // Session
 app.use(session({
@@ -76,6 +89,8 @@ app.use(session({
 }));
 
 app.use(attachUser);
+
+
 
 app.use((req, res, next) => {
   // defaults
@@ -142,7 +157,7 @@ app.use(async (req, res, next) => {
         balance: user.balance,
         currency: user.currency,
         name: user.name || null,
-        level: user.level || 1,
+        level: user.level || '1',
         totalSpent: typeof user.totalSpent === 'number' ? user.totalSpent : 0,
         avatarUrl,
         avatarVer: user.updatedAt ? user.updatedAt.getTime() : Date.now(),
@@ -162,7 +177,7 @@ app.use(authRoutes);
 app.use(resetPasswordRoutes);
 app.use(catalogRoutes);
 app.use(requireAuth, orderRoutes);
-app.use('/admin', requireAuth, requireAdmin, adminRoutes);
+app.use('/', requireAuth, requireAdmin, adminRoutes);
 app.use('/admin', requireAuth, requireAdmin, adminPricingRoutes);
 app.use(newOrderRoutes);
 app.use(requireAuth, walletRoutes);
@@ -171,6 +186,7 @@ app.use(requireAuth, changesRoute);
 app.use(requireAuth, accountRouter);  
 app.use('/', requireAuth, dashboardRouter);
 app.use('/otp', otpRouter);
+app.use('/api', apiPricingRouter);
 
 // Healthcheck (optional)
 app.get('/healthz', (_req, res) => res.json({ ok: true }));

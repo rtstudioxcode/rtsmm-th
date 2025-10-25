@@ -4,7 +4,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { Order } from '../models/Order.js';
 import { Service } from '../models/Service.js';
 import { User } from '../models/User.js';
-import { computePrice } from '../lib/pricing.js';
+import { computeEffectiveRateEx } from '../lib/pricing.js';
 import { ProviderSettings } from '../models/ProviderSettings.js';
 import { recalcUserTotals } from '../services/spend.js';
 
@@ -120,6 +120,11 @@ router.post('/orders', async (req, res) => {
       return res.status(400).json({ error: 'missing fields' });
     }
 
+    // 0) ผู้ใช้ (ใช้คำนวณ per-user pricing + หักเงิน)
+    const me = req.session?.user || req.user;
+    const userId = String(me?._id || '');
+    if (!userId) return res.status(401).json({ error: 'unauthorized' });
+
     // 1) เลือกบริการ
     let baseDoc = null;
     let chosen = null;
@@ -159,26 +164,24 @@ router.post('/orders', async (req, res) => {
     if (chosen.min && quantity < chosen.min) return res.status(400).json({ error: `ขั้นต่ำ ${chosen.min}` });
     if (chosen.max && quantity > chosen.max) return res.status(400).json({ error: `สูงสุด ${chosen.max}` });
 
-    // 3) คิดราคา
+    // 3) คิดราคา (per-user effective rate)
     let rate = nz(chosen.rate);
+    let cost = calcCost(quantity, rate);
     try {
-      if (typeof computePrice === 'function') {
-        rate = await computePrice(rate, {
-          categoryId: chosen.category,
-          subcategoryId: chosen.subcategory,
-          serviceId: baseDoc._id,
-        });
-      }
-    } catch { /* ใช้ rate เดิม */ }
+      const ex = await computeEffectiveRateEx({
+        serviceId: baseDoc._id,
+        childId: (serviceId ? null : providerIdForApi),
+        userId,
+        baseRate: rate,
+        quantity
+      });
+      rate = ex.finalRate;        // เรตสุดท้ายต่อ 1k ที่ใช้จริง
+      cost = ex.lineCost ?? cost; // ยอดที่ปัดแบบเงินไว้แล้ว
+    } catch {}
 
-    const cost = calcCost(quantity, rate);
     const currency = chosen.currency || 'THB';
 
     // 4) ตัดเงิน
-    const me = req.session?.user || req.user;
-    const userId = String(me?._id || '');
-    if (!userId) return res.status(401).json({ error: 'unauthorized' });
-
     const debited = await User.findOneAndUpdate(
       { _id: userId, balance: { $gte: cost } },
       { $inc: { balance: -cost } },
@@ -223,6 +226,7 @@ router.post('/orders', async (req, res) => {
       estCost: cost,
       currency,
       rateAtOrder: rate,
+      baseRateAtOrder: nz(chosen.rate),
       status: 'processing',
       providerResponse: np.raw || providerResp || null,
       startCount:   np.startCount,
@@ -239,11 +243,10 @@ router.post('/orders', async (req, res) => {
     try {
       const order = await Order.create(fields);
 
-      await User.updateOne({ _id: userId }, { $inc: {totalOrders: 1 } }); 
+      await User.updateOne({ _id: userId }, { $inc: { totalOrders: 1 } });
       // อัปเดตเครดิตผู้ให้บริการอัตโนมัติหลังสั่งออเดอร์ (ไม่บล็อก response)
       setTimeout(() => {
         refreshProviderBalanceNow().catch(() => {});
-        recalcUserTotalSpent(userId).catch(() => {});
         recalcUserTotals(userId).catch(() => {});
       }, 0);
 
@@ -398,6 +401,7 @@ router.post('/api/orders/:id/refresh', async (req, res) => {
       acceptedAt:   s.accepted_at ? new Date(s.accepted_at)
                    : (s.acceptedAt ? new Date(s.acceptedAt) : (o.acceptedAt || null)),
       providerResponse: { ...(o.providerResponse || {}), lastStatus: s },
+      updatedAt: new Date()
     };
     if (upd.progress == null && upd.startCount != null && upd.currentCount != null && o.quantity > 0) {
       upd.progress = Math.max(0, Math.min(100, ((upd.currentCount - upd.startCount) / o.quantity) * 100));
@@ -406,7 +410,7 @@ router.post('/api/orders/:id/refresh', async (req, res) => {
     const prevStatus = o.status; 
     Object.assign(o, upd);   
     await o.save();
-    setTimeout(() => recalcUserTotals(o.userId || o.user).catch(()=>{}), 0);
+    setTimeout(() => recalcUserTotals(o.userId || o.user, { force: true }).catch(()=>{}), 0);
 
     if (st === 'canceled' && prevStatus !== 'canceled') {
       const est       = nz(o.estCost ?? o.cost ?? calcCost(o.quantity, o.rateAtOrder));
@@ -533,7 +537,7 @@ router.post('/api/orders/refresh-all', async (req, res) => {
             if (refund > 0) {
               await User.updateOne({ _id: o.user }, { $inc: { balance: refund } });
             }
-            setTimeout(() => recalcUserTotalSpent(o.userId || o.user).catch(()=>{}), 0);
+            setTimeout(() => recalcUserTotals(o.userId || o.user).catch(()=>{}), 0);
           } else {
             await o.save();
           }
@@ -579,7 +583,7 @@ router.post('/api/orders/refresh-all', async (req, res) => {
     }
     setTimeout(() => recalcUserTotals(userId).catch(()=>{}), 0);
 
-    // รวมรายการที่ DB เพิ่งอัปเดตในช่วงสั้น ๆ เผื่อมีการเปลี่ยนสถานะ/คืนเงินจาก process อื่น
+    // รวมรายการที่ DB เพิ่งอัปเดตในช่วงสั้น ๆ
     const RECENT_WINDOW_MS = 10 * 60 * 1000; // 10 นาที
     const recent = await Order.find({
       user: userId,
@@ -617,15 +621,6 @@ router.post('/api/orders/refresh-all', async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 // NEW: cancel (ยกเลิก+คืนเงิน) และ refill
 // ─────────────────────────────────────────────────────────────
-/**
- * Cancel เฉพาะกรณี:
- * 1) เป็นออเดอร์ของผู้เรียก
- * 2) status = processing และยัง "ไม่เริ่ม" (isNotStarted)
- * 3) service.cancel = true (รองรับ child service)
- * - ยกเลิกที่ provider (ถ้ามี orderId)
- * - อัปเดต DB → status=canceled
- * - คืนเงินทันที (ใช้ estCost || cost || calcCost)
- */
 router.post('/api/orders/:id/cancel', async (req, res) => {
   try {
     const me = req.session?.user || req.user;
@@ -645,10 +640,10 @@ router.post('/api/orders/:id/cancel', async (req, res) => {
     const { cancel } = getServiceFlags(svc, o.providerServiceId);
     if (!cancel) return res.status(400).json({ error: 'บริการนี้ไม่รองรับการยกเลิก' });
 
-    // 1) ต้องยกเลิกที่ผู้ให้บริการให้สำเร็จ (adapter ยิง /cancels แล้ว)
+    // 1) ยกเลิกที่ผู้ให้บริการ
     let cancelResp;
     try {
-      cancelResp = await providerCancelOrder(o.providerOrderId); // ตอนนี้ยิง /cancels แล้ว
+      cancelResp = await providerCancelOrder(o.providerOrderId);
     } catch (e) {
       console.error('Provider cancel failed:', e?.response?.data || e.message);
       return res.status(502).json({
@@ -664,13 +659,13 @@ router.post('/api/orders/:id/cancel', async (req, res) => {
       o.currentCount = toNum(s.current_count ?? s.currentCount) ?? o.currentCount;
       o.remains      = toNum(s.remains) ?? o.remains;
       o.progress     = toNum(s.progress) ?? o.progress;
-    } catch {/* ถ้าดึงไม่ได้ก็ใช้ข้อมูลที่มี */}
+    } catch {/* ใช้ข้อมูลที่มี */ }
 
     // 3) คำนวณคืนเงิน
     const est = nz(o.estCost ?? o.cost ?? calcCost(o.quantity, o.rateAtOrder));
-    const donePct = computeDonePct(o);              // 0..100
-    const leftRatio = Math.max(0, Math.min(1, 1 - (donePct / 100))); // ส่วนที่ยังไม่ได้ทำ
-    const refund = Math.round((est * leftRatio) * 100) / 100;        // ปัด 2 ตำแหน่ง
+    const donePct = computeDonePct(o);
+    const leftRatio = Math.max(0, Math.min(1, 1 - (donePct / 100)));
+    const refund = Math.round((est * leftRatio) * 100) / 100;
     const refundType = (leftRatio >= 0.999) ? 'full' : (leftRatio <= 0.001 ? 'none' : 'partial');
 
     // อัปเดตออเดอร์
@@ -681,11 +676,11 @@ router.post('/api/orders/:id/cancel', async (req, res) => {
     o.refundType = refundType;
     await o.save();
 
-    // 4) คืนเงินจริง (เฉพาะ > 0)
+    // 4) คืนเงินจริง
     if (refund > 0) {
       await User.updateOne({ _id: userId }, { $inc: { balance: refund } });
     }
-    setTimeout(() => recalcUserTotalSpent(o.userId || o.user).catch(()=>{}), 0);
+    setTimeout(() => recalcUserTotals(o.userId || o.user).catch(()=>{}), 0);
 
     return res.json({
       ok: true,
@@ -701,13 +696,6 @@ router.post('/api/orders/:id/cancel', async (req, res) => {
   }
 });
 
-/**
- * Refill เฉพาะกรณี:
- * 1) เป็นออเดอร์ของผู้เรียก
- * 2) service.refill = true
- * 3) มี providerOrderId
- * 4) โดยทั่วไปจะยอมให้ refill หลัง "เสร็จสิ้น" หรือ "บางส่วน" (แล้วแต่นโยบาย)
- */
 router.post('/api/orders/:id/refill', async (req, res) => {
   try {
     const me = req.session?.user || req.user;
@@ -725,7 +713,6 @@ router.post('/api/orders/:id/refill', async (req, res) => {
     if (!refill) return res.status(400).json({ error: 'บริการนี้ไม่รองรับเติมคืน (Refill)' });
     if (!o.providerOrderId) return res.status(400).json({ error: 'ไม่มีหมายเลขออเดอร์ของผู้ให้บริการ' });
 
-    // (นโยบาย: ยอมให้ refill เมื่อ done หรือ partial)
     const st = String(o.status || '').toLowerCase();
     if (!(st === 'completed' || st === 'partial')) {
       return res.status(400).json({ error: 'สถานะปัจจุบันไม่รองรับการเติมคืน' });

@@ -13,15 +13,15 @@ const OrderSchema = new Schema({
   groupId: { type: Schema.Types.ObjectId },
 
   // ข้อมูลบริการ/ลิงก์/จำนวน
-  providerServiceId: { type: Schema.Types.Mixed, required: true }, // ← รองรับทั้ง Number/String
+  providerServiceId: { type: Schema.Types.Mixed, required: true },
   link:              { type: String, required: true },
-  quantity:          { type: Number, required: true },
+  quantity:          { type: Number, required: true, min: 1 },
 
   // ราคา
-  estCost:     { type: Number, required: true },
-  cost:        { type: Number },
+  estCost:     { type: Number, required: true }, // ยอดคาดการณ์/ยอดที่คิดตอนสั่ง (ปัด 2 ตำแหน่งแล้ว)
+  cost:        { type: Number },                 // ยอดที่คิดจริง (ถ้ามี)
   currency:    { type: String, default: 'THB' },
-  rateAtOrder: { type: Number },
+  rateAtOrder: { type: Number },                 // เรตสุดท้ายต่อ 1k ตอนสั่ง (effective)
 
   // ออเดอร์ของผู้ให้บริการ
   providerOrderId:  { type: String, index: true },
@@ -35,9 +35,24 @@ const OrderSchema = new Schema({
   remains:      { type: Number, min: 0 },
   startCount:   { type: Number, min: 0 },
   currentCount: { type: Number, min: 0 },
+
+  // เวลา/การดำเนินการ
+  acceptedAt:   { type: Date },
+  canceledAt:   { type: Date },
+
+  // การคืนเงิน
+  refundAmount: { type: Number, default: 0, min: 0 },
+  refundType:   { type: String, enum: ['full','partial','none', null], default: null },
+  lastCancelId: { type: String },
+
+  // Refill
+  lastRefillAt:       { type: Date },
+  lastRefillResponse: { type: Schema.Types.Mixed },
+  refillCount:        { type: Number, default: 0, min: 0 },
 }, {
   versionKey: false,
-  timestamps: true,             // ← ให้ Mongooseจัดการ createdAt/updatedAt
+  timestamps: true, // createdAt / updatedAt
+  strict: true
 });
 
 // Indexes
@@ -51,6 +66,35 @@ OrderSchema.pre('save', function(next){
   if (this.userId && !this.user)   this.user   = this.userId;
   if (this.user   && !this.userId) this.userId = this.user;
   next();
+});
+
+/* ───────────────── Auto-recalc hooks ─────────────────
+   ทุกครั้งที่มีการบันทึก/อัปเดตออเดอร์ จะคิวให้รีคำนวณยอดใช้จ่ายของผู้ใช้
+   ใช้ dynamic import กัน circular dependency
+*/
+function enqueueRecalc(userId, meta = {}) {
+  if (!userId) return;
+  import('../services/spend.js')
+    .then(({ recalcUserTotals }) => {
+      setTimeout(() => {
+        // ใช้ force:false ทั่วไป; จุดที่สำคัญ (refund/cancel) route ใส่ force:true อยู่แล้ว
+        recalcUserTotals(userId, { ...meta }).catch(()=>{});
+      }, 0);
+    })
+    .catch(()=>{});
+}
+
+OrderSchema.post('save', function docSaved(doc) {
+  const uid = doc?.userId || doc?.user;
+  if (uid) enqueueRecalc(uid, { reason: 'order_saved', orderId: doc._id });
+});
+
+// สำหรับกรณีใช้ findOneAndUpdate / findByIdAndUpdate
+OrderSchema.post('findOneAndUpdate', function postF1U(res) {
+  // res คือ doc หลังอัปเดต หาก query ใช้ { new: true }
+  const doc = res;
+  const uid = doc?.userId || doc?.user || this.getUpdate()?.userId || this.getUpdate()?.user;
+  if (uid) enqueueRecalc(uid, { reason: 'order_f1u', orderId: doc?._id });
 });
 
 export const Order = models.Order || model('Order', OrderSchema);

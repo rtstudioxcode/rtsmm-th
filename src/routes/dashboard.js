@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import { requireAuth } from '../middleware/auth.js';
 import { User } from '../models/User.js';
 import { Order } from '../models/Order.js';
+import { LEVELS as LV } from '../services/loyalty.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -30,7 +31,7 @@ async function ensureUserTotals(userId, includeCanceled = false) {
     return {
       totalSpent: Number(user.totalSpent || 0),
       totalOrders: Number(user.totalOrders || 0),
-      level: Number(user.level || 1),
+      level: String(user.level || '1'),
     };
   }
 
@@ -78,7 +79,7 @@ async function ensureUserTotals(userId, includeCanceled = false) {
     { $set: { totalSpent, totalOrders, level } }
   );
 
-  return { totalSpent, totalOrders, level: Number(level) };
+  return { totalSpent, totalOrders, level: String(level) };
 }
 
 async function renderDashboard(req, res, next) {
@@ -88,6 +89,8 @@ async function renderDashboard(req, res, next) {
 
     const includeCanceled = String(req.query.all || '') === '1';
     const totals = await ensureUserTotals(me._id, includeCanceled);
+    const levelIndex = Math.max(1, Number(totals.level || 1)) - 1;
+    const userLevelName = LV[levelIndex]?.name || `เลเวล ${totals.level}`;
 
     const stats = {
       totalSpent: totals.totalSpent,
@@ -98,7 +101,8 @@ async function renderDashboard(req, res, next) {
     return res.render('dashboard/index', {
       title: 'Dashboard',
       stats,
-      userLevel,
+      userLevel: totals.level,
+      userLevelName,
       me: res.locals.me || me,
     });
   } catch (err) {

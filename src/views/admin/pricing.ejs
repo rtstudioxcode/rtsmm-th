@@ -1,3 +1,4 @@
+<!-- //admin/pricing.ejs -->
 <% const fmt = n => (Number(n).toLocaleString(undefined, { maximumFractionDigits: 4 })); %>
 
 <h2 class="title">กฎปรับราคา</h2>
@@ -7,70 +8,122 @@
   <h3>วิธีใช้งานกฎปรับราคา</h3>
   <ul class="muted">
     <li><b>ขอบเขต = ทั้งเว็บ</b> → ปรับราคาทุกบริการย่อยในทุกแพลตฟอร์ม</li>
-    <li><b>ขอบเขต = หมวดหลัก / หมวดย่อย</b> → ปรับเฉพาะบริการย่อยในขอบเขตนั้น</li>
-    <li><b>ขอบเขต = บริการ</b> → เลือก “บริการย่อย” รายการเดียว (เช่น <code>Telegram Stars for Post</code>)</li>
+    <li><b>ขอบเขต = แพลตฟอร์ม</b> → ปรับเฉพาะบริการย่อยภายใต้แพลตฟอร์มนั้น</li>
+    <li><b>ขอบเขต = หมวดหมู่/กลุ่ม</b> → ปรับเฉพาะกลุ่มบริการ (Service document)</li>
+    <li><b>ขอบเขต = บริการ</b> → ปรับเฉพาะบริการย่อย (children ในกลุ่ม)</li>
     <li><b>โหมด</b>:
       <ul>
-        <li><b>ปรับเป็น %</b> → ตัวอย่าง 15 = เพิ่ม 15%, -10 = ลด 10%</li>
-        <li><b>เพิ่ม/ลดเป็นจำนวนเงิน</b> → บวก/ลบคงที่ต่อ 1,000 หน่วย</li>
-        <li><b>ตั้งราคาใหม่</b> → กำหนดราคาใหม่แทนค่าเดิม</li>
+        <li><b>เปอร์เซ็นต์ (%)</b> → ตัวอย่าง 15 = เพิ่ม 15%, -10 = ลด 10%</li>
+        <li><b>เพิ่ม/ลด (คงที่/ต่อ 1,000)</b> → บวก/ลบคงที่ต่อ 1,000 หน่วย</li>
+        <li><b>ตั้งราคา (คงที่)</b> → กำหนดราคาใหม่แทนค่าเดิม</li>
       </ul>
     </li>
     <li><b>Priority</b> มากกว่า จะถูกคำนวณก่อน (ใช้ซ้อนหลายกฎได้)</li>
-    <li>ทุกครั้งที่บันทึก/ลบกฎ ระบบจะอัปเดตราคาใน DB ให้ทันที ทั้งที่ <code>service.rate</code> และ <code>details.services[].rate</code></li>
-    <li>เมื่อ Sync ผู้ให้บริการเข้ามาใหม่ ระบบจะ apply กฎให้อัตโนมัติ เพื่อคงราคาที่ตั้งไว้</li>
+    <li><b>ราคากลางใน DB</b>: ระบบจะ apply เฉพาะกฎที่ตั้งเป็น “ทุกคน” ให้กับ DB (ทั้ง <code>service.rate</code> และ <code>details.services[].rate</code>)</li>
+    <li><b>กฎเฉพาะบุคคล</b>: จะไม่แก้ราคาใน DB แต่จะถูกนำมาคำนวณตอน <b>แสดงผล/สั่งซื้อ</b> ตามผู้ใช้ที่ล็อกอิน</li>
+    <li>เมื่อ Sync บริการเข้ามาใหม่ ระบบจะ apply กฎ “ทุกคน” อัตโนมัติ เพื่อคงราคากลาง</li>
   </ul>
 </section>
 
-<!-- ฟอร์มสร้างกฎ -->
+<!-- ====== ฟอร์มสร้างกฎ (UI ใหม่แบบ multi-select) ====== -->
 <section class="card">
   <h3 class="title">สร้างกฎใหม่</h3>
-  <form id="ruleForm" method="post" action="/admin/pricing" class="rule-grid">
-    <label>ขอบเขต
-      <select name="scope" id="scopeSel" required>
-        <option value="global">ทั้งเว็บ</option>
-        <option value="category">หมวดหลัก</option>
-        <option value="subcategory">หมวดย่อย</option>
-        <option value="service">บริการ</option>
-      </select>
-    </label>
 
-    <label id="catWrap" style="display:none">หมวดหลัก
-      <select id="catSel">
-        <option value="">-- เลือกหมวดหลัก --</option>
-        <% cats.forEach(c => { %>
-          <option value="<%= c._id %>"><%= c.name %></option>
-        <% }) %>
-      </select>
-    </label>
+  <form id="ruleForm" method="post" action="/admin/pricing" class="stack-form">
+    <!-- ========= ขอบเขตบริการ (platform -> group -> service) ========= -->
+    <div class="block">
+      <div class="block-head">ขอบเขตบริการ</div>
 
-    <label id="subWrap" style="display:none">หมวดย่อย
-      <select id="subSel"></select>
-    </label>
+      <!-- เลือก scope -->
+      <div class="dd" id="dd-scope">
+        <label class="dd__label">ขอบเขต</label>
+        <div class="dd__box"><input class="dd__input" type="text" placeholder="เลือกขอบเขต…"><ul class="dd__list"></ul></div>
+        <input type="hidden" id="scopeVal" name="scope" value="global">
+      </div>
 
-    <label id="svcWrap" style="display:none">บริการ
-      <!-- ไม่มี name ที่นี่แล้ว -->
-      <select id="svcSel"></select>
-    </label>
+      <!-- Platform (multi) -->
+      <div class="ms hide" id="ms-platform">
+        <label class="dd__label">แพลตฟอร์ม</label>
+        <div class="ms__box">
+          <input class="ms__search" type="text" placeholder="พิมพ์ชื่อแพลตฟอร์มเพื่อค้นหา…">
+          <ul class="ms__list"></ul>
+          <div class="ms__chips" aria-live="polite"></div>
+        </div>
+      </div>
 
-    <!-- เก็บ targetId ไว้ตัวเดียว -->
-    <input type="hidden" name="targetId" id="targetIdHidden"/>
+      <!-- Group (Service document) -->
+      <div class="ms hide" id="ms-group">
+        <label class="dd__label">หมวดหมู่/กลุ่ม</label>
+        <div class="ms__box">
+          <input class="ms__search" type="text" placeholder="ค้นหาชื่อกลุ่ม/ชื่อ package ใหญ่…">
+          <ul class="ms__list"></ul>
+          <div class="ms__chips" aria-live="polite"></div>
+        </div>
+      </div>
 
-    <label>โหมด
-      <select name="mode" id="modeSel" required>
-        <option value="percent">ปรับเป็น % (เพิ่ม/ลด)</option>
-        <option value="delta">เพิ่ม/ลดเป็นจำนวนเงิน</option>
-        <option value="set">ตั้งราคาใหม่ (คงที่)</option>
-      </select>
-    </label>
+      <!-- Service (children ใน details.services) -->
+      <div class="ms hide" id="ms-service">
+        <label class="dd__label">บริการ</label>
+        <div class="ms__box">
+          <input class="ms__search" type="text" placeholder="ค้นหาบริการย่อย…">
+          <ul class="ms__list"></ul>
+          <div class="ms__chips" aria-live="polite"></div>
+        </div>
+      </div>
 
-    <label>ค่า (เช่น 15 หรือ -10 หรือ 99)
-      <input id="valInput" type="number" step="0.0001" name="value" required>
-    </label>
+      <!-- targetIds (array -> คั่นด้วย ,) -->
+      <input type="hidden" id="targetIds" name="targetIds">
+    </div>
 
-    <label>Priority (มากไว้ก่อน)
-      <input id="priInput" type="number" name="priority" value="100">
-    </label>
+    <!-- ===== ผู้ใช้ที่ใช้กฎนี้ ===== -->
+    <div class="block">
+      <div class="block-head">ผู้ใช้ที่ใช้กฎนี้</div>
+
+      <div class="dd" id="dd-user-scope">
+        <label class="dd__label">ขอบเขตผู้ใช้</label>
+        <div class="dd__box"><input class="dd__input" type="text" placeholder="เลือก: ทุกคน หรือ เฉพาะบุคคล"><ul class="dd__list"></ul></div>
+        <input type="hidden" name="userScope" id="userScopeVal" value="all">
+      </div>
+
+      <!-- multi users -->
+      <div class="ms hide" id="ms-users">
+        <label class="dd__label">เลือกยูสเซอร์</label>
+        <div class="ms__box">
+          <input class="ms__search" type="text" placeholder="พิมพ์ชื่อ/อีเมล/username เพื่อค้นหา…">
+          <ul class="ms__list"></ul>
+          <div class="ms__chips" aria-live="polite"></div>
+        </div>
+        <input type="hidden" id="userIds" name="userIds">
+      </div>
+    </div>
+
+    <!-- กลุ่ม: โหมด & ค่า -->
+    <div class="block">
+      <div class="block-head">โหมดและค่า</div>
+      <div class="grid2">
+        <!-- Mode -->
+        <div class="dd" id="dd-mode">
+          <label class="dd__label">โหมด</label>
+          <div class="dd__box" role="combobox" aria-expanded="false">
+            <input class="dd__input" type="text" placeholder="เลือกโหมด…" autocomplete="off">
+            <ul class="dd__list" role="listbox"></ul>
+          </div>
+          <input type="hidden" name="mode" id="modeVal" value="percent">
+        </div>
+
+        <!-- Value -->
+        <label class="fld">
+          <span class="dd__label">ค่า (เช่น 15 หรือ -10 หรือ 99)</span>
+          <input id="valInput" type="number" step="0.0001" name="value" required class="text">
+        </label>
+
+        <!-- Priority -->
+        <label class="fld">
+          <span class="dd__label">Priority (มากไว้ก่อน)</span>
+          <input id="priInput" type="number" name="priority" value="100" class="text">
+        </label>
+      </div>
+    </div>
 
     <div class="actions">
       <button id="saveBtn" class="btn primary" disabled>บันทึก</button>
@@ -84,20 +137,63 @@
   <div class="order-desktop">
     <table class="table">
       <thead>
-        <tr>
-          <th>ขอบเขต</th><th>Target</th><th>โหมด</th><th>ค่า</th><th>Priority</th><th></th>
+        <tr style="text-align: left;">
+          <th>ขอบเขต</th><th>Target</th><th>ผู้ใช้</th><th>โหมด</th><th>ค่า</th><th>Priority</th><th></th>
         </tr>
       </thead>
+      <%
+        const scopeTH = {
+          global: 'ทั้งเว็บ',
+          category: 'แพลตฟอร์ม',
+          subcategory: 'หมวดย่อย',
+          service: 'บริการ'
+        };
+        const modeTH = {
+          percent: 'เปอร์เซ็นต์ (%)',
+          delta: 'เพิ่ม/ลด (คงที่/ต่อ 1,000)',
+          set: 'ตั้งราคา (คงที่)'
+        };
+        const maps = typeof targetNameMaps === 'object' ? targetNameMaps : {};
+        const catMap   = maps.catMap   || {};
+        const svcMap   = maps.svcMap   || {};
+        const childMap = maps.childMap || {};
+        function listTargets(rule) {
+          // รองรับทั้ง targetIds และ targetId เดี่ยว
+          const ids = (Array.isArray(rule.targetIds) && rule.targetIds.length)
+            ? rule.targetIds.map(String)
+            : (rule.targetId ? [String(rule.targetId)] : []);
+
+          if (!ids.length) return '-';
+
+          if (rule.scope === 'category')    return ids.map(id => catMap[id]   || id).join(', ');
+          if (rule.scope === 'subcategory') return ids.join(', '); // ถ้าอยากแสดงชื่อ sub ให้ส่ง subMap จาก server เพิ่ม
+          if (rule.scope === 'service')     return ids.map(id => svcMap[id]   || id).join(', ');
+          if (rule.scope === 'serviceChild')return ids.map(id => childMap[id] || id).join(', ');
+          return ids.join(', ');
+        }
+      %>
       <tbody>
-        <% rules.forEach(r => { %>
+        <% (rules||[]).forEach(r => { %>
           <tr>
-            <td><%= r.scope %></td>
-            <td class="mono"><%= r.targetId || '-' %></td>
-            <td><%= r.mode %></td>
+            <td><%= scopeTH[r.scope] || r.scope %></td>
+
+            <!-- เปลี่ยนจากไอดีดิบ -> ชื่อที่อ่านออก -->
+            <td><%= listTargets(r) %></td>
+
+            <td>
+              <% if ((r.userScope||'all') === 'all') { %>
+                ทุกคน
+              <% } else { %>
+                <% const ids = (Array.isArray(r.userIds) && r.userIds.length) ? r.userIds.map(String) : [String(r.userId)]; %>
+                <%= ids.map(id => (ruleUserMap && ruleUserMap[id]) || id).join(', ') %>
+              <% } %>
+            </td>
+
+            <td><%= modeTH[r.mode] || r.mode %></td>
             <td><%= fmt(r.value) %></td>
             <td><%= r.priority %></td>
             <td class="actions">
-              <form method="post" action="/admin/pricing/<%= r._id %>/delete">
+              <form method="post" action="/admin/pricing/<%= r._id %>/delete" onsubmit="return confirm('ยืนยันลบกฎนี้?')">
                 <button class="btn sm outline">ลบ</button>
               </form>
             </td>
@@ -108,84 +204,453 @@
   </div>
 </section>
 
+<!-- // STYLE CSS -->
+<style>
+  .rule-grid.pro{
+    display:grid; gap:14px;
+    grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+    align-items:end;
+  }
+  .rule-grid.pro label{ display:flex; flex-direction:column; gap:6px }
+  .hide{ display:none }
+  .combo{ display:grid; grid-template-rows:auto 160px; gap:8px }
+  #userSel{ width:100%; border:1px solid var(--border,#333); border-radius:10px; padding:6px }
+  #userSearch{ border:1px solid var(--border,#333); border-radius:10px; padding:10px 12px }
+  .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+  .stack-form{ display:flex; flex-direction:column; gap:22px }
+  .block{ border:1px solid var(--border, #2e2e2e); border-radius:14px; padding:16px; background: rgba(255,255,255,0.02) }
+  .block-head{ font-weight:700; margin-bottom:12px; opacity:.9 }
+  .grid2{ display:grid; gap:14px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .fld .text{ width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--border,#333); background:transparent; color:inherit }
+
+  .dd{ display:flex; flex-direction:column; gap:8px; }
+  .dd.hide{ display:none }
+  .dd__label{ font-size:.95rem; opacity:.85 }
+  .dd__box{ position:relative; }
+  .dd__input{
+    width:100%; padding:12px 14px;
+    border-radius:12px; border:1px solid var(--border,#333);
+    background: rgba(255,255,255,0.03); color: inherit;
+    outline:none;
+  }
+  .dd__list{
+    position:absolute; left:0; right:0; top:calc(100% + 6px);
+    max-height:260px; overflow:auto; list-style:none; margin:0; padding:6px;
+    border:1px solid var(--border,#333);
+    border-radius:12px; background: rgba(12,12,12,.9);
+    box-shadow: 0 10px 24px rgba(0,0,0,.45);
+    display:none; z-index: 9999;
+  }
+  .dd[data-open="1"] .dd__list{ display:block; }
+  .dd__item{
+    padding:10px 12px; border-radius:10px; cursor:pointer;
+    display:flex; align-items:center; gap:8px;
+  }
+  .dd__item:hover, .dd__item[aria-selected="true"]{ background: rgba(255,255,255,0.08); }
+  .dd__item .sub{ opacity:.7; font-size:.86em }
+  .muted{ opacity:.7; font-size:.9em }
+  .actions{ display:flex; justify-content:flex-end; }
+
+  .chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px }
+  .chip{ background:rgba(255,255,255,.08); border:1px solid var(--border,#333); border-radius:999px; padding:4px 8px; font-size:.85rem }
+
+  .ms{ display:flex; flex-direction:column; gap:8px; }
+  .ms__box{ position:relative; }
+  .ms__search{
+    width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--border,#333);
+    background: rgba(255,255,255,0.03); color:inherit; outline:none;
+  }
+  .ms__list{
+    position:absolute; left:0; right:0; top:calc(100% + 6px);
+    max-height:300px; overflow:auto; margin:0; padding:8px; list-style:none;
+    border:1px solid var(--border,#333); border-radius:12px; background: rgba(12,12,12,.92);
+    box-shadow:0 10px 24px rgba(0,0,0,.45); display:none; z-index:9999;
+  }
+  .ms[data-open="1"] .ms__list{ display:block; }
+  .ms__item{ display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:10px; cursor:pointer; }
+  .ms__item:hover{ background:rgba(255,255,255,.08) }
+  .ms__item img{ width:18px; height:18px; object-fit:contain }
+  .ms__chips{ display:flex; flex-wrap:wrap; gap:8px; margin-top:8px }
+  .chipx{
+    display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px;
+    background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); font-size:.9rem;
+  }
+  .chipx img{ width:16px; height:16px; object-fit:contain }
+  .chipx button{ background:transparent; border:0; color:inherit; cursor:pointer; opacity:.7 }
+  .hide { display: none !important; }
+</style>
+
+<!-- //SCRIPT -->
 <script>
-const scopeSel = $('#scopeSel');
-const catWrap  = $('#catWrap');
-const subWrap  = $('#subWrap');
-const svcWrap  = $('#svcWrap');
-const catSel   = $('#catSel');
-const subSel   = $('#subSel');
-const svcSel   = $('#svcSel');
-const targetHidden = $('#targetIdHidden');
-const saveBtn  = $('#saveBtn');
-const valInput = $('#valInput');
-const modeSel  = $('#modeSel');
+/* ===== Utilities & globals ===== */
+const $  = (s,p=document)=>p.querySelector(s);
+const $$ = (s,p=document)=>[...p.querySelectorAll(s)];
 
-function $(s){ return document.querySelector(s); }
-function enableSaveIfValid(){
-  const scope = scopeSel.value;
-  let ok = true;
+const saveBtn       = $('#saveBtn');
+const valInput      = $('#valInput');
+const targetHidden  = $('#targetIdHidden')   || document.createElement('input');
+const targetIdsMany = $('#targetIds')        || targetHidden;   // รองรับทั้ง single/หลายค่า
+const form          = $('#ruleForm')         || document.querySelector('form[action="/admin/pricing"]');
 
-  if(scope === 'category'){ ok = !!catSel.value; }
-  if(scope === 'subcategory'){ ok = !!catSel.value && !!subSel.value; }
-  if(scope === 'service'){ ok = !!catSel.value && !!subSel.value && !!svcSel.value; }
-
-  // ฟิลด์ value ต้องกรอกเสมอ
-  ok = ok && valInput.value !== '';
-
-  saveBtn.disabled = !ok;
+/* ===== Platform icons ===== */
+const PLATFORM_ICON_URLS = {
+  tiktok:"/static/assets/platform/tiktok.png",
+  facebook:"/static/assets/platform/facebook.png",
+  youtube:"/static/assets/platform/youtube.png",
+  instagram:"/static/assets/platform/ig.png",
+  threads:"/static/assets/platform/threads.png",
+  twitter:"/static/assets/platform/twitter.png",
+  x:"/static/assets/platform/x.png",
+  line:"/static/assets/platform/line.png",
+  telegram:"/static/assets/platform/telegram.png",
+  discord:"/static/assets/platform/discord.png",
+  twitch:"/static/assets/platform/twitch.png",
+  spotify:"/static/assets/platform/spotify.png",
+  kick:"/static/assets/platform/kick.png",
+  premium:"/static/assets/platform/premium.png",
+  seo:"/static/assets/platform/seo.png",
+  traffic:"/static/assets/platform/traffic.png",
+  thailand:"/static/assets/platform/thailand.png",
+  shopee:"/static/assets/platform/shopee.png"
+};
+const slug = s => String(s||'').toLowerCase();
+function iconForPlatform(name=''){
+  const k = slug(name);
+  if (k.includes('youtube'))  return PLATFORM_ICON_URLS.youtube;
+  if (k.includes('facebook')) return PLATFORM_ICON_URLS.facebook;
+  if (k.includes('instagram')||k==='ig') return PLATFORM_ICON_URLS.instagram;
+  if (k==='x' || k.includes('twitter'))  return PLATFORM_ICON_URLS.x || PLATFORM_ICON_URLS.twitter;
+  if (k.includes('tiktok'))   return PLATFORM_ICON_URLS.tiktok;
+  if (k.includes('telegram')) return PLATFORM_ICON_URLS.telegram;
+  if (k.includes('discord'))  return PLATFORM_ICON_URLS.discord;
+  if (k.includes('twitch'))   return PLATFORM_ICON_URLS.twitch;
+  if (k.includes('spotify'))  return PLATFORM_ICON_URLS.spotify;
+  if (k.includes('kick'))     return PLATFORM_ICON_URLS.kick;
+  if (k.includes('premium'))  return PLATFORM_ICON_URLS.premium;
+  if (k.includes('seo'))      return PLATFORM_ICON_URLS.seo;
+  if (k.includes('traffic'))  return PLATFORM_ICON_URLS.traffic;
+  if (k.includes('thailand')) return PLATFORM_ICON_URLS.thailand;
+  if (k.includes('shopee'))   return PLATFORM_ICON_URLS.shopee;
+  if (k.includes('line'))     return PLATFORM_ICON_URLS.line;
+  return '/static/logo/icon-logo.png';
 }
 
-function updateVisibility(){
-  const s = scopeSel.value;
-  catWrap.style.display = (s === 'category' || s === 'subcategory' || s === 'service') ? '' : 'none';
-  subWrap.style.display = (s === 'subcategory' || s === 'service') ? '' : 'none';
-  svcWrap.style.display = (s === 'service') ? '' : 'none';
+/* ===== Reusable: single dropdown (searchable) ===== */
+function makeDropdown(root, { items=[], getLabel=x=>x.label, getValue=x=>x.value, onChoose, fetcher, placeholder } = {}){
+  if (!root) return { setValueByRaw(){}, setItems(){}, clear(){} };
+  const input = root.querySelector('.dd__input');
+  const list  = root.querySelector('.dd__list');
+  if (placeholder) input.placeholder = placeholder;
 
-  // อัปเดต targetHidden ตามลำดับ
-  if(s === 'global'){ targetHidden.value = ''; }
-  if(s === 'category'){ targetHidden.value = catSel.value || ''; }
-  if(s === 'subcategory'){ targetHidden.value = subSel.value || catSel.value || ''; }
-  if(s === 'service'){ targetHidden.value = svcSel.value || subSel.value || catSel.value || ''; }
+  let cur = items.slice(0);
 
-  enableSaveIfValid();
+  function render(arr){
+    list.innerHTML = arr.map(it=>`
+      <li class="dd__item" role="option" data-v="${getValue(it)}">
+        <div class="main">${getLabel(it)}</div>${it.sub?`<div class="sub">${it.sub}</div>`:''}
+      </li>`).join('');
+    [...list.children].forEach(li=>{
+      li.onclick = ()=>{
+        const v  = li.getAttribute('data-v');
+        const it = arr.find(x=>String(getValue(x))===String(v));
+        input.value = getLabel(it);
+        root.removeAttribute('data-open');
+        onChoose && onChoose(it);
+      };
+    });
+  }
+  function open(){ root.setAttribute('data-open','1'); render(cur); }
+  function close(){ root.removeAttribute('data-open'); }
+
+  input.addEventListener('focus', open);
+  input.addEventListener('click',  open);
+  document.addEventListener('click', (e)=>{ if(!root.contains(e.target)) close(); });
+
+  let t=null;
+  input.addEventListener('input', ()=>{
+    const q=input.value.trim();
+    root.setAttribute('data-open','1');
+    if (fetcher){
+      clearTimeout(t);
+      t=setTimeout(async ()=>{
+        cur = await (fetcher(q)||[]);
+        filterLocal(q);
+      },220);
+    } else filterLocal(q);
+  });
+
+  function filterLocal(q){
+    if (!q) return render(cur);
+    const rx=new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i');
+    render(cur.filter(it=>rx.test(getLabel(it))||rx.test(it.sub||'')));
+  }
+
+  // init
+  render(cur);
+  return {
+    setItems(arr){ cur=arr||[]; render(cur); },
+    setValueByRaw(v){ const it=cur.find(x=>String(getValue(x))===String(v)); if(it){ input.value=getLabel(it); onChoose&&onChoose(it);} },
+    clear(){ input.value=''; render(cur); }
+  };
 }
 
-scopeSel.addEventListener('change', updateVisibility);
-valInput.addEventListener('input', enableSaveIfValid);
+/* ===== Reusable: MULTI select (searchable + chips) ===== */
+function makeMulti(root, { fetcher, withIcon=false }={}){
+  if (!root) return { getValues(){return[]}, clear(){}, reload(){}, setItems(){} };
+  const box   = root.querySelector('.ms__box');
+  const inp   = root.querySelector('.ms__search');
+  const list  = root.querySelector('.ms__list');
+  const chips = root.querySelector('.ms__chips');
+  let items=[], selected=[], t=null;
 
-catSel.addEventListener('change', async () => {
-  subSel.innerHTML = ''; svcSel.innerHTML = ''; targetHidden.value = catSel.value || '';
-  enableSaveIfValid();
-  if (!catSel.value) return;
+  function drawList(arr){
+    list.innerHTML = arr.map(it=>{
+      const checked = selected.some(s=>String(s.value)===String(it.value));
+      const ico = withIcon? `<img src="${it.icon||''}" alt="">` : '';
+      return `<li class="ms__item" data-v="${it.value}">
+                <input type="checkbox" ${checked?'checked':''} style="pointer-events:none">
+                ${ico}<span>${it.label}</span>
+              </li>`;
+    }).join('');
+    [...list.children].forEach(li=>{
+      li.onclick=()=>{
+        const v=li.getAttribute('data-v');
+        const it=items.find(x=>String(x.value)===String(v));
+        const idx=selected.findIndex(s=>String(s.value)===String(v));
+        if (idx>=0) selected.splice(idx,1); else selected.push(it);
+        drawChips();
+        const q=inp.value.trim();
+        filter(q);
+      };
+    });
+  }
+  function drawChips(){
+    chips.innerHTML = selected.map(s=>{
+      const ico=withIcon?`<img src="${s.icon||''}" alt="">`:'';
+      return `<span class="chipx">${ico}<span>${s.label}</span><button type="button" data-rm="${s.value}">✕</button></span>`;
+    }).join('');
+    chips.querySelectorAll('button[data-rm]').forEach(b=>{
+      b.onclick=()=>{
+        const v=b.getAttribute('data-rm');
+        const i=selected.findIndex(s=>String(s.value)===String(v));
+        if(i>=0) selected.splice(i,1);
+        drawChips();
+        filter(inp.value.trim());
+      };
+    });
+  }
+  async function load(q=''){ items = await (fetcher(q)||[]); filter(q); }
+  function filter(q=''){
+    const rx=new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i');
+    drawList(items.filter(it=>rx.test(it.label)));
+  }
 
-  const r = await fetch('/admin/pricing/lookup/subs/' + catSel.value);
-  const subs = await r.json();
-  subSel.innerHTML = '<option value="">-- เลือกหมวดย่อย --</option>' +
-    subs.map(s => `<option value="${s._id}">${s.name}</option>`).join('');
-  updateVisibility();
+  inp.onfocus = ()=>{ root.setAttribute('data-open','1'); load(inp.value.trim()); };
+  inp.onclick  = inp.onfocus;
+  inp.oninput  = ()=>{ clearTimeout(t); const q=inp.value.trim(); t=setTimeout(()=>{ root.setAttribute('data-open','1'); load(q); },220); };
+  document.addEventListener('click', e=>{ if(!root.contains(e.target)) root.removeAttribute('data-open'); });
+
+  return {
+    getValues(){ return selected.map(s=>String(s.value)); },
+    clear(){ selected=[]; drawChips(); },
+    reload(q=''){ return load(q); },
+    setItems(arr){ items=arr||[]; filter(inp.value.trim()); },
+  };
+}
+
+/* ===== Data for dropdowns ===== */
+const scopeData = [
+  { value:'global',    label:'ทั้งเว็บ' },
+  { value:'category',  label:'แพลตฟอร์ม' },                   // Category
+  { value:'service',   label:'หมวดหมู่/กลุ่ม (providerServiceId group)' }, // Service document
+  { value:'service-c', label:'บริการ (children ในกลุ่ม)' }    // child.id
+];
+const modeData = [
+  { value:'percent', label:'เปอร์เซ็นต์ (%)' },
+  { value:'delta',   label:'เพิ่ม/ลด (คงที่/ต่อ 1,000)' },
+  { value:'set',     label:'ตั้งราคา (คงที่)' },
+];
+const userScopeData = [
+  { value:'all',  label:'ทุกคน' },
+  { value:'user', label:'เฉพาะบุคคล' },
+];
+
+/* ===== Instantiate dropdowns (scope/mode/userScope) ===== */
+const ddScope = makeDropdown($('#dd-scope'), {
+  items: scopeData,
+  onChoose(it){
+    $('#scopeVal').value = it.value;
+
+    // โหมดใหม่ (multi)
+    $('#ms-platform') && $('#ms-platform').classList.toggle('hide', !(it.value==='category'));
+    $('#ms-group')    && $('#ms-group').classList.toggle('hide', !(it.value==='service'));
+    $('#ms-service')  && $('#ms-service').classList.toggle('hide', !(it.value==='service-c'));
+
+    // โหมดเดิม (ถ้ามี)
+    $('#dd-cat') && $('#dd-cat').classList.toggle('hide', !(it.value==='category'||it.value==='subcategory'||it.value==='service'));
+    $('#dd-sub') && $('#dd-sub').classList.toggle('hide', !(it.value==='subcategory'||it.value==='service'));
+    $('#dd-svc') && $('#dd-svc').classList.toggle('hide', !(it.value==='service'));
+
+    // รีเซ็ต target
+    targetIdsMany.value = '';
+    if (it.value==='global' && targetHidden) targetHidden.value='';
+    updateSaveState();
+  }
+});
+function syncUserScopeVisibility() {
+  const scope = document.getElementById('userScopeVal')?.value || 'all';
+  const isUser = scope === 'user';
+  const msUsers = document.getElementById('ms-users');
+  if (msUsers) msUsers.classList.toggle('hide', !isUser);
+  const ddUser = document.getElementById('dd-user'); // fallback single (ถ้าเคยมี)
+  if (ddUser) ddUser.classList.toggle('hide', !isUser);
+}
+const ddMode = makeDropdown($('#dd-mode'), {
+  items: modeData,
+  onChoose(it){ $('#modeVal').value = it.value; updateSaveState(); }
+});
+const ddUserScope = makeDropdown($('#dd-user-scope'), {
+  items: userScopeData,
+  onChoose(it){
+    $('#userScopeVal').value = it.value;
+    syncUserScopeVisibility();
+    const isUser = it.value === 'user';
+    $('#ms-users') && $('#ms-users').classList.toggle('hide', !isUser);
+    $('#dd-user')  && $('#dd-user').classList.toggle('hide',  !isUser);
+    if (!isUser) { $('#userIdVal') && ($('#userIdVal').value=''); $('#userIds') && ($('#userIds').value=''); }
+    updateSaveState();
+  }
+});
+ddScope.setValueByRaw('global');
+ddMode.setValueByRaw('percent');
+ddUserScope.setValueByRaw('all');
+syncUserScopeVisibility();
+
+/* ===== Legacy chain (optional) ===== */
+const initialCats = (typeof cats !== 'undefined' && Array.isArray(cats))
+  ? cats.map(c=>({value:String(c._id), label:c.name}))
+  : [];
+const ddCat = makeDropdown($('#dd-cat'), {
+  items: initialCats,
+  onChoose(it){
+    if (targetHidden) targetHidden.value = it.value;
+    fetch('/admin/pricing/lookup/subs/' + it.value)
+      .then(r=>r.json())
+      .then(subs=>{
+        ddSub.setItems(subs.map(s=>({ value:String(s._id), label:s.name })));
+        $('#dd-sub') && $('#dd-sub').classList.remove('hide');
+        $('#dd-svc') && $('#dd-svc').classList.add('hide');
+        updateSaveState();
+      });
+  }
+});
+const ddSub = makeDropdown($('#dd-sub'), {
+  items: [],
+  onChoose(it){
+    if (targetHidden) targetHidden.value = it.value;
+    fetch('/admin/pricing/lookup/services/' + it.value)
+      .then(r=>r.json())
+      .then(svs=>{
+        ddSvc.setItems(svs.map(s=>({ value:String(s._id), label:s.name })));
+        $('#dd-svc') && $('#dd-svc').classList.remove('hide');
+        updateSaveState();
+      });
+  }
+});
+const ddSvc = makeDropdown($('#dd-svc'), {
+  items: [],
+  onChoose(it){ if (targetHidden) targetHidden.value = it.value; updateSaveState(); }
 });
 
-subSel.addEventListener('change', async () => {
-  svcSel.innerHTML = '';
-  targetHidden.value = subSel.value || catSel.value || '';
-  enableSaveIfValid();
-
-  if (!subSel.value) return;
-  const r = await fetch('/admin/pricing/lookup/services/' + subSel.value);
-  const svs = await r.json();
-  svcSel.innerHTML = '<option value="">-- เลือกบริการ --</option>' +
-    svs.map(s => `<option value="${s._id}">${s.name}</option>`).join('');
-  updateVisibility();
+/* ===== New multi-selects ===== */
+const msPlatform = makeMulti($('#ms-platform'), {
+  withIcon:true,
+  fetcher: async (q)=>{
+    const res = await fetch('/admin/pricing/lookup/platforms?q='+encodeURIComponent(q||''));
+    const arr = await res.json();
+    return (arr||[]).map(c=>({ value:String(c._id), label:c.name, icon:iconForPlatform(c.name) }));
+  }
+});
+const msGroup = makeMulti($('#ms-group'), {
+  fetcher: async (q)=>{
+    const plats = msPlatform.getValues().join(',');
+    const res = await fetch('/admin/pricing/lookup/groups?platformIds='+encodeURIComponent(plats)+'&q='+encodeURIComponent(q||''));
+    const arr = await res.json();
+    return (arr||[]).map(g=>({ value:String(g._id), label:`${g.name} · #${g.providerServiceId||''}` }));
+  }
+});
+const msService = makeMulti($('#ms-service'), {
+  fetcher: async (q)=>{
+    const groups = msGroup.getValues().join(',');
+    const res = await fetch('/admin/pricing/lookup/group-services?groupIds='+encodeURIComponent(groups)+'&q='+encodeURIComponent(q||''));
+    const arr = await res.json();
+    return (arr||[]).map(s=>({ value:String(s.id), label:s.name }));
+  }
 });
 
-svcSel.addEventListener('change', () => {
-  targetHidden.value = svcSel.value || subSel.value || catSel.value || '';
-  enableSaveIfValid();
+/* ===== Users: multi ===== */
+const msUsers = makeMulti($('#ms-users'), {
+  fetcher: async (q)=>{
+    const r = await fetch('/admin/pricing/lookup/users?q='+encodeURIComponent(q||'')); 
+    const list = await r.json();
+    return (list||[]).map(u=>({ value:String(u._id), label:[u.name,u.username,u.email].filter(Boolean).join(' · ') }));
+  }
 });
 
-// init
-updateVisibility();
-enableSaveIfValid();
+/* ===== Validation + submit packing ===== */
+function updateSaveState(){
+  const scope = $('#scopeVal')?.value || 'global';
+  let ok = !!valInput?.value;
+
+  // โหมดใหม่
+  if ($('#ms-platform') && !$('#ms-platform').classList.contains('hide') && scope==='category')
+    ok = ok && msPlatform.getValues().length>0;
+
+  if ($('#ms-group') && !$('#ms-group').classList.contains('hide') && scope==='service')
+    ok = ok && msGroup.getValues().length>0;
+
+  if ($('#ms-service') && !$('#ms-service').classList.contains('hide') && scope==='service-c')
+    ok = ok && msService.getValues().length>0;
+
+  // user scope
+  const us = $('#userScopeVal')?.value || 'all';
+  if (us==='user'){
+    if ($('#ms-users') && !$('#ms-users').classList.contains('hide')) ok = ok && msUsers.getValues().length>0;
+  }
+
+  if (saveBtn) saveBtn.disabled = !ok;
+}
+valInput && valInput.addEventListener('input', updateSaveState);
+document.addEventListener('click', ()=> setTimeout(updateSaveState, 0));
+updateSaveState();
+
+/* บรรจุค่า hidden ตอน submit */
+form && form.addEventListener('submit', ()=>{
+  const scopeRaw = $('#scopeVal')?.value || 'global';
+  // map scope ใหม่ให้เข้ากับ engine เดิม
+  let scope = scopeRaw === 'service-c' ? 'service' : scopeRaw;
+  $('#scopeVal') && ($('#scopeVal').value = scope);
+
+  let ids = [];
+  if (scopeRaw==='category' && $('#ms-platform') && !$('#ms-platform').classList.contains('hide'))
+    ids = msPlatform.getValues();                   // Category._id
+  else if (scopeRaw==='service' && $('#ms-group') && !$('#ms-group').classList.contains('hide'))
+    ids = msGroup.getValues();                      // Service document _id
+  else if (scopeRaw==='service-c' && $('#ms-service') && !$('#ms-service').classList.contains('hide'))
+    ids = msService.getValues();                    // child.id
+  else if (targetHidden) ids = [targetHidden.value||'']; // fallback chain (ถ้าคง element เดิมไว้)
+
+  // เขียนลงทั้ง 2 ชื่อ (รองรับฝั่ง server ที่รองรับแบบใดแบบหนึ่ง)
+  if (targetIdsMany) targetIdsMany.value = ids.join(',');
+  if (targetHidden)  targetHidden.value  = ids[0] || '';
+
+  // users (multi)
+  const us = $('#userScopeVal')?.value || 'all';
+  if (us==='user'){
+    const many = ($('#ms-users') && !$('#ms-users').classList.contains('hide')) ? msUsers.getValues() : [];
+    if ($('#userIds')) $('#userIds').value = many.join(',');
+  } else {
+    if ($('#userIds')) $('#userIds').value = '';
+  }
+});
 </script>
-

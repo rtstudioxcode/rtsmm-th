@@ -1,3 +1,4 @@
+// services/loyalty.js
 export const LEVELS = [
   { name:'เลเวล 1',  need:0,       rate:'฿0.05', perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ช่วยเหลือผ่าน Line Official Account'] },
   { name:'เลเวล 2',  need:5000,    rate:'฿0.1',  perks:['โบนัสเติมเงิน 0%','ส่วนลดทุกคำสั่งซื้อ 0%','ช่วยเหลือผ่านตั๋ว','ช่วยเหลือผ่าน Line Official Account'] },

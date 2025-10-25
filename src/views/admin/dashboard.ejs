@@ -17,7 +17,26 @@
     <p class="muted mt">ปรับทั้งเว็บ, รายหมวด, หมวดย่อย หรือรายบริการ | โหมด: % / +คงที่ / set ราคา</p>
   </section>
 </div>
+
 <script>
-async function refreshBal(){ const r=await fetch('/admin/refresh-balance',{method:'POST'}); const d=await r.json(); document.getElementById('bal').innerText=d.balance+(d.currency?(' '+d.currency):''); }
-async function syncServices(){ const r=await fetch('/admin/sync-services',{method:'POST'}); const d=await r.json(); document.getElementById('syncRes').innerText='ดึงบริการ '+d.count+' รายการแล้ว'; alert('ซิงก์สำเร็จ: '+d.count+' รายการ'); }
+async function refreshBal(){
+  const r = await fetch('/admin/refresh-balance',{ method:'POST' });
+  const d = await r.json();
+  document.getElementById('bal').innerText = d.balance + (d.currency ? (' '+d.currency) : '');
+  // เดิม alert(...) → ใช้ dialog แทน
+  toast.success('อัปเดตเครดิตสำเร็จ', `ยอดคงเหลือ: ${d.balance}${d.currency?(' '+d.currency):''}`);
+}
+
+async function syncServices(){
+  const r = await fetch('/admin/sync-services',{ method:'POST' });
+  const d = await r.json();
+  document.getElementById('syncRes').innerText = 'ดึงบริการ ' + d.count + ' รายการแล้ว';
+  // เดิม alert(...) → ใช้ dialog แทน
+  window.showMsg({
+    variant: 'success',
+    title: 'ซิงก์สำเร็จ',
+    text: `ดึงบริการแล้วทั้งหมด ${d.count} รายการ`,
+    okText: 'ปิด'
+  });
+}
 </script>

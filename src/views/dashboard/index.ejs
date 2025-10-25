@@ -5,7 +5,7 @@
   <div class="grid-2">
     <div class="card">
       <div class="card-title">ใช้งานไปแล้ว</div>
-      <div class="big" style="font-weight: 400; font-size: 1.5em; color: #0aa123;">
+      <div class="badge ok" style="display: block; text-align: center; font-size: 18px;">
         ฿<%= (stats.totalSpent || 0).toFixed(2) %>
       </div>
       <div class="muted">TotalSpent | ยอดค่าใช้จ่ายที่ใช้ไปทั้งหมด</div>
@@ -13,7 +13,7 @@
 
     <div class="card">
       <div class="card-title">สั่งไปแล้ว</div>
-      <div class="big" style="font-weight: 400; font-size: 1.5em; color: #ce790b;">
+      <div class="badge danger" style="display: block; text-align: center; font-size: 18px;">
         <%= stats?.totalOrders || 0 %> ออเดอร์
       </div>
       <div class="muted">TotalOrders | จำนวนออเดอร์ที่สั่งใช้บริการไปแล้วทั้ง</div>
@@ -21,8 +21,8 @@
 
     <div class="card">
       <div class="card-title">ระดับผู้ใช้</div>
-      <div class="big" style="font-weight: 400; font-size: 1.5em; color: #1cc9c9;">
-        <%= userLevel %>
+      <div class="badge warn" style="display: block; text-align: center; font-size: 18px;">
+        <%= typeof userLevelName !== 'undefined' ? userLevelName : userLevel %>
       </div>
       <div class="muted">สามารถดูข้อมูลเลื่อนระดับได้ที่ข้อมูลส่วนตัว -> ข้อมูลระดับบัญชี</div>
     </div>
@@ -35,8 +35,8 @@
 
       <div class="user-summary__avatar" aria-hidden="true">
         <img
-          src="<%= me?.avatarUrl?.startsWith('http') ? me.avatarUrl : (me?.avatarUrl ? `${req.protocol}://${req.get('host')}${me.avatarUrl}` : '/static/assets/emoji/dashboard.png') %>"
-          alt="<%= me?.username || 'avatar' %>"
+          src="<%= me.avatarUrl %>?v=<%= (me && me.avatarVer) || Date.now() %>"
+          alt=""
           loading="lazy"
           decoding="async"
           referrerpolicy="no-referrer">
@@ -58,6 +58,10 @@
     --text-primary:      #f2f4f8;
     --text-muted:        #a7b0bb;
     --title:             #eadfb8;
+    --danger:            #f11212e3;
+    --success:           #10b981;
+    --balance:           #10a0b9;
+    --warn:              #f59e0b;
     --accent:            #2a84ff;
     --accent-contrast:   #ffffff;
     --focus-ring:        0 0 0 3px rgba(42,132,255,.35);
@@ -68,10 +72,14 @@
     --elevated-bg:       #ffffff;
     --elevated-bg-grad:  linear-gradient(180deg,#ffffff 0%,#f9fbff 100%);
     --elevated-border:   #e6ebf2;
-    --elevated-shadow:   0 8px 24px rgba(16,24,40,.08);
+    --elevated-shadow:   0 8px 24px rgba(16, 24, 40, 0.11);
     --text-primary:      #0f172a;
     --text-muted:        #667085;
     --title:             #0b1220;
+    --danger:            #e7b50ee3;
+    --success:           #68e415b9;
+    --balance:           #37b910b0;
+    --warn:              #f5740bce;
     --accent:            #2563eb;
     --accent-contrast:   #ffffff;
     --focus-ring:        0 0 0 3px rgba(37,99,235,.35);
@@ -80,6 +88,18 @@
   /* =========================
      Layout
      ========================= */
+  .badge{
+    width: auto; text-align: center; font-size:.78rem;padding:2px 8px;border-radius:999px;border:1px solid transparent
+  }
+  .badge.danger{background:color-mix(in oklab,var(--danger) 18%, transparent);box-shadow: var(--elevated-shadow);border-color:var(--elevated-border);color:var(--danger)}
+  .badge.balance{background:color-mix(in oklab,var(--balance) 18%, transparent);box-shadow: var(--elevated-shadow);border-color:var(--elevated-border);color:var(--balance)}
+  .badge.ok{background:color-mix(in oklab,var(--success) 18%, transparent);box-shadow: var(--elevated-shadow);border-color:var(--elevated-border);color:var(--success)}
+  .badge.warn{background:color-mix(in oklab,var(--warn) 18%, transparent);box-shadow: var(--elevated-shadow);border-color:var(--elevated-border);color:var(--warn)}
+
+  .badge2{
+    font-family: Prompt; font-size:.98rem;padding:6px 10px;border-radius:999px;border:1px solid transparent
+  }
+  .badge2.ok{background:color-mix(in oklab,var(--success) 18%, transparent);border-color:#10b98155;color:var(--success)}
   .page { padding-bottom: 24px; }
   .page-title { margin: 12px 0 16px; color: var(--title); }
 

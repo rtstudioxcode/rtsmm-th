@@ -294,17 +294,17 @@ body.orders-wide .container{
   border-right:1px solid var(--border); display:flex; flex-direction:column;
   z-index:200; transition:width .18s ease, transform .18s ease; }
 .sidebar.pinned, .sidebar:not(.pinned):hover{ width:var(--sb-w) }
-.sb-head{ display:flex; align-items:center; justify-content:space-between; padding:12px 10px; border-bottom:1px solid var(--border) }
+.sb-head{ display:flex; align-items:center; justify-content:end; padding:12px 10px; border-bottom:1px solid var(--border) }
 .sb-brand{ display:flex; gap:10px; align-items:center; color:inherit; text-decoration:none; font-weight:700 }
 .sb-pin{ border:1px solid var(--border); background:transparent; color:inherit; border-radius:10px; padding:6px 8px; cursor:pointer }
 .sb-pin.active{ background:var(--accent); border-color:var(--accent); color:#fff }
 .sb-list{ padding:8px 6px 18px }
-.sb-group{ font-size:.86rem; color:var(--muted); padding:10px 10px 6px; margin-top:6px }
+.sb-group{ display:flex; font-size:.86rem; color:var(--muted); padding:10px 10px 6px; margin-top:6px }
 .sb-item{ display:flex; align-items:center; gap:12px; padding:10px; margin:4px; border-radius:10px;
   text-decoration:none; color:inherit; border:1px solid transparent; white-space:nowrap; overflow:hidden }
-.sb-item .ico{ width:28px; text-align:center; font-size:18px }
-.sb-item:hover{ background:color-mix(in oklab,var(--accent) 12%, transparent); border-color:color-mix(in oklab,var(--accent) 28%, transparent) }
-.sb-item.active{ background:color-mix(in oklab,var(--accent) 22%, transparent); border-color:var(--accent) }
+.sb-item .ico{ width:36px; text-align:center; font-size:18px }
+.sb-item:hover{ width: 80%; background:color-mix(in oklab,var(--accent) 12%, transparent); border-color:color-mix(in oklab,var(--accent) 28%, transparent) }
+.sb-item.active{ width: 80%; background:color-mix(in oklab,var(--accent) 22%, transparent); border-color:var(--accent) }
 .sidebar:not(.pinned):not(:hover) .sb-item .txt,
 .sidebar:not(.pinned):not(:hover) .sb-group{ opacity:0; width:0; padding:0; margin:0; pointer-events:none }
 .sb-wrap{ margin-left:var(--sb-collapsed); transition:margin-left .18s ease; min-height:100dvh; display:flex; flex-direction:column; overflow-x:hidden }
@@ -314,7 +314,7 @@ body.orders-wide .container{
 .sb-item {
   display: inline-flex;
   align-items: center;
-  gap: .5rem;
+  gap: .3rem;
 }
 .sb-item .ico {
   width: 18px; height: 18px;
@@ -1740,3 +1740,122 @@ html:not([data-theme="dark"]) .omodal .section-sep{
 .pill.ghost{background:transparent;border:1px solid #434a5a;color:#ddd}
 
 .sb-item .ico { border-radius: 999px; object-fit: cover; }
+
+
+/* ============= ไทม์ไลน์รายละเอียดคำสั่งซื้อ ============= */
+.pill.long.danger,
+.pill.progress.danger{
+  background: #ffe5e8;     /* โทนอ่อน */
+  color: #b4232c;          /* ตัวอักษรแดงเข้ม */
+  border-color: #ffd7db;
+}
+
+.pill.long.danger .bar,
+.pill.progress.danger .bar{
+  background: #e11d48;     /* แถบแดง */
+}
+
+.pill.long.success,
+.pill.progress.success{
+  background: #dcfce7;   /* เขียวอ่อน */
+  color: #166534;         /* เขียวเข้ม (ตัวอักษร) */
+  border-color: #bbf7d0;  /* เส้นขอบเขียวอ่อน */
+}
+
+.pill.long.success .bar,
+.pill.progress.success .bar{
+  background: #22c55e;   /* เขียวสด (แท่ง bar) */
+}
+
+/* เผื่อใช้ data-attr บนแถว/การ์ด */
+tr[data-status="canceled"] .pill.long,
+.o-card[data-status="canceled"] .pill.progress{
+  background: #ffe5e8;
+  color: #b4232c;
+  border-color: #ffd7db;
+}
+tr[data-status="canceled"] .pill.long .bar,
+.o-card[data-status="canceled"] .pill.progress .bar{
+  background: #e11d48;
+}
+
+/* เผื่อใช้ data-attr บนแถว/การ์ด */
+tr[data-status="success"] .pill.long,
+.o-card[data-status="success"] .pill.progress {
+  background: #dcfce7;     /* เขียวอ่อน (พื้นหลัง) */
+  color: #166534;          /* เขียวเข้ม (ตัวอักษร) */
+  border-color: #bbf7d0;   /* เส้นขอบเขียวอ่อน */
+}
+
+tr[data-status="success"] .pill.long .bar,
+.o-card[data-status="success"] .pill.progress .bar {
+  background: #22c55e;     /* เขียวสด (แท่ง bar) */
+}
+
+/* ซ่อนปุ่มยกเลิกเป็นค่าเริ่มต้น */
+.btn-cancel { display: none !important; }
+
+/* โชว์เฉพาะเมื่ออยู่ในสถานะรอดำเนินการ (processing) */
+tr[data-status="processing"] .btn-cancel,
+.o-card[data-status="processing"] .btn-cancel {
+  display: inline-grid !important; /* ให้ขนาดเท่าปุ่มไอคอนเดิม */
+}
+
+/* จุดสถานะในไทม์ไลน์ (สีตามสถานะสุดท้าย) */
+.ot-item--final input[type="radio"]{ accent-color:#09cc50; } /* ดีฟอลต์เขียว */
+
+.ot-final--success input[type="radio"]{ accent-color:#22c55e; }  /* เขียว: เสร็จสิ้น */
+.ot-final--canceled input[type="radio"]{ accent-color:#ef4444; } /* แดง: ยกเลิก */
+.ot-final--partial input[type="radio"]{ accent-color:#ef4444; }  /* แดง: คืนบางส่วน */
+.ot-final--progress input[type="radio"]{ accent-color:#3b82f6; } /* ฟ้า: กำลังทำ/รอ */
+
+/* ====== เส้นเชื่อมแนวตั้งเฉพาะ radio ในไทม์ไลน์ ====== */
+/* ปรับความยาวระยะห่างระหว่างจุดได้ด้วยตัวแปรนี้ */
+.otimeline{ --ot-gap: 36px; }     /* ระยะเส้นต่อไปยังจุดถัดไป */
+.otimeline{ --ot-line: 2px; }     /* ความหนาเส้น */
+.otimeline{ --ot-color: #c5c6c7; }/* สีเส้น (#e5e7eb = gray-200) */
+
+/* ให้ใช้ pseudo-element ได้ โดยไม่เปลี่ยนหน้าตา radio เดิม */
+.otimeline .ot-item input[type="radio"]{
+  position: relative;            /* จุดอ้างอิงให้ ::before/::after */
+  vertical-align: middle;        /* ไม่กระทบตำแหน่ง/ขนาดเดิม */
+}
+
+/* เส้น “ลงล่าง” ต่อไปยังจุดถัดไป */
+.otimeline .ot-item input[type="radio"]::after{
+  content: "";
+  position: absolute;
+  left: 52%;
+  transform: translateX(-50%);
+  top: calc(100% + 2px);          /* เริ่มใต้ radio นิดเดียว */
+  width: var(--ot-line);
+  height: var(--ot-gap);
+  background: var(--ot-color);
+  pointer-events: none;
+}
+
+/* เส้น “ขึ้นบน” ต่อจากจุดก่อนหน้า เพื่อให้ต่อกันเนียนผ่านกลางจุด */
+.otimeline .ot-item input[type="radio"]::before{
+  content: "";
+  position: absolute;
+  left: 52%;
+  transform: translateX(-50%);
+  top: calc(-1 * var(--ot-gap) - 2px); /* เริ่มเหนือ radio นิดเดียว */
+  width: var(--ot-line);
+  height: var(--ot-gap);
+  background: var(--ot-color);
+  pointer-events: none;
+}
+
+/* ซ่อนเส้นส่วนที่ไม่ต้องมีที่หัว/ท้ายไทม์ไลน์ */
+.otimeline .ot-item:first-child  input[type="radio"]::before{ display:none; }
+.otimeline .ot-item:last-child   input[type="radio"]::after { display:none; }
+
+/* ให้เส้นอยู่กึ่งกลางพอดีกับขอบวงกลม */
+.otimeline .ot-item input[type="radio"]::before,
+.otimeline .ot-item input[type="radio"]::after {
+  left: 52%;
+  transform: translateX(-50%);
+  width: 1.1px;          /* เส้นบางนิด ดูเรียบ */
+  background: #c5c6c7;   /* เทาอ่อนขึ้นนิด */
+}

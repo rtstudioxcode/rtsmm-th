@@ -5,6 +5,11 @@ function decideDisplaySSR(o){
   const qty = Number(o.quantity)||0;
   const st  = String(o.status||'').toLowerCase();
 
+  // ✅ แทรกบล็อกนี้: ถ้ายกเลิก ให้โชว์ "ยกเลิก"
+  if (st === 'canceled') {
+    return { label: 'ยกเลิก', donePct: 0, showPct: false, isDone: false };
+  }
+
   const isWaiting =
     st === 'processing' &&
     (o.progress == null) &&
@@ -144,7 +149,9 @@ function decideDisplaySSR(o){
 
           <div class="st-block">
             <!-- pill สถานะยาว -->
-            <div class="pill long <%= dd.isDone ? 'ok' : '' %>" data-pct="<%= dd.donePct %>">
+            <div class="pill long <%= dd.isDone ? 'ok'
+              : (String(o.status||'').toLowerCase()==='canceled' ? 'danger' : '') %>"
+              data-pct="<%= dd.donePct %>">
               <i class="bar" style="width:<%= dd.isDone ? '100' : dd.donePct %>%"></i>
               <span class="label">
                 <% const isPartialRefund = (String(o.status||'').toLowerCase()==='canceled' && Number(o.refundAmount||0)>0 && o.refundType==='partial'); %>
@@ -162,7 +169,10 @@ function decideDisplaySSR(o){
 
             <!-- ปุ่มใต้สถานะ -->
             <div class="st-actions under">
-              <!-- <% if (canCancel) { %>
+              <% const stLower = String(o.status||'').toLowerCase(); %>
+
+              <!-- ยกเลิก: แสดงเฉพาะตอน "รอดำเนินการ" -->
+              <% if (canCancel && stLower === 'processing') { %>
                 <button
                   type="button"
                   class="xbtn xbtn-danger btn-cancel"
@@ -171,10 +181,10 @@ function decideDisplaySSR(o){
                   aria-label="ยกเลิกและคืนเงิน">
                   <img src="/static/assets/emoji/cancel.png" alt="" class="icon" />
                 </button>
-                <button type="button" class="xbtn xbtn-danger btn-cancel" data-id="<%= o._id %>" title="ยกเลิกและคืนเงิน">−</button> -->
-              <!-- <% } %> --> 
+              <% } %>
 
-              <% if (!dd.isDone) { %>
+              <!-- รีเฟรช: ซ่อนเมื่อเสร็จสิ้น หรือ ยกเลิก -->
+              <% if (!(dd.isDone || stLower === 'canceled')) { %>
                 <button
                   type="button"
                   class="xbtn xbtn-sync btn-refresh"
@@ -183,10 +193,11 @@ function decideDisplaySSR(o){
                   aria-label="อัปเดตสถานะออเดอร์">
                   <img src="/static/assets/emoji/updatestatus.png" alt="" class="icon" />
                 </button>
-                <!-- <button type="button" class="xbtn xbtn-sync btn-refresh" data-id="<%= o._id %>" title="อัปเดตสถานะออเดอร์">🔄</button> -->
               <% } %>
 
-              <% if (canRepeat) { %>
+              <!-- สั่งซื้อใหม่: ขึ้นเฉพาะ "เสร็จสิ้น" เท่านั้น -->
+              <% const canRepeatStrict = (stLower === 'completed') && !!(o.service && o.service._id); %>
+              <% if (canRepeatStrict) { %>
                 <button
                   type="button"
                   class="xbtn xbtn-primary btn-repeat"
@@ -195,7 +206,6 @@ function decideDisplaySSR(o){
                   aria-label="สั่งซ้ำรายการนี้">
                   <img src="/static/assets/emoji/repeat.png" alt="" class="icon" />
                 </button>
-                <!-- <button type="button" class="xbtn xbtn-primary btn-repeat" data-id="<%= o._id %>" title="สั่งซ้ำรายการนี้">⟳</button> -->
               <% } %>
 
               <button
@@ -206,7 +216,6 @@ function decideDisplaySSR(o){
                 aria-label="รายละเอียด">
                 <img src="/static/assets/emoji/detail.png" alt="" class="icon" />
               </button>
-              <!-- <button type="button" class="xbtn xbtn-info open-order"  data-id="<%= o._id %>" title="รายละเอียด">i</button> -->
             </div>
           </div>
         </td>
@@ -284,7 +293,8 @@ function decideDisplaySSR(o){
               const canRepeat = isDone && !!(o.service && o.service._id);
             %>
             <div class="st-stack">
-              <span class="pill progress <%= mdd.isDone ? 'ok' : '' %>">
+              <span class="pill progress <%= mdd.isDone ? 'ok'
+              : (String(o.status||'').toLowerCase()==='canceled' ? 'danger' : '') %>">
                 <% const isPartialRefund = (String(o.status||'').toLowerCase()==='canceled'
                     && Number(o.refundAmount||0) > 0 && o.refundType === 'partial'); %>
 
@@ -299,17 +309,22 @@ function decideDisplaySSR(o){
                 <% } %>
               </span>
               <div class="st-actions">
-                <!-- <% if (canCancel) { %>
+                <% const stLower = String(o.status||'').toLowerCase(); %>
+
+                <!-- ยกเลิก: เฉพาะ "processing" -->
+                <% if (canCancel && stLower === 'processing') { %>
                   <button
                     type="button"
+                    class="xbtn xbtn-sync btn-cancel"
                     data-id="<%= o._id %>"
                     title="ยกเลิกและคืนเงิน"
                     aria-label="ยกเลิกและคืนเงิน">
                     <img src="/static/assets/emoji/cancel.png" alt="" class="icon" />
                   </button>
-                <% } %> -->
+                <% } %>
 
-                <% if (!mdd.isDone) { %>
+                <!-- รีเฟรช: ไม่แสดงเมื่อ completed หรือ canceled -->
+                <% if (!(mdd.isDone || stLower === 'canceled')) { %>
                   <button
                     type="button"
                     class="xbtn xbtn-sync btn-refresh"
@@ -318,10 +333,11 @@ function decideDisplaySSR(o){
                     aria-label="อัปเดตสถานะออเดอร์">
                     <img src="/static/assets/emoji/updatestatus.png" alt="" class="icon" />
                   </button>
-                  <!-- <button type="button" class="xbtn xbtn-sync btn-refresh" data-id="<%= o._id %>" title="อัปเดตสถานะออเดอร์">🔄</button> -->
                 <% } %>
 
-                <% if (canRepeat) { %>
+                <!-- สั่งซื้อใหม่: เฉพาะ "completed" -->
+                <% const canRepeatStrict = (stLower === 'completed') && !!(o.service && o.service._id); %>
+                <% if (canRepeatStrict) { %>
                   <button
                     type="button"
                     class="xbtn xbtn-primary btn-repeat"
@@ -330,9 +346,8 @@ function decideDisplaySSR(o){
                     aria-label="สั่งซ้ำรายการนี้">
                     <img src="/static/assets/emoji/repeat.png" alt="" class="icon" />
                   </button>
-                  <!-- <button type="button" class="xbtn xbtn-primary btn-repeat" data-id="<%= o._id %>" title="สั่งซ้ำรายการนี้">⟳</button> -->
                 <% } %>
-                
+
                 <button
                   type="button"
                   class="xbtn xbtn-info open-order"
@@ -341,7 +356,6 @@ function decideDisplaySSR(o){
                   aria-label="รายละเอียด">
                   <img src="/static/assets/emoji/detail.png" alt="" class="icon" />
                 </button>
-                <!-- <button type="button" class="xbtn xbtn-info open-order" title="รายละเอียด" data-id="<%= o._id %>">i</button> -->
               </div>
             </div>
           </div>
@@ -384,15 +398,27 @@ function decideDisplaySSR(o){
       <section class="omodal-sec">
         <h4>ไทม์ไลน์คำสั่งซื้อ</h4>
         <div class="otimeline">
+          <!-- จุดสุดท้าย (สถานะล่าสุด) -->
+          <label class="ot-item ot-item--final">
+            <input type="radio" name="otime" id="om-final-radio" checked>
+            <div>
+              <span id="om-final-label">สถานะล่าสุด</span>
+              <div class="ottime" id="om-final-time">-</div>
+            </div>
+          </label>
+
+          <!-- เวลาที่เซิร์ฟเวอร์อัปเดต -->
           <label class="ot-item">
-            <input type="radio" name="otime" checked>
+            <input type="radio" name="otime" disabled>
             <div>
               เวลาที่เซิร์ฟเวอร์อัปเดต
               <div class="ottime" id="om-updatedAt">-</div>
             </div>
           </label>
+
+          <!-- เวลาที่คำสั่งซื้อเข้ามา -->
           <label class="ot-item">
-            <input type="radio" name="otime">
+            <input type="radio" name="otime" disabled>
             <div>
               เวลาที่คำสั่งซื้อเข้ามา
               <div class="ottime" id="om-createdAt">-</div>
@@ -517,27 +543,28 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
 
   let currentId = null;
 
+  // ===== Render =====
   function render(o){
     currentId = o._id;
     title.textContent = '#' + (o.providerOrderId || '-');
     cost.textContent  = fmtMoney(o.estCost, o.currency);
     link.href = o.link; link.textContent = o.link;
 
-    qty.textContent    = Number(o.quantity)||0;
-    start.textContent  = (o.startCount ?? '-');
-    current.textContent= (o.currentCount ?? '-');
+    qty.textContent     = Number(o.quantity)||0;
+    start.textContent   = (o.startCount ?? '-');
+    current.textContent = (o.currentCount ?? '-');
 
     createdAt.textContent = fmtDate(o.createdAt);
     updatedAt.textContent = fmtDate(o.updatedAt);
 
+    // ==== สรุปเปอร์เซ็นต์ ====
     const { donePct, leftPct, leftAbs } = calcPercents(o);
     leftPctEl.textContent = leftPct.toFixed(2) + '%';
     bar.style.width = donePct + '%';
-
     qtyAbsEl.textContent  = Number(o.quantity)||0;
     leftAbsEl.textContent = (leftAbs==null ? '—' : leftAbs);
 
-    // refund display
+    // ==== Refund display ====
     const refund = Number(o.refundAmount||0);
     const refLabel = document.getElementById('om-refund-label');
     const refVal   = document.getElementById('om-refund');
@@ -549,7 +576,37 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
       refLabel.style.display = 'none';
       refVal.style.display = 'none';
     }
+
+    // ==== ไทม์ไลน์: จุดสุดท้ายตามตัวอย่าง ====
+    const st = String(o.status||'').toLowerCase();
+    const finalWrap  = document.querySelector('.ot-item--final');
+    const finalLabel = document.getElementById('om-final-label');
+    const finalTime  = document.getElementById('om-final-time');
+
+    // เคลียร์คลาสก่อน
+    finalWrap.classList.remove('ot-final--success','ot-final--canceled','ot-final--partial','ot-final--progress');
+
+    // ตัดสินข้อความ+สี
+    if (st === 'completed') {
+      finalLabel.textContent = 'เวลาที่คำสั่งซื้อเสร็จสิ้น';
+      finalTime.textContent  = fmtDate(o.updatedAt || o.createdAt);
+      finalWrap.classList.add('ot-final--success');
+    } else if (st === 'canceled' && o.refundType === 'partial' && Number(o.refundAmount||0) > 0) {
+      finalLabel.textContent = 'เวลาที่คำสั่งซื้อยกเลิก (คืนเงินบางส่วน)';
+      finalTime.textContent  = fmtDate(o.updatedAt || o.createdAt);
+      finalWrap.classList.add('ot-final--partial');
+    } else if (st === 'canceled') {
+      finalLabel.textContent = 'เวลาที่เซิร์ฟเวอร์ยกเลิก / คำสั่งซื้อผิดพลาด';
+      finalTime.textContent  = fmtDate(o.updatedAt || o.createdAt);
+      finalWrap.classList.add('ot-final--canceled');
+    } else {
+      // processing / inprogress / partial (ยังไม่จบ)
+      finalLabel.textContent = 'สถานะล่าสุด (กำลังดำเนินการ)';
+      finalTime.textContent  = fmtDate(o.updatedAt || o.createdAt);
+      finalWrap.classList.add('ot-final--progress');
+    }
   }
+  // ===== END =====
 
   function openModal(o){
     render(o);
@@ -632,23 +689,46 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
       startCount: payload.startCount,
       currentCount: payload.currentCount,
       quantity: (payload.quantity != null ? payload.quantity :
-                (idx > -1 ? arr[idx].quantity : 0)),
+                 (idx > -1 ? arr[idx].quantity : 0)),
       refundAmount: payload.refundAmount,
       refundType: payload.refundType
     };
 
+    const newSt = String(displayPayload.status || '').toLowerCase();
+
     // Desktop row
     const tr = document.querySelector(`tr[data-order-id="${payload._id}"]`);
     if (tr) {
-      tr.dataset.status = String(payload.status || '').toLowerCase();
+      tr.dataset.status = newSt;
       renderProgressPill(tr, displayPayload);
+
+      // toggle buttons
+      tr.querySelectorAll('.btn-cancel').forEach(b => {
+        b.style.display = (newSt === 'processing') ? '' : 'none';
+      });
+      tr.querySelectorAll('.btn-refresh').forEach(b => {
+        b.style.display = (newSt === 'completed' || newSt === 'canceled') ? 'none' : '';
+      });
+      tr.querySelectorAll('.btn-repeat').forEach(b => {
+        b.style.display = (newSt === 'completed') ? '' : 'none';
+      });
     }
 
     // Mobile card
     const card = document.querySelector(`.o-card[data-order-id="${payload._id}"]`);
     if (card) {
-      card.dataset.status = String(payload.status || '').toLowerCase();
+      card.dataset.status = newSt;
       renderProgressPill(card, displayPayload);
+
+      card.querySelectorAll('.btn-cancel').forEach(b => {
+        b.style.display = (newSt === 'processing') ? '' : 'none';
+      });
+      card.querySelectorAll('.btn-refresh').forEach(b => {
+        b.style.display = (newSt === 'completed' || newSt === 'canceled') ? 'none' : '';
+      });
+      card.querySelectorAll('.btn-repeat').forEach(b => {
+        b.style.display = (newSt === 'completed') ? '' : 'none';
+      });
     }
   };
 
@@ -671,6 +751,10 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
       const isPartialRefund = String(payload.status||'').toLowerCase()==='canceled'
         && Number(payload.refundAmount||0) > 0
         && payload.refundType === 'partial';
+
+      const isCanceled = String(payload.status||'').toLowerCase()==='canceled';
+        pillLong.classList.toggle('ok', !!dd.isDone);
+        pillLong.classList.toggle('danger', isCanceled);
 
       const mainLabel = dd.showPct
         ? `ดำเนินการ ~ <span class="pct">${Number(dd.donePct||0).toFixed(2)}%</span>`
@@ -781,6 +865,11 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
   window.decideDisplay = function(o){
     const qty = Number(o.quantity)||0;
     const st  = String(o.status||'').toLowerCase();
+
+    // ✅ แทรกบล็อกนี้
+    if (st === 'canceled') {
+      return { label: 'ยกเลิก', donePct: 0, showPct: false, isDone: false };
+    }
 
     const isWaiting =
       st === 'processing' &&
