@@ -7,14 +7,24 @@
     <aside class="acc-side">
       <div class="prof-card">
         <div class="prof-avatar">
-          <img id="avatarPreview" src="<%= userDoc.avatarUrl %>?v=<%= (me && me.avatarVer) || Date.now() %>" alt="">
+          <img
+            id="avatarPreview"
+            src="<%= userDoc.avatarUrl %>?v=<%= (me && me.avatarVer) || Date.now() %>"
+            loading="lazy"
+            decoding="async"
+            onerror="this.onerror=null;this.src='/static/assets/logo/rtsmmgif2.gif';"
+            alt="avatar">
         </div>
 
-        <div style="display:flex;justify-content:center">
-          <button id="btnChangeAvatar" type="button" class="btn-line">เปลี่ยนรูป</button>
-          <form id="formUploadAvatar" hidden enctype="multipart/form-data">
-            <input id="avatarInput" name="avatar" type="file" accept="image/png,image/jpeg,image/webp">
-          </form>
+        <!-- ปุ่มเลือกไฟล์ + input ซ่อน -->
+        <div style="display:flex;justify-content:center;gap:8px;">
+          <button type="button" id="btnChangeAvatar" class="btn-line">เปลี่ยนรูปโปรไฟล์</button>
+          <input
+            id="avatarInput"
+            name="avatar"
+            type="file"
+            hidden
+            accept="image/png,image/jpeg,image/webp,image/gif">
         </div>
 
         <div class="prof-name"><%= userDoc.name || (me?.username || '') %></div>
@@ -38,7 +48,8 @@
           <div><span class="badge balance"><%= balanceText %></span></div>
         </div>
 
-        <div class="muted sm" style="margin-top:8px">ไฟล์ที่รองรับ: png, jpg, jpeg, webp (สูงสุด 2MB)</div>
+        <!-- ✅ อัปเดตข้อความรองรับไฟล์ -->
+        <div class="muted sm" style="margin-top:8px">ไฟล์ที่รองรับ: png, jpg, jpeg, webp, gif (สูงสุด 10MB)</div>
       </div>
 
       <div class="prof-card" style="margin-top:14px">
@@ -527,6 +538,7 @@ html[data-theme="light"] .static-input{
 <script>
 (() => {
   const $ = s => document.querySelector(s);
+  const pick = id => document.getElementById(id);
 
   // helper เรียก modal แบบย่อ (ถ้า showMsg ไม่มี ให้ fallback เป็น alert)
   const toast = (variant, title, text) => {
@@ -567,80 +579,163 @@ html[data-theme="light"] .static-input{
     });
   });
 
-  // Avatar upload
-  $('#btnChangeAvatar')?.addEventListener('click', () => $('#avatarInput')?.click());
-  let _tmpObjUrl = null;
-  $('#avatarInput')?.addEventListener('change', async (e) => {
-    const f = e.currentTarget.files?.[0]; 
+  const btnAvatar = pick('btnChangeAvatar');
+  const input = pick('avatarInput');
+  const img = pick('avatarPreview');
+
+  // เคล็ดลับ: อนุญาต GIF, เช็คขนาดก่อนอัปโหลด
+  const MAX_MB = 10;
+  const ACCEPT = /image\/(png|jpe?g|webp|gif)/i;
+
+  let tmpUrl = null;
+
+  // กดปุ่ม → เปิด file chooser
+  btnAvatar?.addEventListener('click', () => input?.click());
+
+  // เลือกไฟล์ → พรีวิวทันที + อัปโหลดอัตโนมัติ
+  input?.addEventListener('change', async (e) => {
+    const f = e.currentTarget.files?.[0];
     if (!f) return;
 
-    // พรีวิวทันที
-    if (_tmpObjUrl) URL.revokeObjectURL(_tmpObjUrl);
-    _tmpObjUrl = URL.createObjectURL(f);
-    $('#avatarPreview').src = _tmpObjUrl;
+    // validate เบื้องต้น
+    if (!ACCEPT.test(f.type)) {
+      return (window.showMsg
+        ? showMsg({ variant:'warn', title:'ไฟล์ไม่รองรับ', text:'อนุญาตเฉพาะ PNG, JPG, WEBP และ GIF' })
+        : alert('ไฟล์ไม่รองรับ (PNG/JPG/WEBP/GIF เท่านั้น)'));
+    }
+    if (f.size > MAX_MB * 1024 * 1024) {
+      return (window.showMsg
+        ? showMsg({ variant:'warn', title:'ไฟล์ใหญ่เกินไป', text:`ขนาดสูงสุด ${MAX_MB}MB` })
+        : alert(`ไฟล์ใหญ่เกินไป (สูงสุด ${MAX_MB}MB)`));
+    }
 
-    const fd = new FormData(); 
+    // พรีวิวทันที (GIF แสดงอนิเมชันได้)
+    if (tmpUrl) URL.revokeObjectURL(tmpUrl);
+    tmpUrl = URL.createObjectURL(f);
+    img.src = tmpUrl;
+
+    // ปิดปุ่มกันกดซ้ำช่วงอัปโหลด
+    btnAvatar.disabled = true;
+
+    // อัปโหลดไป /account/profile (multipart/form-data)
+    const fd = new FormData();
     fd.append('avatar', f);
+
     try {
       const r = await fetch('/account/profile', { method: 'POST', body: fd });
-      const j = await r.json();
+      // ถ้าเซิร์ฟเวอร์ส่ง JSON (ตามโค้ดของคุณ) ให้ parse
+      let j = null;
+      try { j = await r.json(); } catch {}
 
       if (!r.ok || !j?.ok) {
-        return fail('อัปโหลดรูปไม่สำเร็จ', j?.error || '');
+        // ย้อนรูปพรีวิวถ้าอยากทำ (ข้ามได้)
+        (window.showMsg
+          ? showMsg({ variant:'error', title:'อัปโหลดไม่สำเร็จ', text: j?.error || '' })
+          : alert('อัปโหลดไม่สำเร็จ'));
+        return;
       }
 
-      // แสดงข้อความสำเร็จ
-      ok('อัปโหลดรูปสำเร็จ');
+      // ใช้ URL กันแคชที่เซิร์ฟเวอร์ส่งกลับมา เพื่อให้เห็นผลทันที
+      if (j.user?.avatarUrl) img.src = j.user.avatarUrl;
 
-      // ใช้ URL กันแคชที่เซิร์ฟเวอร์ส่งกลับมา แสดงทันที
-      if (j.user?.avatarUrl) {
-        $('#avatarPreview').src = j.user.avatarUrl;
-      }
-
-      // ถ้ามีส่วน OTP
+      // ถ้ายังไม่ได้ยืนยันอีเมล โชว์ช่อง OTP
       if (j.user?.email && !j.user?.emailVerified) {
         document.getElementById('otpArea')?.removeAttribute('hidden');
       }
 
-      // หน่วงสั้น ๆ แล้วรีเฟรชหน้า 1 รอบ (กันแคช + sync ส่วนอื่น ๆ)
-      setTimeout(() => {
-        window.location.replace('/account');
-      }, 500);
+      // แจ้งสำเร็จ (ไม่ต้องรีเฟรชก็ได้)
+      (window.showMsg
+        ? showMsg({ variant:'success', title:'สำเร็จ', text:'อัปโหลดรูปโปรไฟล์แล้ว' })
+        : alert('อัปโหลดสำเร็จ'));
 
-    } catch {
-      fail('อัปโหลดรูปไม่สำเร็จ', 'เครือข่ายมีปัญหา');
+      // ถ้าต้องการ sync ส่วนอื่น ๆ บนหน้าแบบชัวร์ ๆ:
+      // setTimeout(()=> location.replace('/account'), 400);
+
+    } catch (err) {
+      (window.showMsg
+        ? showMsg({ variant:'error', title:'เครือข่ายมีปัญหา', text:'โปรดลองใหม่อีกครั้ง' })
+        : alert('อัปโหลดไม่สำเร็จ: เครือข่ายมีปัญหา'));
     } finally {
-      // ล้างค่า input เพื่อให้เลือกไฟล์เดิมซ้ำได้ในอนาคต
-      const input = document.getElementById('avatarInput');
-      if (input) input.value = '';
+      btnAvatar.disabled = false;
+      // reset input ให้เลือกไฟล์เดิมซ้ำได้
+      input.value = '';
     }
   });
 
-  // Save profile
-  $('#formProfile')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
+  // // Avatar upload
+  // $('#btnChangeAvatar')?.addEventListener('click', () => $('#avatarInput')?.click());
+  // let _tmpObjUrl = null;
+  // $('#avatarInput')?.addEventListener('change', async (e) => {
+  //   const f = e.currentTarget.files?.[0]; 
+  //   if (!f) return;
 
-    try {
-      const r = await fetch('/account/profile', { method: 'POST', body: fd });
-      const j = await r.json();
-      if (!j.ok) return fail('บันทึกไม่สำเร็จ', j.error || '');
+  //   // พรีวิวทันที
+  //   if (_tmpObjUrl) URL.revokeObjectURL(_tmpObjUrl);
+  //   _tmpObjUrl = URL.createObjectURL(f);
+  //   $('#avatarPreview').src = _tmpObjUrl;
 
-      ok('อัปเดตข้อมูลเรียบร้อย');
+  //   const fd = new FormData(); 
+  //   fd.append('avatar', f);
+  //   try {
+  //     const r = await fetch('/account/profile', { method: 'POST', body: fd });
+  //     const j = await r.json();
 
-      // โชว์ช่อง OTP ถ้ายังไม่ยืนยันอีเมล
-      if (j.user?.email && !j.user?.emailVerified) {
-        document.getElementById('otpArea')?.removeAttribute('hidden');
-      }
+  //     if (!r.ok || !j?.ok) {
+  //       return fail('อัปโหลดรูปไม่สำเร็จ', j?.error || '');
+  //     }
 
-      setTimeout(() => {
-        window.location.replace('/account');
-      }, 500);
+  //     // แสดงข้อความสำเร็จ
+  //     ok('อัปโหลดรูปสำเร็จ');
 
-    } catch {
-      fail('บันทึกไม่สำเร็จเครือข่ายมีปัญหา', 'เครือข่ายมีปัญหา');
-    }
-  });
+  //     // ใช้ URL กันแคชที่เซิร์ฟเวอร์ส่งกลับมา แสดงทันที
+  //     if (j.user?.avatarUrl) {
+  //       $('#avatarPreview').src = j.user.avatarUrl;
+  //     }
+
+  //     // ถ้ามีส่วน OTP
+  //     if (j.user?.email && !j.user?.emailVerified) {
+  //       document.getElementById('otpArea')?.removeAttribute('hidden');
+  //     }
+
+  //     // หน่วงสั้น ๆ แล้วรีเฟรชหน้า 1 รอบ (กันแคช + sync ส่วนอื่น ๆ)
+  //     setTimeout(() => {
+  //       window.location.replace('/account');
+  //     }, 500);
+
+  //   } catch {
+  //     fail('อัปโหลดรูปไม่สำเร็จ', 'เครือข่ายมีปัญหา');
+  //   } finally {
+  //     // ล้างค่า input เพื่อให้เลือกไฟล์เดิมซ้ำได้ในอนาคต
+  //     const input = document.getElementById('avatarInput');
+  //     if (input) input.value = '';
+  //   }
+  // });
+
+  // // Save profile
+  // $('#formProfile')?.addEventListener('submit', async (e) => {
+  //   e.preventDefault();
+  //   const fd = new FormData(e.currentTarget);
+
+  //   try {
+  //     const r = await fetch('/account/profile', { method: 'POST', body: fd });
+  //     const j = await r.json();
+  //     if (!j.ok) return fail('บันทึกไม่สำเร็จ', j.error || '');
+
+  //     ok('อัปเดตข้อมูลเรียบร้อย');
+
+  //     // โชว์ช่อง OTP ถ้ายังไม่ยืนยันอีเมล
+  //     if (j.user?.email && !j.user?.emailVerified) {
+  //       document.getElementById('otpArea')?.removeAttribute('hidden');
+  //     }
+
+  //     setTimeout(() => {
+  //       window.location.replace('/account');
+  //     }, 500);
+
+  //   } catch {
+  //     fail('บันทึกไม่สำเร็จเครือข่ายมีปัญหา', 'เครือข่ายมีปัญหา');
+  //   }
+  // });
 
   // Change password
   $('#formPassword')?.addEventListener('submit', async (e) => {

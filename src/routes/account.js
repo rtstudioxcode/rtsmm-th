@@ -133,9 +133,9 @@ const storage = multer.diskStorage({
 });
 const upload = multer({
   storage,
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const ok = /image\/(png|jpe?g|webp)/i.test(file.mimetype);
+    const ok = /image\/(png|jpe?g|webp|gif)/i.test(file.mimetype);
     cb(ok ? null : new Error('Invalid image type'), ok);
   }
 });
@@ -178,7 +178,7 @@ router.get('/account', async (req, res, next) => {
       pointValueTHB: Number(pointValueTHB ?? me.pointValueTHB ?? 0),
 
       // default อื่น ๆ
-      avatarUrl: me.avatarUrl || '/static/assets/img/user-blue.png',
+      avatarUrl: me.avatarUrl || '/static/assets/logo/rtsmmgif2.gif',
       emailVerified: !!me.emailVerified,
     };
 
@@ -217,7 +217,7 @@ router.post('/account/profile', upload.single('avatar'), async (req, res) => {
       u.avatarUrl = filePath;
       await u.save();
     } else if (!u.avatarUrl) {
-      u.avatarUrl = '/static/assets/img/user-blue.png';
+      u.avatarUrl = '/static/assets/logo/rtsmmgif2.gif';
       await u.save();
     }
 
@@ -253,6 +253,46 @@ router.post('/account/profile', upload.single('avatar'), async (req, res) => {
   } catch (e) {
     console.error('POST /account/profile', e);
     return res.status(500).json({ ok:false, error:'update failed' });
+  }
+});
+
+/* ---------------- POST /account/avatar ---------------- */
+router.post('/account/avatar', upload.single('avatar'), async (req, res) => {
+  try {
+    const uid = getAuthUserId(req);
+    if (!uid) return res.status(401).send('Unauthorized');
+
+    const u = await User.findById(uid);
+    if (!u) return res.status(404).send('User not found');
+
+    if (!req.file) {
+      // ไม่มีไฟล์ → กลับหน้าเดิม
+      return res.redirect('/account');
+    }
+
+    // ตั้งค่า URL ใหม่ให้ผู้ใช้
+    u.avatarUrl = `/uploads/avatars/${req.file.filename}`;
+
+    // ทำเวอร์ชันกันแคช (หน้า view ใช้ me.avatarVer ด้วย)
+    u.avatarVer = Number(u.avatarVer || 0) + 1;
+    await u.save();
+
+    // อัปเดต session / locals ให้รูปใหม่โชว์ทันที
+    if (req.session?.user) {
+      req.session.user.avatarUrl = u.avatarUrl;
+      req.session.user.avatarVer = u.avatarVer;
+    }
+    res.locals.me = {
+      ...(res.locals.me || {}),
+      avatarUrl: u.avatarUrl,
+      avatarVer: u.avatarVer,
+    };
+
+    // กลับหน้า /account (จะมี ?v=avatarVer ที่ <img> กันแคชอยู่แล้ว)
+    return res.redirect('/account');
+  } catch (e) {
+    console.error('POST /account/avatar', e);
+    return res.status(500).send('Upload failed');
   }
 });
 
