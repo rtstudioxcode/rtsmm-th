@@ -146,7 +146,7 @@ app.use(async (req, res, next) => {
         if (!raw.startsWith('/uploads/')) raw = '/uploads/' + raw.replace(/^\/+/, '');
         avatarUrl = `${base}${raw}`;
       } else {
-        avatarUrl = `${base}/static/assets/img/user-blue.png`;
+        avatarUrl = `${base}/static/assets/logo/rtsmmgif2.gif`;
       }
 
       res.locals.me = {

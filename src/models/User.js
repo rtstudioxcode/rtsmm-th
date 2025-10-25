@@ -12,7 +12,7 @@ const UserSchema = new mongoose.Schema({
 
   // ── โปรไฟล์ ─────────────────────────────────────────────
   name: { type: String, default: '' },
-  avatarUrl: { type: String, default: '/static/assets/img/user-blue.png' },
+  avatarUrl: { type: String, default: '/static/assets/logortsmmgif2.gif' },
 
   // ── กระเป๋าเงิน ─────────────────────────────────────────
   balance: { type: Number, default: 0 },

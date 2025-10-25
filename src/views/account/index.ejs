@@ -54,7 +54,7 @@
 
       <div class="prof-card" style="margin-top:14px">
         <div class="kv"><div>ยืนยันตัวตน KYC</div><div><a class="badge danger">ยังไม่เปิดใช้งาน</a></div></div>
-        <div class="kv"><div>ช่วยเหลือ</div><div><a class="badge ok" href="https://line.me" target="_blank" rel="noopener">Line Official</a></div></div>
+        <div class="kv"><div>ช่วยเหลือ</div><div><a class="badge ok" href="https://line.me/R/ti/p/@507vkplq" target="_blank" rel="noopener">Line Official</a></div></div>
       </div>
     </aside>
 
@@ -171,7 +171,9 @@
                 %>
                 <%= __points.toLocaleString(undefined,{maximumFractionDigits:2}) %> คะแนน
               </div>
-              <div class="subcap">ได้ 0.5 แต้ม ทุก ๆ การใช้จ่ายครบ ฿50</div>
+              <div class="muted" style="color: #31d810;">ใช้จ่ายครบ ฿50 | ได้รับ 0.5 Point</div>
+              <!-- <div class="muted" style="color: #e2bc0f;">แต้มสะสมจะรีเซ็ตทุกวันที่ 1 ของทุกเดือน</div>
+              <div class="muted" style="color: #e2bc0f;">ให้แลกก่อนจะรีเซ็ตไม่งั้นแต้มจะหายทั้งหมด</div> -->
             </div>
 
             <div>
@@ -190,10 +192,24 @@
                 <div><span class="badge balance" data-id="point-value">≈ ฿<%= __val.toLocaleString(undefined,{maximumFractionDigits:2}) %></span></div>
               </div>
 
+              <div class="kv" style="color: #dbad16;">
+                <div>⚠️ คำเตือน: เมื่อแลกแต้มเป็นเงินระดับบัญชีของคุณจะลดลงตามไปด้วย</div>
+              </div>
+
               <div class="card-actions" style="text-align:right;padding:12px 0 0">
-                <% var __canRedeem = (__points >= 100); %>
-                <button id="btnRedeemPoints" class="btn <%= __canRedeem ? 'primary' : '' %>" <%= __canRedeem ? '' : 'disabled' %>>
-                  แลกแต้มเป็นเงิน (ขั้นต่ำ 100)
+                <% 
+                  var __canRedeem = (__points >= 100);
+                  var __needLeft  = Math.max(0, 100 - __points); 
+                %>
+                <button
+                  id="btnRedeemPoints"
+                  class="btn <%= __canRedeem ? 'primary' : '' %>"
+                  <% if (!__canRedeem) { %>
+                    disabled aria-disabled="true"
+                    title="ต้องมีอย่างน้อย 100 แต้ม (ขาดอีก <%= __needLeft.toLocaleString() %> แต้ม)"
+                  <% } %>
+                >
+                  แลกแต้มเป็นเงิน (ขั้นต่ำ 100 แต้ม)
                 </button>
               </div>
             </div>
@@ -396,6 +412,16 @@ input:disabled{opacity:.75;cursor:not-allowed}
 .btn-line{
   display:inline-flex;align-items:center;gap:8px;border:1px dashed var(--line);
   padding:7px 11px;border-radius:10px;cursor:pointer
+}
+/* ปุ่มปิดการใช้งานให้ดู “ปิด” ชัดเจน และกันคลิก */
+.btn[disabled],
+.btn:disabled,
+[aria-disabled="true"].btn {
+  opacity: .5;
+  cursor: not-allowed;
+  pointer-events: none;
+  box-shadow: none;
+  filter: grayscale(.2);
 }
 
 /* ===== Progress (tab-points) ===== */
