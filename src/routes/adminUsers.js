@@ -1,7 +1,7 @@
 // src/routes/adminUsers.js
 import { Router } from 'express';
 import { User } from '../models/User.js';
-import { requireAuth, requireAdmin } from '../middleware/auth.js'; // มีอยู่แล้วในโปรเจกต์
+import { requireAuth, requireAdmin } from '../middleware/auth.js';
 
 const router = Router();
 

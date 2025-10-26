@@ -32,10 +32,10 @@ const UserSchema = new mongoose.Schema({
   redeemedSpent: { type: Number, default: 0 },
 
   // ── เลเวล ───────────────────────────────────────────────
-  level:      { type: String, default: '1' }, // display (string)
-  levelIndex: { type: Number, default: 0 },   // 0..N
+  level:      { type: String, default: '1' },
+  levelIndex: { type: Number, default: 0 },
   levelName:  { type: String, default: 'เลเวล 1' },
-  levelNeed:  { type: Number, default: 0 },   // threshold ปัจจุบัน
+  levelNeed:  { type: Number, default: 0 }, 
   nextLevelName: { type: String, default: null },
   toNextLevel:   { type: Number, default: 0 },
   lastSpentAt:   { type: Date },
@@ -43,11 +43,13 @@ const UserSchema = new mongoose.Schema({
   // ── แต้มสะสม ────────────────────────────────────────────
   points:         { type: Number, default: 0 },
   pointsAccrued:  { type: Number, default: 0 },
-  pointsRedeemed: { type: Number, default: 0 }, // << แก้เหลือครั้งเดียว
+  pointsRedeemed: { type: Number, default: 0 },
 
   // ค่าการแปลงแต้มเป็นบาทตามเลเวล (ที่คำนวณไว้ล่าสุด)
   pointRateTHB:  { type: Number, default: 0 },
   pointValueTHB: { type: Number, default: 0 },
+  accountNumber: { type: String, trim: true, index: true },
+  accountCode: { type: String, trim: true, index: true },
 }, { timestamps: true });
 
 // ── Methods ───────────────────────────────────────────────

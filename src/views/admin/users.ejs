@@ -2,23 +2,37 @@
 
 <div class="admin-users">
   <section class="page-head">
-    <div class="page-title">
-      <h1><%= pageTitle %></h1>
-      <small class="muted">หน้าผู้ดูแลระบบ → <%= pageTitle %></small>
+    <div class="page-title" style="display:flex;align-items:end;gap:12px;justify-content:space-between;flex-wrap:wrap">
+      <div>
+        <h1><%= pageTitle %></h1>
+        <small class="muted">หน้าผู้ดูแลระบบ → <%= pageTitle %></small>
+      </div>
+      <!-- Search bar -->
+      <div class="searchwrap">
+        <input id="userSearch" class="in search" type="search"
+               placeholder="พิมพ์เพื่อค้นหา: username / ชื่อ-นามสกุล / อีเมล "
+               aria-label="ค้นหาผู้ใช้">
+      </div>
     </div>
   </section>
 
   <% if (!users || users.length === 0) { %>
-    <div class="empty-state">
+    <div class="empty-state" id="emptyState">
       <div class="empty-card">
-        <div class="empty-title">ยังไม่มีผู้ใช้ในระบบ</div>
+        <div class="empty-title">ยังไม่มีชื่อผู้ใช้นี้ในระบบ</div>
         <div class="empty-sub">เมื่อมีผู้ใช้ ระบบจะแสดงรายการที่นี่</div>
       </div>
     </div>
   <% } else { %>
     <div class="users-grid" id="usersGrid" role="list">
       <% users.forEach(u => { %>
-        <div class="user-card" role="listitem" tabindex="0" data-user-id="<%= u._id %>" aria-label="ดูข้อมูล <%= u.username %>">
+        <div class="user-card"
+             role="listitem" tabindex="0"
+             data-user-id="<%= u._id %>"
+             data-keys="<%= [
+               (u.username||''), (u.email||''), (u.name||''), (u.role||''), (u.levelName||'')
+             ].join(' ').toLowerCase() %>"
+             aria-label="ดูข้อมูล <%= u.username %>">
           <img class="user-avatar" src="<%= u.avatarUrl || '/static/assets/img/user-blue.png' %>" alt="avatar of <%= u.username %>">
           <div class="user-meta">
             <div class="username">
@@ -35,6 +49,14 @@
           </div>
         </div>
       <% }) %>
+    </div>
+    
+    <!-- empty state สำหรับกรณี "ไม่เจอผลลัพธ์จากการค้นหา" -->
+    <div class="empty-state" id="emptyState" hidden>
+      <div class="empty-card">
+        <div class="empty-title">ยังไม่มีชื่อผู้ใช้นี้ในระบบระบบ</div>
+        <div class="empty-sub">ลองเปลี่ยนคำค้นหา หรือเคลียร์ช่องค้นหา</div>
+      </div>
     </div>
   <% } %>
 
@@ -56,27 +78,32 @@
           <div class="details-grid">
             <div class="label">ชื่อ-นามสกุล</div>
             <div class="value">
-                <input id="mNameInput" class="in" type="text" placeholder="ชื่อ-นามสกุล">
+              <input id="mNameInput" class="in" type="text" placeholder="ชื่อ-นามสกุล">
             </div>
+
             <div class="label">Role</div>
             <div class="value">
-                <select id="mRoleSelect" class="in">
+              <select id="mRoleSelect" class="in">
                 <option value="user">user</option>
                 <option value="admin">admin</option>
-                </select>
+              </select>
             </div>
+
             <div class="label">สถานะอีเมล</div>
             <div class="value">
-                <label class="switch">
+              <label class="switch">
                 <input id="mEmailVerifiedChk" type="checkbox">
                 <span>ยืนยันแล้ว</span>
-                </label>
+              </label>
             </div>
+
             <div class="label">ระดับผู้ใช้</div><div class="value" id="mLevelName">—</div>
+
             <div class="label">ยอดเงิน</div>
             <div class="value">
-                <input id="mBalanceInput" class="in" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0.00">
+              <input id="mBalanceInput" class="in" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0.00">
             </div>
+
             <div class="label">ยอดใช้จ่ายรวม</div><div class="value" id="mTotalSpent">—</div>
             <div class="label">แต้มสะสม</div><div class="value" id="mPoints">—</div>
             <div class="label">ยอดการสั่งออเดอร์ทั้งหมด</div><div class="value" id="mTotalOrders">—</div>
@@ -85,6 +112,7 @@
 
             <!-- สถานะการบันทึก -->
             <div id="saveNote" class="save-note" aria-live="polite"> </div>
+          </div>
         </div>
       </div>
     </div>
@@ -93,7 +121,8 @@
 
 <style>
 :root { --navbar-h: 152px; }
-  /* THEME HOOKS — map เข้ากับ layout variables */
+
+/* THEME HOOKS — map เข้ากับ layout variables */
 .admin-users{
   --u-bg:           var(--elevated-bg,   var(--card,   #141518));
   --u-border:       var(--elevated-border, var(--border, #24262b));
@@ -103,7 +132,7 @@
   --u-accent:       var(--accent, #2a84ff);
   --u-accent-contr: var(--accent-contrast, #ffffff);
   --u-surface:      var(--surface, var(--u-bg));
-  --topbar-h:       var(--navbar-h, 64px); /* รับค่าจาก layout ถ้ามี */
+  --topbar-h:       var(--navbar-h, 64px);
 }
 
 /* Badge contrast – Light theme */
@@ -114,6 +143,10 @@
 
 .admin-users .page-title h1 { color: var(--u-text); }
 .admin-users .muted { color: var(--u-muted); }
+
+/* Search bar */
+.admin-users .searchwrap{ display:flex; align-items:center; gap:8px; }
+.admin-users .in.search{ width:min(360px, 90vw); height:40px; padding:8px 12px; }
 
 /* Grid รายการการ์ด */
 .admin-users .users-grid {
@@ -132,7 +165,7 @@
   grid-template-columns: 72px 1fr;
   gap: 12px;
   align-items: center;
-  transition: transform .08s ease, border-color .12s ease, box-shadow .12s ease;
+  transition: transform .08s ease, border-color .12s ease, box-shadow .12s ease, opacity .12s ease;
   color: var(--u-text);
   outline: none;
 }
@@ -196,23 +229,23 @@
   padding:16px; display:grid; gap:18px; overflow:auto; min-height:0;
 }
 
-/* Form grid ในโมดัล (สำคัญ: ชื่อคลาสตรงกับโค้ด) */
+/* Form grid ในโมดัล */
 .admin-users .details-grid{
   display:grid; gap:12px;
-  grid-template-columns: clamp(180px, 22%, 260px) minmax(0,1fr); /* ซ้ายคงที่-ขวายืดเต็ม */
+  grid-template-columns: clamp(180px, 22%, 260px) minmax(0,1fr);
   column-gap:24px;
   width: 100%;
-  min-width: 1000px;
+  min-width: 1000px; /* คุณตั้งค่าไว้ — คงไว้ตามต้องการ */
 }
 .admin-users .details-grid .label,
 .admin-users .details-grid .value{
   line-height:1.6;
-  word-break: keep-all;        /* ไม่ตัดทีละอักษร */
-  overflow-wrap: anywhere;     /* ตัดเมื่อจำเป็น */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 .admin-users .details-grid .value{ min-width:0; }
 
-/* อินพุต/เซเลกต์ (คลาส .in) */
+/* อินพุต/เซเลกต์ */
 .admin-users .in{
   width:100%; max-width:none; box-sizing:border-box;
   height:40px; padding:8px 12px; font-size:14px;
@@ -257,195 +290,243 @@
   .admin-users .details-grid{ min-width: 100px; grid-template-columns: 1fr; column-gap: 0; }
   .admin-users .in{ width:100%; }
 }
+/* เคารพ hidden attribute เสมอ */
+.admin-users .empty-state[hidden]{
+  display: none !important;
+}
 </style>
 
 <script>
-  (function(){
-    const $ = (s, el=document)=>el.querySelector(s);
-    const usersGrid = $('#usersGrid');
-    const modal = $('#userModal');
+(function(){
+  const $ = (s, el=document)=>el.querySelector(s);
+  const usersGrid = $('#usersGrid');
+  const modal = $('#userModal');
 
-    const m = {
-      root: modal,
-      avatar: $('#mAvatar', modal),
-      username: $('#mUsername', modal),
-      email: $('#mEmail', modal),
+  const m = {
+    root: modal,
+    avatar: $('#mAvatar', modal),
+    username: $('#mUsername', modal),
+    email: $('#mEmail', modal),
 
-      // inputs (editable)
-      nameInput: $('#mNameInput', modal),
-      roleSelect: $('#mRoleSelect', modal),
-      emailVerifiedChk: $('#mEmailVerifiedChk', modal),
-      balanceInput: $('#mBalanceInput', modal),
+    // inputs (editable)
+    nameInput: $('#mNameInput', modal),
+    roleSelect: $('#mRoleSelect', modal),
+    emailVerifiedChk: $('#mEmailVerifiedChk', modal),
+    balanceInput: $('#mBalanceInput', modal),
 
-      // readonly displays
-      levelName: $('#mLevelName', modal),
-      totalSpent: $('#mTotalSpent', modal),
-      points: $('#mPoints', modal),
-      totalOrders: $('#mTotalOrders', modal),
-      createdAt: $('#mCreatedAt', modal),
-      updatedAt: $('#mUpdatedAt', modal),
+    // readonly displays
+    levelName: $('#mLevelName', modal),
+    totalSpent: $('#mTotalSpent', modal),
+    points: $('#mPoints', modal),
+    totalOrders: $('#mTotalOrders', modal),
+    createdAt: $('#mCreatedAt', modal),
+    updatedAt: $('#mUpdatedAt', modal),
 
-      close: $('#mClose', modal),
-      saveNote: $('#saveNote', modal),
+    close: $('#mClose', modal),
+    saveNote: $('#saveNote', modal),
+  };
+
+  let currentId = null;
+  let saveTimer = null;
+  const DEBOUNCE_MS = 600;
+
+  function toTHB(v){
+    const n = Number(v || 0);
+    return '฿' + n.toLocaleString('th-TH', { maximumFractionDigits: 2 });
+  }
+  function fmtDate(d){
+    if (!d) return '—';
+    try { return new Date(d).toLocaleString('th-TH'); }
+    catch { return String(d); }
+  }
+
+  async function openUserModal(userId){
+    const res = await fetch(`/admin/users/${encodeURIComponent(userId)}.json`, { credentials: 'same-origin' });
+    const j = await res.json();
+    if (!res.ok || !j?.ok) { alert(j?.error || 'โหลดข้อมูลไม่สำเร็จ'); return; }
+    const u = j.user || {};
+    currentId = u._id;
+
+    // header
+    m.avatar.src = u.avatarUrl || '/static/assets/img/user-blue.png';
+    m.username.textContent = u.username || '—';
+    m.email.textContent = u.email || '—';
+
+    // inputs
+    m.nameInput.value = u.name || '';
+    m.roleSelect.value = (u.role || 'user').toLowerCase();
+    m.emailVerifiedChk.checked = !!u.emailVerified;
+    m.balanceInput.value = Number(u.balance ?? 0).toFixed(2);
+
+    // readonly
+    m.levelName.textContent = u.levelName || '—';
+    m.totalSpent.textContent = toTHB(u.totalSpent);
+    m.points.textContent = (Number(u.points||0)).toLocaleString('th-TH', { maximumFractionDigits: 2 });
+    m.totalOrders.textContent = Number(u.totalOrders||0).toLocaleString('th-TH');
+    m.createdAt.textContent = fmtDate(u.createdAt);
+    m.updatedAt.textContent = fmtDate(u.updatedAt || u.createdAt);
+
+    m.saveNote.textContent = ' ';
+    m.saveNote.className = 'save-note';
+
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+    m.nameInput?.focus();
+  }
+
+  // ออโต้เซฟ (debounce)
+  function scheduleSave(){
+    if (!currentId) return;
+    m.saveNote.textContent = 'กำลังเตรียมบันทึก...';
+    m.saveNote.className = 'save-note saving';
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(doSave, DEBOUNCE_MS);
+  }
+
+  async function doSave(){
+    if (!currentId) return;
+    m.saveNote.textContent = 'กำลังบันทึก...';
+    m.saveNote.className = 'save-note saving';
+
+    const payload = {
+      name: m.nameInput.value.trim(),
+      role: m.roleSelect.value,
+      emailVerified: !!m.emailVerifiedChk.checked,
+      balance: Number(m.balanceInput.value || 0)
     };
 
-    let currentId = null;
-    let saveTimer = null;
-    const DEBOUNCE_MS = 600;
-
-    function toTHB(v){
-      const n = Number(v || 0);
-      return '฿' + n.toLocaleString('th-TH', { maximumFractionDigits: 2 });
-    }
-    function toTHBool(v){ return v ? 'ยืนยันแล้ว' : 'ยังไม่ได้ยืนยัน'; }
-    function fmtDate(d){
-      if (!d) return '—';
-      try { return new Date(d).toLocaleString('th-TH'); }
-      catch { return String(d); }
-    }
-
-    async function openUserModal(userId){
-      const res = await fetch(`/admin/users/${encodeURIComponent(userId)}.json`, { credentials: 'same-origin' });
+    try {
+      const res = await fetch(`/admin/users/${encodeURIComponent(currentId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload)
+      });
       const j = await res.json();
-      if (!res.ok || !j?.ok) { alert(j?.error || 'โหลดข้อมูลไม่สำเร็จ'); return; }
-      const u = j.user || {};
-      currentId = u._id;
+      if (!res.ok || !j?.ok) throw new Error(j?.error || 'บันทึกไม่สำเร็จ');
 
-      // header
-      m.avatar.src = u.avatarUrl || '/static/assets/img/user-blue.png';
-      m.username.textContent = u.username || '—';
-      m.email.textContent = u.email || '—';
+      const u = j.user;
+      m.updatedAt.textContent = fmtDate(u.updatedAt || new Date());
 
-      // inputs
-      m.nameInput.value = u.name || '';
-      m.roleSelect.value = (u.role || 'user').toLowerCase();
-      m.emailVerifiedChk.checked = !!u.emailVerified;
-      m.balanceInput.value = Number(u.balance ?? 0).toFixed(2);
+      // Sync การ์ดใน grid
+      const card = document.querySelector(`.user-card[data-user-id="${CSS.escape(currentId)}"]`);
+      if (card) {
+        const bal = card.querySelector('.balance');
+        if (bal) bal.textContent = `Balance: ${toTHB(u.balance)}`;
+        const roleBadge = card.querySelector('.badge.role');
+        if (roleBadge) roleBadge.textContent = u.role;
 
-      // readonly
-      m.levelName.textContent = u.levelName || '—';
-      m.totalSpent.textContent = toTHB(u.totalSpent);
-      m.points.textContent = (Number(u.points||0)).toLocaleString('th-TH', { maximumFractionDigits: 2 });
-      m.totalOrders.textContent = Number(u.totalOrders||0).toLocaleString('th-TH');
-      m.createdAt.textContent = fmtDate(u.createdAt);
-      m.updatedAt.textContent = fmtDate(u.updatedAt || u.createdAt);
-
-      m.saveNote.textContent = ' ';
-      m.saveNote.className = 'save-note';
-
-      modal.classList.add('open');
-      modal.setAttribute('aria-hidden', 'false');
-      m.nameInput?.focus();
-    }
-
-    // ออโต้เซฟ (debounce)
-    function scheduleSave(){
-      if (!currentId) return;
-      m.saveNote.textContent = 'กำลังเตรียมบันทึก...';
-      m.saveNote.className = 'save-note saving';
-      if (saveTimer) clearTimeout(saveTimer);
-      saveTimer = setTimeout(doSave, DEBOUNCE_MS);
-    }
-
-    async function doSave(){
-      if (!currentId) return;
-      m.saveNote.textContent = 'กำลังบันทึก...';
-      m.saveNote.className = 'save-note saving';
-
-      const payload = {
-        name: m.nameInput.value.trim(),
-        role: m.roleSelect.value,
-        emailVerified: !!m.emailVerifiedChk.checked,
-        balance: Number(m.balanceInput.value || 0)
-      };
-
-      try {
-        const res = await fetch(`/admin/users/${encodeURIComponent(currentId)}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'same-origin',
-          body: JSON.stringify(payload)
-        });
-        const j = await res.json();
-        if (!res.ok || !j?.ok) throw new Error(j?.error || 'บันทึกไม่สำเร็จ');
-
-        const u = j.user;
-        m.updatedAt.textContent = fmtDate(u.updatedAt || new Date());
-
-        // Sync การ์ดใน grid
-        const card = document.querySelector(`.user-card[data-user-id="${CSS.escape(currentId)}"]`);
-        if (card) {
-          // balance
-          const bal = card.querySelector('.balance');
-          if (bal) bal.textContent = `Balance: ${toTHB(u.balance)}`;
-          // role badge
-          const roleBadge = card.querySelector('.badge.role');
-          if (roleBadge) roleBadge.textContent = u.role;
-          // emailVerified badge
-          const ok = card.querySelector('.badge.ok');
-          const warn = card.querySelector('.badge.warn');
-          if (u.emailVerified) {
-            if (warn) warn.remove();
-            if (!ok) {
-              const el = document.createElement('span');
-              el.className = 'badge ok';
-              el.textContent = 'ยืนยันอีเมลแล้ว';
-              card.querySelector('.username')?.appendChild(el);
-            } else ok.textContent = 'ยืนยันอีเมลแล้ว';
-          } else {
-            if (ok) ok.remove();
-            if (!warn) {
-              const el = document.createElement('span');
-              el.className = 'badge warn';
-              el.textContent = 'ยังไม่ยืนยันอีเมล';
-              card.querySelector('.username')?.appendChild(el);
-            } else warn.textContent = 'ยังไม่ยืนยันอีเมล';
-          }
+        const ok = card.querySelector('.badge.ok');
+        const warn = card.querySelector('.badge.warn');
+        if (u.emailVerified) {
+          if (warn) warn.remove();
+          if (!ok) {
+            const el = document.createElement('span');
+            el.className = 'badge ok';
+            el.textContent = 'ยืนยันอีเมลแล้ว';
+            card.querySelector('.username')?.appendChild(el);
+          } else ok.textContent = 'ยืนยันอีเมลแล้ว';
+        } else {
+          if (ok) ok.remove();
+          if (!warn) {
+            const el = document.createElement('span');
+            el.className = 'badge warn';
+            el.textContent = 'ยังไม่ยืนยันอีเมล';
+            card.querySelector('.username')?.appendChild(el);
+          } else warn.textContent = 'ยังไม่ยืนยันอีเมล';
         }
-
-        m.saveNote.textContent = 'บันทึกแล้ว';
-        m.saveNote.className = 'save-note ok';
-      } catch (err) {
-        console.error(err);
-        m.saveNote.textContent = 'บันทึกไม่สำเร็จ';
-        m.saveNote.className = 'save-note err';
       }
+
+      m.saveNote.textContent = 'บันทึกแล้ว';
+      m.saveNote.className = 'save-note ok';
+    } catch (err) {
+      console.error(err);
+      m.saveNote.textContent = 'บันทึกไม่สำเร็จ';
+      m.saveNote.className = 'save-note err';
     }
+  }
 
-    // bind input events (auto-save)
-    ['input','change'].forEach(ev=>{
-      m.nameInput?.addEventListener(ev, scheduleSave);
-      m.roleSelect?.addEventListener(ev, scheduleSave);
-      m.emailVerifiedChk?.addEventListener(ev, scheduleSave);
-      m.balanceInput?.addEventListener(ev, scheduleSave);
-    });
+  // bind input events (auto-save)
+  ['input','change'].forEach(ev=>{
+    m.nameInput?.addEventListener(ev, scheduleSave);
+    m.roleSelect?.addEventListener(ev, scheduleSave);
+    m.emailVerifiedChk?.addEventListener(ev, scheduleSave);
+    m.balanceInput?.addEventListener(ev, scheduleSave);
+  });
 
-    // เปิดโมดัล
-    usersGrid?.addEventListener('click', (e)=>{
-      const card = e.target.closest('.user-card');
-      if (!card) return;
+  // เปิดโมดัล
+  usersGrid?.addEventListener('click', (e)=>{
+    const card = e.target.closest('.user-card');
+    if (!card) return;
+    const id = card.getAttribute('data-user-id');
+    if (id) openUserModal(id);
+  });
+  usersGrid?.addEventListener('keydown', (e)=>{
+    const card = e.target.closest('.user-card');
+    if (!card) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
       const id = card.getAttribute('data-user-id');
       if (id) openUserModal(id);
-    });
-    usersGrid?.addEventListener('keydown', (e)=>{
-      const card = e.target.closest('.user-card');
-      if (!card) return;
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        const id = card.getAttribute('data-user-id');
-        if (id) openUserModal(id);
-      }
-    });
-
-    // ปิดโมดัล
-    m.close?.addEventListener('click', ()=> closeModal());
-    modal?.addEventListener('click', (e)=>{ if (e.target === modal) closeModal(); });
-    document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape' && modal.classList.contains('open')) closeModal(); });
-
-    function closeModal(){
-      modal.classList.remove('open');
-      modal.setAttribute('aria-hidden', 'true');
-      currentId = null;
     }
-  })();
+  });
+
+  // ปิดโมดัล
+  m.close?.addEventListener('click', ()=> closeModal());
+  modal?.addEventListener('click', (e)=>{ if (e.target === modal) closeModal(); });
+  document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape' && modal.classList.contains('open')) closeModal(); });
+  function closeModal(){
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+    currentId = null;
+  }
+
+  /* ===== Live Search (filter cards as you type) ===== */
+  const searchInput = document.getElementById('userSearch');
+  const emptyState  = document.getElementById('emptyState');
+
+  function normalizeText(s){
+    if (!s) return '';
+    return s.normalize('NFKD').replace(/\p{M}+/gu, '').toLowerCase().trim();
+  }
+
+  function filterUsers(){
+    const raw = searchInput?.value ?? '';
+    const q   = normalizeText(raw);
+    const cards = Array.from(document.querySelectorAll('.users-grid .user-card'));
+    if (!cards.length) return;
+
+    // ถ้ายังไม่พิมพ์อะไรเลย => แสดงทุกการ์ด + ซ่อน empty state
+    if (raw.trim().length === 0){
+      for (const c of cards){ c.style.display = ''; c.style.opacity = '1'; }
+      if (emptyState) emptyState.hidden = true;
+      return;
+    }
+
+    // มีการพิมพ์แล้ว => กรอง แล้วค่อยตัดสินใจเปิด/ปิด empty state
+    let visible = 0;
+    for (const c of cards){
+      const keys = normalizeText(c.getAttribute('data-keys') || '');
+      const hit  = keys.includes(q);
+      c.style.display = hit ? '' : 'none';
+      c.style.opacity  = hit ? '1' : '0';
+      if (hit) visible++;
+    }
+    if (emptyState) emptyState.hidden = (visible > 0);
+  }
+
+  // พิมพ์แล้วกรองทันที
+  searchInput?.addEventListener('input', filterUsers);
+
+  // ช็อตคัต "/" โฟกัสช่องค้นหา
+  document.addEventListener('keydown', (e)=>{
+    if (e.key === '/' && !/input|textarea|select/i.test(document.activeElement.tagName)) {
+      e.preventDefault();
+      searchInput?.focus();
+    }
+  });
+
+  // เริ่มต้น: ซ่อน empty state ไปก่อน (จนกว่าจะมีการพิมพ์)
+  if (emptyState) emptyState.hidden = true;
+})();
 </script>

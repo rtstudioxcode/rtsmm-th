@@ -2006,3 +2006,71 @@ html[data-theme="dark"]{
   background: color-mix(in oklab, var(--accent) 45%, transparent);
 }
 
+/* เสริมเล็กน้อยให้คอลัมน์ผู้ใช้ดูดี */
+.usercell .u{display:flex;gap:10px;align-items:center}
+.usercell .uav{width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid var(--border,#2a2a2a)}
+.usercell .uname{display:flex;align-items:center;gap:6px}
+.usercell .uemail{font-size:12px}
+@media (max-width: 920px){
+  .order-desktop .usercell{min-width:200px}
+}
+@media (max-width: 640px){
+  .o-card .u { display:flex; gap:10px; align-items:center; }
+  .o-card .u .uav{
+    width:44px; height:44px; border-radius:9999px;
+    object-fit:cover;
+    border:1px solid var(--border,#2a2a2a);
+  }
+  .o-card .u .uname{ font-size:14px; line-height:1.2; }
+  .o-card .u .uemail{ font-size:12px; opacity:.85; }
+}
+.pill.warn { background: #FFCC00; color:#0b1020; }
+.pill.warn .bar { background:#ffe58f; }
+
+.ot-item--final.ot-final--partial { border-left-color:#FFCC00; }
+
+.pill.warn{
+  background: #FFCE45;     /* เหลืองเข้มอ่านง่าย */
+  color: #1f1400;          /* ตัวอักษรเข้ม ตัดพื้น */
+  font-weight: 700;
+}
+.pill.warn .bar{
+  background: #FFE28A;     /* แถบด้านในเหลืองอ่อน */
+}
+.pill.warn .label{
+  text-shadow: 0 1px 0 rgba(255,255,255,.35); /* เพิ่มความคม */
+}
+
+/* กรณีธีมของคุณครอบด้วยสีอื่น ให้เพิ่ม specificity */
+.orders-history .pill.warn,
+.o-card .pill.warn{
+  background: #FFCE45 !important;
+  color:#1f1400 !important;
+}
+.orders-history .pill.warn .bar,
+.o-card .pill.warn .bar{
+  background:#FFE28A !important;
+}
+
+/* ==== PARTIAL / คืนบางส่วน ==== */
+.pill.warn,
+.pill.progress.warn,
+.pill.long.warn,
+.orders-history .pill.warn,
+.orders-history .pill.progress.warn,
+.orders-history .pill.long.warn{
+  background: #FFCE45 !important;   /* เหลืองชัด */
+  color: #1f1400 !important;        /* ตัวหนังสือเข้มอ่านง่าย */
+  font-weight: 700;
+}
+.pill.warn .bar,
+.pill.progress.warn .bar,
+.pill.long.warn .bar{
+  background: #FFE28A !important;   /* แถบภายในเหลืองอ่อน */
+}
+.pill.warn .label{
+  text-shadow: 0 1px 0 rgba(255,255,255,.35);
+}
+
+.pill.long.warn, .pill.progress.warn{ background:#FACC15; color:#111; font-weight:700; }
+.pill.long.warn .bar, .pill.progress.warn .bar{ background:rgba(0,0,0,.18); }

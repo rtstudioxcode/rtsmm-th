@@ -78,6 +78,17 @@ function normalizeStatus(data) {
   return { status: raw, rawStatus: raw };
 }
 
+function normCancelCreateResp(data) {
+  // บางเจ้าให้ { id, status }, บางเจ้าให้ { data: { id, status } }
+  // บางเจ้าให้ array ของ cancels
+  const first = data?.data?.[0] || data?.data || data;
+  return {
+    cancelId: first?.id ?? first?.cancel_id ?? data?.id ?? data?.cancel_id ?? null,
+    status: (first?.status ?? data?.status ?? '').toString().toLowerCase(),
+    raw: data,
+  };
+}
+
 /* -------- services -------- */
 export async function getServices() {
   const res = await client.get('/services');
@@ -161,14 +172,128 @@ export async function getRefillStatus(refillIdOrOrderId) {
   return { raw: data, status: (data?.status || '').toLowerCase() };
 }
 
-export async function cancelOrder(orderId) {
-  if (!orderId) throw new Error('cancelOrder: orderId is required');
-  const { data } = await client.post('/cancels', {
-    order_id: Number(orderId),
-  });
+export async function createCancel(orderId) {
+  const oid = Number(orderId);
+  if (!Number.isFinite(oid)) throw new Error('createCancel: invalid orderId');
 
-  const cancelId = data?.id || data?.data?.id;
-  const status   = (data?.status || data?.data?.status || '').toLowerCase();
-
-  return { ok: true, cancelId, status, raw: data };
+  // iPlusView: ใช้ /cancels เป็นหลัก
+  // รองรับทั้ง { order_id } และ { order_ids: [oid] }
+  try {
+    const { data } = await client.post('/cancels', { order_ids: [oid] });
+    const { cancelId, status, raw } = normCancelCreateResp(data);
+    const ok = !!cancelId || /^(ok|success|accepted)$/i.test(status);
+    return { ok, cancelId, status, raw };
+  } catch (e1) {
+    // fallback: รูปแบบ single
+    const { data } = await client.post('/cancels', { order_id: oid });
+    const { cancelId, status, raw } = normCancelCreateResp(data);
+    const ok = !!cancelId || /^(ok|success|accepted)$/i.test(status);
+    return { ok, cancelId, status, raw };
+  }
 }
+
+export async function getCancelById(cancelId) {
+  if (!cancelId) throw new Error('getCancelById: cancelId is required');
+  const { data } = await client.get(`/cancels/${cancelId}`);
+  // คาดหวังว่ามีฟิลด์ status
+  const status = (data?.status || data?.data?.status || '').toString().toLowerCase();
+  return { status, raw: data };
+}
+
+export async function findCancelsByIds(ids = []) {
+  if (!Array.isArray(ids) || !ids.length) throw new Error('findCancelsByIds: ids required');
+  // บาง API เป็น POST /cancels/find
+  const { data } = await client.post('/cancels/find', { ids });
+  // ให้เป็น map id -> status
+  const list = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
+  const map = {};
+  list.forEach(x => {
+    const id = x?.id ?? x?.cancel_id;
+    const st = (x?.status || '').toString().toLowerCase();
+    if (id != null) map[String(id)] = st;
+  });
+  return { map, raw: data };
+}
+
+// แก้ของเดิมให้เรียก createCancel() แทน
+export async function cancelOrder(orderId) {
+  return createCancel(orderId);
+}
+
+// export async function startCancel(providerOrderId) {
+//   // พยายามทั้ง 2 รูปแบบที่เจ้า iPlusView รองรับ
+//   try {
+//     const r = await client.post(`/orders/${Number(providerOrderId)}/cancel`, {});
+//     return { ok:true, raw:r.data, cancelId: (r.data?.cancel_id ?? r.data?.id ?? r.data?.data?.id) ?? null };
+//   } catch (e1) {
+//     try {
+//       const r2 = await client.post('/cancels', { order_id: Number(providerOrderId) });
+//       return { ok:true, raw:r2.data, cancelId: (r2.data?.cancel_id ?? r2.data?.id ?? r2.data?.data?.id) ?? null };
+//     } catch (e2) {
+//       const msg = e2?.response?.data?.error || e1?.response?.data?.error || e2?.message || e1?.message || 'cancel failed';
+//       throw new Error(msg);
+//     }
+//   }
+// }
+
+// export async function getCancelById(cancelId) {
+//   const { data } = await client.get(`/cancels/${cancelId}`);
+//   const st = String(data?.status || data?.data?.status || '').toLowerCase();
+//   return { raw:data, status:st };
+// }
+
+// export async function findCancelsByIds(ids=[]) {
+//   const { data } = await client.post('/cancels/by-ids', { ids });
+//   // ปรับให้อ่านง่าย: คืน object ตาม id
+//   const map = {};
+//   (data?.data || data || []).forEach(item=>{
+//     const id = item?.id ?? item?.cancel_id;
+//     const st = String(item?.status || '').toLowerCase();
+//     if (id!=null) map[String(id)] = { raw:item, status:st };
+//   });
+//   return map;
+// }
+
+// export async function cancelOrder(orderId) {
+//   if (!orderId) throw new Error('cancelOrder: orderId is required');
+
+//   const oid = Number(orderId);
+//   if (!Number.isFinite(oid)) throw new Error('cancelOrder: invalid orderId');
+
+//   let data;
+//   // ผู้ให้บริการบางเจ้ารับรูปแบบ /orders/:id/cancel (ไม่มี body)
+//   // บางเจ้ารับ /cancels { order_id }
+//   try {
+//     const r = await client.post(`/orders/${oid}/cancel`, {});
+//     data = r.data;
+//   } catch (e1) {
+//     try {
+//       const r2 = await client.post('/cancels', { order_id: oid });
+//       data = r2.data;
+//     } catch (e2) {
+//       // ส่งข้อความจาก provider กลับไปเพื่อโชว์ใน alert
+//       const msg = (e2?.response?.data?.error) || (e1?.response?.data?.error) || e2?.message || e1?.message || 'cancel failed';
+//       throw new Error(msg);
+//     }
+//   }
+
+//   const cancelId = (data?.cancel_id ?? data?.id ?? data?.data?.id) ?? null;
+//   const statusRaw = String(data?.status ?? data?.data?.status ?? '').toLowerCase();
+//   const ok =
+//     /^(ok|success|accepted|canceled|cancelled)$/i.test(statusRaw) ||
+//     cancelId != null;
+
+//   return { ok, cancelId, status: statusRaw, raw: data };
+// }
+
+// export async function cancelOrder(orderId) {
+//   if (!orderId) throw new Error('cancelOrder: orderId is required');
+//   const { data } = await client.post('/cancels', {
+//     order_id: Number(orderId),
+//   });
+
+//   const cancelId = data?.id || data?.data?.id;
+//   const status   = (data?.status || data?.data?.status || '').toLowerCase();
+
+//   return { ok: true, cancelId, status, raw: data };
+// }
