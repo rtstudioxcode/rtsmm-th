@@ -1,0 +1,451 @@
+<% const pageTitle = (typeof title === 'string' && title) ? title : 'Admin | ข้อมูลยูสเซอร์'; %>
+
+<div class="admin-users">
+  <section class="page-head">
+    <div class="page-title">
+      <h1><%= pageTitle %></h1>
+      <small class="muted">หน้าผู้ดูแลระบบ → <%= pageTitle %></small>
+    </div>
+  </section>
+
+  <% if (!users || users.length === 0) { %>
+    <div class="empty-state">
+      <div class="empty-card">
+        <div class="empty-title">ยังไม่มีผู้ใช้ในระบบ</div>
+        <div class="empty-sub">เมื่อมีผู้ใช้ ระบบจะแสดงรายการที่นี่</div>
+      </div>
+    </div>
+  <% } else { %>
+    <div class="users-grid" id="usersGrid" role="list">
+      <% users.forEach(u => { %>
+        <div class="user-card" role="listitem" tabindex="0" data-user-id="<%= u._id %>" aria-label="ดูข้อมูล <%= u.username %>">
+          <img class="user-avatar" src="<%= u.avatarUrl || '/static/assets/img/user-blue.png' %>" alt="avatar of <%= u.username %>">
+          <div class="user-meta">
+            <div class="username">
+              <%= u.username %>
+              <span class="badge role"><%= u.role %></span>
+              <% if (u.emailVerified) { %>
+                <span class="badge ok">ยืนยันอีเมลแล้ว</span>
+              <% } else { %>
+                <span class="badge warn">ยังไม่ยืนยันอีเมล</span>
+              <% } %>
+            </div>
+            <div class="email"><%= u.email || '-' %></div>
+            <div class="balance">Balance: ฿<%= (u.balance ?? 0).toLocaleString('th-TH', { maximumFractionDigits: 2 }) %></div>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+
+  <!-- Modal -->
+  <div class="modal" id="userModal" aria-hidden="true" aria-modal="true" role="dialog">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div style="display:flex;align-items:center;gap:10px">
+          <img id="mAvatar" class="modal-avatar" src="/static/assets/img/user-blue.png" alt="user avatar">
+          <div>
+            <div id="mUsername" style="font-weight:800;font-size:18px;">—</div>
+            <div id="mEmail" style="font-size:13px;color:var(--u-muted)">—</div>
+          </div>
+        </div>
+        <button class="btn icon" id="mClose" aria-label="ปิดหน้าต่าง">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="details-grid">
+          <div class="details-grid">
+            <div class="label">ชื่อ-นามสกุล</div>
+            <div class="value">
+                <input id="mNameInput" class="in" type="text" placeholder="ชื่อ-นามสกุล">
+            </div>
+            <div class="label">Role</div>
+            <div class="value">
+                <select id="mRoleSelect" class="in">
+                <option value="user">user</option>
+                <option value="admin">admin</option>
+                </select>
+            </div>
+            <div class="label">สถานะอีเมล</div>
+            <div class="value">
+                <label class="switch">
+                <input id="mEmailVerifiedChk" type="checkbox">
+                <span>ยืนยันแล้ว</span>
+                </label>
+            </div>
+            <div class="label">ระดับผู้ใช้</div><div class="value" id="mLevelName">—</div>
+            <div class="label">ยอดเงิน</div>
+            <div class="value">
+                <input id="mBalanceInput" class="in" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0.00">
+            </div>
+            <div class="label">ยอดใช้จ่ายรวม</div><div class="value" id="mTotalSpent">—</div>
+            <div class="label">แต้มสะสม</div><div class="value" id="mPoints">—</div>
+            <div class="label">ยอดการสั่งออเดอร์ทั้งหมด</div><div class="value" id="mTotalOrders">—</div>
+            <div class="label">สร้างเมื่อ</div><div class="value" id="mCreatedAt">—</div>
+            <div class="label">อัปเดตล่าสุด</div><div class="value" id="mUpdatedAt">—</div>
+
+            <!-- สถานะการบันทึก -->
+            <div id="saveNote" class="save-note" aria-live="polite"> </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+:root { --navbar-h: 152px; }
+  /* THEME HOOKS — map เข้ากับ layout variables */
+.admin-users{
+  --u-bg:           var(--elevated-bg,   var(--card,   #141518));
+  --u-border:       var(--elevated-border, var(--border, #24262b));
+  --u-shadow:       var(--elevated-shadow, 0 10px 24px rgba(0,0,0,.35));
+  --u-text:         var(--text-primary, var(--text,   #f2f4f8));
+  --u-muted:        var(--text-muted,   var(--muted,  #a7b0bb));
+  --u-accent:       var(--accent, #2a84ff);
+  --u-accent-contr: var(--accent-contrast, #ffffff);
+  --u-surface:      var(--surface, var(--u-bg));
+  --topbar-h:       var(--navbar-h, 64px); /* รับค่าจาก layout ถ้ามี */
+}
+
+/* Badge contrast – Light theme */
+[data-theme="light"] .admin-users .badge { background:#eef2f6; color:#0b0f14; border-color:#d4dbe5; }
+[data-theme="light"] .admin-users .badge.ok { background:#e6f6ef; color:#065f46; border-color:#93e7c6; }
+[data-theme="light"] .admin-users .badge.warn { background:#fff4e5; color:#8a4b08; border-color:#f5c97a; }
+[data-theme="light"] .admin-users .badge.role { background:#e8f1ff; color:#0b3ea2; border-color:#a5c4ff; }
+
+.admin-users .page-title h1 { color: var(--u-text); }
+.admin-users .muted { color: var(--u-muted); }
+
+/* Grid รายการการ์ด */
+.admin-users .users-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.admin-users .user-card {
+  background: var(--u-surface);
+  border: 1px solid var(--u-border);
+  border-radius: 16px;
+  box-shadow: var(--u-shadow);
+  padding: 14px;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 12px;
+  align-items: center;
+  transition: transform .08s ease, border-color .12s ease, box-shadow .12s ease;
+  color: var(--u-text);
+  outline: none;
+}
+.admin-users .user-card:hover,
+.admin-users .user-card:focus-visible {
+  transform: translateY(-1px);
+  border-color: var(--u-accent);
+  box-shadow: 0 12px 26px rgba(0,0,0,.4);
+}
+.admin-users .user-avatar {
+  width: 72px; height: 72px; border-radius: 50%;
+  object-fit: cover; border: 1px solid var(--u-border);
+  background: color-mix(in oklab, var(--u-surface), #000 8%);
+}
+.admin-users .user-meta .username { font-weight: 700; font-size: 16px; color: var(--u-text); }
+.admin-users .user-meta .email    { font-size: 13px; color: var(--u-muted); margin-top: 2px; word-break: break-all; }
+.admin-users .user-meta .balance  { font-size: 14px; margin-top: 6px; color: var(--u-text); }
+
+.admin-users .badge {
+  display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; margin-left: 6px;
+  background: color-mix(in oklab, var(--u-surface), #fff 6%);
+  color: color-mix(in oklab, var(--u-text), #fff 10%);
+  border: 1px solid var(--u-border);
+}
+.admin-users .badge.ok  { background: color-mix(in oklab, #10b981 20%, var(--u-surface)); color: color-mix(in oklab, #10b981 80%, #fff); border-color: color-mix(in oklab, #10b981 50%, var(--u-border)); }
+.admin-users .badge.warn{ background: color-mix(in oklab, #f59e0b 20%, var(--u-surface)); color: color-mix(in oklab, #f59e0b 80%, #000); border-color: color-mix(in oklab, #f59e0b 50%, var(--u-border)); }
+.admin-users .badge.role{ background: color-mix(in oklab, #2563eb 20%, var(--u-surface)); color: color-mix(in oklab, #dbeafe 90%, #fff); border-color: color-mix(in oklab, #2563eb 50%, var(--u-border)); }
+
+/* Empty state */
+.admin-users .empty-state { display:grid; place-items:center; margin: 24px 0; }
+.admin-users .empty-card {
+  background: var(--u-surface); border: 1px solid var(--u-border); border-radius: 16px;
+  padding: 24px; text-align: center; color: var(--u-text); box-shadow: var(--u-shadow);
+  width: min(680px, 92vw);
+}
+.admin-users .empty-title { font-weight: 700; font-size: 18px; }
+.admin-users .empty-sub { margin-top: 6px; color: var(--u-muted); }
+
+/* ===== Modal layout — ไม่โดน top-bar และสูงพอดี */
+.admin-users .modal {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(0,0,0,.55); backdrop-filter: blur(2px);
+  display: none;
+  align-items: start; justify-items: center;
+  padding: max(16px, env(safe-area-inset-top), var(--topbar-h)) 12px 12px;
+}
+.admin-users .modal.open { display: grid; }
+.admin-users .modal-card {
+  width: min(1040px, 96vw);
+  max-height: calc(100dvh - var(--topbar-h) - 24px);
+  background: var(--u-surface); color: var(--u-text);
+  border: 1px solid var(--u-border); border-radius: 18px; box-shadow: var(--u-shadow);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.admin-users .modal-head {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 16px; border-bottom:1px solid var(--u-border);
+  background: var(--u-surface); position: sticky; top: 0; z-index: 1;
+}
+.admin-users .modal-body {
+  padding:16px; display:grid; gap:18px; overflow:auto; min-height:0;
+}
+
+/* Form grid ในโมดัล (สำคัญ: ชื่อคลาสตรงกับโค้ด) */
+.admin-users .details-grid{
+  display:grid; gap:12px;
+  grid-template-columns: clamp(180px, 22%, 260px) minmax(0,1fr); /* ซ้ายคงที่-ขวายืดเต็ม */
+  column-gap:24px;
+  width: 100%;
+  min-width: 1000px;
+}
+.admin-users .details-grid .label,
+.admin-users .details-grid .value{
+  line-height:1.6;
+  word-break: keep-all;        /* ไม่ตัดทีละอักษร */
+  overflow-wrap: anywhere;     /* ตัดเมื่อจำเป็น */
+}
+.admin-users .details-grid .value{ min-width:0; }
+
+/* อินพุต/เซเลกต์ (คลาส .in) */
+.admin-users .in{
+  width:100%; max-width:none; box-sizing:border-box;
+  height:40px; padding:8px 12px; font-size:14px;
+  border-radius:10px; border:1px solid var(--u-border);
+  background: color-mix(in oklab, var(--u-surface), #fff 3%);
+  color:var(--u-text); outline:none;
+}
+.admin-users .in:focus{
+  border-color: var(--u-accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--u-accent), transparent 70%);
+}
+.admin-users select.in{ appearance:none; -webkit-appearance:none; -moz-appearance:none; }
+.admin-users .switch{ display:inline-flex; align-items:center; gap:8px; user-select:none; }
+.admin-users .switch input{ width:18px; height:18px; accent-color: var(--u-accent); vertical-align:middle; }
+
+/* Avatar & Buttons */
+.admin-users .modal-avatar{
+  width:128px; height:128px; border-radius:50%; object-fit:cover;
+  border:1px solid var(--u-border); background: color-mix(in oklab, var(--u-surface), #000 8%);
+}
+.admin-users .btn{ padding:8px 12px; border-radius:10px; border:1px solid var(--u-border);
+  background: color-mix(in oklab, var(--u-surface), #fff 3%); color:var(--u-text); cursor:pointer; }
+.admin-users .btn.primary{ background:var(--u-accent); color:var(--u-accent-contr); border-color:transparent; }
+.admin-users .btn.icon{ padding:6px 10px; font-size:16px; }
+
+.admin-users .save-note{ margin-top:8px; color:var(--u-muted); font-size:13px; }
+.admin-users .save-note.saving{ color: var(--u-accent); }
+.admin-users .save-note.ok{ color:#10b981; }
+.admin-users .save-note.err{ color:#ff6b6b; }
+
+/* มือถือ */
+@media (max-width: 768px){
+  .admin-users .modal{
+    padding-top: max(12px, env(safe-area-inset-top), var(--topbar-h));
+    padding-left: 8px; padding-right: 8px;
+  }
+  .admin-users .modal-card{
+    width:100%;
+    max-height: calc(100dvh - var(--topbar-h) - 12px);
+    border-radius:16px;
+  }
+  .admin-users .details-grid{ min-width: 100px; grid-template-columns: 1fr; column-gap: 0; }
+  .admin-users .in{ width:100%; }
+}
+</style>
+
+<script>
+  (function(){
+    const $ = (s, el=document)=>el.querySelector(s);
+    const usersGrid = $('#usersGrid');
+    const modal = $('#userModal');
+
+    const m = {
+      root: modal,
+      avatar: $('#mAvatar', modal),
+      username: $('#mUsername', modal),
+      email: $('#mEmail', modal),
+
+      // inputs (editable)
+      nameInput: $('#mNameInput', modal),
+      roleSelect: $('#mRoleSelect', modal),
+      emailVerifiedChk: $('#mEmailVerifiedChk', modal),
+      balanceInput: $('#mBalanceInput', modal),
+
+      // readonly displays
+      levelName: $('#mLevelName', modal),
+      totalSpent: $('#mTotalSpent', modal),
+      points: $('#mPoints', modal),
+      totalOrders: $('#mTotalOrders', modal),
+      createdAt: $('#mCreatedAt', modal),
+      updatedAt: $('#mUpdatedAt', modal),
+
+      close: $('#mClose', modal),
+      saveNote: $('#saveNote', modal),
+    };
+
+    let currentId = null;
+    let saveTimer = null;
+    const DEBOUNCE_MS = 600;
+
+    function toTHB(v){
+      const n = Number(v || 0);
+      return '฿' + n.toLocaleString('th-TH', { maximumFractionDigits: 2 });
+    }
+    function toTHBool(v){ return v ? 'ยืนยันแล้ว' : 'ยังไม่ได้ยืนยัน'; }
+    function fmtDate(d){
+      if (!d) return '—';
+      try { return new Date(d).toLocaleString('th-TH'); }
+      catch { return String(d); }
+    }
+
+    async function openUserModal(userId){
+      const res = await fetch(`/admin/users/${encodeURIComponent(userId)}.json`, { credentials: 'same-origin' });
+      const j = await res.json();
+      if (!res.ok || !j?.ok) { alert(j?.error || 'โหลดข้อมูลไม่สำเร็จ'); return; }
+      const u = j.user || {};
+      currentId = u._id;
+
+      // header
+      m.avatar.src = u.avatarUrl || '/static/assets/img/user-blue.png';
+      m.username.textContent = u.username || '—';
+      m.email.textContent = u.email || '—';
+
+      // inputs
+      m.nameInput.value = u.name || '';
+      m.roleSelect.value = (u.role || 'user').toLowerCase();
+      m.emailVerifiedChk.checked = !!u.emailVerified;
+      m.balanceInput.value = Number(u.balance ?? 0).toFixed(2);
+
+      // readonly
+      m.levelName.textContent = u.levelName || '—';
+      m.totalSpent.textContent = toTHB(u.totalSpent);
+      m.points.textContent = (Number(u.points||0)).toLocaleString('th-TH', { maximumFractionDigits: 2 });
+      m.totalOrders.textContent = Number(u.totalOrders||0).toLocaleString('th-TH');
+      m.createdAt.textContent = fmtDate(u.createdAt);
+      m.updatedAt.textContent = fmtDate(u.updatedAt || u.createdAt);
+
+      m.saveNote.textContent = ' ';
+      m.saveNote.className = 'save-note';
+
+      modal.classList.add('open');
+      modal.setAttribute('aria-hidden', 'false');
+      m.nameInput?.focus();
+    }
+
+    // ออโต้เซฟ (debounce)
+    function scheduleSave(){
+      if (!currentId) return;
+      m.saveNote.textContent = 'กำลังเตรียมบันทึก...';
+      m.saveNote.className = 'save-note saving';
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(doSave, DEBOUNCE_MS);
+    }
+
+    async function doSave(){
+      if (!currentId) return;
+      m.saveNote.textContent = 'กำลังบันทึก...';
+      m.saveNote.className = 'save-note saving';
+
+      const payload = {
+        name: m.nameInput.value.trim(),
+        role: m.roleSelect.value,
+        emailVerified: !!m.emailVerifiedChk.checked,
+        balance: Number(m.balanceInput.value || 0)
+      };
+
+      try {
+        const res = await fetch(`/admin/users/${encodeURIComponent(currentId)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify(payload)
+        });
+        const j = await res.json();
+        if (!res.ok || !j?.ok) throw new Error(j?.error || 'บันทึกไม่สำเร็จ');
+
+        const u = j.user;
+        m.updatedAt.textContent = fmtDate(u.updatedAt || new Date());
+
+        // Sync การ์ดใน grid
+        const card = document.querySelector(`.user-card[data-user-id="${CSS.escape(currentId)}"]`);
+        if (card) {
+          // balance
+          const bal = card.querySelector('.balance');
+          if (bal) bal.textContent = `Balance: ${toTHB(u.balance)}`;
+          // role badge
+          const roleBadge = card.querySelector('.badge.role');
+          if (roleBadge) roleBadge.textContent = u.role;
+          // emailVerified badge
+          const ok = card.querySelector('.badge.ok');
+          const warn = card.querySelector('.badge.warn');
+          if (u.emailVerified) {
+            if (warn) warn.remove();
+            if (!ok) {
+              const el = document.createElement('span');
+              el.className = 'badge ok';
+              el.textContent = 'ยืนยันอีเมลแล้ว';
+              card.querySelector('.username')?.appendChild(el);
+            } else ok.textContent = 'ยืนยันอีเมลแล้ว';
+          } else {
+            if (ok) ok.remove();
+            if (!warn) {
+              const el = document.createElement('span');
+              el.className = 'badge warn';
+              el.textContent = 'ยังไม่ยืนยันอีเมล';
+              card.querySelector('.username')?.appendChild(el);
+            } else warn.textContent = 'ยังไม่ยืนยันอีเมล';
+          }
+        }
+
+        m.saveNote.textContent = 'บันทึกแล้ว';
+        m.saveNote.className = 'save-note ok';
+      } catch (err) {
+        console.error(err);
+        m.saveNote.textContent = 'บันทึกไม่สำเร็จ';
+        m.saveNote.className = 'save-note err';
+      }
+    }
+
+    // bind input events (auto-save)
+    ['input','change'].forEach(ev=>{
+      m.nameInput?.addEventListener(ev, scheduleSave);
+      m.roleSelect?.addEventListener(ev, scheduleSave);
+      m.emailVerifiedChk?.addEventListener(ev, scheduleSave);
+      m.balanceInput?.addEventListener(ev, scheduleSave);
+    });
+
+    // เปิดโมดัล
+    usersGrid?.addEventListener('click', (e)=>{
+      const card = e.target.closest('.user-card');
+      if (!card) return;
+      const id = card.getAttribute('data-user-id');
+      if (id) openUserModal(id);
+    });
+    usersGrid?.addEventListener('keydown', (e)=>{
+      const card = e.target.closest('.user-card');
+      if (!card) return;
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        const id = card.getAttribute('data-user-id');
+        if (id) openUserModal(id);
+      }
+    });
+
+    // ปิดโมดัล
+    m.close?.addEventListener('click', ()=> closeModal());
+    modal?.addEventListener('click', (e)=>{ if (e.target === modal) closeModal(); });
+    document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape' && modal.classList.contains('open')) closeModal(); });
+
+    function closeModal(){
+      modal.classList.remove('open');
+      modal.setAttribute('aria-hidden', 'true');
+      currentId = null;
+    }
+  })();
+</script>

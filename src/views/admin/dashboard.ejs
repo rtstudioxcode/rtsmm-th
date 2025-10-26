@@ -18,6 +18,14 @@
   </section>
 </div>
 
+<div class="grid cards">
+  <section class="card">
+    <h3>ข้อมูลผู้ใช้ทั้งหมด</h3>
+    <a class="btn" href="/admin/users">ข้อมูลผู้ใช้</a>
+    <p class="muted mt">ไปที่หน้าข้อมูลผู้ใช้</p>
+  </section>
+</div>
+
 <script>
 async function refreshBal(){
   const r = await fetch('/admin/refresh-balance',{ method:'POST' });

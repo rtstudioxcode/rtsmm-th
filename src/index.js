@@ -30,6 +30,7 @@ import { Order } from './models/Order.js'
 import apiPricingRouter from './routes/api-pricing.js';
 import compression from 'compression';
 import { startSpendAutoRecalc } from './services/spendWatcher.js';
+import adminUsersRouter from './routes/adminUsers.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
@@ -187,6 +188,7 @@ app.use(requireAuth, accountRouter);
 app.use('/', requireAuth, dashboardRouter);
 app.use('/otp', otpRouter);
 app.use('/api', apiPricingRouter);
+app.use(adminUsersRouter);
 
 // Healthcheck (optional)
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
