@@ -59,21 +59,18 @@
                 <option value="">— เลือกธนาคาร/วอลเล็ท —</option>
                 <!-- รายชื่อจาก server (render) -->
                 <% const BANKS = [
-                  {code:'BBL',label:'ธนาคารกรุงเทพ'},
-                  {code:'KBANK',label:'ธนาคารกสิกรไทย'},
-                  {code:'KTB',label:'ธนาคารกรุงไทย'},
-                  {code:'BAY',label:'ธนาคารกรุงศรีอยุธยา'},
-                  {code:'SCB',label:'ธนาคารไทยพาณิชย์'},
-                  {code:'TMB',label:'ทหารไทยธนชาต (TTB)'},
-                  {code:'CIMB',label:'ธนาคารซีไอเอ็มบีไทย'},
-                  {code:'UOB',label:'ธนาคารยูโอบี'},
-                  {code:'GSB',label:'ธนาคารออมสิน'},
-                  {code:'BAAC',label:'ธ.เพื่อการเกษตรและสหกรณ์การเกษตร'},
-                  {code:'KKB',label:'ธนาคารเกียรตินาคินภัทร'},
-                  {code:'LHFG',label:'ธนาคารแลนด์ แอนด์ เฮ้าส์'},
-                  {code:'ICBC',label:'ธนาคารไอซีบีซี (ไทย)'},
-                  {code:'TISCO',label:'ธนาคารทิสโก้'},
-                  {code:'TRUEWALLET',label:'TrueMoney Wallet'}
+                  {code:'bbl',label:'ธนาคารกรุงเทพ'},
+                  {code:'kbank',label:'ธนาคารกสิกรไทย'},
+                  {code:'ktb',label:'ธนาคารกรุงไทย'},
+                  {code:'bay',label:'ธนาคารกรุงศรีอยุธยา'},
+                  {code:'scb',label:'ธนาคารไทยพาณิชย์'},
+                  {code:'ttb',label:'ทหารไทยธนชาต (TTB)'},
+                  {code:'cimbt',label:'ธนาคารซีไอเอ็มบีไทย'},
+                  {code:'uobt',label:'ธนาคารยูโอบี'},
+                  {code:'gsb',label:'ธนาคารออมสิน'},
+                  {code:'baac',label:'ธ.เพื่อการเกษตรและสหกรณ์การเกษตร'},
+                  {code:'kkp',label:'ธนาคารเกียรตินาคินภัทร'},
+                  {code:'tw',label:'TrueMoney Wallet'}
                 ]; %>
                 <% BANKS.forEach(b=>{ %>
                   <option value="<%= b.code %>"><%= b.label %></option>
@@ -108,7 +105,7 @@
       </div>
     </div>
 
-    <button class="btn primary block" type="submit" id="btnRegister">สมัคร</button>
+    <button class="block btn primary" type="submit" id="btnRegister">สมัคร</button>
     <div class="auth-foot">มีบัญชีอยู่แล้ว? <a href="/login">เข้าสู่ระบบ</a></div>
   </form>
 </section>

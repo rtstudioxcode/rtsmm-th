@@ -9,15 +9,17 @@
   <!-- โอนจากบัญชี -->
   <section class="card">
     <h3 class="title">โอนจากบัญชี</h3>
-    <% if (user) { %>
+
+    <% if (user && user.bankAccounts && user.bankAccounts.length > 0) { %> <%
+    const acc = user.bankAccounts[0]; %>
     <div class="grid method-grid">
       <div class="method-tile">
         <img
-          src="/static/assets/payment/<%= user.accountCode %>.webp"
-          alt="<%= user.accountCode %>"
+          src="/static/assets/payment/<%= acc.accountCode %>.webp"
+          alt="<%= acc.accountCode %>"
         />
-        <div><%= user.name %></div>
-        <small><%= user.accountNumber %></small>
+        <div><%= acc.accountName || user.name %></div>
+        <small><%= acc.accountNumber %></small>
       </div>
     </div>
     <% } else { %>

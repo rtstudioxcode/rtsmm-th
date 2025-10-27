@@ -1,35 +1,3 @@
-// src/index.js
-import mongoose from 'mongoose';
-import express from 'express';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import session from 'express-session';
-import MongoStore from 'connect-mongo';
-import { connectMongo } from './db/mongo.js';
-import { User } from './models/User.js';
-import { config } from './config.js';
-import expressLayouts from 'express-ejs-layouts';
-import authRoutes from './routes/auth.js';
-import catalogRoutes from './routes/catalog.js';
-import orderRoutes from './routes/orders.js';
-import adminRoutes from './routes/admin.js';
-import adminPricingRoutes from './routes/admin-pricing.js';
-import walletRoutes from './routes/wallet.js';
-import newOrderRoutes from './routes/newOrder.js';
-import { syncServicesFromProvider } from './lib/syncServices.js';
-import { Category } from './models/Category.js';
-import { servicesRouter } from './routes/services.js';
-import changesRoute from './routes/changes.js';
-import { initDailyChangeSync } from './jobs/dailyChangeSync.js';
-import accountRouter from './routes/account.js';
-import resetPasswordRoutes from './routes/reset-password.js';
-import dashboardRouter from './routes/dashboard.js';
-import otpRouter from './routes/otp.js';
-import { attachUser, requireAuth, requireAdmin } from './middleware/auth.js';
-import { Order } from './models/Order.js';
-import apiPricingRouter from './routes/api-pricing.js';
-import compression from 'compression';
-import { startSpendAutoRecalc } from './services/spendWatcher.js';
 // src/index.js ตัวรันหลัก
 import mongoose from "mongoose";
 import express from "express";
@@ -262,14 +230,7 @@ app.use(async (req, res, next) => {
       const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'http').split(',')[0];
       const base  = `${proto}://${req.get('host')}`;
       // base URL จาก request ปัจจุบัน
-      const proto = (
-        req.headers["x-forwarded-proto"] ||
-        req.protocol ||
-        "http"
-      ).split(",")[0];
-      const base = `${proto}://${req.get("host")}`;
 
-      let raw = (user.avatarUrl ?? user.avatar ?? '').toString().trim();
       // สร้าง URL รูป
       let raw = (user.avatarUrl ?? user.avatar ?? "").toString().trim();
       let avatarUrl;
@@ -335,10 +296,6 @@ app.use("/api", apiPricingRouter);
 // Healthcheck (optional)
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
 
-app.get('/faq', (req, res) => {
-  res.render('faq', {
-    pageTitle: 'คำถามที่พบบ่อย (FAQ)',
-    hideNavbar: true
 app.get("/faq", (req, res) => {
   // ถ้า layout ของคุณมี navbar และคุณไม่อยากให้แสดงในหน้านี้
   // ส่ง flag ไปให้ layout เช็คซ่อน
@@ -350,12 +307,6 @@ app.get("/faq", (req, res) => {
 
 app.get("/blog", (req, res) => {
   const posts = [
-    { slug:'tiktok-fyp', title:'การเพิ่มยอดวิว TikTok: เทคนิคปั้นวิดีโอให้ไวรัลแบบมือโปร', dateText:'March 15, 2019', author:'RTSMM - Thailand', thumbnail:'/static/assets/thumbnails/blog1.png', excerpt:'การเพิ่มยอดวิว TikTok: เทคนิคปั้นวิดีโอให้ไวรัลแบบมือโปร ในยุคที่ TikTok...' },
-    { slug:'follower-ig', title:'รวมเหตุผลที่การ ปั้นไอจี ในปี 2025 ยังคงเป็นตัวเลือกที่ดีที่สุด', dateText:'March 15, 2019', author:'RTSMM - Thailand', thumbnail:'/static/assets/thumbnails/blog2.gif', excerpt:'รวมเหตุผลที่การ ปั้นไอจี ในปี 2025...' },
-    { slug:'view-youtube', title:'เผยอาชีพใหม่ที่ได้ค่าตอบแทนสุดคุ้มค่า เพียงปั้นช่อง Youtube ให้สำเร็จเท่านั้น', dateText:'March 15, 2019', author:'RTSMM - Thailand', thumbnail:'/static/assets/thumbnails/blog3.gif', excerpt:'เผยอาชีพใหม่ที่ได้ค่าตอบแทนสุดคุ้มค่า...' },
-    { slug:'likefanpage-facebook', title:'แชร์เทคนิคการปั้นเฟสบุ๊ก ทำอย่างไรให้หาเงินได้จากแพลตฟอร์มนี้', dateText:'March 15, 2019', author:'RTSMM - Thailand', thumbnail:'/static/assets/thumbnails/blog4.gif', excerpt:'แชร์เทคนิคการปั้นเฟสบุ๊ก ทำอย่างไรให้หาเงินได้...' },
-    { slug:'pumview', title:'วิธีปั๊มวิวง่าย ๆ แต่เป็นอะไรที่ใช้ได้จริง', dateText:'March 15, 2019', author:'RTSMM - Thailand', thumbnail:'/static/assets/thumbnails/blog5.gif', excerpt:'วิธีปั๊มวิวง่าย ๆ แต่เป็นอะไรที่ใช้ได้จริง...' },
-    { slug:'pro-pumlike', title:'ปั๊มไลค์แบบนี้มืออาชีพเขาทำกัน', dateText:'March 15, 2019', author:'RTSMM - Thailand', thumbnail:'/static/assets/thumbnails/blog6.gif', excerpt:'ปั๊มไลค์แบบนี้ มืออาชีพเขาทำกัน...' }
     {
       slug: "tiktok-fyp",
       title: "การเพิ่มยอดวิว TikTok: เทคนิคปั้นวิดีโอให้ไวรัลแบบมือโปร",
@@ -416,12 +367,6 @@ app.get("/blog", (req, res) => {
   });
 });
 
-app.get('/page/terms-of-use', (req, res) => {
-  res.render('terms-of-use', {
-    layout: true,
-    title: 'เงื่อนไขและข้อตกลง | RTSMM-TH.COM',
-    pageTitle: 'Terms of Use',
-    bodyClass: 'page-terms'
 app.get("/page/terms-of-use", (req, res) => {
   res.render("terms-of-use", {
     layout: true, // ✅ ใช้ layout.ejs
@@ -498,7 +443,6 @@ app.use((req, res) => res.status(404).send("Not found"));
     console.error("❌ Points init failed:", e?.message || e);
   }
 })();
-})();
 
 initDailyChangeSync();
 
@@ -507,8 +451,6 @@ initDailyChangeSync();
 /* ------------------------------------------------------------------ */
 const PORT = Number(RUNTIME.port) || 3000;
 const HOST = '0.0.0.0';
-const PORT = Number(process.env.PORT || config.port || 3000);
-const HOST = "0.0.0.0";
 
 app.listen(PORT, HOST, () => {
   console.log(`🚀 RTSMM-TH listening on ${HOST}:${PORT} (cfg: ${SEC ? 'DB' : 'ENV'})`);

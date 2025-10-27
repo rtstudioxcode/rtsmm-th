@@ -17,7 +17,9 @@ export const topupRouter = express.Router();
 topupRouter.get("/", async (req, res) => {
   const userId = req?.session?.userId;
   const user = await User.findById(userId);
-  const webWallet = await Topup.findOne({ accountCode: user.accountCode });
+  const webWallet = await Topup.findOne({
+    accountCode: user.bankAccounts[0].accountCode,
+  });
 
   res.render("topup/index", { title: "เติมเงิน", user, webWallet });
 });
@@ -30,7 +32,9 @@ topupRouter.post("/truewallet/gen/link", async (req, res) => {
     const { amount } = req.body;
     const userId = req?.session?.userId;
     const user = await User.findById(userId);
-    const webWallet = await Topup.findOne({ accountCode: user.accountCode });
+    const webWallet = await Topup.findOne({
+      accountCode: user.bankAccounts[0].accountCode,
+    });
 
     const response = await axios.post(
       "https://apis.truemoneyservices.com/utils/v1/transfer-link-generator",
@@ -65,6 +69,8 @@ topupRouter.post("/truewallet", async (req, res) => {
         .status(400)
         .json({ success: false, message: "missing_message" });
 
+    return res.status(200).json({ ok: true });
+
     const topup = await Topup.findOne({
       accountCode: "tw",
       isActive: true,
@@ -97,7 +103,10 @@ topupRouter.post("/truewallet", async (req, res) => {
         .status(500)
         .json({ success: false, message: "auto_mode_disabled" });
 
-    const user = await User.findOne({ accountNumber: sender_mobile });
+    const user = await User.findOne({
+      bankAccounts: { $elemMatch: { accountNumber: sender_mobile } },
+    });
+
     if (!user)
       return res
         .status(404)
@@ -107,6 +116,8 @@ topupRouter.post("/truewallet", async (req, res) => {
     const newBalance = await user.addBalance(added);
 
     // ✅ Record transaction
+
+    console.log(user._id);
     await Transaction.create({
       userId: user._id,
       method: "truewallet",
@@ -192,8 +203,11 @@ topupRouter.post("/scb", async (req, res) => {
         .json({ success: false, message: "auto_mode_disabled" });
 
     const user = await User.findOne({
-      accountNumber: new RegExp(`${senderDigits}$`),
+      bankAccounts: {
+        $elemMatch: { accountNumber: new RegExp(`${senderDigits}$`) },
+      },
     });
+
     if (!user)
       return res
         .status(404)
@@ -242,7 +256,8 @@ topupRouter.post("/truewallet/check", async (req, res) => {
         .status(400)
         .json({ success: false, message: "missing_parameters" });
 
-    // Find the latest transaction for this user & amount (within last 10 mins)
+    console.log(userId, amount);
+
     const tx = await Transaction.findOne({
       userId,
       method: "truewallet",

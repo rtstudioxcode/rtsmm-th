@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 
 const BankAccountSchema = new mongoose.Schema({
   accountCode:  { type: String, required: true, trim: true },   // eg. KTB, SCB, TRUEWALLET
-  accountNumber:{ type: String, required: true, trim: true },   // cleaned digits
+  accountNumber:{ type: String, required: true, trim: true, unique: true },   // cleaned digits
   accountName:  { type: String, required: true, trim: true },   // ชื่อบัญชีตามจริง
 }, { _id:false });
 
