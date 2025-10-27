@@ -1,0 +1,325 @@
+<section class="card">
+  <h3 class="title">เติมเครดิต (Top-up)</h3>
+  <p class="muted">เลือกวิธีเติมเงิน และกรอกจำนวนที่ต้องการเติม</p>
+</section>
+
+<section class="card soft">
+  <h3 class="title">ช่องทางเติมเงินของคุณ</h3>
+
+  <!-- โอนจากบัญชี -->
+  <section class="card">
+    <h3 class="title">โอนจากบัญชี</h3>
+    <% if (user) { %>
+    <div class="grid method-grid">
+      <div class="method-tile">
+        <img
+          src="/static/assets/payment/<%= user.accountCode %>.webp"
+          alt="<%= user.accountCode %>"
+        />
+        <div><%= user.name %></div>
+        <small><%= user.accountNumber %></small>
+      </div>
+    </div>
+    <% } else { %>
+    <p class="muted">ยังไม่มีช่องทางเติมเงินที่พร้อมใช้งาน</p>
+    <% } %>
+  </section>
+
+  <!-- ถ้าไม่ใช่ TrueWallet -->
+  <% if (webWallet && webWallet.accountCode !== 'tw') { %>
+  <section class="card">
+    <h3 class="title">มายังบัญชี</h3>
+    <div class="grid method-grid">
+      <div class="method-tile">
+        <img
+          src="/static/assets/payment/<%= webWallet.accountCode %>.webp"
+          alt="<%= webWallet.accountCode %>"
+        />
+        <div><%= webWallet.accountName %></div>
+        <small><%= webWallet.accountNumber %></small>
+      </div>
+    </div>
+  </section>
+
+  <% } else { %>
+  <!-- ถ้าเป็น TrueWallet -->
+  <form id="topupForm" class="form" onsubmit="return submitTopup(event)">
+    <label>
+      จำนวนเงินที่ต้องการเติม (บาท)
+      <div class="input-group">
+        <span class="input-prefix">฿</span>
+        <input
+          id="amount"
+          name="amount"
+          type="number"
+          min="1"
+          step="any"
+          required
+          placeholder="เช่น 100"
+        />
+      </div>
+    </label>
+
+    <div class="card soft mt">
+      <b>ยอดชำระ:</b> <span id="summaryAmount">—</span> บาท
+    </div>
+
+    <button class="block btn primary mt-lg">ยืนยันการเติมเงิน</button>
+  </form>
+  <% } %>
+
+  <!-- Modal: แสดง QR -->
+  <div id="qrModal" class="hidden modal">
+    <div class="overlay" data-close="1"></div>
+    <div
+      class="dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="qrTitle"
+    >
+      <div class="hdr">
+        <div class="title" id="qrTitle">สแกนเพื่อเติมเงิน</div>
+        <button class="icon close" id="qrClose" aria-label="ปิด">×</button>
+      </div>
+
+      <hr class="sep" />
+      <div class="text-center body">
+        <img
+          id="qrImage"
+          src=""
+          alt="QR Code"
+          class="mb-3 rounded img-fluid"
+          style="max-width: 320px"
+        />
+        <div class="mb-2">
+          <b>ช่องทาง:</b> <span id="qrMethod"></span><br />
+          <b>ชื่อบัญชี:</b> <span id="qrName"></span><br />
+          <b>เลขบัญชี:</b> <span id="qrNumber"></span><br />
+          <b>ยอดเติม:</b> <span id="qrAmount" class="text-success"></span> บาท
+        </div>
+      </div>
+
+      <hr class="sep" />
+      <div
+        class="footer d-flex justify-content-center"
+        style="margin-top: 12px"
+      >
+        <button class="btn primary" id="confirmTopup">ยืนยันการโอนแล้ว</button>
+      </div>
+      <!-- Status message area inside modal -->
+      <div id="qrStatus" class="mt"></div>
+    </div>
+  </div>
+
+  <div id="resp" class="mt"></div>
+</section>
+
+<script>
+  const $ = (s, r = document) => r.querySelector(s);
+  const fmt = (n) =>
+    Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2 });
+
+  let selectedWallet = null;
+
+  /* modal control */
+  function openQrModal() {
+    $("#qrModal").classList.remove("hidden");
+  }
+  function closeQrModal() {
+    $("#qrModal").classList.add("hidden");
+    $("#qrStatus").innerHTML = ""; // clear message
+  }
+  $("#qrClose").onclick = closeQrModal;
+  $("#qrModal").addEventListener("click", (e) => {
+    if (e.target.dataset.close === "1") closeQrModal();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeQrModal();
+  });
+
+  /* handle amount input */
+  const amt = $("#amount");
+  if (amt) {
+    amt.addEventListener("input", () => {
+      const val = Number(amt.value || 0);
+      $("#summaryAmount").textContent = val > 0 ? fmt(val) : "—";
+    });
+  }
+
+  /* submit topup */
+  async function submitTopup(ev) {
+    ev.preventDefault();
+    const amount = Number($("#amount").value || 0);
+    if (!(amount > 0)) {
+      $(
+        "#resp"
+      ).innerHTML = `<div class="card soft">❌ กรุณากรอกจำนวนเงินให้ถูกต้อง</div>`;
+      return false;
+    }
+
+    const walletCode = "<%= webWallet?.accountCode %>";
+
+    if (walletCode === "tw") {
+      try {
+        const res = await fetch("/topup/truewallet/gen/link", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount }),
+        });
+        const data = await res.json();
+        if (!data.url) {
+          $("#resp").innerHTML = `<div class="card soft">❌ ${
+            data.error || "ไม่สามารถสร้างลิงก์ได้"
+          }</div>`;
+          return false;
+        }
+
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(
+          data.url
+        )}`;
+        const w = {
+          accountName: "<%= webWallet?.accountName || 'RTSSM Web' %>",
+          accountNumber: "<%= webWallet?.accountNumber || '0000000000' %>",
+          bankName: "TrueMoney Wallet",
+        };
+
+        $("#qrImage").src = qrUrl;
+        $("#qrMethod").textContent = w.bankName;
+        $("#qrName").textContent = w.accountName;
+        $("#qrNumber").textContent = w.accountNumber;
+        $("#qrAmount").textContent = fmt(amount);
+        $("#qrStatus").innerHTML = ""; // clear old status
+
+        selectedWallet = {
+          amount,
+          method: "truewallet",
+          qrData: data.url,
+          ...w,
+        };
+        openQrModal();
+      } catch (err) {
+        $(
+          "#resp"
+        ).innerHTML = `<div class="card soft">❌ ขัดข้อง: ${err.message}</div>`;
+      }
+    }
+    return false;
+  }
+
+  /* confirm topup (check transaction) */
+  $("#confirmTopup").addEventListener("click", async () => {
+    const amount = Number($("#amount").value || 0);
+    if (!(amount > 0)) return;
+
+    $(
+      "#qrStatus"
+    ).innerHTML = `<div class="muted">⏳ กำลังตรวจสอบรายการ...</div>`;
+
+    try {
+      const res = await fetch("/topup/truewallet/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount }),
+      });
+      const data = await res.json();
+
+      if (data.verified) {
+        $("#qrStatus").innerHTML = `
+        <div class="card soft">
+          ✅ ยืนยันการโอนสำเร็จแล้ว<br>
+          <b>รหัสธุรกรรม:</b> ${data.transactionId}<br>
+          <b>สถานะ:</b> ${data.status}
+        </div>`;
+
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500); // close after 1 second
+      } else {
+        $("#qrStatus").innerHTML = `
+        <div class="card soft">
+          ⚠️ ยังไม่พบรายการ กรุณารอสักครู่ แล้วกด "ยืนยันการโอนแล้ว" อีกครั้ง
+        </div>`;
+      }
+    } catch (err) {
+      $(
+        "#qrStatus"
+      ).innerHTML = `<div class="card soft">❌ ขัดข้อง: ${err.message}</div>`;
+    }
+  });
+</script>
+
+<style>
+  /* your grid + modal styling reused from service modal */
+  .method-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1rem;
+  }
+  .method-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color, #444);
+    border-radius: 1rem;
+    padding: 1rem;
+    background: var(--bg2, #222);
+  }
+  .method-tile img {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    margin-bottom: 0.5rem;
+  }
+  .modal.hidden {
+    display: none;
+  }
+  .modal {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+  }
+  .modal .overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+  }
+  .modal .dialog {
+    position: relative;
+    margin: 6vh auto 0;
+    max-width: 400px;
+    width: calc(100% - 24px);
+    background: var(--card, #1c1f24);
+    border: 1px solid var(--border, #2a2f36);
+    border-radius: 14px;
+    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.4);
+    padding: 16px 16px 18px;
+  }
+  .modal .hdr {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .modal .title {
+    font-weight: 700;
+    font-size: 16px;
+  }
+  .modal .icon.close {
+    border: 0;
+    background: transparent;
+    font-size: 22px;
+    color: var(--text, #fff);
+    cursor: pointer;
+  }
+  .modal .sep {
+    border: 0;
+    border-top: 1px solid var(--border, #2a2f36);
+    margin: 12px 0;
+  }
+  .modal .body {
+    font-size: 14px;
+    line-height: 1.6;
+    max-height: 60vh;
+    overflow: auto;
+  }
+</style>

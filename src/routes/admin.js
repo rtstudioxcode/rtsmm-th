@@ -10,7 +10,7 @@ const router = Router();
 router.use(requireAuth, requireAdmin);
 
 // Dashboard
-router.get('/admin', async (req, res) => {
+router.get('/', async (req, res) => {
   let ps = await ProviderSettings.findOne();
   if (!ps) ps = new ProviderSettings();
   res.render('admin/dashboard', {
@@ -21,7 +21,7 @@ router.get('/admin', async (req, res) => {
 });
 
 // Refresh balance
-router.post('/admin/refresh-balance', async (req, res) => {
+router.post('/refresh-balance', async (req, res) => {
   try {
     const balRaw = await getBalance();
     const candidates = ['balance', 'credit', 'credits', 'amount'];
@@ -39,7 +39,7 @@ router.post('/admin/refresh-balance', async (req, res) => {
 });
 
 // Sync services
-router.post('/admin/sync-services', async (_req, res) => {
+router.post('/sync-services', async (_req, res) => {
   try {
     const r = await syncServicesFromProvider();
     // อัปเดต lastSyncAt ให้ชัวร์ (แม้ syncServices จะทำให้แล้ว)
@@ -59,10 +59,10 @@ router.use(requireAuth, requireAdmin);
 
 const ALLOWED_ROLES = ['admin', 'user'];
 /**
- * GET /admin/users
+ * GET /users
  * แสดงหน้า EJS การ์ดยูสเซอร์
  */
-router.get('/admin/users', async (req, res) => {
+router.get('/users', async (req, res) => {
   const users = await User.find({}, {
     username: 1,
     name: 1,
@@ -88,10 +88,10 @@ router.get('/admin/users', async (req, res) => {
 });
 
 /**
- * GET /admin/users/:id.json
+ * GET /users/:id.json
  * ส่งข้อมูลเต็มของผู้ใช้ (ยกเว้นฟิลด์อ่อนไหว)
  */
-router.get('/admin/users/:id.json', async (req, res) => {
+router.get('/users/:id.json', async (req, res) => {
   const { id } = req.params;
   const u = await User.findById(id).lean();
   if (!u) return res.status(404).json({ ok:false, error: 'ไม่พบผู้ใช้' });
@@ -104,7 +104,7 @@ router.get('/admin/users/:id.json', async (req, res) => {
   return res.json({ ok:true, user: u });
 });
 
-router.patch('/admin/users/:id', async (req, res) => {
+router.patch('/users/:id', async (req, res) => {
   const { id } = req.params;
   const { name, role, emailVerified, balance } = req.body || {};
   const update = {};
@@ -148,13 +148,13 @@ router.patch('/admin/users/:id', async (req, res) => {
 
     return res.json({ ok:true, user });
   } catch (e) {
-    console.error('PATCH /admin/users/:id error:', e);
+    console.error('PATCH /users/:id error:', e);
     return res.status(500).json({ ok:false, error: 'บันทึกไม่สำเร็จ' });
   }
 });
 
-// ✅ GET /admin/orders — รายการออเดอร์ทั้งหมด
-router.get('/admin/orders', async (req, res, next) => {
+// ✅ GET /orders — รายการออเดอร์ทั้งหมด
+router.get('/orders', async (req, res, next) => {
   try {
     const { from, to, q = '', status = 'all' } = req.query || {};
     const filter = {};
@@ -205,7 +205,7 @@ router.get('/admin/orders', async (req, res, next) => {
       return { ...o, uiFlags: { isDone, canCancel } };
     });
 
-    // ✅ ชื่อวิวตรงกับไฟล์: views/admin/orders.ejs
+    // ✅ ชื่อวิวตรงกับไฟล์: views/orders.ejs
     res.render('admin/orders', {
       title: 'ออเดอร์ทั้งหมด (แอดมิน)',
       list,

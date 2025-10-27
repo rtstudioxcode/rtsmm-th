@@ -48,8 +48,8 @@ const UserSchema = new mongoose.Schema({
   // ค่าการแปลงแต้มเป็นบาทตามเลเวล (ที่คำนวณไว้ล่าสุด)
   pointRateTHB:  { type: Number, default: 0 },
   pointValueTHB: { type: Number, default: 0 },
-  accountNumber: { type: String, trim: true, index: true },
-  accountCode: { type: String, trim: true, index: true },
+  accountNumber: { type: String, trim: true, unique: true },
+  accountCode: { type: String, trim: true },
 }, { timestamps: true });
 
 // ── Methods ───────────────────────────────────────────────

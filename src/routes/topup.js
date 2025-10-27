@@ -2,13 +2,62 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import express from "express";
+import axios from "axios";
 import { jwtVerify } from "jose";
-import { User } from "./models/User.js";
-import { Topup } from "./models/Topup.js";
 
-export const depositRouter = express.Router();
+import { User } from "../models/User.js";
+import { Topup } from "../models/Topup.js";
+import Transaction from "../models/Transaction.js"; // ✅ ULID-based transaction model
 
-depositRouter.post("/truewallet", async (req, res) => {
+export const topupRouter = express.Router();
+
+/* ───────────────────────────────
+   GET /topup
+──────────────────────────────── */
+topupRouter.get("/", async (req, res) => {
+  const userId = req?.session?.userId;
+  const user = await User.findById(userId);
+  const webWallet = await Topup.findOne({ accountCode: user.accountCode });
+
+  res.render("topup/index", { title: "เติมเงิน", user, webWallet });
+});
+
+/* ───────────────────────────────
+   POST /truewallet/gen/link
+──────────────────────────────── */
+topupRouter.post("/truewallet/gen/link", async (req, res) => {
+  try {
+    const { amount } = req.body;
+    const userId = req?.session?.userId;
+    const user = await User.findById(userId);
+    const webWallet = await Topup.findOne({ accountCode: user.accountCode });
+
+    const response = await axios.post(
+      "https://apis.truemoneyservices.com/utils/v1/transfer-link-generator",
+      {
+        mobile_number: webWallet.accountNumber,
+        amount: amount.toString(),
+        message: "",
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.TW_GEN_LINK_SECRET}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    return res.json({ url: response.data.data.url });
+  } catch (err) {
+    console.error("❌ /truewallet/gen/link error:", err);
+    res.status(500).json({ success: false, message: "something_wrong" });
+  }
+});
+
+/* ───────────────────────────────
+   POST /truewallet (Webhook or Confirm)
+──────────────────────────────── */
+topupRouter.post("/truewallet", async (req, res) => {
   try {
     const { message } = req.body;
     if (!message)
@@ -48,25 +97,33 @@ depositRouter.post("/truewallet", async (req, res) => {
         .status(500)
         .json({ success: false, message: "auto_mode_disabled" });
 
-    const user = await User.findOne({ username: sender_mobile });
+    const user = await User.findOne({ accountNumber: sender_mobile });
     if (!user)
       return res
         .status(404)
         .json({ success: false, message: "user_not_found" });
 
-    const newBalance = await user.addBalance(amount / 100);
+    const added = amount / 100;
+    const newBalance = await user.addBalance(added);
+
+    // ✅ Record transaction
+    await Transaction.create({
+      userId: user._id,
+      method: "truewallet",
+      amount: added,
+      currency: "THB",
+      status: "completed",
+    });
 
     console.log(
-      `✅ TrueWallet Deposit: user=${user.username}, amount=${
-        amount / 100
-      }, newBalance=${newBalance}`
+      `✅ TrueWallet Deposit: ${user.username} +${added} THB → ${newBalance}`
     );
 
     return res.json({
       success: true,
       method: "truewallet",
       username: user.username,
-      amount: amount / 100,
+      amount: added,
       balance: newBalance,
     });
   } catch (err) {
@@ -75,7 +132,10 @@ depositRouter.post("/truewallet", async (req, res) => {
   }
 });
 
-depositRouter.post("/scb", async (req, res) => {
+/* ───────────────────────────────
+   POST /scb (Auto SMS webhook)
+──────────────────────────────── */
+topupRouter.post("/scb", async (req, res) => {
   try {
     const { message, secret } = req.body;
     if (!message || !secret)
@@ -102,7 +162,6 @@ depositRouter.post("/scb", async (req, res) => {
       senderLast6,
       receiverLast6,
     ] = match;
-
     const year = new Date().getFullYear();
     const timestamp = new Date(
       `${year}-${month}-${day}T${hour}:${minute}:00+07:00`
@@ -142,8 +201,17 @@ depositRouter.post("/scb", async (req, res) => {
 
     const newBalance = await user.addBalance(amount);
 
+    // ✅ Record transaction
+    await Transaction.create({
+      userId: user._id,
+      method: "scb",
+      amount,
+      currency: "THB",
+      status: "completed",
+    });
+
     console.log(
-      `✅ SCB Deposit: user=${user.username}, amount=${amount}, newBalance=${newBalance}`
+      `✅ SCB Deposit: ${user.username} +${amount} THB → ${newBalance}`
     );
 
     return res.json({
@@ -156,6 +224,49 @@ depositRouter.post("/scb", async (req, res) => {
     });
   } catch (err) {
     console.error("❌ /scb error:", err);
+    res.status(500).json({ success: false, message: "something_wrong" });
+  }
+});
+
+/* ───────────────────────────────
+   POST /truewallet/check
+   🔹 Called when user clicks "ยืนยันการโอนแล้ว"
+──────────────────────────────── */
+topupRouter.post("/truewallet/check", async (req, res) => {
+  try {
+    const { amount } = req.body;
+    const userId = req?.session?.userId;
+
+    if (!userId || !amount)
+      return res
+        .status(400)
+        .json({ success: false, message: "missing_parameters" });
+
+    // Find the latest transaction for this user & amount (within last 10 mins)
+    const tx = await Transaction.findOne({
+      userId,
+      method: "truewallet",
+      amount,
+      status: "completed",
+      createdAt: { $gte: new Date(Date.now() - 10 * 60 * 1000) },
+    }).sort({ createdAt: -1 });
+
+    if (tx) {
+      return res.json({
+        success: true,
+        verified: true,
+        transactionId: tx.transactionId,
+        status: tx.status,
+      });
+    } else {
+      return res.json({
+        success: true,
+        verified: false,
+        message: "ยังไม่พบรายการเติมเงินในระบบ โปรดลองอีกครั้งในอีกสักครู่",
+      });
+    }
+  } catch (err) {
+    console.error("❌ /truewallet/check error:", err);
     res.status(500).json({ success: false, message: "something_wrong" });
   }
 });
