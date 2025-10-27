@@ -143,6 +143,42 @@
     <!-- 🟡 Modal -->
     <div id="qrModal" class="hidden modal">
       <div class="overlay" data-close="1"></div>
+      <div class="dialog qr-dialog" role="dialog" aria-modal="true" aria-labelledby="qrTitle">
+        <div class="hdr">
+          <div class="title" id="qrTitle">สแกนเพื่อเติมเงิน</div>
+          <button class="icon close" id="qrClose" aria-label="ปิด">×</button>
+        </div>
+
+        <hr class="sep" />
+
+        <div class="body text-center">
+          <!-- กรอบ QR โค้งมน + เงา -->
+          <div class="qr-frame">
+            <img id="qrImage" src="" alt="QR Code">
+          </div>
+
+          <!-- ข้อมูลใต้รูป จัดกลางทั้งหมด -->
+          <div class="qr-meta">
+            <div><b>ช่องทาง:</b> <span id="qrMethod"></span></div>
+            <div><b>ชื่อบัญชี:</b> <span id="qrName"></span></div>
+            <div><b>เลขบัญชี:</b> <span id="qrNumber"></span></div>
+            <div><b>ยอดเติม:</b> <span id="qrAmount" class="text-success"></span> บาท</div>
+          </div>
+        </div>
+
+        <hr class="sep" />
+
+        <div class="footer">
+          <button class="btn primary qr-confirm" id="confirmTopup">ยืนยันการโอนแล้ว</button>
+        </div>
+
+        <div id="qrStatus" class="mt"></div>
+      </div>
+    </div>
+
+    <!-- 🟡 Modal -->
+    <!-- <div id="qrModal" class="hidden modal">
+      <div class="overlay" data-close="1"></div>
       <div
         class="dialog"
         role="dialog"
@@ -180,7 +216,7 @@
         </div>
         <div id="qrStatus" class="mt"></div>
       </div>
-    </div>
+    </div> -->
 
     <div id="resp" class="mt"></div>
   </section>
@@ -799,4 +835,61 @@
   }
 
   #topupNoticeModal .toast-body ul { margin-left: 1rem; }
+
+  /* ===== QR Modal Polished ===== */
+  .qr-dialog{
+    /* กว้างพอดีทุกจอ: clamp(min, preferred, max) */
+    width: clamp(320px, 92vw, 440px);
+    border-radius: 16px;
+    padding: 16px 18px 18px;
+    background: var(--card, #1c1f24);
+    border: 1px solid var(--border, #2a2f36);
+    box-shadow: 0 20px 60px rgba(0,0,0,.45);
+  }
+
+  .qr-frame{
+    display: inline-block;
+    background: #fff;                 /* พื้นขาวให้ตัดกับ QR */
+    border-radius: 14px;              /* โค้งมนกรอบ */
+    padding: 10px;
+    box-shadow: 0 10px 28px rgba(0,0,0,.25);
+  }
+
+  .qr-frame img{
+    display: block;
+    width: min(320px, 72vw);          /* ยืดหยุ่นตามจอ */
+    height: auto;
+    border-radius: 10px;              /* โค้งมนตัวรูปด้วย */
+  }
+
+  /* ข้อความใต้ QR จัดกลาง ระยะห่างกำลังดี */
+  .qr-meta{
+    margin-top: 14px;
+    text-align: center;
+    line-height: 1.7;
+    font-size: 14px;
+  }
+
+  /* ปุ่มยืนยัน: กึ่งกลาง + กว้างกำลังดี */
+  .qr-dialog .footer{
+    display: flex;
+    justify-content: center;
+    margin-top: 10px;
+  }
+  .qr-confirm{
+    width: min(280px, 80%);
+  }
+
+  /* Mobile tuning */
+  @media (max-width: 480px){
+    .qr-dialog{ width: 92vw; }
+    .qr-frame img{ width: min(280px, 80vw); }
+    .qr-confirm{ width: 88%; }
+  }
+
+  .qr-dialog{ animation: popIn .18s ease-out; }
+  @keyframes popIn{
+    from{ transform: translate(-50%, -50%) scale(.96); opacity: .0; }
+    to  { transform: translate(-50%, -50%) scale(1);    opacity: 1; }
+  }
 </style>
