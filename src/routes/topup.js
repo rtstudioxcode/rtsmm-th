@@ -112,6 +112,7 @@ topupRouter.post("/truewallet/gen/link", async (req, res) => {
 topupRouter.post("/truewallet", async (req, res) => {
   try {
     const { message } = req.body;
+
     if (!message)
       return res
         .status(400)
@@ -146,44 +147,73 @@ topupRouter.post("/truewallet", async (req, res) => {
         .status(400)
         .json({ success: false, message: "invalid_event_type" });
 
-    if (!topup.isAuto)
-      return res
-        .status(500)
-        .json({ success: false, message: "auto_mode_disabled" });
-
     const user = await User.findOne({
       bankAccounts: { $elemMatch: { accountNumber: sender_mobile } },
     });
 
-    if (!user)
-      return res
-        .status(404)
-        .json({ success: false, message: "user_not_found" });
-
     const added = amount / 100;
-    const newBalance = await user.addBalance(added);
 
-    // ✅ Record transaction
+    if (!user) {
+      await Transaction.create({
+        method: "tw",
+        senderNumber: sender_mobile,
+        amount: added,
+        currency: "THB",
+        status: "pending",
+      });
+      console.log(`✅ TrueWallet Deposit: +${added} THB`);
 
-    await Transaction.create({
-      userId: user._id,
-      method: "tw",
-      amount: added,
-      currency: "THB",
-      status: "completed",
-    });
+      return res.json({
+        success: true,
+        method: "tw",
+        amount: added,
+      });
+    }
 
-    console.log(
-      `✅ TrueWallet Deposit: ${user.username} +${added} THB → ${newBalance}`
-    );
+    if (topup.isAuto) {
+      const newBalance = await user.addBalance(added);
 
-    return res.json({
-      success: true,
-      method: "tw",
-      username: user.username,
-      amount: added,
-      balance: newBalance,
-    });
+      await Transaction.create({
+        userId: user._id,
+        method: "tw",
+        senderNumber: sender_mobile,
+        amount: added,
+        currency: "THB",
+        status: "completed",
+      });
+
+      console.log(
+        `✅ TrueWallet Deposit: ${user.username} +${added} THB → ${newBalance}`
+      );
+
+      return res.json({
+        success: true,
+        method: "tw",
+        username: user.username,
+        amount: added,
+        balance: newBalance,
+      });
+    } else {
+      await Transaction.create({
+        userId: user._id,
+        method: "tw",
+        senderNumber: sender_mobile,
+        amount: added,
+        currency: "THB",
+        status: "pending",
+      });
+      console.log(
+        `✅ TrueWallet Deposit: ${user.username} +${added} THB → ${newBalance}`
+      );
+
+      return res.json({
+        success: true,
+        method: "tw",
+        username: user.username,
+        amount: added,
+        balance: newBalance,
+      });
+    }
   } catch (err) {
     console.error("❌ /truewallet error:", err);
     res.status(500).json({ success: false, message: "something_wrong" });
@@ -209,17 +239,28 @@ topupRouter.post("/scb", async (req, res) => {
         .status(400)
         .json({ success: false, message: "invalid_message_format" });
 
-    const [
+    let [
       ,
       day,
       month,
       hour,
       minute,
       amountStr,
-      ,
+      bankLogo,
       senderLast6,
       receiverLast6,
     ] = match;
+
+    if (bankLogo) {
+      bankLogo = bankLogo.trim().toUpperCase();
+
+      const map = {
+        KBNK: "KBANK",
+      };
+
+      if (map[bankLogo]) bankLogo = map[bankLogo];
+    }
+
     const year = new Date().getFullYear();
     const timestamp = new Date(
       `${year}-${month}-${day}T${hour}:${minute}:00+07:00`
@@ -244,45 +285,82 @@ topupRouter.post("/scb", async (req, res) => {
     if (secret !== topup.secret)
       return res.status(401).json({ success: false, message: "unauthorized" });
 
-    if (!topup.isAuto)
-      return res
-        .status(500)
-        .json({ success: false, message: "auto_mode_disabled" });
-
     const user = await User.findOne({
       bankAccounts: {
         $elemMatch: { accountNumber: new RegExp(`${senderDigits}$`) },
       },
     });
 
-    if (!user)
-      return res
-        .status(404)
-        .json({ success: false, message: "user_not_found" });
+    if (!user) {
+      await Transaction.create({
+        method: "scb",
+        senderBank: bankLogo.toLowerCase(),
+        senderLast6: senderDigits,
+        receiverLast6: receiverDigits,
+        amount,
+        currency: "THB",
+        status: "pending",
+      });
+      console.log(`✅ SCB Deposit: +${amount} THB`);
+      return res.json({
+        success: true,
+        method: "scb",
+        amount,
+        timestamp,
+      });
+    }
 
-    const newBalance = await user.addBalance(amount);
+    if (topup.isAuto) {
+      const newBalance = await user.addBalance(amount);
 
-    // ✅ Record transaction
-    await Transaction.create({
-      userId: user._id,
-      method: "scb",
-      amount,
-      currency: "THB",
-      status: "completed",
-    });
+      // ✅ Record transaction
+      await Transaction.create({
+        userId: user._id,
+        method: "scb",
+        senderBank: bankLogo.toLowerCase(),
+        senderLast6: senderDigits,
+        receiverLast6: receiverDigits,
+        amount,
+        currency: "THB",
+        status: "completed",
+      });
 
-    console.log(
-      `✅ SCB Deposit: ${user.username} +${amount} THB → ${newBalance}`
-    );
+      console.log(
+        `✅ SCB Deposit: ${user.username} +${amount} THB → ${newBalance}`
+      );
 
-    return res.json({
-      success: true,
-      method: "scb",
-      username: user.username,
-      amount,
-      balance: newBalance,
-      timestamp,
-    });
+      return res.json({
+        success: true,
+        method: "scb",
+        username: user.username,
+        amount,
+        balance: newBalance,
+        timestamp,
+      });
+    } else {
+      await Transaction.create({
+        userId: user._id,
+        method: "scb",
+        senderBank: bankLogo.toLowerCase(),
+        senderLast6: senderDigits,
+        receiverLast6: receiverDigits,
+        amount,
+        currency: "THB",
+        status: "pending",
+      });
+
+      console.log(
+        `✅ SCB Deposit: ${user.username} +${amount} THB → ${newBalance}`
+      );
+      return res.json({
+        success: true,
+        method: "scb",
+        username: user.username,
+        amount,
+        balance: newBalance,
+        timestamp,
+      });
+    }
   } catch (err) {
     console.error("❌ /scb error:", err);
     res.status(500).json({ success: false, message: "something_wrong" });

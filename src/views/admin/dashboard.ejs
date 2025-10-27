@@ -9,12 +9,17 @@
   <section class="card">
     <h3>ซิงก์บริการ</h3>
     <button class="btn" onclick="syncServices()">Sync Services</button>
-    <div id="syncRes" class="mt muted">ล่าสุด: <%= lastSyncAt ? new Date(lastSyncAt).toLocaleString() : '—' %></div>
+    <div id="syncRes" class="mt muted">
+      ล่าสุด: <%= lastSyncAt ? new Date(lastSyncAt).toLocaleString() : '—' %>
+    </div>
   </section>
   <section class="card">
     <h3>ตั้งค่าราคา</h3>
     <a class="btn" href="/admin/pricing">ไปหน้ากฎปรับราคา</a>
-    <p class="muted mt">ปรับทั้งเว็บ, รายหมวด, หมวดย่อย หรือรายบริการ | โหมด: % / +คงที่ / set ราคา</p>
+    <p class="muted mt">
+      ปรับทั้งเว็บ, รายหมวด, หมวดย่อย หรือรายบริการ | โหมด: % / +คงที่ / set
+      ราคา
+    </p>
   </section>
 </div>
 
@@ -30,26 +35,399 @@
     <p class="muted mt">ไปที่หน้ารายการสั่งซื้อออบริการของผู้ใช้</p>
   </section>
 </div>
+<% const BANK_LABELS = { bbl: 'ธนาคารกรุงเทพ', kbank: 'ธนาคารกสิกรไทย', ktb:
+'ธนาคารกรุงไทย', bay: 'ธนาคารกรุงศรีอยุธยา', scb: 'ธนาคารไทยพาณิชย์', tmb:
+'ทหารไทยธนชาต (TTB)', cimb: 'ธนาคารซีไอเอ็มบีไทย', uob: 'ธนาคารยูโอบี', gsb:
+'ธนาคารออมสิน', baac: 'ธ.เพื่อการเกษตรและสหกรณ์การเกษตร', kkb:
+'ธนาคารเกียรตินาคินภัทร', lhfg: 'ธนาคารแลนด์ แอนด์ เฮ้าส์', icbc:
+'ธนาคารไอซีบีซี (ไทย)', tisco: 'ธนาคารทิสโก้', tw: 'TrueMoney Wallet' }; %>
+
+<div class="history-wrapper card soft">
+  <h3 class="title flex-between">
+    รายการเติมเงินที่รอดำเนินการ
+    <button class="btn small primary" onclick="openManualTopupModal()">
+      + เติมเงินด้วยตนเอง
+    </button>
+  </h3>
+
+  <% if (transactions && transactions.length > 0) { %>
+  <table class="history-table">
+    <thead>
+      <tr>
+        <th>วันที่ / เวลา</th>
+        <th>ข้อมูลผู้โอน</th>
+        <th>ข้อมูลผู้รับ</th>
+        <th>จำนวนเงิน</th>
+        <th>สถานะ</th>
+        <th>จัดการ</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% transactions.forEach(tx => { const method = tx.method?.toLowerCase() ||
+      ""; const wallet = (webWallets || []).find(w => w.accountCode === method);
+      const statusLabel = tx.status === "completed" ? "สำเร็จ" : tx.status ===
+      "pending" ? "รอดำเนินการ" : tx.status === "failed" ? "ล้มเหลว" : "ยกเลิก";
+      %>
+
+      <tr>
+        <!-- วันที่ -->
+        <td class="muted">
+          <%= new Date(tx.createdAt).toLocaleString('th-TH', { year: 'numeric',
+          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+          %>
+        </td>
+
+        <!-- ข้อมูลผู้โอน -->
+        <td>
+          <% if (tx.method === 'truewallet' || tx.method === 'tw') { %>
+          <img src="/static/assets/payment/tw.webp" class="bank-logo" />
+          <div><b>TrueWallet</b></div>
+          <div class="muted">เบอร์ผู้โอน: <%= tx.senderNumber || '-' %></div>
+          <% } else { %>
+          <img
+            src="/static/assets/payment/<%= tx.senderBank %>.webp"
+            class="bank-logo"
+          />
+          <div><b><%= BANK_LABELS[tx.senderBank] || 'ไม่ระบุธนาคาร' %></b></div>
+          <div class="muted">
+            เลขท้ายบัญชีผู้โอน: <%= tx.senderLast6 || '-' %>
+          </div>
+          <% } %>
+        </td>
+
+        <!-- ข้อมูลผู้รับ -->
+        <td>
+          <% if (wallet) { %>
+          <img
+            src="/static/assets/payment/<%= wallet.accountCode %>.webp"
+            class="bank-logo"
+          />
+          <div><b><%= wallet.accountName %></b></div>
+          <div class="muted">เลขบัญชี: <%= wallet.accountNumber %></div>
+          <% } else { %>
+          <span class="muted">ไม่พบข้อมูลผู้รับ</span>
+          <% } %>
+        </td>
+
+        <!-- จำนวนเงิน -->
+        <td class="amount">
+          ฿<%= Number(tx.amount).toLocaleString(undefined, {
+          minimumFractionDigits: 2 }) %>
+        </td>
+
+        <!-- สถานะ -->
+        <td class="status <%= tx.status.toLowerCase() %>">
+          <%= statusLabel %>
+        </td>
+
+        <!-- Action -->
+        <td>
+          <button
+            class="btn small success"
+            onclick="openManualTopupModal('<%= tx.transactionId %>', <%= tx.amount %>)"
+          >
+            เติมให้ผู้ใช้
+          </button>
+        </td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  <% } else { %>
+  <div class="empty-history">
+    <img src="/static/assets/empty.svg" alt="No history" />
+    <p class="muted">ยังไม่มีรายการเติมเงิน</p>
+  </div>
+  <% } %>
+</div>
+
+<div id="manualTopupModal" class="hidden modal">
+  <div class="overlay" data-close="1"></div>
+  <div
+    class="dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="manualTitle"
+  >
+    <div class="hdr">
+      <div class="title" id="manualTitle">เติมเงินให้ผู้ใช้</div>
+      <button class="icon close" id="manualTopupClose" aria-label="ปิด">
+        ×
+      </button>
+    </div>
+    <hr class="sep" />
+
+    <div class="body">
+      <form id="manualTopupForm" onsubmit="return submitManualTopup(event)">
+        <label>
+          ชื่อผู้ใช้ (Username)
+          <input
+            type="text"
+            id="manualUsername"
+            required
+            placeholder="เช่น: user123"
+            class="block input mt-sm"
+          />
+        </label>
+
+        <label>
+          จำนวนเงิน
+          <input
+            type="number"
+            id="manualAmount"
+            required
+            class="block input mt-sm"
+          />
+        </label>
+
+        <div class="card soft mt">
+          💡 ระบบจะเพิ่มยอดเงินเข้าบัญชีของผู้ใช้ทันที และบันทึกในระบบ
+        </div>
+
+        <div class="footer d-flex justify-content-center mt">
+          <button class="block btn primary" type="submit">
+            ยืนยันเติมเงิน
+          </button>
+        </div>
+      </form>
+      <div id="manualTopupStatus" class="mt"></div>
+    </div>
+  </div>
+</div>
 
 <script>
-async function refreshBal(){
-  const r = await fetch('/admin/refresh-balance',{ method:'POST' });
-  const d = await r.json();
-  document.getElementById('bal').innerText = d.balance + (d.currency ? (' '+d.currency) : '');
-  // เดิม alert(...) → ใช้ dialog แทน
-  toast.success('อัปเดตเครดิตสำเร็จ', `ยอดคงเหลือ: ${d.balance}${d.currency?(' '+d.currency):''}`);
-}
+  /* 🟣 Modal Controls (เหมือน QR Modal) */
+  function openManualTopupModal(txId = null, amount = null) {
+    const modal = document.getElementById("manualTopupModal");
+    modal.classList.remove("hidden");
 
-async function syncServices(){
-  const r = await fetch('/admin/sync-services',{ method:'POST' });
-  const d = await r.json();
-  document.getElementById('syncRes').innerText = 'ดึงบริการ ' + d.count + ' รายการแล้ว';
-  // เดิม alert(...) → ใช้ dialog แทน
-  window.showMsg({
-    variant: 'success',
-    title: 'ซิงก์สำเร็จ',
-    text: `ดึงบริการแล้วทั้งหมด ${d.count} รายการ`,
-    okText: 'ปิด'
+    const form = document.getElementById("manualTopupForm");
+    form.reset();
+    document.getElementById("manualTopupStatus").innerHTML = "";
+
+    // Save ID for backend if needed
+    window.currentTxId = txId;
+
+    // Pre-fill amount (if provided)
+    if (amount) {
+      const amtInput = document.getElementById("manualAmount");
+      amtInput.value = Number(amount).toFixed(2);
+      amtInput.readOnly = true; // lock field
+      amtInput.style.opacity = "0.7";
+    } else {
+      const amtInput = document.getElementById("manualAmount");
+      amtInput.value = "";
+      amtInput.readOnly = false;
+      amtInput.style.opacity = "1";
+    }
+  }
+
+  function closeManualTopupModal() {
+    document.getElementById("manualTopupModal").classList.add("hidden");
+    document.getElementById("manualTopupStatus").innerHTML = "";
+  }
+
+  // ปุ่มปิด (×)
+  document.getElementById("manualTopupClose").onclick = closeManualTopupModal;
+
+  // คลิก overlay ปิด
+  document.getElementById("manualTopupModal").addEventListener("click", (e) => {
+    if (e.target.dataset.close === "1") closeManualTopupModal();
   });
-}
+
+  // ปุ่ม Escape ปิด
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeManualTopupModal();
+  });
+
+  /* 🧾 ส่งข้อมูลเติมเงิน */
+  async function submitManualTopup(ev) {
+    ev.preventDefault();
+    const username = document.getElementById("manualUsername").value.trim();
+    const amount = parseFloat(
+      document.getElementById("manualAmount").value || 0
+    );
+    const txId = window.currentTxId || null;
+
+    if (!username || !(amount > 0)) {
+      document.getElementById("manualTopupStatus").innerHTML =
+        '<div class="card soft">❌ กรุณากรอกข้อมูลให้ครบถ้วน</div>';
+      return false;
+    }
+
+    document.getElementById("manualTopupStatus").innerHTML =
+      '<div class="muted">⏳ กำลังทำรายการ...</div>';
+
+    try {
+      const res = await fetch("/admin/manual-topup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, amount, txId }),
+      });
+
+      const data = await res.json();
+      if (data.ok) {
+        document.getElementById("manualTopupStatus").innerHTML = `
+          <div class="card soft">
+            ✅ เติมเงินสำเร็จให้ผู้ใช้ <b>${username}</b><br>
+            <b>จำนวน:</b> ${amount.toLocaleString()} บาท
+          </div>`;
+        setTimeout(() => closeManualTopupModal(), 1500);
+        setTimeout(() => window.location.reload(), 1700);
+      } else {
+        document.getElementById("manualTopupStatus").innerHTML =
+          '<div class="card soft">❌ ' +
+          (data.error || "เกิดข้อผิดพลาด") +
+          "</div>";
+      }
+    } catch (err) {
+      document.getElementById("manualTopupStatus").innerHTML =
+        '<div class="card soft">❌ ขัดข้อง: ' + err.message + "</div>";
+    }
+  }
 </script>
+
+<style>
+  /* 🟢 Universal Table Layout (same look on PC + mobile) */
+  .history-wrapper {
+    width: 100%;
+    overflow-x: auto; /* allow scroll if too wide on mobile */
+    -webkit-overflow-scrolling: touch; /* smooth scroll on iOS */
+  }
+
+  .history-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 14px;
+    min-width: 720px; /* ensure stable width, no column squish */
+    white-space: nowrap; /* prevent text wrapping */
+  }
+
+  .history-table th,
+  .history-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #333;
+    vertical-align: middle;
+  }
+
+  .history-table th {
+    text-align: left;
+    color: var(--accent, #3bd);
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.03);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+
+  .bank-logo {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+    vertical-align: middle;
+    margin-right: 5px;
+  }
+
+  .history-table .amount {
+    text-align: right;
+    font-weight: bold;
+  }
+
+  .status {
+    font-weight: 600;
+    text-align: center;
+  }
+  .status.pending {
+    color: #ffc107;
+  }
+
+  .empty-history {
+    text-align: center;
+    padding: 40px 0;
+  }
+  .empty-history img {
+    width: 100px;
+    margin-bottom: 10px;
+    opacity: 0.6;
+  }
+
+  /* 🧭 Force Desktop View Even on Mobile */
+  @media (max-width: 768px) {
+    .history-table {
+      min-width: 700px; /* prevent table compression */
+      display: table;
+    }
+
+    .history-wrapper {
+      overflow-x: auto;
+      border-radius: 10px;
+    }
+  }
+
+  /* 🪟 Modal fix (same as QR modal) */
+  .modal.hidden {
+    display: none;
+  }
+
+  .modal {
+    position: fixed;
+    inset: 0;
+    z-index: 100; /* make sure it floats above admin cards */
+  }
+
+  .modal .overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    cursor: pointer;
+  }
+
+  .modal .dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 420px;
+    width: calc(100% - 24px);
+    background: var(--card, #1c1f24);
+    border: 1px solid var(--border, #2a2f36);
+    border-radius: 14px;
+    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.4);
+    padding: 16px 18px 18px;
+    animation: modalFadeIn 0.25s ease-out;
+    z-index: 200;
+  }
+
+  .modal .hdr {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .modal .title {
+    font-weight: 700;
+    font-size: 16px;
+  }
+
+  .modal .icon.close {
+    border: 0;
+    background: transparent;
+    font-size: 22px;
+    color: var(--text, #fff);
+    cursor: pointer;
+  }
+
+  .modal .sep {
+    border: 0;
+    border-top: 1px solid var(--border, #2a2f36);
+    margin: 12px 0;
+  }
+
+  .modal .body {
+    font-size: 14px;
+    line-height: 1.6;
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+</style>

@@ -430,7 +430,7 @@
     cursor: pointer;
     transition: all 0.25s ease;
   }
-    
+
   .tab-section {
     display: none;
   }
@@ -540,15 +540,19 @@
   }
 
   .modal .dialog {
-    position: relative;
-    margin: 6vh auto 0;
-    max-width: 400px;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 420px;
     width: calc(100% - 24px);
     background: var(--card, #1c1f24);
     border: 1px solid var(--border, #2a2f36);
     border-radius: 14px;
     box-shadow: 0 18px 60px rgba(0, 0, 0, 0.4);
-    padding: 16px 16px 18px;
+    padding: 16px 18px 18px;
+    animation: modalFadeIn 0.25s ease-out;
+    z-index: 200;
   }
 
   .modal .hdr {

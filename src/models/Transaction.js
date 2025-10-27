@@ -7,16 +7,20 @@ const TransactionSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
       index: true,
     },
 
     // ── ช่องทางการเติมเงิน ─────────────────────────────
     method: {
       type: String,
-      enum: ["truewallet", "scb"],
+      enum: ["tw", "scb", "manual"],
       required: true,
     },
+
+    senderBank: String,
+    senderLast6: String,
+    receiverLast6: String,
+    senderNumber: String,
 
     // ── จำนวนเงิน ───────────────────────────────────────
     amount: { type: Number, required: true, min: 0 },
