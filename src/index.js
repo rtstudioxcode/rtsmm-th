@@ -7,7 +7,7 @@ import session from "express-session";
 import MongoStore from "connect-mongo";
 import { connectMongo } from "./db/mongo.js";
 import { User } from "./models/User.js";
-import { config } from "./config.js";
+import { config, refreshConfigFromDB } from "./config.js";
 import expressLayouts from "express-ejs-layouts";
 import authRoutes from "./routes/auth.js";
 import catalogRoutes from "./routes/catalog.js";
@@ -122,6 +122,9 @@ const RUNTIME = {
   ),
   mongoUri: config.mongoUri, // ยังคงใช้จาก .env/config.js เพื่อเชื่อม DB
 };
+
+await refreshConfigFromDB();
+console.log('🔐 secure_config loaded from DB');
 
 /* ------------------------------------------------------------------ */
 /* 3) ตัวช่วย re-calc แต้ม/เลเวล background                           */

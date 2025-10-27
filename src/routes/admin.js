@@ -12,16 +12,16 @@ router.use(requireAuth, requireAdmin);
 // === helper : normalize + validate ===
 function normDigits(s=''){ return String(s).replace(/[^\d]/g,''); }
 function normalizeAndValidateAccount(row){
-  const code = String(row.accountCode||row.code||'').trim().toUpperCase();
+  const code = String(row.accountCode||row.code||'').trim();
   const numberRaw = String(row.accountNumber||row.number||'').trim();
   const name = String(row.accountName||row.name||'').trim();
   const digits = normDigits(numberRaw);
 
   if (!code || !digits || !name) return { ok:false, error:'ข้อมูลบัญชีไม่ครบ' };
-  if (code === 'TRUEWALLET') {
+  if (code === 'tw') {
     if (!/^0\d{9}$/.test(digits)) return { ok:false, error:'TrueWallet ต้องเป็นเบอร์ 10 หลักขึ้นต้น 0' };
   } else {
-    if (!/^\d{9,12}$/.test(digits)) return { ok:false, error:'เลขบัญชีธนาคารต้องยาว 9–12 หลัก' };
+    if (!/^\d{10,15}$/.test(digits)) return { ok:false, error:'เลขบัญชีธนาคารต้องยาว 9–12 หลัก' };
   }
   return { ok:true, code, number:digits, name };
 }

@@ -590,7 +590,7 @@
   function readBankRows(){
     const out = [];
     bankRowsWrap.querySelectorAll('[data-bank-row]').forEach(row => {
-      const code = row.querySelector('[data-code]').value.trim().toUpperCase();
+      const code = row.querySelector('[data-code]').value.trim();
       const number = (row.querySelector('[data-number]').value||'').replace(/[^\d]/g,'');
       const name = row.querySelector('[data-name]').value.trim();
       if (!code && !number && !name) return; // ข้ามแถวว่าง

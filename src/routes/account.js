@@ -1,57 +1,54 @@
 // routes/account.js
-import mongoose from 'mongoose';
-import { Router } from 'express';
-import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
-import bcrypt from 'bcryptjs';
-import { requireAuth } from '../middleware/auth.js';
-import { User } from '../models/User.js';
+import mongoose from "mongoose";
+import { Router } from "express";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import bcrypt from "bcryptjs";
+import { requireAuth } from "../middleware/auth.js";
+import { User } from "../models/User.js";
 
 // OTP ใหม่
-import { OtpToken } from '../models/OtpToken.js';
-import { sendEmail } from '../lib/mailer.js';
-import { config } from '../config.js';
+import { OtpToken } from "../models/OtpToken.js";
+import { sendEmail } from "../lib/mailer.js";
+import { config } from "../config.js";
 
 /* ==== NEW: loyalty & spend services (ไม่แตะ Order.js) ==== */
-import { LEVELS, getRateForLevelIndex } from '../services/loyalty.js';
-import { recalcUserTotalSpent } from '../services/spend.js';
+import { LEVELS, getRateForLevelIndex } from "../services/loyalty.js";
+import { recalcUserTotalSpent } from "../services/spend.js";
 
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
-const BRAND_URL  = 'https://rtsmm-th.com';
+const BRAND_URL = "https://rtsmm-th.com";
 const BRAND_LOGO = `${BRAND_URL}/static/assets/logo/logo-rtssm-th.png`;
 
 /* ---------------- helpers ---------------- */
 const BANK_LABELS = {
-  bbl: 'ธนาคารกรุงเทพ',
-  kbank: 'ธนาคารกสิกรไทย',
-  ktb: 'ธนาคารกรุงไทย',
-  bay: 'ธนาคารกรุงศรีอยุธยา',
-  scb: 'ธนาคารไทยพาณิชย์',
-  tmb: 'ทหารไทยธนชาต (TTB)',
-  cimb: 'ธนาคารซีไอเอ็มบีไทย',
-  uob: 'ธนาคารยูโอบี',
-  gsb: 'ธนาคารออมสิน',
-  baac: 'ธ.เพื่อการเกษตรและสหกรณ์การเกษตร',
-  kkb: 'ธนาคารเกียรตินาคินภัทร',
-  lhfg: 'ธนาคารแลนด์ แอนด์ เฮ้าส์',
-  icbc: 'ธนาคารไอซีบีซี (ไทย)',
-  tisco: 'ธนาคารทิสโก้',
-  tw: 'TrueMoney Wallet',
+  bbl: "ธนาคารกรุงเทพ",
+  kbank: "ธนาคารกสิกรไทย",
+  ktb: "ธนาคารกรุงไทย",
+  bay: "ธนาคารกรุงศรีอยุธยา",
+  scb: "ธนาคารไทยพาณิชย์",
+  tmb: "ทหารไทยธนชาต (TTB)",
+  cimb: "ธนาคารซีไอเอ็มบีไทย",
+  uob: "ธนาคารยูโอบี",
+  gsb: "ธนาคารออมสิน",
+  baac: "ธ.เพื่อการเกษตรและสหกรณ์การเกษตร",
+  kkb: "ธนาคารเกียรตินาคินภัทร",
+  lhfg: "ธนาคารแลนด์ แอนด์ เฮ้าส์",
+  icbc: "ธนาคารไอซีบีซี (ไทย)",
+  tisco: "ธนาคารทิสโก้",
+  tw: "TrueMoney Wallet",
 };
 
 function getAuthUserId(req) {
   return (
-    req.user?._id ||
-    req.session?.user?._id ||
-    req.res?.locals?.me?._id ||
-    null
+    req.user?._id || req.session?.user?._id || req.res?.locals?.me?._id || null
   );
 }
 
 function buildUserMatch(userId) {
-  const idStr = String(userId || '');
+  const idStr = String(userId || "");
   const asOid = mongoose.Types.ObjectId.isValid(idStr)
     ? new mongoose.Types.ObjectId(idStr)
     : null;
@@ -105,7 +102,9 @@ export const emailTemplate = (code) => `
           <tr>
             <td class="px" style="padding:20px 24px 8px;color:#111827;">
               <h2 style="margin:0 0 4px;font-size:20px">ยืนยันอีเมลของคุณ</h2>
-              <p style="margin:0;color:#6b7280">นี่คือรหัส OTP ของคุณ (ใช้ได้ภายใน ${Math.floor((config.otp.ttlSec||300)/60)} นาที)</p>
+              <p style="margin:0;color:#6b7280">นี่คือรหัส OTP ของคุณ (ใช้ได้ภายใน ${Math.floor(
+                (config.otp.ttlSec || 300) / 60
+              )} นาที)</p>
             </td>
           </tr>
 
@@ -133,45 +132,15 @@ export const emailTemplate = (code) => `
 </body>
 </html>`;
 
-function normalizeAccounts(doc) {
-  if (!doc) return [];
-  // ถ้ามีโครงสร้างแบบ accounts: [{accountCode,accountNumber,accountName}]
-  if (Array.isArray(doc.accounts)) {
-    return doc.accounts
-      .filter(a => a && (a.accountCode || a.accountNumber || a.accountName))
-      .slice(0, 2) // สูงสุด 2
-      .map(a => ({
-        code: String(a.accountCode || '').toUpperCase(),
-        name: String(a.accountName || '').trim(),
-        number: String(a.accountNumber || '').trim(),
-      }));
-  }
-
-  // รองรับฟิลด์เดิมแบบเดี่ยว
-  const codeArr   = Array.isArray(doc.accountCode)   ? doc.accountCode   : [doc.accountCode];
-  const nameArr   = Array.isArray(doc.accountName)   ? doc.accountName   : [doc.accountName];
-  const numberArr = Array.isArray(doc.accountNumber) ? doc.accountNumber : [doc.accountNumber];
-
-  const len = Math.min(codeArr.length, nameArr.length, numberArr.length);
-  const out = [];
-  for (let i = 0; i < len; i++) {
-    const code = String(codeArr[i] || '').toUpperCase();
-    const name = String(nameArr[i] || '').trim();
-    const number = String(numberArr[i] || '').trim();
-    if (code || name || number) out.push({ code, name, number });
-  }
-  return out.slice(0, 2);
-}
-
 // ปิดบังเลข (ธนาคาร 9–12 หลัก, TW เบอร์มือถือ)
 function maskNumber(code, raw) {
-  const digits = String(raw || '').replace(/[^\d]/g, '');
-  if (code === 'TRUEWALLET') {
+  const digits = String(raw || "").replace(/[^\d]/g, "");
+  if (code === "tw") {
     // 0XXXXXXXXX -> 0XX-XXX-XXXX
     if (/^0\d{9}$/.test(digits)) {
-      return `${digits.slice(0,3)}-${digits.slice(3,6)}-${digits.slice(6)}`;
+      return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
     }
-    return raw || '-';
+    return raw || "-";
   }
   // ธนาคาร: xxxx-x-xxxxx-x (พยายามจัดกลุ่มแบบอ่านง่าย)
   if (digits.length >= 9) {
@@ -181,18 +150,18 @@ function maskNumber(code, raw) {
     const d = digits.slice(-1);
     return `${a}-${b}-${c}-${d}`;
   }
-  return raw || '-';
+  return raw || "-";
 }
 
 function serializeBankAccounts(u) {
   const rows = Array.isArray(u?.bankAccounts) ? u.bankAccounts : [];
-  return rows.slice(0, 2).map(a => {
-    const code = String(a.accountCode || '').toUpperCase();
-    const number = String(a.accountNumber || '').trim();
+  return rows.slice(0, 2).map((a) => {
+    const code = String(a.accountCode || "").trim();
+    const number = String(a.accountNumber || "").trim();
     return {
-      id: String(a._id || ''),
+      id: String(a._id || ""),
       code,
-      name: String(a.accountName || '').trim(),
+      name: String(a.accountName || "").trim(),
       number,
       label: BANK_LABELS[code] || code,
       numberMasked: maskNumber(code, number),
@@ -204,38 +173,38 @@ const router = Router();
 router.use(requireAuth);
 
 /* ---------------- upload avatar ---------------- */
-const uploadDir = path.join(process.cwd(), 'uploads', 'avatars');
+const uploadDir = path.join(process.cwd(), "uploads", "avatars");
 fs.mkdirSync(uploadDir, { recursive: true });
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),
   filename: (req, file, cb) => {
-    const ext = (path.extname(file.originalname || '') || '.png').toLowerCase();
+    const ext = (path.extname(file.originalname || "") || ".png").toLowerCase();
     const uid = getAuthUserId(req) || `anon-${Date.now()}`;
     cb(null, `${uid}${ext}`);
-  }
+  },
 });
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ok = /image\/(png|jpe?g|webp|gif)/i.test(file.mimetype);
-    cb(ok ? null : new Error('Invalid image type'), ok);
-  }
+    cb(ok ? null : new Error("Invalid image type"), ok);
+  },
 });
 
 /* ---------------- GET /account ---------------- */
-router.get('/account', async (req, res, next) => {
+router.get("/account", async (req, res, next) => {
   try {
     const uid = getAuthUserId(req);
-    if (!uid) return res.redirect('/login');
+    if (!uid) return res.redirect("/login");
 
     // (1) โหลด user เบื้องต้น
     let me = await User.findById(uid).lean();
-    if (!me) return res.redirect('/login');
+    if (!me) return res.redirect("/login");
 
     // (2) รีคำนวณยอด/เลเวล/แต้ม แบบสด ๆ ครั้งเดียว
-     const snap = await recalcUserTotalSpent(me._id, { force: true });
+    const snap = await recalcUserTotalSpent(me._id, { force: true });
     const {
       totalSpent,
       totalSpentRaw,
@@ -248,8 +217,9 @@ router.get('/account', async (req, res, next) => {
     } = snap || {};
 
     // sync ค่าให้ฝั่งมุมมอง (กำหนดค่า fallback เผื่อไม่คืนมา)
-    const levelNum  = Math.max(1, Number(level || me.level || 1));
-    const levelName = levelInfo?.name || LEVELS[levelNum - 1]?.name || `เลเวล ${levelNum}`;
+    const levelNum = Math.max(1, Number(level || me.level || 1));
+    const levelName =
+      levelInfo?.name || LEVELS[levelNum - 1]?.name || `เลเวล ${levelNum}`;
 
     const viewUser = {
       ...me,
@@ -262,15 +232,15 @@ router.get('/account', async (req, res, next) => {
       pointValueTHB: Number(pointValueTHB ?? me.pointValueTHB ?? 0),
 
       // default อื่น ๆ
-      avatarUrl: me.avatarUrl || '/static/assets/logo/rtsmmgif2.gif',
+      avatarUrl: me.avatarUrl || "/static/assets/logo/rtsmmgif2.gif",
       emailVerified: !!me.emailVerified,
     };
 
     const bankAccounts = serializeBankAccounts(me);
 
     // (3) ส่งค่าให้หน้า view (agg ใช้กับการ์ดสรุปด้านบน)
-    res.render('account/index', {
-      title: 'ตั้งค่าข้อมูลส่วนตัว',
+    res.render("account/index", {
+      title: "ตั้งค่าข้อมูลส่วนตัว",
       userDoc: viewUser,
       agg: {
         totalSpent: viewUser.totalSpent,
@@ -281,7 +251,7 @@ router.get('/account', async (req, res, next) => {
         pointValueTHB: viewUser.pointValueTHB,
       },
       levels: LEVELS,
-      bodyClass: 'page-account',
+      bodyClass: "page-account",
       bankAccounts,
     });
   } catch (e) {
@@ -290,13 +260,20 @@ router.get('/account', async (req, res, next) => {
 });
 
 /* ---------------- POST /account/profile ---------------- */
-router.post('/account/profile', upload.single('avatar'), async (req, res) => {
+router.post("/account/profile", upload.single("avatar"), async (req, res) => {
   try {
     const uid = getAuthUserId(req);
-    if (!uid) return res.status(401).json({ ok:false, error: '⛔️คุณไม่ได้รับอนุญาต' });
+    if (!uid)
+      return res
+        .status(401)
+        .json({ ok: false, error: "⛔️คุณไม่ได้รับอนุญาต" });
 
     const u = await User.findById(uid);
-    if (!u) return res.status(404).json({ ok:false, error: '⛔️ไม่พบข้อมูลผู้ใช้ เครือข่ายมีปัญหาโปรลองอีกครั้งภายหลัง' });
+    if (!u)
+      return res.status(404).json({
+        ok: false,
+        error: "⛔️ไม่พบข้อมูลผู้ใช้ เครือข่ายมีปัญหาโปรลองอีกครั้งภายหลัง",
+      });
 
     // --- อัปเดตรูป + บันทึก ---
     if (req.file) {
@@ -304,19 +281,27 @@ router.post('/account/profile', upload.single('avatar'), async (req, res) => {
       u.avatarUrl = filePath;
       await u.save();
     } else if (!u.avatarUrl) {
-      u.avatarUrl = '/static/assets/logo/rtsmmgif2.gif';
+      u.avatarUrl = "/static/assets/logo/rtsmmgif2.gif";
       await u.save();
     }
 
     // --- ชื่อ/อีเมล (ตั้งครั้งแรกเท่านั้น) ---
-    const fullName   = String(req.body.name  || '').trim();
-    const emailInput = String(req.body.email || '').trim();
-    if (!u.name && fullName)            u.name = fullName;
-    if (!u.email && emailInput) { u.email = emailInput.toLowerCase(); u.emailVerified = false; }
+    const fullName = String(req.body.name || "").trim();
+    const emailInput = String(req.body.email || "").trim();
+    if (!u.name && fullName) u.name = fullName;
+    if (!u.email && emailInput) {
+      u.email = emailInput.toLowerCase();
+      u.emailVerified = false;
+    }
 
     await u.save();
     // ให้ระบบ delta-based สรุปทุกอย่างให้เอง (orders/level/points…)
-    try { await recalcUserTotalSpent(u._id, { force:true, reason:'profile_update' }); } catch {}
+    try {
+      await recalcUserTotalSpent(u._id, {
+        force: true,
+        reason: "profile_update",
+      });
+    } catch {}
 
     // --- อัปเดต session/res.locals และคืน URL แบบกันแคชสำหรับแสดงผลทันที ---
     if (req.session?.user) req.session.user.avatarUrl = u.avatarUrl;
@@ -335,26 +320,26 @@ router.post('/account/profile', upload.single('avatar'), async (req, res) => {
         level: u.level,
         totalSpent: u.totalSpent,
         totalOrders: u.totalOrders ?? 0,
-      }
+      },
     });
   } catch (e) {
-    console.error('POST /account/profile', e);
-    return res.status(500).json({ ok:false, error:'update failed' });
+    console.error("POST /account/profile", e);
+    return res.status(500).json({ ok: false, error: "update failed" });
   }
 });
 
 /* ---------------- POST /account/avatar ---------------- */
-router.post('/account/avatar', upload.single('avatar'), async (req, res) => {
+router.post("/account/avatar", upload.single("avatar"), async (req, res) => {
   try {
     const uid = getAuthUserId(req);
-    if (!uid) return res.status(401).send('Unauthorized');
+    if (!uid) return res.status(401).send("Unauthorized");
 
     const u = await User.findById(uid);
-    if (!u) return res.status(404).send('User not found');
+    if (!u) return res.status(404).send("User not found");
 
     if (!req.file) {
       // ไม่มีไฟล์ → กลับหน้าเดิม
-      return res.redirect('/account');
+      return res.redirect("/account");
     }
 
     // ตั้งค่า URL ใหม่ให้ผู้ใช้
@@ -376,62 +361,104 @@ router.post('/account/avatar', upload.single('avatar'), async (req, res) => {
     };
 
     // กลับหน้า /account (จะมี ?v=avatarVer ที่ <img> กันแคชอยู่แล้ว)
-    return res.redirect('/account');
+    return res.redirect("/account");
   } catch (e) {
-    console.error('POST /account/avatar', e);
-    return res.status(500).send('Upload failed');
+    console.error("POST /account/avatar", e);
+    return res.status(500).send("Upload failed");
   }
 });
 
 /* ---------------- POST /account/password ---------------- */
-router.post('/account/password', async (req, res) => {
+router.post("/account/password", async (req, res) => {
   try {
     const uid = getAuthUserId(req);
-    if (!uid) return res.status(401).json({ ok:false, error:'⛔️คุณไม่ได้รับอนุญาต' });
+    if (!uid)
+      return res
+        .status(401)
+        .json({ ok: false, error: "⛔️คุณไม่ได้รับอนุญาต" });
 
-    const { currentPassword, newPassword} = req.body;
+    const { currentPassword, newPassword } = req.body;
 
     const u = await User.findById(uid);
-    if (!u) return res.status(404).json({ ok:false, error:'⛔️ไม่พบข้อมูลผู้ใช้ เครือข่ายมีปัญหาโปรลองอีกครั้งภายหลัง' });
+    if (!u)
+      return res.status(404).json({
+        ok: false,
+        error: "⛔️ไม่พบข้อมูลผู้ใช้ เครือข่ายมีปัญหาโปรลองอีกครั้งภายหลัง",
+      });
 
     if (!newPassword || String(newPassword).length < 6) {
-      return res.status(400).json({ ok:false, error:'⚠️รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัว a-z 0-9 !@#$' });
+      return res.status(400).json({
+        ok: false,
+        error: "⚠️รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัว a-z 0-9 !@#$",
+      });
     }
 
-    const ok = await bcrypt.compare(String(currentPassword || ''), u.passwordHash);
-    if (!ok) return res.status(400).json({ ok:false, error:'⛔️รหัสผ่านเดิมไม่ถูกต้อง' });
+    const ok = await bcrypt.compare(
+      String(currentPassword || ""),
+      u.passwordHash
+    );
+    if (!ok)
+      return res
+        .status(400)
+        .json({ ok: false, error: "⛔️รหัสผ่านเดิมไม่ถูกต้อง" });
 
     const same = await bcrypt.compare(String(newPassword), u.passwordHash);
-    if (same) return res.status(400).json({ ok:false, error:'⚠️รหัสผ่านใหม่ซ้ำกับรหัสเดิม โปรดระบุรหัสผ่านใหม่อีกครั้ง' });
+    if (same)
+      return res.status(400).json({
+        ok: false,
+        error: "⚠️รหัสผ่านใหม่ซ้ำกับรหัสเดิม โปรดระบุรหัสผ่านใหม่อีกครั้ง",
+      });
 
-    await u.setPassword(String(newPassword || ''));
+    await u.setPassword(String(newPassword || ""));
     await u.save();
-    
+
     return res.status(200).json({ ok: true });
   } catch (e) {
-    console.error('POST /account/password', e);
-    res.status(500).json({ ok:false, error:'⛔️เปลี่ยนรหัสผ่านไม่สำเร็จ เครือข่ายมีปัญหาโปรดลองอีกครั้งภายหลัง!' });
+    console.error("POST /account/password", e);
+    res.status(500).json({
+      ok: false,
+      error:
+        "⛔️เปลี่ยนรหัสผ่านไม่สำเร็จ เครือข่ายมีปัญหาโปรดลองอีกครั้งภายหลัง!",
+    });
   }
 });
 
 /* ---------------- POST /account/email/request-otp ---------------- */
-router.post('/account/email/request-otp', async (req, res) => {
+router.post("/account/email/request-otp", async (req, res) => {
   try {
     const uid = getAuthUserId(req);
-    if (!uid) return res.status(401).json({ ok:false, error:'⛔️คุณไม่ได้รับอนุญาต' });
+    if (!uid)
+      return res
+        .status(401)
+        .json({ ok: false, error: "⛔️คุณไม่ได้รับอนุญาต" });
 
     const u = await User.findById(uid);
-    if (!u?.email) return res.status(400).json({ ok:false, error:'⛔️ยังไม่มีอีเมลนี้ในบัญชี' });
+    if (!u?.email)
+      return res
+        .status(400)
+        .json({ ok: false, error: "⛔️ยังไม่มีอีเมลนี้ในบัญชี" });
 
     const email = String(u.email).toLowerCase();
 
     // cooldown
-    const last = await OtpToken.findOne({ email, purpose: 'email-verify', usedAt: null })
-      .sort({ createdAt: -1 });
+    const last = await OtpToken.findOne({
+      email,
+      purpose: "email-verify",
+      usedAt: null,
+    }).sort({ createdAt: -1 });
     const now = Date.now();
-    if (last?.lastSentAt && (now - last.lastSentAt.getTime()) < config.otp.resendCooldownSec*1000) {
-      const wait = Math.ceil((config.otp.resendCooldownSec*1000 - (now - last.lastSentAt.getTime()))/1000);
-      return res.status(429).json({ ok:false, error:`⏳โปรดรอ ${wait}s ก่อนขอรหัสใหม่` });
+    if (
+      last?.lastSentAt &&
+      now - last.lastSentAt.getTime() < config.otp.resendCooldownSec * 1000
+    ) {
+      const wait = Math.ceil(
+        (config.otp.resendCooldownSec * 1000 -
+          (now - last.lastSentAt.getTime())) /
+          1000
+      );
+      return res
+        .status(429)
+        .json({ ok: false, error: `⏳โปรดรอ ${wait}s ก่อนขอรหัสใหม่` });
     }
 
     const code = genCode();
@@ -439,56 +466,70 @@ router.post('/account/email/request-otp', async (req, res) => {
 
     const doc = new OtpToken({
       email,
-      purpose: 'email-verify',
+      purpose: "email-verify",
       codeHash,
-      expiresAt: new Date(Date.now() + config.otp.ttlSec*1000),
+      expiresAt: new Date(Date.now() + config.otp.ttlSec * 1000),
       attempts: 0,
       maxAttempts: config.otp.maxAttempts,
-      lastSentAt: new Date()
+      lastSentAt: new Date(),
     });
     await doc.save();
 
     await sendEmail({
       to: email,
-      subject: 'รหัสยืนยันอีเมล (OTP)',
+      subject: "รหัสยืนยันอีเมล (OTP)",
       html: emailTemplate(code),
       // attachments: [{ filename:'logo-smm-th.png', path:'/static/assets/logo/logo-rtsmm-th.png', cid:'brandlogo' }]
     });
 
-    res.json({ ok:true, ttl: config.otp.ttlSec });
+    res.json({ ok: true, ttl: config.otp.ttlSec });
   } catch (e) {
-    console.error('request-otp', e);
-    res.status(500).json({ ok:false, error:'⛔️ส่งรหัสไม่สำเร็จ' });
+    console.error("request-otp", e);
+    res.status(500).json({ ok: false, error: "⛔️ส่งรหัสไม่สำเร็จ" });
   }
 });
 
 /* ---------------- POST /account/email/verify ---------------- */
-router.post('/account/email/verify', async (req, res) => {
+router.post("/account/email/verify", async (req, res) => {
   try {
     const uid = getAuthUserId(req);
-    if (!uid) return res.status(401).json({ ok:false, error:'⛔️คุณไม่ได้รับอนุญาต' });
+    if (!uid)
+      return res
+        .status(401)
+        .json({ ok: false, error: "⛔️คุณไม่ได้รับอนุญาต" });
 
     const { code } = req.body;
     const u = await User.findById(uid);
-    if (!u?.email) return res.status(400).json({ ok:false, error:'⛔️ยังไม่มีอีเมลในบัญชี' });
+    if (!u?.email)
+      return res
+        .status(400)
+        .json({ ok: false, error: "⛔️ยังไม่มีอีเมลในบัญชี" });
 
     const email = String(u.email).toLowerCase();
-    const doc = await OtpToken.findOne({ email, purpose: 'email-verify', usedAt: null })
-      .sort({ createdAt: -1 });
-    if (!doc) return res.status(400).json({ ok:false, error:'⛔️รหัสหมดอายุหรือไม่ถูกต้อง' });
+    const doc = await OtpToken.findOne({
+      email,
+      purpose: "email-verify",
+      usedAt: null,
+    }).sort({ createdAt: -1 });
+    if (!doc)
+      return res
+        .status(400)
+        .json({ ok: false, error: "⛔️รหัสหมดอายุหรือไม่ถูกต้อง" });
 
     if (doc.expiresAt.getTime() < Date.now()) {
-      return res.status(400).json({ ok:false, error:'⛔️รหัสหมดอายุ' });
+      return res.status(400).json({ ok: false, error: "⛔️รหัสหมดอายุ" });
     }
     if (doc.attempts >= doc.maxAttempts) {
-      return res.status(400).json({ ok:false, error:'⛔️เกินจำนวนครั้งที่กำหนด' });
+      return res
+        .status(400)
+        .json({ ok: false, error: "⛔️เกินจำนวนครั้งที่กำหนด" });
     }
 
-    const ok = await bcrypt.compare(String(code||'').trim(), doc.codeHash);
+    const ok = await bcrypt.compare(String(code || "").trim(), doc.codeHash);
     if (!ok) {
       doc.attempts += 1;
       await doc.save();
-      return res.status(400).json({ ok:false, error:'⛔️รหัสไม่ถูกต้อง' });
+      return res.status(400).json({ ok: false, error: "⛔️รหัสไม่ถูกต้อง" });
     }
 
     // สำเร็จ → ปิด token และอัปเดต user
@@ -498,29 +539,35 @@ router.post('/account/email/verify', async (req, res) => {
     u.emailVerified = true;
     await u.save();
 
-    res.json({ ok:true });
+    res.json({ ok: true });
   } catch (e) {
-    console.error('verify-otp', e);
-    res.status(500).json({ ok:false, error:'⛔️ยืนยันไม่สำเร็จ' });
+    console.error("verify-otp", e);
+    res.status(500).json({ ok: false, error: "⛔️ยืนยันไม่สำเร็จ" });
   }
 });
 
 // ====== NEW: แลกแต้มเป็น balance ======
-router.post('/account/points/redeem', async (req, res) => {
+router.post("/account/points/redeem", async (req, res) => {
   try {
     const uid = getAuthUserId(req);
-    if (!uid) return res.status(401).json({ ok:false, error:'⛔️คุณไม่ได้รับอนุญาต' });
+    if (!uid)
+      return res
+        .status(401)
+        .json({ ok: false, error: "⛔️คุณไม่ได้รับอนุญาต" });
 
     // sync before
-    const snap = await recalcUserTotalSpent(uid, { force:true });
-    if (!snap?.ok) return res.status(500).json({ ok:false, error:'คำนวณยอดไม่สำเร็จ' });
+    const snap = await recalcUserTotalSpent(uid, { force: true });
+    if (!snap?.ok)
+      return res.status(500).json({ ok: false, error: "คำนวณยอดไม่สำเร็จ" });
 
     const u = await User.findById(uid);
-    if (!u) return res.status(404).json({ ok:false, error:'⛔️ไม่พบผู้ใช้' });
+    if (!u) return res.status(404).json({ ok: false, error: "⛔️ไม่พบผู้ใช้" });
 
     const pointsNow = Number(snap.points ?? u.points ?? 0);
     if (!Number.isFinite(pointsNow) || pointsNow < 100) {
-      return res.status(400).json({ ok:false, error:'ต้องมีอย่างน้อย 100 แต้มจึงจะแลกได้' });
+      return res
+        .status(400)
+        .json({ ok: false, error: "ต้องมีอย่างน้อย 100 แต้มจึงจะแลกได้" });
     }
 
     // แลกทั้งหมด (คง step 0.5)
@@ -536,14 +583,17 @@ router.post('/account/points/redeem', async (req, res) => {
 
     const totalSpentRaw = Number(snap.totalSpentRaw ?? u.totalSpentRaw ?? 0);
     const redeemedSpent = Number(u.redeemedSpent || 0);
-    const newRedeemedSpent = Math.min(round2(redeemedSpent + decSpent), totalSpentRaw);
+    const newRedeemedSpent = Math.min(
+      round2(redeemedSpent + decSpent),
+      totalSpentRaw
+    );
     await User.updateOne(
       { _id: uid },
       { $set: { redeemedSpent: newRedeemedSpent }, $inc: { balance: addTHB } }
     );
 
     // recalc หลังแลก เพื่อคืนค่าหน้า UI ที่อัปเดตแล้ว
-    const after = await recalcUserTotalSpent(uid, { force:true });
+    const after = await recalcUserTotalSpent(uid, { force: true });
 
     return res.json({
       ok: true,
@@ -559,117 +609,150 @@ router.post('/account/points/redeem', async (req, res) => {
       pointValueTHB: after.pointValueTHB,
     });
   } catch (e) {
-    console.error('redeem points', e);
-    res.status(500).json({ ok:false, error:'แลกแต้มไม่สำเร็จ' });
+    console.error("redeem points", e);
+    res.status(500).json({ ok: false, error: "แลกแต้มไม่สำเร็จ" });
   }
 });
 
 // ====== BANK ======
 // GET /account/bank/list
-router.get('/account/bank/list', async (req, res) => {
+router.get("/account/bank/list", async (req, res) => {
   const uid = getAuthUserId(req);
-  if (!uid) return res.status(401).json({ ok:false, error:'⛔️คุณไม่ได้รับอนุญาต' });
+  if (!uid)
+    return res.status(401).json({ ok: false, error: "⛔️คุณไม่ได้รับอนุญาต" });
 
   const u = await User.findById(uid).lean();
-  if (!u) return res.status(404).json({ ok:false, error:'⛔️ไม่พบผู้ใช้' });
+  if (!u) return res.status(404).json({ ok: false, error: "⛔️ไม่พบผู้ใช้" });
 
-  return res.json({ ok:true, accounts: serializeBankAccounts(u) });
+  return res.json({ ok: true, accounts: serializeBankAccounts(u) });
 });
 
 // POST /account/bank/add
-router.post('/account/bank/add', async (req, res) => {
+router.post("/account/bank/add", async (req, res) => {
   try {
     const uid = getAuthUserId(req);
-    if (!uid) return res.status(401).json({ ok:false, error:'⛔️คุณไม่ได้รับอนุญาต' });
+    if (!uid)
+      return res
+        .status(401)
+        .json({ ok: false, error: "⛔️คุณไม่ได้รับอนุญาต" });
 
     const u = await User.findById(uid);
-    if (!u) return res.status(404).json({ ok:false, error:'⛔️ไม่พบผู้ใช้' });
+    if (!u) return res.status(404).json({ ok: false, error: "⛔️ไม่พบผู้ใช้" });
 
     if (!Array.isArray(u.bankAccounts)) u.bankAccounts = [];
     if (u.bankAccounts.length >= 2) {
-      return res.status(400).json({ ok:false, error:'มีบัญชีครบ 2 รายการแล้ว' });
+      return res
+        .status(400)
+        .json({ ok: false, error: "มีบัญชีครบ 2 รายการแล้ว" });
     }
 
-    const codeRaw = String(req.body.accountCode || req.body.code || '').toUpperCase().trim();
-    const name    = String(req.body.accountName || req.body.name || '').trim();
-    const numRaw  = String(req.body.accountNumber || req.body.number || '').trim();
-    const digits  = numRaw.replace(/[^\d]/g, '');
+    const codeRaw = String(req.body.accountCode || req.body.code || "").trim();
+    const name = String(req.body.accountName || req.body.name || "").trim();
+    const numRaw = String(
+      req.body.accountNumber || req.body.number || ""
+    ).trim();
+    const digits = numRaw.replace(/[^\d]/g, "");
 
     if (!codeRaw || !name || !numRaw) {
-      return res.status(400).json({ ok:false, error:'ข้อมูลไม่ครบ' });
+      return res.status(400).json({ ok: false, error: "ข้อมูลไม่ครบ" });
     }
-    if (codeRaw === 'TRUEWALLET') {
-      if (!/^0\d{9}$/.test(digits)) return res.status(400).json({ ok:false, error:'TrueWallet ต้องเป็นเบอร์ 10 หลักขึ้นต้น 0' });
+    if (codeRaw === "tw") {
+      if (!/^0\d{9}$/.test(digits))
+        return res.status(400).json({
+          ok: false,
+          error: "TrueWallet ต้องเป็นเบอร์ 10 หลักขึ้นต้น 0",
+        });
     } else {
-      if (!/^\d{9,12}$/.test(digits)) return res.status(400).json({ ok:false, error:'เลขบัญชีต้องเป็นตัวเลข 9–12 หลัก' });
+      if (!/^\d{10,15}$/.test(digits))
+        return res
+          .status(400)
+          .json({ ok: false, error: "เลขบัญชีต้องเป็นตัวเลข 9–12 หลัก" });
     }
 
     // กันซ้ำใน user ตัวเองก่อน
-    const dupSelf = (u.bankAccounts || []).some(a =>
-      String(a.accountCode || '').toUpperCase() === codeRaw &&
-      String(a.accountNumber || '').replace(/[^\d]/g,'') === digits
+    const dupSelf = (u.bankAccounts || []).some(
+      (a) =>
+        String(a.accountCode || "") === codeRaw &&
+        String(a.accountNumber || "").replace(/[^\d]/g, "") === digits
     );
-    if (dupSelf) return res.status(409).json({ ok:false, error:'บัญชีนี้ถูกเพิ่มไว้แล้ว' });
+    if (dupSelf)
+      return res
+        .status(409)
+        .json({ ok: false, error: "บัญชีนี้ถูกเพิ่มไว้แล้ว" });
 
     // ✅ กันซ้ำ "ข้ามผู้ใช้" ทั้งระบบ
     const usedByOther = await User.findOne({
       _id: { $ne: u._id },
-      bankAccounts: { $elemMatch: { accountCode: codeRaw, accountNumber: digits } }
+      bankAccounts: {
+        $elemMatch: { accountCode: codeRaw, accountNumber: digits },
+      },
     }).lean();
 
     if (usedByOther) {
       return res.status(409).json({
-        ok:false,
-        error:'บัญชีนี้ถูกใช้งานอยู่ในผู้ใช้อื่นแล้ว (1 บัญชีใช้ได้เพียง 1 ผู้ใช้)'
+        ok: false,
+        error:
+          "บัญชีนี้ถูกใช้งานอยู่ในผู้ใช้อื่นแล้ว (1 บัญชีใช้ได้เพียง 1 ผู้ใช้)",
       });
     }
 
     // เพิ่ม
-    u.bankAccounts.push({ accountCode: codeRaw, accountNumber: digits, accountName: name });
+    u.bankAccounts.push({
+      accountCode: codeRaw,
+      accountNumber: digits,
+      accountName: name,
+    });
+    console.log(u.bankAccounts);
     await u.save();
 
     const last = u.bankAccounts[u.bankAccounts.length - 1];
     return res.json({
-      ok:true,
+      ok: true,
       account: {
-        id: String(last._id || ''),
+        id: String(last._id || ""),
         code: codeRaw,
         name,
         number: digits,
         label: BANK_LABELS[codeRaw] || codeRaw,
         numberMasked: maskNumber(codeRaw, digits),
-        count: u.bankAccounts.length
-      }
+        count: u.bankAccounts.length,
+      },
     });
   } catch (e) {
-    console.error('POST /account/bank/add', e);
-    return res.status(500).json({ ok:false, error:'เพิ่มบัญชีไม่สำเร็จ (server)' });
+    console.error("POST /account/bank/add", e);
+    return res
+      .status(500)
+      .json({ ok: false, error: "เพิ่มบัญชีไม่สำเร็จ (server)" });
   }
 });
 
 // POST /account/bank/remove
-router.post('/account/bank/remove', async (req, res) => {
+router.post("/account/bank/remove", async (req, res) => {
   const uid = getAuthUserId(req);
-  if (!uid) return res.status(401).json({ ok:false, error:'⛔️คุณไม่ได้รับอนุญาต' });
+  if (!uid)
+    return res.status(401).json({ ok: false, error: "⛔️คุณไม่ได้รับอนุญาต" });
 
   const { id } = req.body;
-  if (!id) return res.status(400).json({ ok:false, error:'ไม่พบ id ของบัญชี' });
+  if (!id)
+    return res.status(400).json({ ok: false, error: "ไม่พบ id ของบัญชี" });
 
   const u = await User.findById(uid);
-  if (!u) return res.status(404).json({ ok:false, error:'⛔️ไม่พบผู้ใช้' });
+  if (!u) return res.status(404).json({ ok: false, error: "⛔️ไม่พบผู้ใช้" });
 
   if (!Array.isArray(u.bankAccounts) || u.bankAccounts.length === 0) {
-    return res.json({ ok:true, accounts: [] });
+    return res.json({ ok: true, accounts: [] });
   }
 
   const before = u.bankAccounts.length;
-  u.bankAccounts = u.bankAccounts.filter(a => String(a._id || '') !== String(id));
+  u.bankAccounts = u.bankAccounts.filter(
+    (a) => String(a._id || "") !== String(id)
+  );
   if (u.bankAccounts.length === before) {
-    return res.status(404).json({ ok:false, error:'ไม่พบบัญชีนี้' });
+    return res.status(404).json({ ok: false, error: "ไม่พบบัญชีนี้" });
   }
 
   await u.save();
-  return res.json({ ok:true, accounts: serializeBankAccounts(u) });
+  return res.json({ ok: true, accounts: serializeBankAccounts(u) });
 });
 
 export default router;

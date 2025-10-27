@@ -1116,7 +1116,7 @@ dialog.rt-modal::backdrop{background:rgba(0,0,0,.5);backdrop-filter:blur(6px)}
     e.preventDefault();
     btnSave.disabled = true;
 
-    const code = (form.accountCode.value || '').toUpperCase().trim();
+    const code = (form.accountCode.value || '').trim();
     const number = (form.accountNumber.value || '').trim();
     const name = (form.accountName.value || '').trim();
 
@@ -1127,7 +1127,7 @@ dialog.rt-modal::backdrop{background:rgba(0,0,0,.5);backdrop-filter:blur(6px)}
     if (code === 'TRUEWALLET') {
       if (!/^0\d{9}$/.test(digits)) { window.showMsg?.({variant:'warn',title:'เบอร์วอลเล็ทไม่ถูกต้อง',text:'ต้องขึ้นต้น 0 และยาว 10 หลัก'}); btnSave.disabled=false; return; }
     } else {
-      if (!/^\d{9,12}$/.test(digits)) { window.showMsg?.({variant:'warn',title:'เลขบัญชีไม่ถูกต้อง',text:'ต้องเป็นตัวเลข 9–12 หลัก'}); btnSave.disabled=false; return; }
+      if (!/^\d{10,15}$/.test(digits)) { window.showMsg?.({variant:'warn',title:'เลขบัญชีไม่ถูกต้อง',text:'ต้องเป็นตัวเลข 9–12 หลัก'}); btnSave.disabled=false; return; }
     }
 
     try {

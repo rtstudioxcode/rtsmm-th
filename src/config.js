@@ -8,8 +8,9 @@ import { decryptAesGcm } from './lib/crypto.js';
  */
 const envConfig = {
   port: Number(process.env.PORT || 3000),
-  mongoUri: process.env.MONGO_URI, // ใช้สำหรับ connect ครั้งแรก
-  sessionSecret: process.env.SESSION_SECRET || 'rtstudioxcode78rt58y9643y5t8y7u6i5o4p3',
+  // mongoUri: process.env.MONGO_URI, // ใช้สำหรับ Production
+  mongoUri: process.env.MONGO_URI || 'mongodb://admin:060843Za@147.50.240.76:27017/rtsmm-th?authSource=admin', // ใช้สำหรับทดสอบ
+  sessionSecret: process.env.SESSION_SECRET || 'rtstudioxcoe78rt58y9643y5t8y7u6i5o4p3',
   provider: {
     baseUrl: ((process.env.IPV_API_BASE || '').replace(/\/+$/, '')) || '',
     apiKey: process.env.IPV_API_KEY || ''
@@ -22,7 +23,7 @@ const envConfig = {
     port: Number(process.env.MAIL_PORT || 587),
     user: process.env.MAIL_USER || '',
     pass: process.env.MAIL_PASS || '',
-    from: process.env.MAIL_FROM || 'RTSSM-TH <no-reply@rtsmm-th.com>',
+    from: process.env.MAIL_FROM || '',
   },
   otp: {
     ttlSec: Number(process.env.OTP_CODE_TTL || 600),

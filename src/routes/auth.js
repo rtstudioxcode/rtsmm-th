@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import { User } from '../models/User.js';
 import { OtpToken } from '../models/OtpToken.js';
 import { sendEmail } from '../lib/mailer.js';
-import { BANKS, BANK_CODES, normalizeAndValidateAccount } from '../lib/banks.js';
+import { normalizeAndValidateAccount } from '../lib/banks.js';
 import crypto from 'crypto';
 
 const router = express.Router();

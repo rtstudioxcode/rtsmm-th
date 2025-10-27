@@ -129,6 +129,16 @@ const RETRYABLE_SMTP = new Set([421, 450, 451, 452, 471]); // temporary failures
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 export async function sendEmail({ to, subject, html, text, headers, attachments } = {}) {
+  // ⬇️ ถ้ายังไม่มี SMTP config ให้ลองดึงจาก DB แบบ lazy
+  if (!config.mail?.host || !config.mail?.port) {
+    try {
+      const { refreshConfigFromDB } = await import('../config.js');
+      await refreshConfigFromDB();
+    } catch (e) {
+      // เงียบ ๆ ให้ไปตกที่ getTransporter อีกที
+    }
+  }
+  
   const tx = getTransporter();
 
   const payload = {

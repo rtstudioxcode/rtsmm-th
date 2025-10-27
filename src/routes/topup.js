@@ -27,13 +27,27 @@ topupRouter.get("/", async (req, res) => {
     if (!user) return res.redirect("/login");
 
     // 🟣 Gather all user account codes
+    // 🟢 Gather user account codes
     const codes = (user.bankAccounts || []).map((acc) => acc.accountCode);
+    let webWallets = [];
 
-    // 🟩 Fetch all matching web wallets
-    const webWallets =
-      codes.length > 0
-        ? await Topup.find({ accountCode: { $in: codes } }).lean()
-        : [];
+    // 🟣 Case 1: User has TrueWallet
+    if (codes.includes("tw")) {
+      // Always include TrueWallet
+      const twWallet = await Topup.findOne({ accountCode: "tw" }).lean();
+      if (twWallet) webWallets.push(twWallet);
+
+      // If user also has any bank, always pair with SCB
+      const hasBank = codes.some((c) => c !== "tw");
+      if (hasBank) {
+        const scbWallet = await Topup.findOne({ accountCode: "scb" }).lean();
+        if (scbWallet) webWallets.push(scbWallet);
+      }
+    } else {
+      // 🟢 Case 2: User has NO TrueWallet → always fallback to SCB
+      const scbWallet = await Topup.findOne({ accountCode: "scb" }).lean();
+      if (scbWallet) webWallets.push(scbWallet);
+    }
 
     // 🧾 Fetch transaction history (latest first)
     const transactions = await Transaction.find({ userId })
@@ -151,7 +165,6 @@ topupRouter.post("/truewallet", async (req, res) => {
 
     // ✅ Record transaction
 
-    console.log(user._id);
     await Transaction.create({
       userId: user._id,
       method: "tw",
