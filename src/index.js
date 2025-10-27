@@ -177,7 +177,7 @@ app.use(authRoutes);
 app.use(resetPasswordRoutes);
 app.use(catalogRoutes);
 app.use(requireAuth, orderRoutes);
-app.use('/', requireAuth, requireAdmin, adminRoutes);
+app.use('/admin', requireAuth, requireAdmin, adminRoutes);
 app.use('/admin', requireAuth, requireAdmin, adminPricingRoutes);
 app.use(newOrderRoutes);
 app.use(requireAuth, walletRoutes);

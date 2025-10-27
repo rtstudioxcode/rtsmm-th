@@ -2,6 +2,12 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
+const BankAccountSchema = new mongoose.Schema({
+  accountCode:  { type: String, required: true, trim: true },   // eg. KTB, SCB, TRUEWALLET
+  accountNumber:{ type: String, required: true, trim: true },   // cleaned digits
+  accountName:  { type: String, required: true, trim: true },   // ชื่อบัญชีตามจริง
+}, { _id:false });
+
 const UserSchema = new mongoose.Schema({
   // ── บัญชี ───────────────────────────────────────────────
   username: { type: String, required: true, trim: true, unique: true },
@@ -21,15 +27,9 @@ const UserSchema = new mongoose.Schema({
   // ── ค่าสถิติออเดอร์/การใช้จ่าย ─────────────────────────
   totalOrders:     { type: Number, default: 0 },
   totalOrdersPaid: { type: Number, default: 0 },
-
-  // totalSpentRaw = “ยอดดิบจากออเดอร์” (ซ่อมด้วย delta เสมอ)
-  totalSpentRaw: { type: Number, default: 0 },
-
-  // totalSpent = “ยอดแสดงผล” = totalSpentRaw - redeemedSpent
-  totalSpent: { type: Number, default: 0 },
-
-  // ใช้หักออกจากยอดดิบเมื่อแลกแต้มเป็นเงินไปแล้ว
-  redeemedSpent: { type: Number, default: 0 },
+  totalSpentRaw:   { type: Number, default: 0 },
+  totalSpent:      { type: Number, default: 0 },
+  redeemedSpent:   { type: Number, default: 0 },
 
   // ── เลเวล ───────────────────────────────────────────────
   level:      { type: String, default: '1' },
@@ -44,12 +44,17 @@ const UserSchema = new mongoose.Schema({
   points:         { type: Number, default: 0 },
   pointsAccrued:  { type: Number, default: 0 },
   pointsRedeemed: { type: Number, default: 0 },
+  pointRateTHB:   { type: Number, default: 0 },
+  pointValueTHB:  { type: Number, default: 0 },
 
-  // ค่าการแปลงแต้มเป็นบาทตามเลเวล (ที่คำนวณไว้ล่าสุด)
-  pointRateTHB:  { type: Number, default: 0 },
-  pointValueTHB: { type: Number, default: 0 },
-  accountNumber: { type: String, trim: true, index: true },
-  accountCode: { type: String, trim: true, index: true },
+  // ── บัญชีธนาคารของผู้ใช้ (บังคับมี 1–2 บัญชี) ────────────
+  bankAccounts: {
+    type: [BankAccountSchema],
+    validate: {
+      validator(arr){ return Array.isArray(arr) && arr.length >= 1 && arr.length <= 2; },
+      message: 'ต้องมีบัญชีอย่างน้อย 1 และไม่เกิน 2 บัญชี'
+    }
+  },
 }, { timestamps: true });
 
 // ── Methods ───────────────────────────────────────────────
@@ -60,7 +65,6 @@ UserSchema.methods.validatePassword = function (password) {
   return bcrypt.compare(password, this.passwordHash);
 };
 
-// เติมเงิน/หักเงินอย่างปลอดภัย
 UserSchema.methods.addBalance = async function(amount){
   const val = Number(amount || 0);
   if (!Number.isFinite(val)) throw new Error('Invalid amount');
@@ -71,7 +75,8 @@ UserSchema.methods.addBalance = async function(amount){
   return this.balance;
 };
 
-// ── Indexes (ช่วย query/สรุปเร็วขึ้น) ────────────────────
+// ── Indexes ───────────────────────────────────────────────
+UserSchema.index({ 'bankAccounts.accountCode': 1 });
 UserSchema.index({ totalSpentRaw: 1 });
 UserSchema.index({ levelIndex: 1 });
 

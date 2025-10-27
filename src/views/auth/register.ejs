@@ -28,13 +28,6 @@
       <small class="f-hint">ใช้สำหรับยืนยันตัวตนและกู้รหัสผ่าน</small>
     </label>
 
-    <!-- อีเมล -->
-    <label class="f-field">
-      <span class="f-label">เลขบัญชี</span>
-      <input class="f-input" type="accountNumber" name="accountNumber" required placeholder="123456789" autocomplete="email">
-      <small class="f-hint">ใช้สำหรับการเติมเงิน</small>
-    </label>
-
     <!-- ชื่อจริง -->
     <label class="f-field">
       <span class="f-label">ชื่อ–นามสกุล (ชื่อจริงเท่านั้น มีผลทางกฎหมาย)</span>
@@ -52,6 +45,68 @@
         </button>
       </div>
     </label>
+
+    <!-- ===== บัญชีธนาคาร/วอลเล็ท (บังคับกรอกอย่างน้อย 1, สูงสุด 2) ===== -->
+    <div class="bank-accounts">
+      <div class="f-label" style="margin-top:6px">บัญชีรับเงิน (ธนาคารไทย/TrueMoney Wallet)</div>
+
+      <template id="tplBankRow">
+        <div class="bank-row" data-index="">
+          <div class="bank-grid">
+            <label class="f-field">
+              <span class="muted" style="color: #cea32b;">ต้องเพิ่มอย่างน้อย 1 บัญชี (ต้องใช้สำหรับการฝากเงิน)</span>
+              <select name="accountCode" class="f-input sel-bank" required>
+                <option value="">— เลือกธนาคาร/วอลเล็ท —</option>
+                <!-- รายชื่อจาก server (render) -->
+                <% const BANKS = [
+                  {code:'BBL',label:'ธนาคารกรุงเทพ'},
+                  {code:'KBANK',label:'ธนาคารกสิกรไทย'},
+                  {code:'KTB',label:'ธนาคารกรุงไทย'},
+                  {code:'BAY',label:'ธนาคารกรุงศรีอยุธยา'},
+                  {code:'SCB',label:'ธนาคารไทยพาณิชย์'},
+                  {code:'TMB',label:'ทหารไทยธนชาต (TTB)'},
+                  {code:'CIMB',label:'ธนาคารซีไอเอ็มบีไทย'},
+                  {code:'UOB',label:'ธนาคารยูโอบี'},
+                  {code:'GSB',label:'ธนาคารออมสิน'},
+                  {code:'BAAC',label:'ธ.เพื่อการเกษตรและสหกรณ์การเกษตร'},
+                  {code:'KKB',label:'ธนาคารเกียรตินาคินภัทร'},
+                  {code:'LHFG',label:'ธนาคารแลนด์ แอนด์ เฮ้าส์'},
+                  {code:'ICBC',label:'ธนาคารไอซีบีซี (ไทย)'},
+                  {code:'TISCO',label:'ธนาคารทิสโก้'},
+                  {code:'TRUEWALLET',label:'TrueMoney Wallet'}
+                ]; %>
+                <% BANKS.forEach(b=>{ %>
+                  <option value="<%= b.code %>"><%= b.label %></option>
+                <% }) %>
+              </select>
+              <small class="f-hint">เลือกธนาคาร หรือ TrueMoney Wallet</small>
+            </label>
+
+            <label class="f-field">
+              <span class="f-label">เลขบัญชี / เบอร์วอลเล็ท</span>
+              <input class="f-input in-number" name="accountNumber" placeholder="ตัวเลขเท่านั้น" inputmode="numeric" required>
+              <small class="f-hint hint-number">ธนาคาร: 9–12 หลัก • TrueWallet: มือถือ 10 หลัก</small>
+            </label>
+          </div>
+
+          <label class="f-field" style="margin-top:10px">
+            <span class="f-label">ชื่อบัญชี</span>
+            <input class="f-input" name="accountName" placeholder="ชื่อ–นามสกุลตามบัญชี" required>
+          </label>
+
+          <div class="flex" style="display:flex;gap:10px;justify-content:flex-end;margin-top:6px">
+            <button class="pill" type="button" data-action="remove" aria-label="ลบบัญชีนี้">ลบรายการ</button>
+          </div>
+
+          <hr style="border:0;border-top:1px solid var(--border);margin:12px 0">
+        </div>
+      </template>
+
+      <div id="bankList"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="pill" type="button" id="btnAddBank">+ เพิ่มบัญชีอีก 1 รายการ</button>
+      </div>
+    </div>
 
     <button class="btn primary block" type="submit" id="btnRegister">สมัคร</button>
     <div class="auth-foot">มีบัญชีอยู่แล้ว? <a href="/login">เข้าสู่ระบบ</a></div>
@@ -274,6 +329,28 @@ dialog::backdrop{ background:var(--backdrop); backdrop-filter: blur(8px) }
 .rt-actions{ display:flex; justify-content:flex-end; gap:8px }
 .link{ background:none; border:0; color:var(--accent); cursor:pointer }
 .muted{ color:var(--muted) }
+/* ===== Bank Accounts: make fields full-width ===== */
+.bank-accounts { width: 100%; }
+
+.bank-grid{
+  display: grid;
+  grid-template-columns: 1fr;  /* ทำให้ทุกช่องยาวเต็มเหมือนฟิลด์อื่น */
+  gap: 10px;
+}
+
+/* ถ้าอนาคตอยากให้หน้าจอกว้างมาก ๆ เป็น 2 คอลัมน์ ค่อยเปิดใช้อันนี้ได้
+@media (min-width: 1024px){
+  .bank-grid{ grid-template-columns: 1fr 1fr; }
+}
+*/
+
+.bank-accounts .f-field { width: 100%; }
+.bank-accounts .f-input,
+.bank-accounts select.f-input,
+.bank-accounts input.f-input{ width: 100%; }
+
+/* ปุ่มลบ/เพิ่ม — ให้ชิดขวาและไม่ดันความกว้างฟอร์ม */
+.bank-accounts .flex { width: 100%; }
 </style>
 
 <script>
@@ -287,75 +364,213 @@ dialog::backdrop{ background:var(--backdrop); backdrop-filter: blur(8px) }
 </script>
 
 <script type="module">
-/* ====== helpers ====== */
-const $ = (s, p=document)=>p.querySelector(s);
+/* ======================
+   Helpers & DOM refs
+   ====================== */
+const $  = (s, p=document)=>p.querySelector(s);
+const $$ = (s, p=document)=>[...p.querySelectorAll(s)];
 
-/* ===== Dialog helper (ใช้กับ .toast-desc เสมอ) ===== */
-const msgDlg    = document.getElementById('msgDialog');
-const msgBadge  = document.getElementById('msgBadge');
-const msgTitle  = document.getElementById('msgTitle');
-const msgText   = document.getElementById('msgText');   // <-- ข้อความจะมาอยู่ตรงนี้
-const msgClose  = document.getElementById('msgClose');
-const msgCancel = document.getElementById('msgCancel');
+const form       = $('#registerForm');
+const btnRegister= $('#btnRegister');
+const bankList   = $('#bankList');
+const btnAddBank = $('#btnAddBank');
+const tplBankRow = $('#tplBankRow');
+
+/* ============== Toast/Dialog (msgDialog) ============== */
+const msgDlg    = $('#msgDialog');
+const msgBadge  = $('#msgBadge');
+const msgTitle  = $('#msgTitle');
+const msgText   = $('#msgText');
+const msgClose  = $('#msgClose');
+const msgCancel = $('#msgCancel');
 
 function showMsg({
-  variant = 'info',                   // 'info' | 'success' | 'warn' | 'error'
-  icon,                               // ถ้าไม่ส่ง จะเลือกตาม variant
+  variant = 'info', // 'info'|'success'|'warn'|'error'
+  icon,
   title = 'ข้อความ',
-  text  = '',                         // จะถูกใส่ลง .toast-desc เสมอ
+  text  = '',
   okText = 'ตกลง',
   cancelText,
-  onOk,
-  onCancel
+  onOk, onCancel
 } = {}) {
   const iconMap = { info:'❔', success:'✅', warn:'⚠️', error:'✖' };
   msgDlg.setAttribute('data-variant', variant);
   msgBadge.textContent = icon || iconMap[variant] || '❔';
   msgTitle.textContent = title;
-  msgText.textContent  = text;        // << อยู่ใน toast-desc ตามที่ต้องการ
-
-  msgClose.textContent = okText || 'ตกลง';
+  msgText.textContent  = text;
+  msgClose.textContent = okText;
   if (cancelText) { msgCancel.hidden = false; msgCancel.textContent = cancelText; }
-  else { msgCancel.hidden = true; }
+  else            { msgCancel.hidden = true; }
 
-  msgClose.onclick  = () => { msgDlg.close(); onOk?.(); };
-  msgCancel.onclick = () => { msgDlg.close(); onCancel?.(); };
-
+  msgClose.onclick  = ()=>{ msgDlg.close(); onOk?.(); };
+  msgCancel.onclick = ()=>{ msgDlg.close(); onCancel?.(); };
   if (!msgDlg.open) msgDlg.showModal();
-  requestAnimationFrame(() => msgClose.focus());
+}
+msgDlg?.addEventListener('cancel', e=>{ e.preventDefault(); msgDlg.close(); });
+
+/* ============== Flash จาก server (ถ้ามี) ============== */
+const __flash = (typeof window.__flash !== 'undefined' ? window.__flash : null);
+if (__flash) {
+  showMsg(__flash);
+  window.__flash = null;
 }
 
-msgDlg.addEventListener('cancel', (e) => { e.preventDefault(); msgDlg.close(); });
-
-// ===== ช่วยให้ debug ง่าย: พิมพ์ window.debugShow() ดูได้เลย =====
-window.showMsg = showMsg;
-window.debugShow = () => showMsg({ variant:'error', title:'ทดสอบ Dialog', text:'ถ้าเห็นอันนี้ แปลว่า dialog ใช้งานได้' });
-
-/* ====== password toggle (สวิตช์โมเดิร์น) ====== */
+/* ============== Toggle password ============== */
 const pwd = $('#pwd');
 const togglePwd = $('#togglePwd');
-togglePwd?.addEventListener('click', () => {
+togglePwd?.addEventListener('click', ()=>{
   const show = pwd.type === 'password';
   pwd.type = show ? 'text' : 'password';
   togglePwd.setAttribute('aria-pressed', String(show));
-  // สลับข้อความ
   togglePwd.querySelector('.txt').innerHTML = show ? '<b>แสดง</b>รหัส' : '<b>ซ่อน</b>รหัส';
 });
 
-/* ====== OTP dialog ====== */
-const otpDlg  = $('#otpDialog');
-const otpCode = $('#otpCode');
-const btnVerify = $('#btnVerifyOtp');
-const btnCancel = $('#btnCancelOtp');
-const btnResend = $('#btnResend');
-const otpTimer  = $('#otpTimer');
-const otpHelp   = $('#otpHelp');
+/* =======================================================
+   บัญชีรับเงิน (บังคับ >=1 และ <=2) + Validation ฝั่ง client
+   ======================================================= */
+function validateAccount(a){
+  const code   = (a.accountCode||'').toUpperCase().trim();
+  const digits = (a.accountNumber||'').replace(/[^\d]/g,'');
+  if (!code)            return { ok:false, msg:'เลือกธนาคาร/วอลเล็ท' };
+  if (!a.accountName)   return { ok:false, msg:'กรอกชื่อบัญชี' };
+  if (code === 'TRUEWALLET') {
+    if (!/^0\d{9}$/.test(digits)) return { ok:false, msg:'TrueWallet ต้องเป็นเบอร์ 10 หลักขึ้นต้น 0' };
+  } else {
+    if (!/^\d{9,12}$/.test(digits)) return { ok:false, msg:'เลขบัญชีต้องเป็นตัวเลข 9–12 หลัก' };
+  }
+  return { ok:true };
+}
 
-let pendingEmail = '';
+function getAccountsFromDom(){
+  return $$('.bank-row', bankList).map(r=>({
+    accountCode: r.querySelector('.sel-bank')?.value || '',
+    accountNumber: r.querySelector('.in-number')?.value || '',
+    accountName: r.querySelector('[name="accountName"]')?.value || ''
+  })).filter(a => a.accountCode || a.accountNumber || a.accountName); // ตัดแถวว่าง
+}
+
+function attachRowBehaviors(row){
+  row.querySelector('.in-number')?.addEventListener('input', e=>{
+    e.target.value = e.target.value.replace(/[^\d]/g,'').slice(0,12);
+    updateSubmitState();
+  });
+  row.querySelector('.sel-bank')?.addEventListener('change', updateSubmitState);
+  row.querySelector('[name="accountName"]')?.addEventListener('input', updateSubmitState);
+  row.querySelector('[data-action="remove"]')?.addEventListener('click', ()=>{
+    row.remove(); updateSubmitState();
+  });
+}
+
+function addRow(prefill={}){
+  const frag = tplBankRow.content.cloneNode(true);
+  const row  = frag.querySelector('.bank-row');
+  if (!row) return;
+
+  if (prefill.accountCode)   row.querySelector('.sel-bank').value = prefill.accountCode;
+  if (prefill.accountNumber) row.querySelector('.in-number').value = prefill.accountNumber;
+  if (prefill.accountName)   row.querySelector('[name="accountName"]').value = prefill.accountName;
+
+  attachRowBehaviors(row);
+  bankList.appendChild(frag);
+  updateSubmitState();
+}
+
+function updateSubmitState(){
+  const rows = $$('.bank-row', bankList);
+  btnAddBank.disabled = rows.length >= 2; // สูงสุด 2 แถว
+
+  const accs = getAccountsFromDom();
+  let ok = accs.length >= 1 && accs.length <= 2;
+  if (ok) ok = accs.every(a => validateAccount(a).ok);
+
+  btnRegister.disabled = !ok;
+}
+
+btnAddBank?.addEventListener('click', ()=> addRow());
+if (bankList.childElementCount === 0) addRow(); // เริ่มด้วย 1 แถว
+
+/* =======================================================
+   สมัครสมาชิก: ส่งฟอร์ม -> /register
+   (รองรับสองกรณี: needOtp=true | verify-link)
+   ======================================================= */
 let nextUrl = '/';
+
+form.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  updateSubmitState();
+  if (btnRegister.disabled) {
+    showMsg({ variant:'warn', title:'กรอกข้อมูลไม่ครบ', text:'โปรดเพิ่มบัญชีอย่างน้อย 1 รายการ และกรอกให้ถูกต้อง' });
+    return;
+  }
+
+  btnRegister.disabled = true;
+
+  // เก็บค่าฟอร์มพื้นฐาน
+  const fd = new FormData(form);
+  nextUrl = fd.get('next') || '/';
+
+  // เก็บ accounts จาก DOM แล้ว append เป็น array fields
+  const accs = getAccountsFromDom();
+  // สร้าง payload เป็น URLSearchParams เองเพื่อควบคุม array
+  const payload = new URLSearchParams();
+  ['username','email','name','password','next'].forEach(k=>{
+    const v = fd.get(k);
+    if (v!=null) payload.append(k, v);
+  });
+  accs.forEach(a=>{
+    payload.append('accountCode',   (a.accountCode||'').trim());
+    payload.append('accountNumber', (a.accountNumber||'').replace(/[^\d]/g,''));
+    payload.append('accountName',   (a.accountName||'').trim());
+  });
+
+  try {
+    const res = await fetch('/register', {
+      method: 'POST',
+      headers: { 'Accept':'application/json', 'Content-Type':'application/x-www-form-urlencoded' },
+      body: payload
+    });
+    let data = {};
+    try { data = await res.json(); } catch {}
+
+    if (!res.ok || !data?.ok) {
+      showMsg({ variant:'error', title:'สมัครสมาชิกไม่สำเร็จ', text: data?.message || 'กรุณาตรวจสอบข้อมูล' });
+      return;
+    }
+
+    // ถ้าเซิร์ฟเวอร์ตอบแบบ OTP
+    if (data.needOtp) {
+      openOtp(data.email, data.ttl || 300, 60);
+      return;
+    }
+
+    // ถ้าเป็น verify-link (อีเมลยืนยัน)
+    showMsg({
+      variant:'success',
+      title:'ส่งอีเมลยืนยันแล้ว',
+      text:'โปรดตรวจกล่องจดหมายของคุณ แล้วคลิกลิงก์เพื่อเปิดใช้งานบัญชี'
+    });
+  } catch (err) {
+    console.error(err);
+    showMsg({ variant:'error', title:'เครือข่ายมีปัญหา', text:'โปรดลองใหม่อีกครั้ง' });
+  } finally {
+    btnRegister.disabled = false;
+  }
+});
+
+/* =======================================================
+   OTP Flow (optional – ใช้ก็ต่อเมื่อ server ตอบ needOtp:true)
+   ======================================================= */
+const otpDlg   = $('#otpDialog');
+const otpCode  = $('#otpCode');
+const btnOtpOK = $('#btnVerifyOtp');
+const btnOtpCancel = $('#btnCancelOtp');
+const btnResend= $('#btnResend');
+const otpTimer = $('#otpTimer');
+const otpHelp  = $('#otpHelp');
+let pendingEmail = '';
 let timerId = null;
 
-function openOtp(email, ttl=300, cooldown=60) {
+function openOtp(email, ttl=300, cooldown=60){
   pendingEmail = email;
   otpHelp.textContent = `เราได้ส่งรหัส 6 หลักไปที่ ${email}`;
   otpCode.value = '';
@@ -365,8 +580,8 @@ function openOtp(email, ttl=300, cooldown=60) {
   otpCode.focus();
 }
 function closeOtp(){
+  clearInterval(timerId); timerId=null;
   if (otpDlg.open) otpDlg.close();
-  clearInterval(timerId); timerId = null;
 }
 function startTimer(sec){
   clearInterval(timerId);
@@ -374,64 +589,17 @@ function startTimer(sec){
   otpTimer.textContent = `ส่งใหม่ได้ใน ${left}s`;
   timerId = setInterval(()=>{
     left--;
-    if (left <= 0) {
-      clearInterval(timerId); timerId = null;
-      otpTimer.textContent = 'ส่งใหม่ได้ตอนนี้';
-      btnResend.disabled = false;
-    } else {
-      otpTimer.textContent = `ส่งใหม่ได้ใน ${left}s`;
-    }
-  }, 1000);
+    if (left<=0){ clearInterval(timerId); timerId=null; otpTimer.textContent='ส่งใหม่ได้ตอนนี้'; btnResend.disabled=false; }
+    else { otpTimer.textContent = `ส่งใหม่ได้ใน ${left}s`; }
+  },1000);
 }
 
-/* ====== Form submit ====== */
-const form   = $('#registerForm');
-const submit = $('#btnRegister');
-
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  submit.disabled = true;
-
-  const fd = new FormData(form);
-  nextUrl = fd.get('next') || '/';
-
-  try {
-    const res = await fetch('/register', {
-      method: 'POST',
-      headers: { 'Accept': 'application/json' },
-      body: new URLSearchParams(fd),
-    });
-
-    // server ควรตอบ { ok:true, needOtp:true, email, ttl }
-    let data = {};
-      try { data = await res.json(); } catch (_) {}
-      if (!res.ok || !data?.ok || !data?.needOtp) {
-        showMsg({
-          variant:'error',
-          title:'สมัครสมาชิกไม่สำเร็จ',
-          text: data?.message || 'กรุณาตรวจสอบข้อมูล'
-        });
-        submit.disabled = false;
-        return;
-      }
-
-    openOtp(data.email, data.ttl || 300, 60);
-  } catch (err) {
-    console.error(err);
-    showMsg({ variant:'error', icon:'⚠️', title:'เครือข่ายมีปัญหา', text:'โปรดลองใหม่อีกครั้ง' });
-  } finally {
-    submit.disabled = false;
-  }
-});
-
-/* ====== OTP actions ====== */
-btnVerify.addEventListener('click', async () => {
-  const code = (otpCode.value || '').trim();
+btnOtpOK?.addEventListener('click', async ()=>{
+  const code = (otpCode.value||'').trim();
   if (!/^\d{6}$/.test(code)) {
-    showMsg({ variant:'warn', icon:'⚠️', title:'รหัสไม่ครบ', text:'กรอกรหัส OTP 6 หลักให้ถูกต้อง' });
+    showMsg({ variant:'warn', title:'รหัสไม่ครบ', text:'กรอกรหัส OTP 6 หลักให้ถูกต้อง' });
     return;
   }
-
   try {
     const verifyRes = await fetch('/otp/verify', {
       method: 'POST',
@@ -440,10 +608,9 @@ btnVerify.addEventListener('click', async () => {
     });
     const vr = await verifyRes.json().catch(()=> ({}));
     if (!verifyRes.ok || !vr?.ok) {
-      showMsg({ variant:'error', icon:'✖', title:'ยืนยันไม่สำเร็จ', text: vr?.error || 'รหัสไม่ถูกต้อง' });
+      showMsg({ variant:'error', title:'ยืนยันไม่สำเร็จ', text: vr?.error || 'รหัสไม่ถูกต้อง' });
       return;
     }
-
     const finRes = await fetch('/register/finalize', {
       method: 'POST',
       headers: { 'Content-Type':'application/x-www-form-urlencoded', 'Accept':'application/json' },
@@ -451,20 +618,19 @@ btnVerify.addEventListener('click', async () => {
     });
     const fr = await finRes.json().catch(()=> ({}));
     if (!finRes.ok || !fr?.ok) {
-      showMsg({ variant:'error', icon:'✖', title:'สร้างบัญชีไม่ได้', text: fr?.message || 'โปรดลองใหม่' });
+      showMsg({ variant:'error', title:'สร้างบัญชีไม่ได้', text: fr?.message || 'โปรดลองใหม่' });
       return;
     }
-
     closeOtp();
-    showMsg({ variant:'success', icon:'✅', title:'สมัครสำเร็จ!', text:'กำลังพาไปยังหน้าหลัก...' });
+    showMsg({ variant:'success', title:'สมัครสำเร็จ!', text:'กำลังพาไปยังหน้าหลัก...' });
     setTimeout(()=> location.assign(fr.redirect || nextUrl || '/'), 500);
-  } catch (e) {
+  } catch(e){
     console.error(e);
-    showMsg({ variant:'error', icon:'⚠️', title:'เกิดข้อผิดพลาด', text:'โปรดลองใหม่อีกครั้ง' });
+    showMsg({ variant:'error', title:'เกิดข้อผิดพลาด', text:'โปรดลองใหม่อีกครั้ง' });
   }
 });
 
-btnResend.addEventListener('click', async () => {
+btnResend?.addEventListener('click', async ()=>{
   btnResend.disabled = true;
   try {
     const rs = await fetch('/otp/send', {
@@ -472,22 +638,22 @@ btnResend.addEventListener('click', async () => {
       headers: { 'Content-Type':'application/x-www-form-urlencoded', 'Accept':'application/json' },
       body: new URLSearchParams({ email: pendingEmail })
     });
-    const data = await rs.json().catch(() => ({}));
+    const data = await rs.json().catch(()=> ({}));
     if (!rs.ok || !data?.ok) {
-      showMsg({ variant:'error', icon:'✖', title:'ส่งรหัสไม่สำเร็จ', text: data?.error || 'โปรดลองใหม่' });
+      showMsg({ variant:'error', title:'ส่งรหัสไม่สำเร็จ', text: data?.error || 'โปรดลองใหม่' });
       btnResend.disabled = false;
       return;
     }
     startTimer(60);
-    showMsg({ variant:'success', icon:'🔐', title:'ส่งรหัสใหม่แล้ว', text:'โปรดตรวจที่อีเมลของคุณ' });
-  } catch (e) {
+    showMsg({ variant:'success', title:'ส่งรหัสใหม่แล้ว', text:'โปรดตรวจที่อีเมลของคุณ' });
+  } catch(e){
     console.error(e);
-    showMsg({ variant:'error', icon:'⚠️', title:'ส่งรหัสไม่สำเร็จ', text:'โปรดลองใหม่' });
+    showMsg({ variant:'error', title:'ส่งรหัสไม่สำเร็จ', text:'โปรดลองใหม่' });
     btnResend.disabled = false;
   }
 });
 
-btnCancel.addEventListener('click', closeOtp);
-otpCode.addEventListener('input', () => { otpCode.value = otpCode.value.replace(/[^\d]/g, '').slice(0,6); });
-otpCode.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnVerify.click(); });
+btnOtpCancel?.addEventListener('click', closeOtp);
+otpCode?.addEventListener('input', ()=> { otpCode.value = otpCode.value.replace(/[^\d]/g,'').slice(0,6); });
+otpCode?.addEventListener('keydown', (e)=>{ if (e.key === 'Enter') btnOtpOK?.click(); });
 </script>
