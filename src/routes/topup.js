@@ -7,23 +7,51 @@ import { jwtVerify } from "jose";
 
 import { User } from "../models/User.js";
 import { Topup } from "../models/Topup.js";
-import Transaction from "../models/Transaction.js"; // ✅ ULID-based transaction model
+import { Transaction } from "../models/Transaction.js"; // ✅ ULID-based transaction model
 
-import { config } from '../config.js';
+import { config } from "../config.js";
 
 export const topupRouter = express.Router();
 
 /* ───────────────────────────────
    GET /topup
 ──────────────────────────────── */
-topupRouter.get("/", async (req, res) => {
-  const userId = req?.session?.userId;
-  const user = await User.findById(userId);
-  const webWallet = await Topup.findOne({
-    accountCode: user.bankAccounts[0].accountCode,
-  });
 
-  res.render("topup/index", { title: "เติมเงิน", user, webWallet });
+topupRouter.get("/", async (req, res) => {
+  try {
+    const userId = req?.session?.userId;
+    if (!userId) return res.redirect("/login");
+
+    // 🟢 Find user
+    const user = await User.findById(userId).lean();
+    if (!user) return res.redirect("/login");
+
+    // 🟣 Gather all user account codes
+    const codes = (user.bankAccounts || []).map((acc) => acc.accountCode);
+
+    // 🟩 Fetch all matching web wallets
+    const webWallets =
+      codes.length > 0
+        ? await Topup.find({ accountCode: { $in: codes } }).lean()
+        : [];
+
+    // 🧾 Fetch transaction history (latest first)
+    const transactions = await Transaction.find({ userId })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .lean();
+
+    // ✅ Render page
+    res.render("topup/index", {
+      title: "เติมเงิน",
+      user,
+      webWallets,
+      transactions, // 🟢 send to frontend
+    });
+  } catch (err) {
+    console.error("Topup page error:", err);
+    res.status(500).send("เกิดข้อผิดพลาดในระบบ");
+  }
 });
 
 /* ───────────────────────────────
@@ -42,7 +70,7 @@ topupRouter.post("/truewallet/gen/link", async (req, res) => {
       "https://apis.truemoneyservices.com/utils/v1/transfer-link-generator",
       {
         mobile_number: webWallet.accountNumber,
-        amount: amount.toString(),
+        amount: (amount * 1.03).toString(),
         message: "",
       },
       {
@@ -53,7 +81,11 @@ topupRouter.post("/truewallet/gen/link", async (req, res) => {
       }
     );
 
-    return res.json({ url: response.data.data.url });
+    return res.json({
+      accountNumber: webWallet.accountNumber,
+      accountName: webWallet.accountName,
+      url: response.data.data.url,
+    });
   } catch (err) {
     console.error("❌ /truewallet/gen/link error:", err);
     res.status(500).json({ success: false, message: "something_wrong" });
@@ -122,7 +154,7 @@ topupRouter.post("/truewallet", async (req, res) => {
     console.log(user._id);
     await Transaction.create({
       userId: user._id,
-      method: "truewallet",
+      method: "tw",
       amount: added,
       currency: "THB",
       status: "completed",
@@ -134,7 +166,7 @@ topupRouter.post("/truewallet", async (req, res) => {
 
     return res.json({
       success: true,
-      method: "truewallet",
+      method: "tw",
       username: user.username,
       amount: added,
       balance: newBalance,
@@ -258,12 +290,12 @@ topupRouter.post("/truewallet/check", async (req, res) => {
         .status(400)
         .json({ success: false, message: "missing_parameters" });
 
-    console.log(userId, amount);
+    console.log(amount * 1.03);
 
     const tx = await Transaction.findOne({
       userId,
-      method: "truewallet",
-      amount,
+      method: "tw",
+      amount: amount * 1.03,
       status: "completed",
       createdAt: { $gte: new Date(Date.now() - 10 * 60 * 1000) },
     }).sort({ createdAt: -1 });

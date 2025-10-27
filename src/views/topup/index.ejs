@@ -1,157 +1,324 @@
-<section class="card">
-  <h3 class="title">เติมเครดิต (Top-up)</h3>
+<!-- 🟣 Tab-style header buttons -->
+<div class="card soft topup-tab-header">
+  <button class="block tab-switch-btn btn mt-lg primary" data-tab="tab-topup">
+    การเติมเครดิต
+  </button>
+  <button class="block tab-switch-btn btn mt-lg" data-tab="tab-history">
+    ประวัติการเติมเงิน
+  </button>
+</div>
+
+<!-- 🧩 Tab content wrapper -->
+<div id="tab-topup" class="tab-section active">
   <p class="muted">เลือกวิธีเติมเงิน และกรอกจำนวนที่ต้องการเติม</p>
-</section>
 
-<section class="card soft">
-  <h3 class="title">ช่องทางเติมเงินของคุณ</h3>
+  <section class="card soft">
+    <h3 class="title">ช่องทางเติมเงินของคุณ</h3>
 
-  <!-- โอนจากบัญชี -->
-  <section class="card">
-    <h3 class="title">โอนจากบัญชี</h3>
+    <% const BANK_LABELS = { bbl: 'ธนาคารกรุงเทพ', kbank: 'ธนาคารกสิกรไทย', ktb:
+    'ธนาคารกรุงไทย', bay: 'ธนาคารกรุงศรีอยุธยา', scb: 'ธนาคารไทยพาณิชย์', tmb:
+    'ทหารไทยธนชาต (TTB)', cimb: 'ธนาคารซีไอเอ็มบีไทย', uob: 'ธนาคารยูโอบี', gsb:
+    'ธนาคารออมสิน', baac: 'ธ.เพื่อการเกษตรและสหกรณ์การเกษตร', kkb:
+    'ธนาคารเกียรตินาคินภัทร', lhfg: 'ธนาคารแลนด์ แอนด์ เฮ้าส์', icbc:
+    'ธนาคารไอซีบีซี (ไทย)', tisco: 'ธนาคารทิสโก้', tw: 'TrueMoney Wallet', }; %>
+    <% const hasMultipleWallets = webWallets && webWallets.length > 1; %>
 
-    <% if (user && user.bankAccounts && user.bankAccounts.length > 0) { %> <%
-    const acc = user.bankAccounts[0]; %>
-    <div class="grid method-grid">
-      <div class="method-tile">
+    <!-- 🟣 Tab buttons for multiple wallets -->
+    <% if (hasMultipleWallets) { %>
+    <div class="tab-bar">
+      <% webWallets.forEach((w, i) => { %>
+      <button
+        class="tab-btn <%= i === 0 ? 'active' : '' %>"
+        data-tab="wallet-<%= i %>"
+      >
         <img
-          src="/static/assets/payment/<%= acc.accountCode %>.webp"
-          alt="<%= acc.accountCode %>"
+          src="/static/assets/payment/<%= w.accountCode %>.webp"
+          alt="<%= w.accountCode %>"
         />
-        <div><%= acc.accountName || user.name %></div>
-        <small><%= acc.accountNumber %></small>
-      </div>
+        <span> <%= BANK_LABELS[w.accountCode] %> </span>
+      </button>
+      <% }) %>
     </div>
-    <% } else { %>
+    <% } %>
+
+    <!-- 🏦 Tabs content -->
+    <% if (webWallets && webWallets.length > 0) { %> <%
+    webWallets.forEach((webWallet, i) => { %>
+    <div
+      class="tab-content <%= i === 0 ? 'active' : '' %>"
+      id="wallet-<%= i %>"
+    >
+      <!-- 🟢 Non-TrueWallet -->
+      <% if (webWallet.accountCode !== 'tw') { %>
+      <section class="card soft">
+        <h3 class="title">มายังบัญชี</h3>
+        <div class="grid method-grid">
+          <div class="method-tile">
+            <img
+              src="/static/assets/payment/<%= webWallet.accountCode %>.webp"
+              alt="<%= webWallet.accountCode %>"
+            />
+            <div><%= webWallet.accountName %></div>
+            <small><%= webWallet.accountNumber %></small>
+          </div>
+        </div>
+        <div class="muted mt">กรุณาโอนจากบัญชีของคุณมายังบัญชีนี้เท่านั้น</div>
+      </section>
+
+      <section class="card soft mt">
+        <h4 class="title">📋 ขั้นตอนการโอนเงิน</h4>
+        <ol class="steps">
+          <li>เข้าสู่แอปธนาคารของคุณ (เช่น SCB EASY, KBank, Krungthai NEXT)</li>
+          <li>เลือกเมนู <b>“โอนเงิน”</b></li>
+          <li>เลือกบัญชีต้นทางของคุณ (ที่ลงทะเบียนไว้กับระบบ)</li>
+          <li>ใส่หมายเลขบัญชีปลายทาง: <b><%= webWallet.accountNumber %></b></li>
+          <li>
+            ตรวจสอบชื่อบัญชีปลายทางให้ตรงกับ:
+            <b><%= webWallet.accountName %></b>
+          </li>
+          <li>กรอกจำนวนเงินที่ต้องการเติม แล้วกดยืนยันการโอน</li>
+          <li>
+            กลับมาที่หน้านี้และกด
+            <b>“ยืนยันการโอนแล้ว”</b> เพื่อแจ้งระบบตรวจสอบอัตโนมัติ
+          </li>
+        </ol>
+        <p class="muted">
+          ⚠️ โปรดโอนจากบัญชีที่ชื่อ-นามสกุลตรงกับที่ลงทะเบียนเท่านั้น
+        </p>
+      </section>
+
+      <% } else { %>
+      <!-- 💜 TrueWallet -->
+      <form
+        id="topupForm-<%= i %>"
+        class="form topupForm"
+        data-wallet-code="<%= webWallet.accountCode %>"
+        onsubmit="return submitTopup(event)"
+      >
+        <label>
+          จำนวนเงินที่ต้องการเติม (บาท)
+          <div class="input-group">
+            <span class="input-prefix">฿</span>
+            <input
+              id="amount"
+              name="amount"
+              type="number"
+              min="1"
+              step="any"
+              required
+              placeholder="เช่น 100"
+            />
+          </div>
+        </label>
+
+        <div class="card soft mt">
+          <b>ยอดชำระ:</b> <span id="summaryAmount">—</span> บาท
+        </div>
+
+        <button class="block btn primary mt-lg">ยืนยันการเติมเงิน</button>
+      </form>
+
+      <section class="card soft mt">
+        <h4 class="title">📲 วิธีการเติมเงินผ่าน TrueMoney Wallet</h4>
+        <ol class="steps">
+          <li>เปิดแอป <b>TrueMoney Wallet</b> บนโทรศัพท์ของคุณ</li>
+          <li>
+            เลือกเมนู <b>“โอนเงิน”</b> → <b>“พร้อมเพย์ / เบอร์โทรศัพท์”</b>
+          </li>
+          <li>ใส่หมายเลขหรือบัญชีที่แสดงในหน้าถัดไปหลังจากกดยืนยัน</li>
+          <li>กรอกจำนวนเงินที่ต้องการเติม (รวมค่าธรรมเนียม 3%)</li>
+          <li>ตรวจสอบข้อมูลให้ถูกต้องแล้วกดยืนยันการโอน</li>
+          <li>กลับมาที่หน้านี้และกดปุ่ม <b>“ยืนยันการโอนแล้ว”</b></li>
+        </ol>
+        <p class="muted">
+          💡 ระบบจะตรวจสอบยอดและปรับเครดิตอัตโนมัติภายในไม่กี่นาที
+        </p>
+      </section>
+      <% } %>
+    </div>
+    <% }) %> <% } else { %>
     <p class="muted">ยังไม่มีช่องทางเติมเงินที่พร้อมใช้งาน</p>
     <% } %>
-  </section>
 
-  <!-- ถ้าไม่ใช่ TrueWallet -->
-  <% if (webWallet && webWallet.accountCode !== 'tw') { %>
-  <section class="card">
-    <h3 class="title">มายังบัญชี</h3>
-    <div class="grid method-grid">
-      <div class="method-tile">
-        <img
-          src="/static/assets/payment/<%= webWallet.accountCode %>.webp"
-          alt="<%= webWallet.accountCode %>"
-        />
-        <div><%= webWallet.accountName %></div>
-        <small><%= webWallet.accountNumber %></small>
-      </div>
-    </div>
-  </section>
-
-  <% } else { %>
-  <!-- ถ้าเป็น TrueWallet -->
-  <form id="topupForm" class="form" onsubmit="return submitTopup(event)">
-    <label>
-      จำนวนเงินที่ต้องการเติม (บาท)
-      <div class="input-group">
-        <span class="input-prefix">฿</span>
-        <input
-          id="amount"
-          name="amount"
-          type="number"
-          min="1"
-          step="any"
-          required
-          placeholder="เช่น 100"
-        />
-      </div>
-    </label>
-
-    <div class="card soft mt">
-      <b>ยอดชำระ:</b> <span id="summaryAmount">—</span> บาท
-    </div>
-
-    <button class="block btn primary mt-lg">ยืนยันการเติมเงิน</button>
-  </form>
-  <% } %>
-
-  <!-- Modal: แสดง QR -->
-  <div id="qrModal" class="hidden modal">
-    <div class="overlay" data-close="1"></div>
-    <div
-      class="dialog"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="qrTitle"
-    >
-      <div class="hdr">
-        <div class="title" id="qrTitle">สแกนเพื่อเติมเงิน</div>
-        <button class="icon close" id="qrClose" aria-label="ปิด">×</button>
-      </div>
-
-      <hr class="sep" />
-      <div class="text-center body">
-        <img
-          id="qrImage"
-          src=""
-          alt="QR Code"
-          class="mb-3 rounded img-fluid"
-          style="max-width: 320px"
-        />
-        <div class="mb-2">
-          <b>ช่องทาง:</b> <span id="qrMethod"></span><br />
-          <b>ชื่อบัญชี:</b> <span id="qrName"></span><br />
-          <b>เลขบัญชี:</b> <span id="qrNumber"></span><br />
-          <b>ยอดเติม:</b> <span id="qrAmount" class="text-success"></span> บาท
-        </div>
-      </div>
-
-      <hr class="sep" />
+    <!-- 🟡 Modal -->
+    <div id="qrModal" class="hidden modal">
+      <div class="overlay" data-close="1"></div>
       <div
-        class="footer d-flex justify-content-center"
-        style="margin-top: 12px"
+        class="dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="qrTitle"
       >
-        <button class="btn primary" id="confirmTopup">ยืนยันการโอนแล้ว</button>
+        <div class="hdr">
+          <div class="title" id="qrTitle">สแกนเพื่อเติมเงิน</div>
+          <button class="icon close" id="qrClose" aria-label="ปิด">×</button>
+        </div>
+        <hr class="sep" />
+        <div class="text-center body">
+          <img
+            id="qrImage"
+            src=""
+            alt="QR Code"
+            class="mb-3 rounded img-fluid"
+            style="max-width: 320px"
+          />
+          <div class="mb-2">
+            <b>ช่องทาง:</b> <span id="qrMethod"></span><br />
+            <b>ชื่อบัญชี:</b> <span id="qrName"></span><br />
+            <b>เลขบัญชี:</b> <span id="qrNumber"></span><br />
+            <b>ยอดเติม:</b> <span id="qrAmount" class="text-success"></span> บาท
+          </div>
+        </div>
+        <hr class="sep" />
+        <div
+          class="footer d-flex justify-content-center"
+          style="margin-top: 12px"
+        >
+          <button class="btn primary" id="confirmTopup">
+            ยืนยันการโอนแล้ว
+          </button>
+        </div>
+        <div id="qrStatus" class="mt"></div>
       </div>
-      <!-- Status message area inside modal -->
-      <div id="qrStatus" class="mt"></div>
     </div>
-  </div>
 
-  <div id="resp" class="mt"></div>
-</section>
+    <div id="resp" class="mt"></div>
+  </section>
+</div>
+<div id="tab-history" class="tab-section">
+  <p class="muted">รายการประวัติการเติมเงินของคุณจะปรากฏที่นี่</p>
+
+  <div class="history-wrapper card soft">
+    <h3 class="title">ประวัติการเติมเงินล่าสุด</h3>
+
+    <% if (transactions && transactions.length > 0) { %>
+    <table class="history-table">
+      <thead>
+        <tr>
+          <th>วันที่</th>
+          <th>ช่องทาง</th>
+          <th>จำนวนเงิน</th>
+          <th>สถานะ</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% transactions.forEach(tx => { const methodName = tx.method === "tw" ?
+        "TrueWallet" : tx.method === "scb" ? "SCB ไทยพาณิชย์" : "ไม่ระบุ"; const
+        statusLabel = tx.status === "completed" ? "สำเร็จ" : tx.status ===
+        "pending" ? "รอดำเนินการ" : tx.status === "failed" ? "ล้มเหลว" :
+        "ยกเลิก"; %>
+        <tr>
+          <td class="muted">
+            <%= new Date(tx.createdAt).toLocaleString('th-TH', { year:
+            'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute:
+            '2-digit' }) %>
+          </td>
+
+          <td class="method">
+            <img
+              src="/static/assets/payment/<%= tx.method === 'truewallet' ? 'tw' : tx.method %>.webp"
+              alt="<%= methodName %>"
+            />
+            <%= methodName %>
+          </td>
+
+          <td class="amount">
+            ฿<%= tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2
+            }) %>
+          </td>
+
+          <td class="status <%= tx.status.toLowerCase() %>">
+            <%= statusLabel %>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <% } else { %>
+    <div class="empty-history">
+      <img src="/static/assets/empty.svg" alt="No history" />
+      <p class="muted">ยังไม่มีรายการเติมเงิน</p>
+    </div>
+    <% } %>
+  </div>
+</div>
 
 <script>
   const $ = (s, r = document) => r.querySelector(s);
   const fmt = (n) =>
-    Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2 });
+    Number(n || 0).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+    });
 
-  let selectedWallet = null;
+  /* 🟡 Header tab switching (เติมเครดิต / ประวัติการเติมเงิน) */
+  document.querySelectorAll(".tab-switch-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document
+        .querySelectorAll(".tab-switch-btn")
+        .forEach((b) => b.classList.remove("primary"));
+      document
+        .querySelectorAll(".tab-section")
+        .forEach((c) => c.classList.remove("active"));
+      btn.classList.add("primary");
+      const tabId = btn.dataset.tab;
+      document.getElementById(tabId)?.classList.add("active");
+    });
+  });
 
-  /* modal control */
+  /* 🟣 Wallet tab switching */
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document
+        .querySelectorAll(".tab-btn")
+        .forEach((b) => b.classList.remove("active"));
+      document
+        .querySelectorAll(".tab-content")
+        .forEach((c) => c.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById(btn.dataset.tab).classList.add("active");
+    });
+  });
+
+  /* 💰 Handle amount input (+3%) */
+  document.querySelectorAll(".topupForm").forEach((form) => {
+    const amt = form.querySelector("#amount");
+    const sum = form.querySelector("#summaryAmount");
+
+    if (amt && sum) {
+      amt.addEventListener("input", () => {
+        const base = Number(amt.value || 0);
+        if (base > 0) {
+          const total = base * 1.03; // +3%
+          sum.textContent = fmt(total);
+        } else {
+          sum.textContent = "—";
+        }
+      });
+    }
+  });
+
+  /* 🟢 Modal controls */
   function openQrModal() {
     $("#qrModal").classList.remove("hidden");
   }
+
   function closeQrModal() {
     $("#qrModal").classList.add("hidden");
-    $("#qrStatus").innerHTML = ""; // clear message
+    $("#qrStatus").innerHTML = "";
   }
   $("#qrClose").onclick = closeQrModal;
   $("#qrModal").addEventListener("click", (e) => {
     if (e.target.dataset.close === "1") closeQrModal();
   });
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeQrModal();
-  });
 
-  /* handle amount input */
-  const amt = $("#amount");
-  if (amt) {
-    amt.addEventListener("input", () => {
-      const val = Number(amt.value || 0);
-      $("#summaryAmount").textContent = val > 0 ? fmt(val) : "—";
-    });
-  }
-
-  /* submit topup */
+  /* 💸 Submit TrueWallet topup */
   async function submitTopup(ev) {
     ev.preventDefault();
-    const amount = Number($("#amount").value || 0);
+    const form = ev.target;
+    const amountInput = form.querySelector("#amount");
+    const amount = Number(amountInput.value || 0);
+    const walletCode = form.dataset.walletCode;
+
     if (!(amount > 0)) {
       $(
         "#resp"
@@ -159,14 +326,16 @@
       return false;
     }
 
-    const walletCode = "<%= webWallet?.accountCode %>";
-
     if (walletCode === "tw") {
       try {
         const res = await fetch("/topup/truewallet/gen/link", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount }),
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            amount,
+          }),
         });
         const data = await res.json();
         if (!data.url) {
@@ -176,28 +345,15 @@
           return false;
         }
 
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(
+        $(
+          "#qrImage"
+        ).src = `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(
           data.url
         )}`;
-        const w = {
-          accountName: "<%= webWallet?.accountName || 'RTSSM Web' %>",
-          accountNumber: "<%= webWallet?.accountNumber || '0000000000' %>",
-          bankName: "TrueMoney Wallet",
-        };
-
-        $("#qrImage").src = qrUrl;
-        $("#qrMethod").textContent = w.bankName;
-        $("#qrName").textContent = w.accountName;
-        $("#qrNumber").textContent = w.accountNumber;
-        $("#qrAmount").textContent = fmt(amount);
-        $("#qrStatus").innerHTML = ""; // clear old status
-
-        selectedWallet = {
-          amount,
-          method: "truewallet",
-          qrData: data.url,
-          ...w,
-        };
+        $("#qrMethod").textContent = "TrueMoney Wallet";
+        $("#qrName").textContent = data.accountName || "RTSSM Web";
+        $("#qrNumber").textContent = data.accountNumber || "0000000000";
+        $("#qrAmount").textContent = fmt(amount * 1.03);
         openQrModal();
       } catch (err) {
         $(
@@ -208,9 +364,9 @@
     return false;
   }
 
-  /* confirm topup (check transaction) */
+  /* 🧾 Confirm topup */
   $("#confirmTopup").addEventListener("click", async () => {
-    const amount = Number($("#amount").value || 0);
+    const amount = Number(document.querySelector("#amount")?.value || 0);
     if (!(amount > 0)) return;
 
     $(
@@ -220,27 +376,28 @@
     try {
       const res = await fetch("/topup/truewallet/check", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount,
+        }),
       });
       const data = await res.json();
 
       if (data.verified) {
         $("#qrStatus").innerHTML = `
-        <div class="card soft">
-          ✅ ยืนยันการโอนสำเร็จแล้ว<br>
-          <b>รหัสธุรกรรม:</b> ${data.transactionId}<br>
-          <b>สถานะ:</b> ${data.status}
-        </div>`;
-
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500); // close after 1 second
+          <div class="card soft">
+            ✅ ยืนยันการโอนสำเร็จแล้ว<br>
+            <b>รหัสธุรกรรม:</b> ${data.transactionId}<br>
+            <b>สถานะ:</b> ${data.status}
+          </div>`;
+        setTimeout(() => window.location.reload(), 1500);
       } else {
         $("#qrStatus").innerHTML = `
-        <div class="card soft">
-          ⚠️ ยังไม่พบรายการ กรุณารอสักครู่ แล้วกด "ยืนยันการโอนแล้ว" อีกครั้ง
-        </div>`;
+          <div class="card soft">
+            ⚠️ ยังไม่พบรายการ กรุณารอสักครู่ แล้วกด "ยืนยันการโอนแล้ว" อีกครั้ง
+          </div>`;
       }
     } catch (err) {
       $(
@@ -251,12 +408,86 @@
 </script>
 
 <style>
-  /* your grid + modal styling reused from service modal */
+  /* 🟡 Header tab switcher */
+  .topup-tab-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: #0e0e0e;
+    padding: 0.5rem 1rem;
+    border-radius: 1rem;
+    margin-bottom: 1.2rem;
+  }
+
+  .tab-switch-btn {
+    flex: 1;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: none;
+    border-radius: 0.75rem;
+    padding: 0.6rem 0.8rem;
+    cursor: pointer;
+    transition: all 0.25s ease;
+  }
+    
+  .tab-section {
+    display: none;
+  }
+
+  .tab-section.active {
+    display: block;
+  }
+
+  /* 🟢 Wallet tab bar */
+  .tab-bar {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--border-color, #333);
+    margin-bottom: 1rem;
+    overflow-x: auto;
+  }
+
+  .tab-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px;
+    border: none;
+    background: transparent;
+    color: var(--text, #aaa);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: 0.2s;
+  }
+
+  .tab-btn.active {
+    color: var(--accent, #3bd);
+    border-color: var(--accent, #3bd);
+  }
+
+  .tab-btn img {
+    width: 24px;
+    height: 24px;
+  }
+
+  .tab-content {
+    display: none;
+  }
+
+  .tab-content.active {
+    display: block;
+  }
+
+  /* 💰 Amount form */
   .method-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 1rem;
   }
+
   .method-tile {
     display: flex;
     flex-direction: column;
@@ -265,27 +496,49 @@
     border: 1px solid var(--border-color, #444);
     border-radius: 1rem;
     padding: 1rem;
-    background: var(--bg2, #222);
   }
+
   .method-tile img {
     width: 48px;
     height: 48px;
     object-fit: contain;
     margin-bottom: 0.5rem;
   }
+
+  /* 🧾 Steps */
+  .steps {
+    list-style: decimal inside;
+    padding-left: 1rem;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+    line-height: 1.7;
+  }
+
+  .steps li {
+    margin-bottom: 0.3rem;
+  }
+
+  .steps b {
+    color: var(--accent, #3bd);
+  }
+
+  /* 🪟 Modal */
   .modal.hidden {
     display: none;
   }
+
   .modal {
     position: fixed;
     inset: 0;
     z-index: 60;
   }
+
   .modal .overlay {
     position: absolute;
     inset: 0;
     background: rgba(0, 0, 0, 0.55);
   }
+
   .modal .dialog {
     position: relative;
     margin: 6vh auto 0;
@@ -297,15 +550,18 @@
     box-shadow: 0 18px 60px rgba(0, 0, 0, 0.4);
     padding: 16px 16px 18px;
   }
+
   .modal .hdr {
     display: flex;
     justify-content: space-between;
     align-items: center;
   }
+
   .modal .title {
     font-weight: 700;
     font-size: 16px;
   }
+
   .modal .icon.close {
     border: 0;
     background: transparent;
@@ -313,15 +569,106 @@
     color: var(--text, #fff);
     cursor: pointer;
   }
+
   .modal .sep {
     border: 0;
     border-top: 1px solid var(--border, #2a2f36);
     margin: 12px 0;
   }
+
   .modal .body {
     font-size: 14px;
     line-height: 1.6;
     max-height: 60vh;
     overflow: auto;
+  }
+
+  /* --- Table Layout for Transaction History --- */
+  .history-wrapper {
+    margin-top: 1.5rem;
+    border-radius: 1rem;
+    overflow: hidden;
+  }
+
+  .history-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    font-size: 0.95rem;
+    border-radius: 0.75rem;
+    overflow: hidden;
+  }
+
+  .history-table th,
+  .history-table td {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #2a2a2a;
+    vertical-align: middle;
+  }
+
+  .history-table th {
+    font-weight: 600;
+    text-transform: none;
+    font-size: 0.95rem;
+  }
+
+  .history-table tr:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .history-table img {
+    width: 26px;
+    height: 26px;
+    object-fit: contain;
+    vertical-align: middle;
+    margin-right: 8px;
+    border-radius: 4px;
+  }
+
+  .method {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+  }
+
+  .amount {
+    color: #ffe99b;
+    font-weight: 600;
+  }
+
+  .status {
+    text-align: center;
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.5rem;
+  }
+
+  .status.completed {
+    color: #6aff6a;
+  }
+
+  .status.pending {
+    color: #ffcc00;
+  }
+
+  .status.failed {
+    color: #ff6767;
+  }
+
+  .status.cancelled {
+    color: #aaa;
+  }
+
+  .empty-history {
+    text-align: center;
+    padding: 2rem 1rem;
+  }
+
+  .empty-history img {
+    width: 120px;
+    opacity: 0.6;
+    margin-bottom: 0.75rem;
   }
 </style>
