@@ -145,7 +145,7 @@
       <div class="overlay" data-close="1"></div>
       <div class="dialog qr-dialog" role="dialog" aria-modal="true" aria-labelledby="qrTitle">
         <div class="hdr">
-          <div class="title" id="qrTitle">สแกนเพื่อเติมเงิน</div>
+          <div class="title" id="qrTitle" style="text-align: center;">สแกนเพื่อเติมเงิน</div>
           <button class="icon close" id="qrClose" aria-label="ปิด">×</button>
         </div>
 
@@ -853,6 +853,7 @@
     border-radius: 14px;              /* โค้งมนกรอบ */
     padding: 10px;
     box-shadow: 0 10px 28px rgba(0,0,0,.25);
+    align-items: center;
   }
 
   .qr-frame img{
@@ -860,6 +861,7 @@
     width: min(320px, 72vw);          /* ยืดหยุ่นตามจอ */
     height: auto;
     border-radius: 10px;              /* โค้งมนตัวรูปด้วย */
+    align-items: center;
   }
 
   /* ข้อความใต้ QR จัดกลาง ระยะห่างกำลังดี */
