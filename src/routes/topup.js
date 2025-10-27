@@ -68,8 +68,6 @@ topupRouter.post("/truewallet", async (req, res) => {
       return res
         .status(400)
         .json({ success: false, message: "missing_message" });
-      return res
-        .status(200)
 
     return res.status(200).json({ ok: true });
 
