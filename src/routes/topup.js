@@ -11,6 +11,11 @@ import Transaction from "../models/Transaction.js"; // ✅ ULID-based transactio
 
 export const topupRouter = express.Router();
 
+topupRouter.use((req, res, next) => {
+  res.type("json");
+  next();
+});
+
 /* ───────────────────────────────
    GET /topup
 ──────────────────────────────── */

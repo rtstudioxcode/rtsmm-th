@@ -50,63 +50,76 @@ await connectMongo();
 /*    - เก็บไว้ที่ collection: secure_config (1 เอกสารก็พอ)                 */
 /*    - โครงสร้างยืดหยุ่นและปลอดภัยกว่า .env สำหรับ production             */
 /* ------------------------------------------------------------------ */
-const secureConfigSchema = new mongoose.Schema({
-  // network / app
-  port: Number,
-  sessionSecret: String,
-
-  // provider api
-  ipv: {
-    apiBase: String,
-    apiKey: String,
-  },
-
-  // smtp
-  mail: {
-    host: String,
+const secureConfigSchema = new mongoose.Schema(
+  {
+    // network / app
     port: Number,
-    user: String,
-    pass: String,
-    from: String,
-  },
+    sessionSecret: String,
 
-  // otp policy
-  otp: {
-    ttlSec: Number,
-    resendCooldownSec: Number,
-    maxAttempts: Number,
-  }
-}, { collection: 'secure_config', minimize: true });
+    // provider api
+    ipv: {
+      apiBase: String,
+      apiKey: String,
+    },
+
+    // smtp
+    mail: {
+      host: String,
+      port: Number,
+      user: String,
+      pass: String,
+      from: String,
+    },
+
+    // otp policy
+    otp: {
+      ttlSec: Number,
+      resendCooldownSec: Number,
+      maxAttempts: Number,
+    },
+  },
+  { collection: "secure_config", minimize: true }
+);
 
 const SecureConfig =
-  mongoose.models.SecureConfig || mongoose.model('SecureConfig', secureConfigSchema);
+  mongoose.models.SecureConfig ||
+  mongoose.model("SecureConfig", secureConfigSchema);
 
 // ดึง doc แรก (หรือ null ถ้ายังไม่มี)
-const SEC = await SecureConfig.findOne().lean().catch(() => null) || null;
+const SEC =
+  (await SecureConfig.findOne()
+    .lean()
+    .catch(() => null)) || null;
 
 // อัปเดต process.env ให้โมดูลอื่น ๆ ที่ยังอ่าน env ใช้ค่าจาก DB ได้ทันที
 if (SEC?.ipv) {
   if (SEC.ipv.apiBase) process.env.IPV_API_BASE = SEC.ipv.apiBase;
-  if (SEC.ipv.apiKey)  process.env.IPV_API_KEY  = SEC.ipv.apiKey;
+  if (SEC.ipv.apiKey) process.env.IPV_API_KEY = SEC.ipv.apiKey;
 }
 if (SEC?.mail) {
   if (SEC.mail.host) process.env.MAIL_HOST = SEC.mail.host;
-  if (Number.isFinite(SEC.mail.port)) process.env.MAIL_PORT = String(SEC.mail.port);
+  if (Number.isFinite(SEC.mail.port))
+    process.env.MAIL_PORT = String(SEC.mail.port);
   if (SEC.mail.user) process.env.MAIL_USER = SEC.mail.user;
   if (SEC.mail.pass) process.env.MAIL_PASS = SEC.mail.pass;
   if (SEC.mail.from) process.env.MAIL_FROM = SEC.mail.from;
 }
 if (SEC?.otp) {
-  if (Number.isFinite(SEC.otp.ttlSec))              process.env.OTP_CODE_TTL = String(SEC.otp.ttlSec);
-  if (Number.isFinite(SEC.otp.resendCooldownSec))   process.env.OTP_RESEND_COOLDOWN = String(SEC.otp.resendCooldownSec);
-  if (Number.isFinite(SEC.otp.maxAttempts))         process.env.OTP_MAX_ATTEMPTS = String(SEC.otp.maxAttempts);
+  if (Number.isFinite(SEC.otp.ttlSec))
+    process.env.OTP_CODE_TTL = String(SEC.otp.ttlSec);
+  if (Number.isFinite(SEC.otp.resendCooldownSec))
+    process.env.OTP_RESEND_COOLDOWN = String(SEC.otp.resendCooldownSec);
+  if (Number.isFinite(SEC.otp.maxAttempts))
+    process.env.OTP_MAX_ATTEMPTS = String(SEC.otp.maxAttempts);
 }
 
 // สร้าง runtime config ที่จะใช้ในไฟล์นี้
 const RUNTIME = {
   // ใช้ค่าจาก DB ก่อน, ถ้าไม่มีค่อยถอยไป env/config.js
   port: Number(SEC?.port ?? process.env.PORT ?? config.port ?? 3000),
-  sessionSecret: String(SEC?.sessionSecret ?? process.env.SESSION_SECRET ?? 'change-me'),
+  sessionSecret: String(
+    SEC?.sessionSecret ?? process.env.SESSION_SECRET ?? "change-me"
+  ),
   mongoUri: config.mongoUri, // ยังคงใช้จาก .env/config.js เพื่อเชื่อม DB
 };
 
@@ -164,13 +177,15 @@ app.use(express.json());
 app.use(compression());
 
 // Session — ใช้ secret จาก DB ก่อน
-app.use(session({
-  secret: RUNTIME.sessionSecret,
-  resave: false,
-  saveUninitialized: false,
-  store: MongoStore.create({ mongoUrl: RUNTIME.mongoUri }),
-  cookie: { httpOnly: true, sameSite: 'lax', maxAge: 7 * 24 * 3600 * 1000 }
-}));
+app.use(
+  session({
+    secret: RUNTIME.sessionSecret,
+    resave: false,
+    saveUninitialized: false,
+    store: MongoStore.create({ mongoUrl: RUNTIME.mongoUri }),
+    cookie: { httpOnly: true, sameSite: "lax", maxAge: 7 * 24 * 3600 * 1000 },
+  })
+);
 // Session
 app.use(
   session({
@@ -227,8 +242,12 @@ app.use(async (req, res, next) => {
       if (!user.currency) user.currency = config.currency || "THB";
       if (user.isModified()) await user.save();
 
-      const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'http').split(',')[0];
-      const base  = `${proto}://${req.get('host')}`;
+      const proto = (
+        req.headers["x-forwarded-proto"] ||
+        req.protocol ||
+        "http"
+      ).split(",")[0];
+      const base = `${proto}://${req.get("host")}`;
       // base URL จาก request ปัจจุบัน
 
       // สร้าง URL รูป
@@ -275,8 +294,6 @@ app.use(authRoutes);
 app.use(resetPasswordRoutes);
 app.use(catalogRoutes);
 app.use(requireAuth, orderRoutes);
-app.use('/admin', requireAuth, requireAdmin, adminRoutes);
-app.use('/admin', requireAuth, requireAdmin, adminPricingRoutes);
 app.use("/admin", requireAuth, requireAdmin, adminRoutes);
 app.use("/admin", requireAuth, requireAdmin, adminPricingRoutes);
 app.use(newOrderRoutes);
@@ -284,10 +301,6 @@ app.use(requireAuth, walletRoutes);
 app.use("/topup", requireAuth, topupRouter);
 app.use("/services", servicesRouter);
 app.use(requireAuth, changesRoute);
-app.use(requireAuth, accountRouter);
-app.use('/', requireAuth, dashboardRouter);
-app.use('/otp', otpRouter);
-app.use('/api', apiPricingRouter);
 app.use(requireAuth, accountRouter);
 app.use("/", requireAuth, dashboardRouter);
 app.use("/otp", otpRouter);
@@ -359,7 +372,7 @@ app.get("/blog", (req, res) => {
     },
   ];
 
-  res.render('blog', { layout: true, pageTitle: 'บทความ | RTSMM-TH', posts });
+  res.render("blog", { layout: true, pageTitle: "บทความ | RTSMM-TH", posts });
   res.render("blog", {
     layout: true,
     pageTitle: "บทความ | RTSMM-TH",
@@ -377,7 +390,7 @@ app.get("/page/terms-of-use", (req, res) => {
 });
 
 // 404
-app.use((req, res) => res.status(404).send('Not found'));
+app.use((req, res) => res.status(404).send("Not found"));
 // 404 (optional)
 app.use((req, res) => res.status(404).send("Not found"));
 
@@ -392,7 +405,10 @@ app.use((req, res) => res.status(404).send("Not found"));
       console.log(`ℹ️ Categories already present: ${count}`);
     }
   } catch (e) {
-    console.error('❌ Boot sync failed (will try again on first visit):', e?.response?.data || e.message || e);
+    console.error(
+      "❌ Boot sync failed (will try again on first visit):",
+      e?.response?.data || e.message || e
+    );
     console.error(
       "❌ Boot sync failed (will try again on first visit):",
       e?.response?.data || e.message || e
@@ -450,9 +466,10 @@ initDailyChangeSync();
 /* 5) ใช้ PORT จาก DB ก่อน ถ้าไม่มีค่อย fallback env/config           */
 /* ------------------------------------------------------------------ */
 const PORT = Number(RUNTIME.port) || 3000;
-const HOST = '0.0.0.0';
+const HOST = "0.0.0.0";
 
 app.listen(PORT, HOST, () => {
-  console.log(`🚀 RTSMM-TH listening on ${HOST}:${PORT} (cfg: ${SEC ? 'DB' : 'ENV'})`);
+  console.log(
+    `🚀 RTSMM-TH listening on ${HOST}:${PORT} (cfg: ${SEC ? "DB" : "ENV"})`
+  );
 });
-
