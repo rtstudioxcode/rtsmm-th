@@ -9,6 +9,8 @@ import { User } from "../models/User.js";
 import { Topup } from "../models/Topup.js";
 import Transaction from "../models/Transaction.js"; // ✅ ULID-based transaction model
 
+import { config } from '../config.js';
+
 export const topupRouter = express.Router();
 
 /* ───────────────────────────────
@@ -45,7 +47,7 @@ topupRouter.post("/truewallet/gen/link", async (req, res) => {
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.TW_GEN_LINK_SECRET}`,
+          Authorization: `Bearer ${config?.TW_GEN_LINK_SECRET}`,
           "Content-Type": "application/json",
         },
       }

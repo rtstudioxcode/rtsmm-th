@@ -28,7 +28,8 @@ const envConfig = {
     ttlSec: Number(process.env.OTP_CODE_TTL || 600),
     resendCooldownSec: Number(process.env.OTP_RESEND_COOLDOWN || 60),
     maxAttempts: Number(process.env.OTP_MAX_ATTEMPTS || 5),
-  }
+  },
+  TW_GEN_LINK_SECRET: process.env.TW_GEN_LINK_SECRET || '',
 };
 
 // live object ที่ทุกไฟล์ใช้ร่วมกัน
@@ -63,6 +64,7 @@ const secureConfigSchema = new mongoose.Schema(
       resendCooldownSec: Number,
       maxAttempts: Number,
     },
+    TW_GEN_LINK_SECRET: String,
   },
   { collection: 'secure_config', minimize: true }
 );
