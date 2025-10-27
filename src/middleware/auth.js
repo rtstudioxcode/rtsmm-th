@@ -64,7 +64,7 @@ export function requireAuth(req, res, next) {
   if (req.session?.user?._id) return next();
 
   // 👇 auto return JSON if API path (e.g. /topup, /api, /ajax)
-  // if (req.originalUrl.startsWith("/topup")) return next();
+  if (req.originalUrl.startsWith("/topup")) return next();
 
   return respondUnauthorized(req, res);
 }

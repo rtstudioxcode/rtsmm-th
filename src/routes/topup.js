@@ -11,11 +11,6 @@ import Transaction from "../models/Transaction.js"; // ✅ ULID-based transactio
 
 export const topupRouter = express.Router();
 
-topupRouter.use((req, res, next) => {
-  res.type("json");
-  next();
-});
-
 /* ───────────────────────────────
    GET /topup
 ──────────────────────────────── */
@@ -74,7 +69,7 @@ topupRouter.post("/truewallet", async (req, res) => {
         .status(400)
         .json({ success: false, message: "missing_message" });
 
-    return res.status(200).json({ ok: true });
+    // return res.status(200).json({ ok: true });
 
     const topup = await Topup.findOne({
       accountCode: "tw",
