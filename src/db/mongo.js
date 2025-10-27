@@ -29,7 +29,7 @@ export async function connectMongo({
   while (true) {
     try {
       await mongoose.connect(uri, opts);
-      console.log('✅ Mongo connected:', redact(uri));
+      console.log('✅ Mongo connected - RTSMM-TH');
       break;
     } catch (err) {
       attempt += 1;
