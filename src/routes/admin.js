@@ -29,7 +29,7 @@ function normalizeAndValidateAccount(row) {
       return { ok: false, error: "TrueWallet ต้องเป็นเบอร์ 10 หลักขึ้นต้น 0" };
   } else {
     if (!/^\d{10,15}$/.test(digits))
-      return { ok: false, error: "เลขบัญชีธนาคารต้องยาว 9–12 หลัก" };
+      return { ok: false, error: "เลขบัญชีธนาคารต้องยาว 10–15 หลัก" };
   }
   return { ok: true, code, number: digits, name };
 }
@@ -368,6 +368,27 @@ router.get("/orders", async (req, res, next) => {
     });
   } catch (err) {
     next(err);
+  }
+});
+
+router.get('/api/users/search', requireAuth, async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim();
+    const limit = Math.min(20, Number(req.query.limit) || 10);
+
+    const cond = q
+      ? { username: { $regex: q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } }
+      : {};
+
+    const items = await User.find(cond)
+      .select('_id username email role balance points')
+      .sort({ username: 1 })
+      .limit(limit)
+      .lean();
+
+    res.json({ ok: true, items });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || 'internal error' });
   }
 });
 

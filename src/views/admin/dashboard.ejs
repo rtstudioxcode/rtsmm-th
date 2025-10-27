@@ -51,93 +51,172 @@
   </h3>
 
   <% if (transactions && transactions.length > 0) { %>
-  <table class="history-table">
-    <thead>
-      <tr>
-        <th>วันที่ / เวลา</th>
-        <th>ข้อมูลผู้โอน</th>
-        <th>ข้อมูลผู้รับ</th>
-        <th>จำนวนเงิน</th>
-        <th>สถานะ</th>
-        <th>จัดการ</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% transactions.forEach(tx => { const method = tx.method?.toLowerCase() ||
-      ""; const wallet = (webWallets || []).find(w => w.accountCode === method);
-      const statusLabel = tx.status === "completed" ? "สำเร็จ" : tx.status ===
-      "pending" ? "รอดำเนินการ" : tx.status === "failed" ? "ล้มเหลว" : "ยกเลิก";
-      %>
 
-      <tr>
-        <!-- วันที่ -->
-        <td class="muted">
-          <%= new Date(tx.createdAt).toLocaleString('th-TH', { year: 'numeric',
-          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-          %>
-        </td>
+  <!-- ===== Desktop/Table view (คงของเดิม) ===== -->
+  <div class="desktop-only">
+    <table class="history-table">
+      <thead>
+        <tr>
+          <th>วันที่ / เวลา</th>
+          <th>ข้อมูลผู้โอน</th>
+          <th>ข้อมูลผู้รับ</th>
+          <th>จำนวนเงิน</th>
+          <th>สถานะ</th>
+          <th>จัดการ</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% transactions.forEach(tx => {
+             const method = tx.method?.toLowerCase() || "";
+             const wallet = (webWallets || []).find(w => w.accountCode === method);
+             const statusLabel =
+               tx.status === "completed" ? "สำเร็จ" :
+               tx.status === "pending"   ? "รอดำเนินการ" :
+               tx.status === "failed"    ? "ล้มเหลว" : "ยกเลิก";
+        %>
+        <tr>
+          <!-- วันที่ -->
+          <td class="muted">
+            <%= new Date(tx.createdAt).toLocaleString('th-TH', {
+              year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'
+            }) %>
+          </td>
 
-        <!-- ข้อมูลผู้โอน -->
-        <td>
-          <% if (tx.method === 'truewallet' || tx.method === 'tw') { %>
-          <img src="/static/assets/payment/tw.webp" class="bank-logo" />
-          <div><b>TrueWallet</b></div>
-          <div class="muted">เบอร์ผู้โอน: <%= tx.senderNumber || '-' %></div>
-          <% } else { %>
-          <img
-            src="/static/assets/payment/<%= tx.senderBank %>.webp"
-            class="bank-logo"
-          />
-          <div><b><%= BANK_LABELS[tx.senderBank] || 'ไม่ระบุธนาคาร' %></b></div>
-          <div class="muted">
-            เลขท้ายบัญชีผู้โอน: <%= tx.senderLast6 || '-' %>
+          <!-- ข้อมูลผู้โอน -->
+          <td>
+            <% if (method === 'truewallet' || method === 'tw') { %>
+              <img src="/static/assets/payment/tw.webp" class="bank-logo" />
+              <div><b>TrueWallet</b></div>
+              <div class="muted">เบอร์ผู้โอน: <%= tx.senderNumber || '-' %></div>
+            <% } else { %>
+              <img src="/static/assets/payment/<%= tx.senderBank %>.webp" class="bank-logo" />
+              <div><b><%= BANK_LABELS[tx.senderBank] || 'ไม่ระบุธนาคาร' %></b></div>
+              <div class="muted">เลขท้ายบัญชีผู้โอน: <%= tx.senderLast6 || '-' %></div>
+            <% } %>
+          </td>
+
+          <!-- ข้อมูลผู้รับ -->
+          <td>
+            <% if (wallet) { %>
+              <img src="/static/assets/payment/<%= wallet.accountCode %>.webp" class="bank-logo" />
+              <div><b><%= wallet.accountName %></b></div>
+              <div class="muted">เลขบัญชี: <%= wallet.accountNumber %></div>
+            <% } else { %>
+              <span class="muted">ไม่พบข้อมูลผู้รับ</span>
+            <% } %>
+          </td>
+
+          <!-- จำนวนเงิน -->
+          <td class="amount">
+            ฿<%= Number(tx.amount).toLocaleString(undefined,{ minimumFractionDigits: 2 }) %>
+          </td>
+
+          <!-- สถานะ -->
+          <td class="status <%= tx.status.toLowerCase() %>"><%= statusLabel %></td>
+
+          <!-- Action -->
+          <td>
+            <button
+              class="btn small success"
+              onclick="openManualTopupModal('<%= tx.transactionId %>', <%= tx.amount %>, '<%= (tx.user?.username||'').replace(/'/g, "\\'") %>')">
+              เติมให้ผู้ใช้
+            </button>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===== Mobile/Card view (หุบ/ขยาย) ===== -->
+  <div class="mobile-only tx-accordion-list">
+    <% transactions.forEach(tx => {
+         const method = (tx.method||'').toLowerCase();
+         const wallet = (webWallets || []).find(w => w.accountCode === method);
+         const statusLabel =
+           tx.status === "completed" ? "สำเร็จ" :
+           tx.status === "pending"   ? "รอดำเนินการ" :
+           tx.status === "failed"    ? "ล้มเหลว" : "ยกเลิก";
+    %>
+    <div class="tx-accordion" data-open="0">
+      <!-- แถวหัว (ปิดอยู่) -->
+      <button class="tx-accordion__head" type="button">
+        <div class="tx-accordion__title">
+          <span class="tx-id" title="<%= tx.transactionId || '' %>">
+            <%= tx.transactionId || '—' %>
+          </span>
+        </div>
+        <div class="tx-accordion__meta">
+          <span class="tx-date">
+            <%= new Date(tx.createdAt).toLocaleString('th-TH', {
+              year:'numeric', month:'2-digit', day:'2-digit',
+              hour:'2-digit', minute:'2-digit', second:'2-digit'
+            }) %>
+          </span>
+          <span class="tx-toggle"></span>
+        </div>
+      </button>
+
+      <!-- เนื้อหารายละเอียด -->
+      <div class="tx-accordion__body">
+        <div class="tx-row">
+          <div class="tx-label">ผู้โอน</div>
+          <div class="tx-value">
+            <% if (method === 'truewallet' || method === 'tw') { %>
+              <img src="/static/assets/payment/tw.webp" class="bank-logo" alt="">
+              <b>TrueWallet</b><br>
+              <span class="muted">เบอร์ผู้โอน: <%= tx.senderNumber || '-' %></span>
+            <% } else { %>
+              <img src="/static/assets/payment/<%= tx.senderBank %>.webp" class="bank-logo" alt="">
+              <b><%= BANK_LABELS[tx.senderBank] || 'ไม่ระบุธนาคาร' %></b><br>
+              <span class="muted">เลขท้ายบัญชีผู้โอน: <%= tx.senderLast6 || '-' %></span>
+            <% } %>
           </div>
-          <% } %>
-        </td>
+        </div>
 
-        <!-- ข้อมูลผู้รับ -->
-        <td>
-          <% if (wallet) { %>
-          <img
-            src="/static/assets/payment/<%= wallet.accountCode %>.webp"
-            class="bank-logo"
-          />
-          <div><b><%= wallet.accountName %></b></div>
-          <div class="muted">เลขบัญชี: <%= wallet.accountNumber %></div>
-          <% } else { %>
-          <span class="muted">ไม่พบข้อมูลผู้รับ</span>
-          <% } %>
-        </td>
+        <div class="tx-row">
+          <div class="tx-label">ผู้รับ</div>
+          <div class="tx-value">
+            <% if (wallet) { %>
+              <img src="/static/assets/payment/<%= wallet.accountCode %>.webp" class="bank-logo" alt="">
+              <b><%= wallet.accountName %></b><br>
+              <span class="muted">เลขบัญชี: <%= wallet.accountNumber %></span>
+            <% } else { %>
+              <span class="muted">ไม่พบข้อมูลผู้รับ</span>
+            <% } %>
+          </div>
+        </div>
 
-        <!-- จำนวนเงิน -->
-        <td class="amount">
-          ฿<%= Number(tx.amount).toLocaleString(undefined, {
-          minimumFractionDigits: 2 }) %>
-        </td>
+        <div class="tx-row">
+          <div class="tx-label">จำนวนเงิน</div>
+          <div class="tx-value">
+            <b>฿<%= Number(tx.amount).toLocaleString(undefined,{minimumFractionDigits:2}) %></b>
+          </div>
+        </div>
 
-        <!-- สถานะ -->
-        <td class="status <%= tx.status.toLowerCase() %>">
-          <%= statusLabel %>
-        </td>
+        <div class="tx-row">
+          <div class="tx-label">สถานะ</div>
+          <div class="tx-value">
+            <span class="pill pill--<%= (tx.status||'').toLowerCase() %>"><%= statusLabel %></span>
+          </div>
+        </div>
 
-        <!-- Action -->
-        <td>
-          <button
-            class="btn small success"
-            onclick="openManualTopupModal('<%= tx.transactionId %>', <%= tx.amount %>)"
-          >
+        <div class="tx-actions">
+          <button class="btn small success" style="width: 100%;"
+            onclick="openManualTopupModal('<%= tx.transactionId %>', <%= tx.amount %>, '<%= (tx.user?.username||'').replace(/'/g, "\\'") %>')">
             เติมให้ผู้ใช้
           </button>
-        </td>
-      </tr>
-      <% }) %>
-    </tbody>
-  </table>
-  <% } else { %>
-  <div class="empty-history">
-    <img src="/static/assets/empty.svg" alt="No history" />
-    <p class="muted">ยังไม่มีรายการเติมเงิน</p>
+        </div>
+      </div>
+    </div>
+    <% }) %>
   </div>
+
+  <% } else { %>
+    <div class="empty-history">
+      <img src="/static/assets/emoji/empty.png" alt="ยังไม่มีรายการเติมเงิน" />
+      <p class="muted">ยังไม่มีรายการเติมเงิน</p>
+    </div>
   <% } %>
 </div>
 
@@ -164,10 +243,13 @@
           <input
             type="text"
             id="manualUsername"
+            list="userList"
+            autocomplete="off"
             required
-            placeholder="เช่น: user123"
+            placeholder="พิมพ์ค้นหา เช่น: ad"
             class="block input mt-sm"
           />
+          <datalist id="userList"></datalist>
         </label>
 
         <label>
@@ -196,8 +278,39 @@
 </div>
 
 <script>
+  function debounce(fn, ms=250){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+
+  function renderUserDatalist(items){
+    const dl = document.getElementById('userList');
+    dl.innerHTML = '';
+    (items||[]).forEach(u=>{
+      const opt = document.createElement('option');
+      opt.value = u.username;                      // ค่าที่จะถูกกรอก
+      opt.label = `${u.username}${u.email?' · '+u.email:''}`;
+      dl.appendChild(opt);
+    });
+  }
+
+  const doUserSearch = debounce(async function(q){
+    try{
+      const url = q && q.length
+        ? `/admin/api/users/search?q=${encodeURIComponent(q)}&limit=20`
+        : `/admin/api/users/search?limit=20`;      // อนุญาต preload (q ว่าง)
+      const r = await fetch(url);
+      const j = await r.json();
+      if (j?.ok) renderUserDatalist(j.items);
+    }catch{}
+  }, 250);
+
+  function bindUsernameSearchOnce(){
+    const el = document.getElementById('manualUsername');
+    if (!el || el.__binded) return;
+    el.addEventListener('input', e => doUserSearch(e.target.value.trim()));
+    el.__binded = true;
+  }
+
   /* 🟣 Modal Controls (เหมือน QR Modal) */
-  function openManualTopupModal(txId = null, amount = null) {
+  function openManualTopupModal(txId = null, amount = null, suggestedUsername = ''){
     const modal = document.getElementById("manualTopupModal");
     modal.classList.remove("hidden");
 
@@ -205,40 +318,45 @@
     form.reset();
     document.getElementById("manualTopupStatus").innerHTML = "";
 
-    // Save ID for backend if needed
     window.currentTxId = txId;
 
-    // Pre-fill amount (if provided)
-    if (amount) {
-      const amtInput = document.getElementById("manualAmount");
+    const amtInput = document.getElementById("manualAmount");
+    if (amount){
       amtInput.value = Number(amount).toFixed(2);
-      amtInput.readOnly = true; // lock field
+      amtInput.readOnly = true;
       amtInput.style.opacity = "0.7";
-    } else {
-      const amtInput = document.getElementById("manualAmount");
+    }else{
       amtInput.value = "";
       amtInput.readOnly = false;
       amtInput.style.opacity = "1";
     }
+
+    const userInput = document.getElementById('manualUsername');
+    if (suggestedUsername && suggestedUsername !== 'null'){
+      userInput.value = suggestedUsername;
+      doUserSearch(suggestedUsername);             // preload รายการที่เกี่ยวข้อง
+    }else{
+      userInput.value = '';
+      doUserSearch('');                            // preload 10–20 คนแรก
+    }
+
+    bindUsernameSearchOnce();
+
+    // ช่วยให้ dropdown โผล่ไวขึ้นบนบาง browser: ยิง input event เบาๆ
+    setTimeout(()=>{ userInput.dispatchEvent(new Event('input')); }, 50);
   }
 
-  function closeManualTopupModal() {
+  function closeManualTopupModal(){
     document.getElementById("manualTopupModal").classList.add("hidden");
     document.getElementById("manualTopupStatus").innerHTML = "";
   }
 
   // ปุ่มปิด (×)
   document.getElementById("manualTopupClose").onclick = closeManualTopupModal;
-
   // คลิก overlay ปิด
-  document.getElementById("manualTopupModal").addEventListener("click", (e) => {
-    if (e.target.dataset.close === "1") closeManualTopupModal();
-  });
-
+  document.getElementById("manualTopupModal").addEventListener("click",(e)=>{ if(e.target.dataset.close==="1") closeManualTopupModal(); });
   // ปุ่ม Escape ปิด
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeManualTopupModal();
-  });
+  document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") closeManualTopupModal(); });
 
   /* 🧾 ส่งข้อมูลเติมเงิน */
   async function submitManualTopup(ev) {
@@ -285,6 +403,14 @@
         '<div class="card soft">❌ ขัดข้อง: ' + err.message + "</div>";
     }
   }
+  // Toggle หุบ/ขยายสำหรับมือถือ
+  (function initTxAccordion(){
+    document.querySelectorAll('.tx-accordion').forEach(card=>{
+      card.querySelector('.tx-accordion__head')?.addEventListener('click', ()=>{
+        card.dataset.open = (card.dataset.open === '1' ? '0' : '1');
+      });
+    });
+  })();
 </script>
 
 <style>
@@ -430,4 +556,118 @@
     max-height: 60vh;
     overflow-y: auto;
   }
+  /* --- Desktop first: ซ่อน mobile เสมอในเดสก์ท็อป --- */
+  .mobile-only { display: none !important; }
+  .desktop-only { display: block !important; }
+
+  /* --- Mobile ≤ 768px: สลับแสดง --- */
+  @media (max-width: 768px) {
+    .desktop-only { display: none !important; }
+    .mobile-only { display: block !important; }
+  }
+
+  /* Accordion (มือถือ) */
+  .tx-accordion-list { display: grid; gap: 10px; }
+  .tx-accordion {
+    background: var(--card, #1a1d22);
+    border: 1px solid var(--border, #2a2f36);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--elevated-shadow, 0 10px 24px rgba(0,0,0,.25));
+  }
+  .tx-accordion__head {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    padding: 12px 14px;
+    background: #0f1013;
+    color: var(--text-primary, #f2f4f8);
+    border: 0;
+    cursor: pointer;
+  }
+  .tx-accordion__title .tx-id { font-weight: 700; letter-spacing: .3px; }
+  .tx-accordion__meta {
+    display: inline-grid; grid-auto-flow: column; gap: 10px; align-items: center;
+    color: var(--title,#eadfb8); font-weight: 600; font-variant-numeric: tabular-nums;
+  }
+  .tx-accordion__meta .tx-toggle {
+    width: 28px; height: 28px; border-radius: 8px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border, #2a2f36); background: #17191d;
+  }
+
+  /* body */
+  .tx-accordion__body { display: none; padding: 12px 14px 14px; background: var(--elevated-bg,#141518); }
+  .tx-accordion[data-open="1"] .tx-accordion__body { display: block; }
+  .tx-accordion[data-open="1"] .tx-accordion__meta .tx-toggle::before { content: '–'; }
+  .tx-accordion[data-open="0"] .tx-accordion__meta .tx-toggle::before { content: '+'; }
+
+  /* แถวรายละเอียด */
+  .tx-row {
+    display: grid; grid-template-columns: 110px 1fr; gap: 10px;
+    padding: 8px 0; border-bottom: 1px dashed var(--border,#2a2f36);
+  }
+  .tx-row:last-child { border-bottom: 0; }
+  .tx-label { color: var(--muted,#a7b0bb); }
+  .tx-value { color: var(--text-primary,#f2f4f8); }
+
+  .bank-logo { width: 22px; height: 22px; object-fit: contain; vertical-align: middle; margin-right: 6px; }
+
+  /* pill สถานะ */
+  .pill {
+    display: inline-block; padding: 4px 10px; border-radius: 999px;
+    font-weight: 700; font-size: 12px; background: #22262d; border: 1px solid #313641;
+  }
+  .pill--pending   { color:#ffc107; border-color:#4d3b08; background:#2a2108; }
+  .pill--completed { color:#10b981; border-color:#0b3f2e; background:#0c1f18; }
+  .pill--failed    { color:#f87171; border-color:#4a0e0e; background:#2a0a0a; }
+  .pill--canceled  { color:#94a3b8; }
+  .tx-actions { width: 100%; margin-top: 12px; display: flex; justify-content: flex-start; }
+  /* ทำให้หัวการ์ดแสดงเป็นบรรทัดเดียว และตัด ... ได้ */
+  .tx-accordion__head {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto; /* ซ้าย (ID) | ขวา (เวลา + ปุ่ม) */
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: #0f1013;
+    color: var(--text-primary, #f2f4f8);
+    border: 0;
+    cursor: pointer;
+  }
+
+  /* ต้องมี min-width:0 เพื่อให้ overflow ทำงานใน grid */
+  .tx-accordion__title { min-width: 0; }
+  .tx-accordion__title .tx-id{
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;   /* ถ้ายาวให้ ... */
+    font-weight: 700;
+    letter-spacing: .3px;
+  }
+
+  /* ให้เวลาชิดขวาและไม่ห่อบรรทัด */
+  .tx-accordion__meta {
+    display: inline-grid;
+    grid-auto-flow: column;
+    gap: 10px;
+    align-items: center;
+    color: var(--title,#eadfb8);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;       /* กันแตกบรรทัด */
+  }
+
+  .tx-accordion__meta .tx-toggle{
+    width: 28px; height: 28px; border-radius: 8px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border, #2a2f36); background: #17191d;
+  }
+
+  /* ไอคอน + / – */
+  .tx-accordion[data-open="1"] .tx-accordion__meta .tx-toggle::before { content: '–'; }
+  .tx-accordion[data-open="0"] .tx-accordion__meta .tx-toggle::before { content: '+'; }
 </style>

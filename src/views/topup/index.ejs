@@ -51,7 +51,7 @@
       <!-- 🟢 Non-TrueWallet -->
       <% if (webWallet.accountCode !== 'tw') { %>
       <section class="card soft">
-        <h3 class="title">มายังบัญชี</h3>
+        <h3 class="title" style="text-align: center;">มายังบัญชี</h3>
         <div class="grid method-grid">
           <div class="method-tile">
             <img
@@ -62,7 +62,7 @@
             <small><%= webWallet.accountNumber %></small>
           </div>
         </div>
-        <div class="muted mt">กรุณาโอนจากบัญชีของคุณมายังบัญชีนี้เท่านั้น</div>
+        <div class="muted mt" style="text-align: center;">กรุณาโอนจากบัญชีของคุณมายังบัญชีนี้เท่านั้น</div>
       </section>
 
       <section class="card soft mt">
@@ -119,14 +119,14 @@
       </form>
 
       <section class="card soft mt">
-        <h4 class="title">📲 วิธีการเติมเงินผ่าน TrueMoney Wallet</h4>
+        <h4 class="title">📲 วิธีการเติมเงินผ่าน TrueMoney Wallet (ค่าธรรมเนียม 3%)</h4>
         <ol class="steps">
-          <li>เปิดแอป <b>TrueMoney Wallet</b> บนโทรศัพท์ของคุณ</li>
+          <li>ระบุจำนวนเงิน > <b>ตัวอย่าง: 100</b></li>
+          <li>กด > <b>ยืนยันการเติมเงิน</b></li>
+          <li>เปิดแอป > <b>TrueMoney Wallet</b> บนโทรศัพท์ของคุณ</li>
           <li>
-            เลือกเมนู <b>“โอนเงิน”</b> → <b>“พร้อมเพย์ / เบอร์โทรศัพท์”</b>
+            เลือกเมนู > <b>“สแกน”</b>
           </li>
-          <li>ใส่หมายเลขหรือบัญชีที่แสดงในหน้าถัดไปหลังจากกดยืนยัน</li>
-          <li>กรอกจำนวนเงินที่ต้องการเติม (รวมค่าธรรมเนียม 3%)</li>
           <li>ตรวจสอบข้อมูลให้ถูกต้องแล้วกดยืนยันการโอน</li>
           <li>กลับมาที่หน้านี้และกดปุ่ม <b>“ยืนยันการโอนแล้ว”</b></li>
         </ol>
@@ -242,6 +242,91 @@
     <% } %>
   </div>
 </div>
+
+<!-- topup Notice Modal -->
+<dialog id="topupNoticeModal" class="toast-modal" aria-labelledby="topupNoticeTitle" aria-describedby="topupNoticeText">
+  <div class="toast-card" role="alertdialog">
+    <div class="toast-headbar" style="--th-bg: linear-gradient(135deg,#8b5cf6,#6d5dfc);">
+      <div class="toast-badge" aria-hidden="true">⚠️</div>
+      <div class="toast-headtxt">
+        <h3 class="toast-title" id="topupNoticeTitle">แจ้งเตือน</h3>
+        <div class="muted" style="font-weight:600;font-size:13px">โปรดอ่านข้อมูลต่อไปนี้ก่อนเติมเงิน</div>
+      </div>
+    </div>
+
+    <div class="toast-body">
+      <ul style="margin:0 0 0 18px; padding:10px 0; color:var(--t-muted); line-height:1.5">
+        <li>ข้อมูลที่ใช้ต้องเป็นข้อมูลจริงตามกฏหมาย</li>
+        <li>ชื่อ-นามสกุลต้องใช้ตามบัตรประชาชน</li>
+        <li>บัญชีธนาคาร / TrueMoney Wallet ต้องเพิ่มอย่างน้อย 1 บัญชี (แนะนำ Wallet จะเร็วกว่า)</li>
+        <li>ข้อมูลบัญชีต้องตรงกับชื่อนามสกุลเท่านั้น</li>
+      </ul>
+
+      <p style="margin-top:8px;color:var(--t-red-1);font-weight:700">
+        คำเตือน: กรอกข้อมูลให้ครบตามความเป็นจริง เพราะมีผลทางกฎหมาย ระบบเติมเงินอัตโนมัติต้องการข้อมูลจริงในการเติมเครดิต
+      </p>
+
+      <label style="display:flex; gap:10px; align-items:center; margin-top:12px; color:var(--t-muted)">
+        <input id="topupNoticeDontShow" type="checkbox" style="width:18px; height:18px;"/>
+        <span>ไม่แสดงอีกในวันนี้</span>
+      </label>
+    </div>
+
+    <div class="toast-actions" style="padding-top:8px;">
+      <button class="pill" id="topupNoticeCloseCancel" hidden>ยกเลิก</button>
+      <button class="pill primary" id="topupNoticeClose">ปิดและยอมรับ</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+  (function(){
+    const KEY = 'topup_notice_suppress_until_v1'; // localStorage key
+    const modal = document.getElementById('topupNoticeModal');
+    const chk = document.getElementById('topupNoticeDontShow');
+    const btnClose = document.getElementById('topupNoticeClose');
+
+    function shouldShow(){
+      try {
+        const v = localStorage.getItem(KEY);
+        if (!v) return true;
+        const ts = Number(v);
+        if (!Number.isFinite(ts)) return true;
+        return Date.now() > ts; // show if now past expiry
+      } catch(e){
+        return true;
+      }
+    }
+
+    function setSuppressFor7Days(){
+      const until = Date.now() + 1 * 24 * 60 * 60 * 1000;
+      try { localStorage.setItem(KEY, String(until)); } catch(e){ /* ignore */ }
+    }
+
+    // show modal on DOM ready if needed
+    document.addEventListener('DOMContentLoaded', ()=>{
+      try {
+        if (shouldShow()) {
+          // wait a tick so dialog styles/backdrop applied nicely
+          setTimeout(()=> {
+            if (!modal.open) modal.showModal();
+          }, 120);
+        }
+      } catch(e){}
+    });
+
+    btnClose?.addEventListener('click', ()=>{
+      if (chk && chk.checked) setSuppressFor7Days();
+      try { if (modal.open) modal.close(); } catch(e){}
+    });
+
+    // allow Escape/cancel to close as well but don't set suppression
+    modal?.addEventListener('cancel', (ev)=> {
+      ev.preventDefault();
+      try { modal.close(); } catch(e){}
+    });
+  })();
+</script>
 
 <script>
   const $ = (s, r = document) => r.querySelector(s);
@@ -505,6 +590,43 @@
     margin-bottom: 0.5rem;
   }
 
+  /* ให้กระดาน (list) เป็นคอลัมน์เดียวเสมอ */
+  .methods-grid, .method-list {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  /* ให้ tile กินเต็มแถวใน grid ใด ๆ */
+  .method-tile {
+    grid-column: 1 / -1;   /* full row */
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 18px;
+    border: 1px solid var(--border, #2a2f36);
+    background: var(--card, #1c1f24);
+    border-radius: 14px;
+  }
+
+  /* โลโก้และข้อความ */
+  .method-tile img {
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+  }
+  .method-tile > div {
+    font-weight: 700;
+  }
+  .method-tile small {
+    display: block;
+    color: var(--muted, #a7b0bb);
+    margin-top: 2px;
+  }
+
+  /* เผื่ออยู่ใน layout ที่ไม่ใช่ grid */
+  .method-tile { max-width: 100%; }
+
   /* 🧾 Steps */
   .steps {
     list-style: decimal inside;
@@ -675,4 +797,6 @@
     opacity: 0.6;
     margin-bottom: 0.75rem;
   }
+
+  #topupNoticeModal .toast-body ul { margin-left: 1rem; }
 </style>

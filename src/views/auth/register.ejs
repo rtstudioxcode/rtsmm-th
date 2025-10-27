@@ -30,7 +30,8 @@
 
     <!-- ชื่อจริง -->
     <label class="f-field">
-      <span class="f-label">ชื่อ–นามสกุล (ชื่อจริงเท่านั้น มีผลทางกฎหมาย)</span>
+      <span class="f-label">ชื่อ–นามสกุล</span>
+      <span class="muted">(ชื่อ–นามสกุล ต้องตรงกับบัญชีที่ผูกด้วยไม่งั้นเวลาเติมเงินเครดิตจะไม่เข้าออโต้)</span>
       <input class="f-input" name="name" required autocomplete="name" placeholder="ชื่อจริง นามสกุล">
     </label>
 
@@ -48,7 +49,7 @@
 
     <!-- ===== บัญชีธนาคาร/วอลเล็ท (บังคับกรอกอย่างน้อย 1, สูงสุด 2) ===== -->
     <div class="bank-accounts">
-      <div class="f-label" style="margin-top:6px">บัญชีรับเงิน (ธนาคารไทย/TrueMoney Wallet)</div>
+      <div class="f-label" style="margin-top:6px">บัญชีของฉัน (ธนาคารไทย/TrueMoney Wallet)</div>
 
       <template id="tplBankRow">
         <div class="bank-row" data-index="">
@@ -88,6 +89,7 @@
 
           <label class="f-field" style="margin-top:10px">
             <span class="f-label">ชื่อบัญชี</span>
+            <span class="muted">(ข้อมูลบัญชีที่ผูก ต้องตรงกับชื่อ-นามสกุลด้วยไม่งั้นเวลาเติมเงินเครดิตจะไม่เข้าออโต้)</span>
             <input class="f-input" name="accountName" placeholder="ชื่อ–นามสกุลตามบัญชี" required>
           </label>
 
@@ -132,6 +134,43 @@
     <div class="toast-actions">
       <button class="pill ghost" id="msgCancel" hidden>ยกเลิก</button>
       <button class="pill primary" id="msgClose">ตกลง</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Register Notice Modal -->
+<dialog id="registerNoticeModal" class="toast-modal" aria-labelledby="regNoticeTitle" aria-describedby="regNoticeText">
+  <div class="toast-card" role="alertdialog">
+    <div class="toast-headbar" style="--th-bg: linear-gradient(135deg,#8b5cf6,#6d5dfc);">
+      <div class="toast-badge" aria-hidden="true">⚠️</div>
+      <div class="toast-headtxt">
+        <h3 class="toast-title" id="regNoticeTitle">แจ้งเตือน</h3>
+        <div class="muted" style="font-weight:600;font-size:13px">โปรดอ่านข้อมูลต่อไปนี้ก่อนสมัครสมาชิก</div>
+      </div>
+    </div>
+
+    <div class="toast-body">
+      <ul style="margin:0 0 0 18px; padding:10px 0; color:var(--t-muted); line-height:1.5">
+        <li>ข้อมูลที่ใช้ต้องเป็นข้อมูลจริงตามกฏหมาย</li>
+        <li>อีเมลต้องสามารถยืนยันได้จริง</li>
+        <li>ชื่อ-นามสกุลต้องใช้ตามบัตรประชาชน</li>
+        <li>บัญชีธนาคาร / TrueMoney Wallet ต้องเพิ่มอย่างน้อย 1 บัญชี (แนะนำ Wallet จะเร็วกว่า)</li>
+        <li>ข้อมูลบัญชีต้องตรงกับชื่อนามสกุลเท่านั้น</li>
+      </ul>
+
+      <p style="margin-top:8px;color:var(--t-red-1);font-weight:700">
+        คำเตือน: กรอกข้อมูลให้ครบตามความเป็นจริง เพราะมีผลทางกฎหมาย ระบบเติมเงินอัตโนมัติต้องการข้อมูลจริงในการเติมเครดิต
+      </p>
+
+      <label style="display:flex; gap:10px; align-items:center; margin-top:12px; color:var(--t-muted)">
+        <input id="regNoticeDontShow" type="checkbox" style="width:18px; height:18px;"/>
+        <span>ไม่แสดงอีก 7 วัน</span>
+      </label>
+    </div>
+
+    <div class="toast-actions" style="padding-top:8px;">
+      <button class="pill" id="regNoticeCloseCancel" hidden>ยกเลิก</button>
+      <button class="pill primary" id="regNoticeClose">ปิดและยอมรับ</button>
     </div>
   </div>
 </dialog>
@@ -348,6 +387,8 @@ dialog::backdrop{ background:var(--backdrop); backdrop-filter: blur(8px) }
 
 /* ปุ่มลบ/เพิ่ม — ให้ชิดขวาและไม่ดันความกว้างฟอร์ม */
 .bank-accounts .flex { width: 100%; }
+
+#registerNoticeModal .toast-body ul { margin-left: 1rem; }
 </style>
 
 <script>
@@ -358,6 +399,55 @@ dialog::backdrop{ background:var(--backdrop); backdrop-filter: blur(8px) }
       window.__flash = null;
     }
   });
+</script>
+
+<script>
+  (function(){
+    const KEY = 'register_notice_suppress_until_v1'; // localStorage key
+    const modal = document.getElementById('registerNoticeModal');
+    const chk = document.getElementById('regNoticeDontShow');
+    const btnClose = document.getElementById('regNoticeClose');
+
+    function shouldShow(){
+      try {
+        const v = localStorage.getItem(KEY);
+        if (!v) return true;
+        const ts = Number(v);
+        if (!Number.isFinite(ts)) return true;
+        return Date.now() > ts; // show if now past expiry
+      } catch(e){
+        return true;
+      }
+    }
+
+    function setSuppressFor7Days(){
+      const until = Date.now() + 7 * 24 * 60 * 60 * 1000;
+      try { localStorage.setItem(KEY, String(until)); } catch(e){ /* ignore */ }
+    }
+
+    // show modal on DOM ready if needed
+    document.addEventListener('DOMContentLoaded', ()=>{
+      try {
+        if (shouldShow()) {
+          // wait a tick so dialog styles/backdrop applied nicely
+          setTimeout(()=> {
+            if (!modal.open) modal.showModal();
+          }, 120);
+        }
+      } catch(e){}
+    });
+
+    btnClose?.addEventListener('click', ()=>{
+      if (chk && chk.checked) setSuppressFor7Days();
+      try { if (modal.open) modal.close(); } catch(e){}
+    });
+
+    // allow Escape/cancel to close as well but don't set suppression
+    modal?.addEventListener('cancel', (ev)=> {
+      ev.preventDefault();
+      try { modal.close(); } catch(e){}
+    });
+  })();
 </script>
 
 <script type="module">
@@ -423,7 +513,7 @@ togglePwd?.addEventListener('click', ()=>{
 });
 
 /* =======================================================
-   บัญชีรับเงิน (บังคับ >=1 และ <=2) + Validation ฝั่ง client
+   บัญชีของฉัน (บังคับ >=1 และ <=2) + Validation ฝั่ง client
    ======================================================= */
 function validateAccount(a){
   const code   = (a.accountCode||'').trim();
