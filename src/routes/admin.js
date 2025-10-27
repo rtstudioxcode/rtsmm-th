@@ -9,6 +9,23 @@ import { Order } from '../models/Order.js';
 const router = Router();
 router.use(requireAuth, requireAdmin);
 
+// === helper : normalize + validate ===
+function normDigits(s=''){ return String(s).replace(/[^\d]/g,''); }
+function normalizeAndValidateAccount(row){
+  const code = String(row.accountCode||row.code||'').trim().toUpperCase();
+  const numberRaw = String(row.accountNumber||row.number||'').trim();
+  const name = String(row.accountName||row.name||'').trim();
+  const digits = normDigits(numberRaw);
+
+  if (!code || !digits || !name) return { ok:false, error:'ข้อมูลบัญชีไม่ครบ' };
+  if (code === 'TRUEWALLET') {
+    if (!/^0\d{9}$/.test(digits)) return { ok:false, error:'TrueWallet ต้องเป็นเบอร์ 10 หลักขึ้นต้น 0' };
+  } else {
+    if (!/^\d{9,12}$/.test(digits)) return { ok:false, error:'เลขบัญชีธนาคารต้องยาว 9–12 หลัก' };
+  }
+  return { ok:true, code, number:digits, name };
+}
+
 // Dashboard
 router.get('/', async (req, res) => {
   let ps = await ProviderSettings.findOne();
@@ -92,25 +109,31 @@ router.get('/users', async (req, res) => {
  * ส่งข้อมูลเต็มของผู้ใช้ (ยกเว้นฟิลด์อ่อนไหว)
  */
 router.get('/users/:id.json', async (req, res) => {
-  const { id } = req.params;
-  const u = await User.findById(id).lean();
-  if (!u) return res.status(404).json({ ok:false, error: 'ไม่พบผู้ใช้' });
+  try {
+    const { id } = req.params;
+    const u = await User.findById(id).lean();
+    if (!u) return res.status(404).json({ ok:false, error:'ไม่พบผู้ใช้' });
 
-  // ลบฟิลด์อ่อนไหว
-  delete u.passwordHash;
-  delete u.resetToken;
-  delete u.twoFactorSecret;
+    delete u.passwordHash;
+    delete u.resetToken;
+    delete u.twoFactorSecret;
 
-  return res.json({ ok:true, user: u });
+    return res.json({ ok:true, user: u });
+  } catch (e) {
+    console.error('GET /admin/users/:id.json error:', e);
+    return res.status(500).json({ ok:false, error:'ดึงข้อมูลไม่สำเร็จ' });
+  }
 });
 
 router.patch('/users/:id', async (req, res) => {
   const { id } = req.params;
-  const { name, role, emailVerified, balance } = req.body || {};
+  const { name, role, emailVerified, balance, bankAccounts } = req.body || {};
   const update = {};
 
+  // name
   if (typeof name === 'string') update.name = name.trim().slice(0, 100);
 
+  // role
   if (typeof role === 'string') {
     const r = role.trim().toLowerCase();
     if (!ALLOWED_ROLES.includes(r)) {
@@ -119,14 +142,48 @@ router.patch('/users/:id', async (req, res) => {
     update.role = r;
   }
 
+  // emailVerified
   if (typeof emailVerified !== 'undefined') update.emailVerified = !!emailVerified;
 
+  // balance
   if (typeof balance !== 'undefined') {
     const n = Number(balance);
     if (!Number.isFinite(n) || n < 0) {
       return res.status(400).json({ ok:false, error: 'balance ต้องเป็นตัวเลขที่ถูกต้องและ ≥ 0' });
     }
-    update.balance = Math.round(n * 100) / 100; // ปัดทศนิยม 2
+    update.balance = Math.round(n * 100) / 100; // ทศนิยม 2
+  }
+
+  // bankAccounts (0–2 รายการ) + validate + กันซ้ำข้ามผู้ใช้
+  if (Array.isArray(bankAccounts)) {
+    if (bankAccounts.length > 2) {
+      return res.status(400).json({ ok:false, error:'ได้ไม่เกิน 2 บัญชี' });
+    }
+
+    // แปลง/ตรวจความถูกต้องทีละแถว
+    const rows = [];
+    for (const r of bankAccounts) {
+      const v = normalizeAndValidateAccount(r);
+      if (!v.ok) return res.status(400).json({ ok:false, error: v.error });
+      rows.push({ accountCode: v.code, accountNumber: v.number, accountName: v.name });
+    }
+
+    // กันซ้ำ: (accountCode, accountNumber) ต้องไม่อยู่ในผู้ใช้อื่น
+    for (const r of rows) {
+      const exists = await User.findOne({
+        _id: { $ne: id },
+        bankAccounts: { $elemMatch: { accountCode: r.accountCode, accountNumber: r.accountNumber } }
+      }).lean();
+      if (exists) {
+        return res.status(409).json({
+          ok:false,
+          error:`บัญชี ${r.accountCode} ${r.accountNumber} ถูกใช้งานในผู้ใช้อื่นแล้ว (1 บัญชีใช้ได้เพียง 1 ผู้ใช้)`
+        });
+      }
+    }
+
+    // set ทับทั้งชุด (อนุญาตให้เป็น [] ได้ เพื่อเคลียร์)
+    update.bankAccounts = rows;
   }
 
   if (Object.keys(update).length === 0) {

@@ -18,12 +18,41 @@ import { config } from '../config.js';
 // config.brand (optional) = { url, name, logoPath } // สำหรับ helper ส่งเมลยืนยัน
 
 let transporter;
+let lastSig = null;
 
+function buildMailSignature() {
+  const m = config.mail || {};
+  // เลือกเฉพาะคีย์ที่มีผลกับการเชื่อมต่อ
+  const minimal = {
+    host: m.host, port: Number(m.port), user: m.user, pass: m.pass, secure: m.secure ?? (Number(m.port) === 465),
+    poolMaxConnections: m.poolMaxConnections ?? 5,
+    poolMaxMessages: m.poolMaxMessages ?? 100,
+    rateLimit: m.rateLimit ?? undefined,
+    debug: !!m.debug,
+    from: m.from || 'RTSSM-TH <no-reply@rtsmm-th.com>',
+    dkim: m.dkim?.domainName && m.dkim?.keySelector && m.dkim?.privateKey
+      ? { domainName: m.dkim.domainName, keySelector: m.dkim.keySelector, privateKey: m.dkim.privateKey }
+      : null,
+  };
+  return JSON.stringify(minimal);
+}
 // ============================================================
 // 2) SMTP Transporter (singleton + pooling + DKIM + timeouts)
 // ============================================================
 export function getTransporter() {
-  if (transporter) return transporter;
+  // validate ขั้นต้น
+  if (!config.mail?.host || !config.mail?.port) {
+    throw new Error('SMTP config ไม่ครบ (host/port)');
+  }
+
+  const sig = buildMailSignature();
+  const needNew = !transporter || sig !== lastSig;
+
+  if (!needNew) return transporter;
+
+  // สร้างใหม่ (และปิดของเดิม)
+  try { transporter?.close?.(); } catch {}
+  lastSig = sig;
 
   const {
     host, port, user, pass, secure,
@@ -40,30 +69,24 @@ export function getTransporter() {
     host,
     port: Number(port),
     secure: useSecure,
-    auth: { user, pass },
+    auth: (user || pass) ? { user, pass } : undefined,
 
-    // ใช้ connection pool ให้ส่งได้ไวและนิ่ง
     pool: true,
     maxConnections: poolMaxConnections,
     maxMessages: poolMaxMessages,
     keepAlive: true,
 
-    // เผื่อเครือข่ายช้า
     greetingTimeout: 10_000,
     connectionTimeout: 15_000,
     socketTimeout: 20_000,
 
-    // STARTTLS เมื่อใช้ 587
     tls: { rejectUnauthorized: true },
 
-    // logging
     logger: !!debug,
     debug: !!debug,
 
-    // Rate limit (ถ้าใส่มา)
     ...(rateLimit ? { rateDelta: 60_000, rateLimit: Number(rateLimit) } : {}),
 
-    // DKIM แบบ native ของ Nodemailer (ง่ายและถูกต้องที่สุด)
     ...(dkim?.domainName && dkim?.keySelector && dkim?.privateKey
       ? { dkim: {
           domainName: dkim.domainName,
@@ -73,13 +96,15 @@ export function getTransporter() {
       : {}),
   });
 
+  // ตรวจสอบคอนฟิก (log warning ถ้าใช้ไม่ได้)
   transporter.verify().catch(err =>
     console.error('[mailer] verify failed:', err?.message || err)
   );
 
-  // ปิด connection pool ให้เรียบร้อยเมื่อโปรเซสจะจบ
-  for (const sig of ['SIGINT', 'SIGTERM']) {
-    process.once(sig, async () => {
+  // ปิด pool เมื่อโปรเซสปิด
+  for (const sigName of ['SIGINT', 'SIGTERM']) {
+    // ใช้ once เพื่อไม่ผูกซ้ำ
+    process.once(sigName, async () => {
       try { await transporter?.close?.(); } catch {}
       process.exit(0);
     });
@@ -88,25 +113,29 @@ export function getTransporter() {
   return transporter;
 }
 
+
+export function resetMailer() {
+  try { transporter?.close?.(); } catch {}
+  transporter = null;
+  lastSig = null;
+}
+
 // ============================================================
 // 3) Generic sendEmail (มี Retry + แนบไฟล์ได้ + headers ได้)
 // ============================================================
-const RETRYABLE_CODES = new Set(['ETIMEDOUT','ECONNECTION','EAI_AGAIN','ESOCKET','ETEMPFAIL']);
+const RETRYABLE_CODES = new Set(['ETIMEDOUT','ECONNECTION','EAI_AGAIN','ESOCKET']);
+const RETRYABLE_SMTP = new Set([421, 450, 451, 452, 471]); // temporary failures
+
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-export async function sendEmail({
-  to, subject, html, text, headers, attachments
-} = {}) {
+export async function sendEmail({ to, subject, html, text, headers, attachments } = {}) {
   const tx = getTransporter();
 
   const payload = {
-    from: config.mail.from,
-    to,
-    subject,
+    from: config.mail?.from || 'RTSSM-TH <no-reply@rtsmm-th.com>',
+    to, subject,
     text: text ?? (html ? html.replace(/<[^>]+>/g, ' ') : ''),
-    html,
-    headers,
-    attachments, // รองรับแนบไฟล์ (รวมถึง cid)
+    html, headers, attachments,
   };
 
   const MAX_ATTEMPTS = 3;
@@ -117,17 +146,17 @@ export async function sendEmail({
       return await tx.sendMail(payload);
     } catch (err) {
       lastErr = err;
-      const code = err?.code || err?.responseCode;
-      const retryable =
-        RETRYABLE_CODES.has(code) ||
-        (typeof code === 'number' && code >= 400 && code < 500);
+      const code = err?.code;
+      const smtp = Number(err?.responseCode);
+      const retryable = RETRYABLE_CODES.has(code) || RETRYABLE_SMTP.has(smtp);
 
       attempt += 1;
       if (!retryable || attempt >= MAX_ATTEMPTS) break;
 
       const wait = 500 * Math.pow(3, attempt - 1); // 500, 1500 ms
       if (config.mail?.debug) {
-        console.warn(`[mailer] send fail (attempt ${attempt}) -> retry in ${wait}ms:`, code, err?.message);
+        console.warn(`[mailer] send fail (attempt ${attempt}) -> retry in ${wait}ms:`,
+          code ?? smtp, err?.message);
       }
       await sleep(wait);
     }

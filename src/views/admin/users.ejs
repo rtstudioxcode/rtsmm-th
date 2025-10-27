@@ -110,6 +110,14 @@
             <div class="label">สร้างเมื่อ</div><div class="value" id="mCreatedAt">—</div>
             <div class="label">อัปเดตล่าสุด</div><div class="value" id="mUpdatedAt">—</div>
 
+            <!-- ===== บัญชีรับเงิน ===== -->
+            <div class="label">บัญชีรับเงิน</div>
+            <div class="value">
+              <div id="bankRows"></div>
+              <button class="btn" id="bankAddBtn" type="button" style="margin-top:8px">+ เพิ่มบัญชี</button>
+              <div class="muted" style="margin-top:6px">สูงสุด 2 บัญชี · ห้ามซ้ำกับยูสอื่น</div>
+            </div>
+
             <!-- สถานะการบันทึก -->
             <div id="saveNote" class="save-note" aria-live="polite"> </div>
           </div>
@@ -294,6 +302,12 @@
 .admin-users .empty-state[hidden]{
   display: none !important;
 }
+.admin-users .bank-row{ display:grid; grid-template-columns: 180px 1fr 1fr auto; gap:8px; margin-bottom:8px; }
+.admin-users .bank-row .in{ height:36px; }
+.admin-users .bank-row .btn{ height:36px; }
+@media (max-width:768px){
+  .admin-users .bank-row{ grid-template-columns: 1fr; }
+}
 </style>
 
 <script>
@@ -346,6 +360,7 @@
     if (!res.ok || !j?.ok) { alert(j?.error || 'โหลดข้อมูลไม่สำเร็จ'); return; }
     const u = j.user || {};
     currentId = u._id;
+    renderBankRows(Array.isArray(u.bankAccounts) ? u.bankAccounts : []);
 
     // header
     m.avatar.src = u.avatarUrl || '/static/assets/img/user-blue.png';
@@ -392,7 +407,8 @@
       name: m.nameInput.value.trim(),
       role: m.roleSelect.value,
       emailVerified: !!m.emailVerifiedChk.checked,
-      balance: Number(m.balanceInput.value || 0)
+      balance: Number(m.balanceInput.value || 0),
+      bankAccounts: readBankRows()
     };
 
     try {
@@ -528,5 +544,76 @@
 
   // เริ่มต้น: ซ่อน empty state ไปก่อน (จนกว่าจะมีการพิมพ์)
   if (emptyState) emptyState.hidden = true;
+
+  // ===== Bank accounts (render + edit) =====
+  const bankRowsWrap = document.getElementById('bankRows');
+  const bankAddBtn   = document.getElementById('bankAddBtn');
+
+  const BANKS = [
+    ['','— เลือกธนาคาร/วอลเล็ท —'],
+    ['BBL','ธนาคารกรุงเทพ'], ['KBANK','ธนาคารกสิกรไทย'], ['KTB','ธนาคารกรุงไทย'],
+    ['BAY','ธนาคารกรุงศรีอยุธยา'], ['SCB','ธนาคารไทยพาณิชย์'], ['TMB','ทหารไทยธนชาต (TTB)'],
+    ['CIMB','ธนาคารซีไอเอ็มบีไทย'], ['UOB','ธนาคารยูโอบี'], ['GSB','ธนาคารออมสิน'],
+    ['BAAC','ธ.เพื่อการเกษตรและสหกรณ์การเกษตร'], ['KKB','ธนาคารเกียรตินาคินภัทร'],
+    ['LHFG','ธนาคารแลนด์ แอนด์ เฮ้าส์'], ['ICBC','ธนาคารไอซีบีซี (ไทย)'],
+    ['TISCO','ธนาคารทิสโก้'], ['TRUEWALLET','TrueMoney Wallet']
+  ];
+
+  function bankRowTpl(row={}){
+    const code = row.accountCode || row.code || '';
+    const number = row.accountNumber || row.number || '';
+    const name = row.accountName || row.name || '';
+    const opts = BANKS.map(([v,t]) => `<option value="${v}" ${v===code?'selected':''}>${t}</option>`).join('');
+    return `
+      <div class="bank-row" data-bank-row>
+        <select class="in" data-code>${opts}</select>
+        <input class="in" data-number type="text" inputmode="numeric" placeholder="เลขบัญชี/เบอร์วอลเล็ท" value="${number}">
+        <input class="in" data-name type="text" placeholder="ชื่อบัญชี" value="${name}">
+        <button class="btn" data-remove type="button">ลบ</button>
+      </div>
+    `;
+  }
+
+  function renderBankRows(list){
+    bankRowsWrap.innerHTML = '';
+    (list||[]).forEach(r => bankRowsWrap.insertAdjacentHTML('beforeend', bankRowTpl(r)));
+    if ((list||[]).length === 0) bankRowsWrap.insertAdjacentHTML('beforeend', bankRowTpl({}));
+    clampBankAddBtn();
+  }
+
+  function clampBankAddBtn(){
+    const n = bankRowsWrap.querySelectorAll('[data-bank-row]').length;
+    bankAddBtn.disabled = (n >= 2);
+  }
+
+  // ดึงค่าจาก UI
+  function readBankRows(){
+    const out = [];
+    bankRowsWrap.querySelectorAll('[data-bank-row]').forEach(row => {
+      const code = row.querySelector('[data-code]').value.trim().toUpperCase();
+      const number = (row.querySelector('[data-number]').value||'').replace(/[^\d]/g,'');
+      const name = row.querySelector('[data-name]').value.trim();
+      if (!code && !number && !name) return; // ข้ามแถวว่าง
+      out.push({ accountCode:code, accountNumber:number, accountName:name });
+    });
+    return out;
+  }
+
+  // เพิ่ม/ลบแถว
+  bankAddBtn?.addEventListener('click', () => {
+    bankRowsWrap.insertAdjacentHTML('beforeend', bankRowTpl({}));
+    clampBankAddBtn();
+    scheduleSave(); // ให้ไปเซฟพร้อม field อื่นแบบ debounce
+  });
+  bankRowsWrap?.addEventListener('click', (e)=>{
+    const btn = e.target.closest('[data-remove]');
+    if (!btn) return;
+    btn.closest('[data-bank-row]')?.remove();
+    clampBankAddBtn();
+    scheduleSave();
+  });
+  bankRowsWrap?.addEventListener('input', (e)=>{
+    if (e.target.matches('[data-code],[data-number],[data-name]')) scheduleSave();
+  });
 })();
 </script>

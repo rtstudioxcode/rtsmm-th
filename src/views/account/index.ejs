@@ -120,6 +120,41 @@
           </div>
         </form>
 
+        <!-- บัญชีรับเงินของฉัน -->
+        <div class="card" style="margin-top:14px">
+          <div class="card-header">
+            <div class="title">บัญชีรับเงินของฉัน</div>
+            <div class="actions">
+              <span class="pill">สูงสุด 2 บัญชี</span>
+              <button id="btnAddBank" type="button" class="btn primary"
+                      <% if (Array.isArray(bankAccounts) && bankAccounts.length >= 2) { %>disabled<% } %>>
+                เพิ่มบัญชี
+              </button>
+            </div>
+          </div>
+
+          <div class="bank-list" id="bankListView">
+            <% if (Array.isArray(bankAccounts) && bankAccounts.length) { %>
+              <% bankAccounts.forEach(function(a, idx){ %>
+                <div class="bank-item" data-code="<%= a.code %>" data-number="<%= a.number %>">
+                  <div class="bank-meta">
+                    <div class="bank-name">
+                      <span class="badge <%= a.code === 'TRUEWALLET' ? 'warn' : 'balance' %>"><%= a.label %></span>
+                    </div>
+                    <div class="bank-no"><%= a.numberMasked %></div>
+                    <div class="bank-owner muted">ชื่อบัญชี: <%= a.name || '-' %></div>
+                  </div>
+                </div>
+                <% if (idx !== bankAccounts.length - 1) { %><div class="bank-sep"></div><% } %>
+              <% }) %>
+            <% } else { %>
+              <div class="bank-empty muted" id="bankEmptyMsg">
+                ยังไม่มีข้อมูลบัญชี — หากต้องการแก้ไข/เพิ่ม โปรดติดต่อผู้ดูแลระบบ
+              </div>
+            <% } %>
+          </div>
+        </div>
+
         <form id="formPassword" class="card">
           <div class="card-header"><div class="title">เปลี่ยนรหัสผ่าน</div></div>
           <div class="form-grid">
@@ -152,6 +187,8 @@
           </div>
         </form>
       </div>
+
+      
 
       <!-- =========== Tab: Points และ Level(แทนที่บล็อกเดิมทั้งหมด) =========== -->
       <div class="card" style="margin-bottom:14px">
@@ -285,6 +322,49 @@
     </div>
   </div>
 </section>
+
+<dialog id="bankModal" class="rt-modal">
+  <div class="rt-card" style="min-width:380px">
+    <h3 class="rt-title">เพิ่มบัญชีรับเงิน</h3>
+
+    <form id="bankForm" class="form-grid" style="padding:0;margin-top:8px">
+      <label>ผู้ให้บริการ
+        <select name="accountCode" class="fsel" required>
+          <option value="">— เลือกธนาคาร/วอลเล็ท —</option>
+          <option value="BBL">ธนาคารกรุงเทพ</option>
+          <option value="KBANK">ธนาคารกสิกรไทย</option>
+          <option value="KTB">ธนาคารกรุงไทย</option>
+          <option value="BAY">ธนาคารกรุงศรีอยุธยา</option>
+          <option value="SCB">ธนาคารไทยพาณิชย์</option>
+          <option value="TMB">ทหารไทยธนชาต (TTB)</option>
+          <option value="CIMB">ธนาคารซีไอเอ็มบีไทย</option>
+          <option value="UOB">ธนาคารยูโอบี</option>
+          <option value="GSB">ธนาคารออมสิน</option>
+          <option value="BAAC">ธ.เพื่อการเกษตรและสหกรณ์การเกษตร</option>
+          <option value="KKB">ธนาคารเกียรตินาคินภัทร</option>
+          <option value="LHFG">ธนาคารแลนด์ แอนด์ เฮ้าส์</option>
+          <option value="ICBC">ธนาคารไอซีบีซี (ไทย)</option>
+          <option value="TISCO">ธนาคารทิสโก้</option>
+          <option value="TRUEWALLET">TrueMoney Wallet</option>
+        </select>
+      </label>
+
+      <label>เลขบัญชี / เบอร์วอลเล็ท
+        <input name="accountNumber" type="text" inputmode="numeric" placeholder="ตัวเลขเท่านั้น" required>
+        <small class="muted sm">ธนาคาร 9–12 หลัก • TrueWallet มือถือ 10 หลักขึ้นต้น 0</small>
+      </label>
+
+      <label>ชื่อบัญชี
+        <input name="accountName" type="text" placeholder="ชื่อ–นามสกุลตามบัญชี" required>
+      </label>
+
+      <div class="rt-actions" style="margin-top:6px">
+        <button type="button" class="btn" id="bankCancel">ยกเลิก</button>
+        <button type="submit" class="btn primary" id="bankSave">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</dialog>
 
 <style>
 /* ===== Theme tokens (sync กับ layout.ejs: html[data-theme]) ===== */
@@ -493,6 +573,27 @@ html[data-theme="light"] .static-input{
 }
 .pw-toggle:hover{ opacity:1; }
 .pw-toggle svg{ width:18px; height:18px; }
+/* ===== Bank account list ===== */
+.bank-list{ padding: 12px 16px; }
+.bank-item{
+  display:flex; align-items:flex-start; gap:12px;
+  padding: 8px 2px;
+}
+.bank-meta{ display:flex; flex-direction:column; gap:4px; }
+.bank-name{ font-weight:800; color:var(--text); }
+.bank-no{ font-size:1.05rem; font-weight:900; letter-spacing:.2px; }
+.bank-owner{ font-size:.92rem; }
+.bank-sep{ height:1px; background:var(--line); margin:8px 0; opacity:.8; }
+.bank-empty{ padding:8px 2px; }
+
+.card-header .actions{display:flex;align-items:center;gap:8px}
+dialog.rt-modal{border:0;background:transparent;padding:0}
+dialog.rt-modal::backdrop{background:rgba(0,0,0,.5);backdrop-filter:blur(6px)}
+.rt-card{background:var(--surface);color:var(--text);border:1px solid var(--line);
+  border-radius:16px;padding:16px;box-shadow:var(--shadow)}
+.rt-title{margin:0 0 6px;font-weight:900;font-size:18px}
+.fsel{background:color-mix(in oklab,var(--surface) 70%, #000 30%);
+  border:1px solid var(--line);border-radius:12px;padding:10px 12px;color:var(--text)}
 </style>
 
 <script>
@@ -687,81 +788,6 @@ html[data-theme="light"] .static-input{
       input.value = '';
     }
   });
-
-  // // Avatar upload
-  // $('#btnChangeAvatar')?.addEventListener('click', () => $('#avatarInput')?.click());
-  // let _tmpObjUrl = null;
-  // $('#avatarInput')?.addEventListener('change', async (e) => {
-  //   const f = e.currentTarget.files?.[0]; 
-  //   if (!f) return;
-
-  //   // พรีวิวทันที
-  //   if (_tmpObjUrl) URL.revokeObjectURL(_tmpObjUrl);
-  //   _tmpObjUrl = URL.createObjectURL(f);
-  //   $('#avatarPreview').src = _tmpObjUrl;
-
-  //   const fd = new FormData(); 
-  //   fd.append('avatar', f);
-  //   try {
-  //     const r = await fetch('/account/profile', { method: 'POST', body: fd });
-  //     const j = await r.json();
-
-  //     if (!r.ok || !j?.ok) {
-  //       return fail('อัปโหลดรูปไม่สำเร็จ', j?.error || '');
-  //     }
-
-  //     // แสดงข้อความสำเร็จ
-  //     ok('อัปโหลดรูปสำเร็จ');
-
-  //     // ใช้ URL กันแคชที่เซิร์ฟเวอร์ส่งกลับมา แสดงทันที
-  //     if (j.user?.avatarUrl) {
-  //       $('#avatarPreview').src = j.user.avatarUrl;
-  //     }
-
-  //     // ถ้ามีส่วน OTP
-  //     if (j.user?.email && !j.user?.emailVerified) {
-  //       document.getElementById('otpArea')?.removeAttribute('hidden');
-  //     }
-
-  //     // หน่วงสั้น ๆ แล้วรีเฟรชหน้า 1 รอบ (กันแคช + sync ส่วนอื่น ๆ)
-  //     setTimeout(() => {
-  //       window.location.replace('/account');
-  //     }, 500);
-
-  //   } catch {
-  //     fail('อัปโหลดรูปไม่สำเร็จ', 'เครือข่ายมีปัญหา');
-  //   } finally {
-  //     // ล้างค่า input เพื่อให้เลือกไฟล์เดิมซ้ำได้ในอนาคต
-  //     const input = document.getElementById('avatarInput');
-  //     if (input) input.value = '';
-  //   }
-  // });
-
-  // // Save profile
-  // $('#formProfile')?.addEventListener('submit', async (e) => {
-  //   e.preventDefault();
-  //   const fd = new FormData(e.currentTarget);
-
-  //   try {
-  //     const r = await fetch('/account/profile', { method: 'POST', body: fd });
-  //     const j = await r.json();
-  //     if (!j.ok) return fail('บันทึกไม่สำเร็จ', j.error || '');
-
-  //     ok('อัปเดตข้อมูลเรียบร้อย');
-
-  //     // โชว์ช่อง OTP ถ้ายังไม่ยืนยันอีเมล
-  //     if (j.user?.email && !j.user?.emailVerified) {
-  //       document.getElementById('otpArea')?.removeAttribute('hidden');
-  //     }
-
-  //     setTimeout(() => {
-  //       window.location.replace('/account');
-  //     }, 500);
-
-  //   } catch {
-  //     fail('บันทึกไม่สำเร็จเครือข่ายมีปัญหา', 'เครือข่ายมีปัญหา');
-  //   }
-  // });
 
   // Change password
   $('#formPassword')?.addEventListener('submit', async (e) => {
@@ -1036,6 +1062,105 @@ html[data-theme="light"] .static-input{
       `);
     });
   }
+  const btnOpen = document.getElementById('btnAddBank');
+  const modal   = document.getElementById('bankModal');
+  const form    = document.getElementById('bankForm');
+  const btnCancel = document.getElementById('bankCancel');
+  const btnSave   = document.getElementById('bankSave');
+  const listView  = document.getElementById('bankListView');
+  const emptyMsg  = document.getElementById('bankEmptyMsg');
+
+  const BANK_LABELS = {
+    BBL:'ธนาคารกรุงเทพ', KBANK:'ธนาคารกสิกรไทย', KTB:'ธนาคารกรุงไทย',
+    BAY:'ธนาคารกรุงศรีอยุธยา', SCB:'ธนาคารไทยพาณิชย์', TMB:'ทหารไทยธนชาต (TTB)',
+    CIMB:'ธนาคารซีไอเอ็มบีไทย', UOB:'ธนาคารยูโอบี', GSB:'ธนาคารออมสิน',
+    BAAC:'ธ.เพื่อการเกษตรและสหกรณ์การเกษตร', KKB:'ธนาคารเกียรตินาคินภัทร',
+    LHFG:'ธนาคารแลนด์ แอนด์ เฮ้าส์', ICBC:'ธนาคารไอซีบีซี (ไทย)',
+    TISCO:'ธนาคารทิสโก้', TRUEWALLET:'TrueMoney Wallet'
+  };
+
+  function maskNumber(code, raw) {
+    const digits = (raw || '').replace(/[^\d]/g,'');
+    if (code === 'TRUEWALLET') {
+      return /^0\d{9}$/.test(digits) ? `${digits.slice(0,3)}-${digits.slice(3,6)}-${digits.slice(6)}` : raw;
+    }
+    if (digits.length >= 9) {
+      const a=digits.slice(0,3), b=digits.slice(3,4), c=digits.slice(4,-1), d=digits.slice(-1);
+      return `${a}-${b}-${c}-${d}`;
+    }
+    return raw;
+  }
+
+  btnOpen?.addEventListener('click', () => {
+    if (!modal.open) modal.showModal();
+    form.reset();
+    form.accountCode.focus();
+  });
+  btnCancel?.addEventListener('click', () => modal.close());
+  modal?.addEventListener('cancel', e => { e.preventDefault(); modal.close(); });
+
+  form?.accountNumber?.addEventListener('input', e => {
+    e.target.value = e.target.value.replace(/[^\d]/g,'').slice(0,12);
+  });
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    btnSave.disabled = true;
+
+    const code = (form.accountCode.value || '').toUpperCase().trim();
+    const number = (form.accountNumber.value || '').trim();
+    const name = (form.accountName.value || '').trim();
+
+    // client-validate
+    const digits = number.replace(/[^\d]/g,'');
+    if (!code) { window.showMsg?.({variant:'warn',title:'กรุณาเลือกผู้ให้บริการ'}); btnSave.disabled=false; return; }
+    if (!name) { window.showMsg?.({variant:'warn',title:'กรุณากรอกชื่อบัญชี'}); btnSave.disabled=false; return; }
+    if (code === 'TRUEWALLET') {
+      if (!/^0\d{9}$/.test(digits)) { window.showMsg?.({variant:'warn',title:'เบอร์วอลเล็ทไม่ถูกต้อง',text:'ต้องขึ้นต้น 0 และยาว 10 หลัก'}); btnSave.disabled=false; return; }
+    } else {
+      if (!/^\d{9,12}$/.test(digits)) { window.showMsg?.({variant:'warn',title:'เลขบัญชีไม่ถูกต้อง',text:'ต้องเป็นตัวเลข 9–12 หลัก'}); btnSave.disabled=false; return; }
+    }
+
+    try {
+      const r = await fetch('/account/bank/add', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ accountCode:code, accountNumber:digits, accountName:name })
+      });
+      const j = await r.json().catch(()=>({}));
+      if (!r.ok || !j?.ok) {
+        window.showMsg?.({variant:'error',title:'เพิ่มบัญชีไม่สำเร็จ',text:j?.error||'โปรดลองใหม่'});
+        btnSave.disabled=false; return;
+      }
+
+      // อัปเดต UI
+      modal.close();
+      const itemHtml = `
+        <div class="bank-item" data-code="${code}" data-number="${digits}">
+          <div class="bank-meta">
+            <div class="bank-name"><span class="badge ${code==='TRUEWALLET'?'warn':'balance'}">${BANK_LABELS[code]||code}</span></div>
+            <div class="bank-no">${maskNumber(code, digits)}</div>
+            <div class="bank-owner muted">ชื่อบัญชี: ${name || '-'}</div>
+          </div>
+        </div>`;
+      // ลบข้อความว่าง + คั่นเส้นถ้ามีรายการอยู่ก่อน
+      emptyMsg?.remove();
+      if (listView?.lastElementChild && listView.lastElementChild.classList.contains('bank-item')) {
+        listView.insertAdjacentHTML('beforeend','<div class="bank-sep"></div>');
+      }
+      listView?.insertAdjacentHTML('beforeend', itemHtml);
+
+      window.showMsg?.({variant:'success',title:'สำเร็จ',text:'เพิ่มบัญชีแล้ว'});
+      // ปิดปุ่มถ้าครบ 2
+      const count = listView.querySelectorAll('.bank-item').length;
+      if (count >= 2) btnOpen.disabled = true;
+
+    } catch {
+      window.showMsg?.({variant:'error',title:'เครือข่ายมีปัญหา',text:'โปรดลองใหม่อีกครั้ง'});
+    } finally {
+      btnSave.disabled = false;
+    }
+  });
   render();
   document.getElementById('lvPrev')?.addEventListener('click', () => { page = (page-1+pages.length)%pages.length; render(); });
   document.getElementById('lvNext')?.addEventListener('click', () => { page = (page+1)%pages.length; render(); });

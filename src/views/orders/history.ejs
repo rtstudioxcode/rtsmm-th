@@ -181,12 +181,12 @@ function decideDisplaySSR(o){
 
             <!-- ปุ่มใต้สถานะ -->
             <div class="st-actions under">
-              <% if (canCancel && stLower === 'processing') { %>
+              <!-- <% if (canCancel && stLower === 'processing') { %>
                 <button type="button" class="xbtn xbtn-danger btn-cancel" data-id="<%= o._id %>"
                         title="ยกเลิกและคืนเงิน" aria-label="ยกเลิกและคืนเงิน">
                   <img src="/static/assets/emoji/cancel.png" alt="" class="icon" />
                 </button>
-              <% } %>
+              <% } %> -->
 
               <% if (!(dd.isDone || stLower === 'canceled' || stLower === 'partial')) { %>
                 <button type="button" class="xbtn xbtn-sync btn-refresh" data-id="<%= o._id %>"
@@ -304,7 +304,7 @@ function decideDisplaySSR(o){
               </span>
               <div class="st-actions">
                 <!-- ยกเลิก: เฉพาะ "processing" -->
-                <% if (canCancel && stLower === 'processing') { %>
+                <!-- <% if (canCancel && stLower === 'processing') { %>
                   <button
                     type="button"
                     class="xbtn xbtn-sync btn-cancel"
@@ -313,7 +313,7 @@ function decideDisplaySSR(o){
                     aria-label="ยกเลิกและคืนเงิน">
                     <img src="/static/assets/emoji/cancel.png" alt="" class="icon" />
                   </button>
-                <% } %>
+                <% } %> -->
 
                 <!-- รีเฟรช: ไม่แสดงเมื่อ completed หรือ canceled -->
                 <% if (!(mdd.isDone || stLower === 'canceled' || stLower === 'partial')) { %>

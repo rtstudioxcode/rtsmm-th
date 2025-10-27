@@ -23,6 +23,24 @@ const BRAND_URL  = 'https://rtsmm-th.com';
 const BRAND_LOGO = `${BRAND_URL}/static/assets/logo/logo-rtssm-th.png`;
 
 /* ---------------- helpers ---------------- */
+const BANK_LABELS = {
+  BBL: 'ธนาคารกรุงเทพ',
+  KBANK: 'ธนาคารกสิกรไทย',
+  KTB: 'ธนาคารกรุงไทย',
+  BAY: 'ธนาคารกรุงศรีอยุธยา',
+  SCB: 'ธนาคารไทยพาณิชย์',
+  TMB: 'ทหารไทยธนชาต (TTB)',
+  CIMB: 'ธนาคารซีไอเอ็มบีไทย',
+  UOB: 'ธนาคารยูโอบี',
+  GSB: 'ธนาคารออมสิน',
+  BAAC: 'ธ.เพื่อการเกษตรและสหกรณ์การเกษตร',
+  KKB: 'ธนาคารเกียรตินาคินภัทร',
+  LHFG: 'ธนาคารแลนด์ แอนด์ เฮ้าส์',
+  ICBC: 'ธนาคารไอซีบีซี (ไทย)',
+  TISCO: 'ธนาคารทิสโก้',
+  TRUEWALLET: 'TrueMoney Wallet',
+};
+
 function getAuthUserId(req) {
   return (
     req.user?._id ||
@@ -115,6 +133,72 @@ export const emailTemplate = (code) => `
 </body>
 </html>`;
 
+function normalizeAccounts(doc) {
+  if (!doc) return [];
+  // ถ้ามีโครงสร้างแบบ accounts: [{accountCode,accountNumber,accountName}]
+  if (Array.isArray(doc.accounts)) {
+    return doc.accounts
+      .filter(a => a && (a.accountCode || a.accountNumber || a.accountName))
+      .slice(0, 2) // สูงสุด 2
+      .map(a => ({
+        code: String(a.accountCode || '').toUpperCase(),
+        name: String(a.accountName || '').trim(),
+        number: String(a.accountNumber || '').trim(),
+      }));
+  }
+
+  // รองรับฟิลด์เดิมแบบเดี่ยว
+  const codeArr   = Array.isArray(doc.accountCode)   ? doc.accountCode   : [doc.accountCode];
+  const nameArr   = Array.isArray(doc.accountName)   ? doc.accountName   : [doc.accountName];
+  const numberArr = Array.isArray(doc.accountNumber) ? doc.accountNumber : [doc.accountNumber];
+
+  const len = Math.min(codeArr.length, nameArr.length, numberArr.length);
+  const out = [];
+  for (let i = 0; i < len; i++) {
+    const code = String(codeArr[i] || '').toUpperCase();
+    const name = String(nameArr[i] || '').trim();
+    const number = String(numberArr[i] || '').trim();
+    if (code || name || number) out.push({ code, name, number });
+  }
+  return out.slice(0, 2);
+}
+
+// ปิดบังเลข (ธนาคาร 9–12 หลัก, TW เบอร์มือถือ)
+function maskNumber(code, raw) {
+  const digits = String(raw || '').replace(/[^\d]/g, '');
+  if (code === 'TRUEWALLET') {
+    // 0XXXXXXXXX -> 0XX-XXX-XXXX
+    if (/^0\d{9}$/.test(digits)) {
+      return `${digits.slice(0,3)}-${digits.slice(3,6)}-${digits.slice(6)}`;
+    }
+    return raw || '-';
+  }
+  // ธนาคาร: xxxx-x-xxxxx-x (พยายามจัดกลุ่มแบบอ่านง่าย)
+  if (digits.length >= 9) {
+    const a = digits.slice(0, 3);
+    const b = digits.slice(3, 4);
+    const c = digits.slice(4, digits.length - 1);
+    const d = digits.slice(-1);
+    return `${a}-${b}-${c}-${d}`;
+  }
+  return raw || '-';
+}
+
+function serializeBankAccounts(u) {
+  const rows = Array.isArray(u?.bankAccounts) ? u.bankAccounts : [];
+  return rows.slice(0, 2).map(a => {
+    const code = String(a.accountCode || '').toUpperCase();
+    const number = String(a.accountNumber || '').trim();
+    return {
+      id: String(a._id || ''),
+      code,
+      name: String(a.accountName || '').trim(),
+      number,
+      label: BANK_LABELS[code] || code,
+      numberMasked: maskNumber(code, number),
+    };
+  });
+}
 /* ---------------- router ---------------- */
 const router = Router();
 router.use(requireAuth);
@@ -182,6 +266,8 @@ router.get('/account', async (req, res, next) => {
       emailVerified: !!me.emailVerified,
     };
 
+    const bankAccounts = serializeBankAccounts(me);
+
     // (3) ส่งค่าให้หน้า view (agg ใช้กับการ์ดสรุปด้านบน)
     res.render('account/index', {
       title: 'ตั้งค่าข้อมูลส่วนตัว',
@@ -196,6 +282,7 @@ router.get('/account', async (req, res, next) => {
       },
       levels: LEVELS,
       bodyClass: 'page-account',
+      bankAccounts,
     });
   } catch (e) {
     next(e);
@@ -476,4 +563,113 @@ router.post('/account/points/redeem', async (req, res) => {
     res.status(500).json({ ok:false, error:'แลกแต้มไม่สำเร็จ' });
   }
 });
+
+// ====== BANK ======
+// GET /account/bank/list
+router.get('/account/bank/list', async (req, res) => {
+  const uid = getAuthUserId(req);
+  if (!uid) return res.status(401).json({ ok:false, error:'⛔️คุณไม่ได้รับอนุญาต' });
+
+  const u = await User.findById(uid).lean();
+  if (!u) return res.status(404).json({ ok:false, error:'⛔️ไม่พบผู้ใช้' });
+
+  return res.json({ ok:true, accounts: serializeBankAccounts(u) });
+});
+
+// POST /account/bank/add
+router.post('/account/bank/add', async (req, res) => {
+  try {
+    const uid = getAuthUserId(req);
+    if (!uid) return res.status(401).json({ ok:false, error:'⛔️คุณไม่ได้รับอนุญาต' });
+
+    const u = await User.findById(uid);
+    if (!u) return res.status(404).json({ ok:false, error:'⛔️ไม่พบผู้ใช้' });
+
+    if (!Array.isArray(u.bankAccounts)) u.bankAccounts = [];
+    if (u.bankAccounts.length >= 2) {
+      return res.status(400).json({ ok:false, error:'มีบัญชีครบ 2 รายการแล้ว' });
+    }
+
+    const codeRaw = String(req.body.accountCode || req.body.code || '').toUpperCase().trim();
+    const name    = String(req.body.accountName || req.body.name || '').trim();
+    const numRaw  = String(req.body.accountNumber || req.body.number || '').trim();
+    const digits  = numRaw.replace(/[^\d]/g, '');
+
+    if (!codeRaw || !name || !numRaw) {
+      return res.status(400).json({ ok:false, error:'ข้อมูลไม่ครบ' });
+    }
+    if (codeRaw === 'TRUEWALLET') {
+      if (!/^0\d{9}$/.test(digits)) return res.status(400).json({ ok:false, error:'TrueWallet ต้องเป็นเบอร์ 10 หลักขึ้นต้น 0' });
+    } else {
+      if (!/^\d{9,12}$/.test(digits)) return res.status(400).json({ ok:false, error:'เลขบัญชีต้องเป็นตัวเลข 9–12 หลัก' });
+    }
+
+    // กันซ้ำใน user ตัวเองก่อน
+    const dupSelf = (u.bankAccounts || []).some(a =>
+      String(a.accountCode || '').toUpperCase() === codeRaw &&
+      String(a.accountNumber || '').replace(/[^\d]/g,'') === digits
+    );
+    if (dupSelf) return res.status(409).json({ ok:false, error:'บัญชีนี้ถูกเพิ่มไว้แล้ว' });
+
+    // ✅ กันซ้ำ "ข้ามผู้ใช้" ทั้งระบบ
+    const usedByOther = await User.findOne({
+      _id: { $ne: u._id },
+      bankAccounts: { $elemMatch: { accountCode: codeRaw, accountNumber: digits } }
+    }).lean();
+
+    if (usedByOther) {
+      return res.status(409).json({
+        ok:false,
+        error:'บัญชีนี้ถูกใช้งานอยู่ในผู้ใช้อื่นแล้ว (1 บัญชีใช้ได้เพียง 1 ผู้ใช้)'
+      });
+    }
+
+    // เพิ่ม
+    u.bankAccounts.push({ accountCode: codeRaw, accountNumber: digits, accountName: name });
+    await u.save();
+
+    const last = u.bankAccounts[u.bankAccounts.length - 1];
+    return res.json({
+      ok:true,
+      account: {
+        id: String(last._id || ''),
+        code: codeRaw,
+        name,
+        number: digits,
+        label: BANK_LABELS[codeRaw] || codeRaw,
+        numberMasked: maskNumber(codeRaw, digits),
+        count: u.bankAccounts.length
+      }
+    });
+  } catch (e) {
+    console.error('POST /account/bank/add', e);
+    return res.status(500).json({ ok:false, error:'เพิ่มบัญชีไม่สำเร็จ (server)' });
+  }
+});
+
+// POST /account/bank/remove
+router.post('/account/bank/remove', async (req, res) => {
+  const uid = getAuthUserId(req);
+  if (!uid) return res.status(401).json({ ok:false, error:'⛔️คุณไม่ได้รับอนุญาต' });
+
+  const { id } = req.body;
+  if (!id) return res.status(400).json({ ok:false, error:'ไม่พบ id ของบัญชี' });
+
+  const u = await User.findById(uid);
+  if (!u) return res.status(404).json({ ok:false, error:'⛔️ไม่พบผู้ใช้' });
+
+  if (!Array.isArray(u.bankAccounts) || u.bankAccounts.length === 0) {
+    return res.json({ ok:true, accounts: [] });
+  }
+
+  const before = u.bankAccounts.length;
+  u.bankAccounts = u.bankAccounts.filter(a => String(a._id || '') !== String(id));
+  if (u.bankAccounts.length === before) {
+    return res.status(404).json({ ok:false, error:'ไม่พบบัญชีนี้' });
+  }
+
+  await u.save();
+  return res.json({ ok:true, accounts: serializeBankAccounts(u) });
+});
+
 export default router;
