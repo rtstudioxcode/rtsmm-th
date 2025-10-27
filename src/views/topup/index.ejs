@@ -140,8 +140,48 @@
     <p class="muted">ยังไม่มีช่องทางเติมเงินที่พร้อมใช้งาน</p>
     <% } %>
 
+
     <!-- 🟡 Modal -->
     <div id="qrModal" class="hidden modal">
+      <div class="overlay" data-close="1"></div>
+      <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="qrTitle">
+        <div class="hdr">
+          <div class="title" id="qrTitle">สแกนเพื่อเติมเงิน</div>
+          <button class="icon close" id="qrClose" aria-label="ปิด">×</button>
+        </div>
+        <hr class="sep" />
+
+        <!-- ⬇️ ตัวนับถอยหลัง (ประกาศก่อนเนื้อหา) -->
+        <div id="qrCountdown" class="muted" style="text-align:center" aria-live="polite">
+          หมดอายุใน 05:00
+        </div>
+
+        <div class="body">
+          <!-- ⬇️ ห่อภาพเพื่อจัดกลางแนว flex -->
+          <div class="qr-img-wrap">
+            <img id="qrImage" src="" alt="QR Code" class="qr-img" />
+          </div>
+
+          <div class="qr-meta">
+            <div><b>ช่องทาง:</b> <span id="qrMethod"></span></div>
+            <div><b>ชื่อบัญชี:</b> <span id="qrName"></span></div>
+            <div><b>เลขบัญชี:</b> <span id="qrNumber"></span></div>
+            <div><b>ยอดเติม:</b> <span id="qrAmount" class="text-success"></span> บาท</div>
+            <div>
+              <span id="qrWarn" class="muted" style="color: #e7ac08; text-align: center;">โปรดโอนในระยะเวลาที่กำหนด</span> 
+            </div>
+          </div>
+        </div>
+
+        <hr class="sep" />
+        <div class="footer d-flex justify-content-center" style="margin-top:12px">
+          <button class="btn primary" id="confirmTopup">ยืนยันการโอนแล้ว</button>
+        </div>
+        <div id="qrStatus" class="mt"></div>
+      </div>
+    </div>
+    <!-- 🟡 Modal -->
+    <!-- <div id="qrModal" class="hidden modal">
       <div class="overlay" data-close="1"></div>
       <div class="dialog qr-dialog" role="dialog" aria-modal="true" aria-labelledby="qrTitle">
         <div class="hdr">
@@ -152,17 +192,18 @@
         <hr class="sep" />
 
         <div class="body text-center">
-          <!-- กรอบ QR โค้งมน + เงา -->
           <div class="qr-frame">
             <img id="qrImage" src="" alt="QR Code">
           </div>
 
-          <!-- ข้อมูลใต้รูป จัดกลางทั้งหมด -->
           <div class="qr-meta">
             <div><b>ช่องทาง:</b> <span id="qrMethod"></span></div>
             <div><b>ชื่อบัญชี:</b> <span id="qrName"></span></div>
             <div><b>เลขบัญชี:</b> <span id="qrNumber"></span></div>
             <div><b>ยอดเติม:</b> <span id="qrAmount" class="text-success"></span> บาท</div>
+            <div>
+              <span class="muted" style="color: #e7ac08; text-align: center;">โปรดโอนในระยะเวลาที่กำหนด</span> 
+            </div>
           </div>
         </div>
 
@@ -174,7 +215,7 @@
 
         <div id="qrStatus" class="mt"></div>
       </div>
-    </div>
+    </div> -->
 
     <!-- 🟡 Modal -->
     <!-- <div id="qrModal" class="hidden modal">
@@ -418,18 +459,65 @@
     }
   });
 
+  /* ================= QR MODAL (single source of truth) ================= */
+  let qrTimerId = null;
+  let qrExpireAt = null;
+
+  function formatMMSS(msLeft){
+    const s = Math.max(0, Math.ceil(msLeft/1000));
+    const mm = String(Math.floor(s/60)).padStart(2,'0');
+    const ss = String(s%60).padStart(2,'0');
+    return `${mm}:${ss}`;
+  }
+
+  function clearQrCountdown(){
+    if (qrTimerId) clearInterval(qrTimerId);
+    qrTimerId = null;
+    const el = document.getElementById('qrCountdown');
+    if (el) el.textContent = 'หมดอายุใน 05:00';
+  }
+
+  function startQrCountdown(seconds = 300){
+    clearQrCountdown();
+    const el = document.getElementById('qrCountdown');
+    qrExpireAt = Date.now() + seconds * 1000;
+
+    const tick = () => {
+      const left = qrExpireAt - Date.now();
+      if (left <= 0){
+        clearQrCountdown();
+        if (el) el.textContent = 'หมดเวลาแล้ว';
+        closeQrModal(); // ปิดออโต้เมื่อหมดเวลา
+        return;
+      }
+      if (el) el.textContent = `หมดอายุใน ${formatMMSS(left)}`;
+    };
+
+    tick();
+    qrTimerId = setInterval(tick, 1000);
+  }
+
   /* 🟢 Modal controls */
   function openQrModal() {
-    $("#qrModal").classList.remove("hidden");
+    const m = document.getElementById('qrModal');
+    m?.classList.remove('hidden');
+    document.getElementById('qrStatus').innerHTML = '';
+    startQrCountdown(300); // 5 นาที
   }
 
   function closeQrModal() {
-    $("#qrModal").classList.add("hidden");
-    $("#qrStatus").innerHTML = "";
+    const m = document.getElementById('qrModal');
+    m?.classList.add('hidden');
+    document.getElementById('qrStatus').innerHTML = '';
+    clearQrCountdown();
+    // เคลียร์รูปกันแคชค้าง (optional)
+    // document.getElementById('qrImage').src = '';
   }
-  $("#qrClose").onclick = closeQrModal;
-  $("#qrModal").addEventListener("click", (e) => {
-    if (e.target.dataset.close === "1") closeQrModal();
+
+  /* bind ปิดด้วยปุ่ม/overlay (ครั้งเดียว) */
+  document.getElementById('qrClose')?.addEventListener('click', closeQrModal);
+  document.getElementById('qrModal')?.addEventListener('click', (e)=>{
+    if (e.target.dataset.close === '1') closeQrModal();
   });
 
   /* 💸 Submit TrueWallet topup */
@@ -441,9 +529,7 @@
     const walletCode = form.dataset.walletCode;
 
     if (!(amount > 0)) {
-      $(
-        "#resp"
-      ).innerHTML = `<div class="card soft">❌ กรุณากรอกจำนวนเงินให้ถูกต้อง</div>`;
+      $("#resp").innerHTML = `<div class="card soft">❌ กรุณากรอกจำนวนเงินให้ถูกต้อง</div>`;
       return false;
     }
 
@@ -451,58 +537,42 @@
       try {
         const res = await fetch("/topup/truewallet/gen/link", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            amount,
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount }),
         });
         const data = await res.json();
         if (!data.url) {
-          $("#resp").innerHTML = `<div class="card soft">❌ ${
-            data.error || "ไม่สามารถสร้างลิงก์ได้"
-          }</div>`;
+          $("#resp").innerHTML = `<div class="card soft">❌ ${data.error || "ไม่สามารถสร้างลิงก์ได้"}</div>`;
           return false;
         }
 
-        $(
-          "#qrImage"
-        ).src = `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(
-          data.url
-        )}`;
+        // ใส่ข้อมูล QR + เปิดโมดัล
+        $("#qrImage").src = `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(data.url)}`;
         $("#qrMethod").textContent = "TrueMoney Wallet";
-        $("#qrName").textContent = data.accountName || "RTSSM Web";
-        $("#qrNumber").textContent = data.accountNumber || "0000000000";
+        $("#qrName").textContent   = data.accountName  || "RTSSM Web";
+        $("#qrNumber").textContent = data.accountNumber|| "0000000000";
         $("#qrAmount").textContent = fmt(amount * 1.03);
+        $("#qrWarn").textContent = "โปรดโอนในระยะเวลาที่กำหนด";
         openQrModal();
       } catch (err) {
-        $(
-          "#resp"
-        ).innerHTML = `<div class="card soft">❌ ขัดข้อง: ${err.message}</div>`;
+        $("#resp").innerHTML = `<div class="card soft">❌ ขัดข้อง: ${err.message}</div>`;
       }
     }
     return false;
   }
 
   /* 🧾 Confirm topup */
-  $("#confirmTopup").addEventListener("click", async () => {
+  document.getElementById("confirmTopup")?.addEventListener("click", async () => {
     const amount = Number(document.querySelector("#amount")?.value || 0);
     if (!(amount > 0)) return;
 
-    $(
-      "#qrStatus"
-    ).innerHTML = `<div class="muted">⏳ กำลังตรวจสอบรายการ...</div>`;
+    $("#qrStatus").innerHTML = `<div class="muted">⏳ กำลังตรวจสอบรายการ...</div>`;
 
     try {
       const res = await fetch("/topup/truewallet/check", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          amount,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount }),
       });
       const data = await res.json();
 
@@ -521,9 +591,7 @@
           </div>`;
       }
     } catch (err) {
-      $(
-        "#qrStatus"
-      ).innerHTML = `<div class="card soft">❌ ขัดข้อง: ${err.message}</div>`;
+      $("#qrStatus").innerHTML = `<div class="card soft">❌ ขัดข้อง: ${err.message}</div>`;
     }
   });
 </script>
@@ -722,6 +790,8 @@
   .modal .title {
     font-weight: 700;
     font-size: 16px;
+    text-align: center;
+    align-items: center;
   }
 
   .modal .icon.close {
@@ -893,5 +963,43 @@
   @keyframes popIn{
     from{ transform: translate(-50%, -50%) scale(.96); opacity: .0; }
     to  { transform: translate(-50%, -50%) scale(1);    opacity: 1; }
+  }
+
+  /* ===== QR Modal Centering & Responsive ===== */
+  #qrModal .body{
+    display: flex;
+    flex-direction: column;
+    align-items: center;        /* จัดกึ่งกลางแนวนอน */
+    gap: 14px;
+    text-align: center;
+  }
+
+  .qr-img-wrap{
+    display: flex;
+    justify-content: center;    /* จัดรูปกลางใน wrap อีกชั้น */
+    width: 100%;
+  }
+
+  .qr-img{
+    display: block;
+    width: min(320px, 80vw);    /* เดสก์ท็อป 320px, มือถือ <= 80vw */
+    height: auto;
+    border-radius: 16px;        /* มุมโค้ง */
+    background: #111;           /* เผื่อรูปโปร่ง */
+    padding: 8px;               /* เสริมกรอบให้ดูพรีเมียม */
+    box-shadow: 0 6px 24px rgba(0,0,0,.35);
+  }
+
+  .qr-meta{
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  @media (max-width: 768px){
+    #qrModal .dialog{
+      width: 92vw;              /* ไม่เต็มจอเกินไป */
+      max-width: 420px;
+    }
+    .qr-img{ width: min(300px, 78vw); }
   }
 </style>
