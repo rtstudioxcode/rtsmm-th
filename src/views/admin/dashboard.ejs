@@ -89,7 +89,7 @@
               <div><b>TrueWallet</b></div>
               <div class="muted">เบอร์ผู้โอน: <%= tx.senderNumber || '-' %></div>
             <% } else { %>
-              <img src="/static/assets/payment/<%= tx.senderBank %>.webp" class="bank-logo" />
+              <img src="/static/assets/payment/mobilebanking.png" class="bank-logo" />
               <div><b><%= BANK_LABELS[tx.senderBank] || 'ไม่ระบุธนาคาร' %></b></div>
               <div class="muted">เลขท้ายบัญชีผู้โอน: <%= tx.senderLast6 || '-' %></div>
             <% } %>

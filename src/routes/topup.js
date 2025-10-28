@@ -609,7 +609,7 @@ topupRouter.post("/kbank", async (req, res) => {
         status: "pending",
         createdAt: parsedDate,
       });
-      console.log(`✅ SCB Deposit (unmatched): +${amt} THB`);
+      console.log(`✅ KBANK Deposit (unmatched): +${amt} THB`);
       return res.json({ success: true, method: "scb", amount: amt, timestamp });
     }
 
@@ -628,7 +628,7 @@ topupRouter.post("/kbank", async (req, res) => {
       });
 
       console.log(
-        `✅ SCB Deposit: ${user.username} +${amt} THB → ${newBalance}`
+        `✅ KBANK Deposit: ${user.username} +${amt} THB → ${newBalance}`
       );
       return res.json({
         success: true,
@@ -651,7 +651,7 @@ topupRouter.post("/kbank", async (req, res) => {
       });
 
       console.log(
-        `✅ SCB Deposit (manual): ${user.username} +${amt} THB (pending)`
+        `✅ KBANK Deposit (manual): ${user.username} +${amt} THB (pending)`
       );
       return res.json({
         success: true,
@@ -663,7 +663,7 @@ topupRouter.post("/kbank", async (req, res) => {
       });
     }
   } catch (err) {
-    console.error("❌ /scb error:", err);
+    console.error("❌ /kbank error:", err);
     return res.status(500).json({ success: false, message: "something_wrong" });
   }
 });
