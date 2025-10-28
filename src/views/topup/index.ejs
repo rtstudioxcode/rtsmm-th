@@ -15,129 +15,121 @@
   <section class="card soft">
     <h3 class="title">ช่องทางเติมเงินของคุณ</h3>
 
-    <% const BANK_LABELS = { bbl: 'ธนาคารกรุงเทพ', kbank: 'ธนาคารกสิกรไทย', ktb:
-    'ธนาคารกรุงไทย', bay: 'ธนาคารกรุงศรีอยุธยา', scb: 'ธนาคารไทยพาณิชย์', tmb:
-    'ทหารไทยธนชาต (TTB)', cimb: 'ธนาคารซีไอเอ็มบีไทย', uob: 'ธนาคารยูโอบี', gsb:
-    'ธนาคารออมสิน', baac: 'ธ.เพื่อการเกษตรและสหกรณ์การเกษตร', kkb:
-    'ธนาคารเกียรตินาคินภัทร', lhfg: 'ธนาคารแลนด์ แอนด์ เฮ้าส์', icbc:
-    'ธนาคารไอซีบีซี (ไทย)', tisco: 'ธนาคารทิสโก้', tw: 'TrueMoney Wallet', }; %>
-    <% const hasMultipleWallets = webWallets && webWallets.length > 1; %>
+    <%
+    // ✅ กรองเฉพาะกระเป๋าที่ใช้งานอยู่เท่านั้น (isActive !== false)
+    const wallets = (webWallets || []).filter(w => w && w.isActive !== false);
 
-    <!-- 🟣 Tab buttons for multiple wallets -->
-    <% if (hasMultipleWallets) { %>
-    <div class="tab-bar">
-      <% webWallets.forEach((w, i) => { %>
-      <button
-        class="tab-btn <%= i === 0 ? 'active' : '' %>"
-        data-tab="wallet-<%= i %>"
-      >
-        <img
-          src="/static/assets/payment/<%= w.accountCode %>.webp"
-          alt="<%= w.accountCode %>"
-        />
-        <span> <%= BANK_LABELS[w.accountCode] %> </span>
-      </button>
-      <% }) %>
-    </div>
+    // ป้ายชื่อธนาคาร
+    const BANK_LABELS = {
+      bbl:'ธนาคารกรุงเทพ', kbank:'ธนาคารกสิกรไทย', ktb:'ธนาคารกรุงไทย',
+      bay:'ธนาคารกรุงศรีอยุธยา', scb:'ธนาคารไทยพาณิชย์', tmb:'ทหารไทยธนชาต (TTB)',
+      cimb:'ธนาคารซีไอเอ็มบีไทย', uob:'ธนาคารยูโอบี', gsb:'ธนาคารออมสิน',
+      baac:'ธ.เพื่อการเกษตรและสหกรณ์การเกษตร', kkb:'ธนาคารเกียรตินาคินภัทร',
+      lhfg:'ธนาคารแลนด์ แอนด์ เฮ้าส์', icbc:'ธนาคารไอซีบีซี (ไทย)',
+      tisco:'ธนาคารทิสโก้', tw:'TrueMoney Wallet'
+    };
+
+    const hasAny = wallets.length > 0;
+    %>
+
+    <!-- 🟣 ปุ่มสลับแท็บ: แสดงเฉพาะเมื่อมีมากกว่า 1 บัญชีที่ active -->
+    <% if (hasAny) { %>
+      <div class="tab-bar">
+        <% wallets.forEach((w, i) => { %>
+          <button
+            class="tab-btn <%= i === 0 ? 'active' : '' %>"
+            data-tab="wallet-<%= i %>"
+          >
+            <img src="/static/assets/payment/<%= w.accountCode %>.webp" alt="<%= w.accountCode %>"/>
+            <span><%= BANK_LABELS[w.accountCode] || w.accountCode.toUpperCase() %></span>
+          </button>
+        <% }) %>
+      </div>
     <% } %>
 
-    <!-- 🏦 Tabs content -->
-    <% if (webWallets && webWallets.length > 0) { %> <%
-    webWallets.forEach((webWallet, i) => { %>
-    <div
-      class="tab-content <%= i === 0 ? 'active' : '' %>"
-      id="wallet-<%= i %>"
-    >
-      <!-- 🟢 Non-TrueWallet -->
-      <% if (webWallet.accountCode !== 'tw') { %>
-      <section class="card soft">
-        <h3 class="title" style="text-align: center;">มายังบัญชี</h3>
-        <div class="grid method-grid">
-          <div class="method-tile">
-            <img
-              src="/static/assets/payment/<%= webWallet.accountCode %>.webp"
-              alt="<%= webWallet.accountCode %>"
-            />
-            <div><%= webWallet.accountName %></div>
-            <small><%= webWallet.accountNumber %></small>
-          </div>
+    <!-- 🏦 เนื้อหาแท็บ: แสดงเฉพาะรายการที่ active; ถ้าไม่มีเลย แสดงข้อความว่าง -->
+    <% if (wallets.length === 0) { %>
+      <p class="muted">ยังไม่มีช่องทางเติมเงินที่พร้อมใช้งาน</p>
+    <% } else { %>
+      <% wallets.forEach((w, i) => { const isTW = w.accountCode === 'tw'; %>
+        <div class="tab-content <%= i === 0 ? 'active' : '' %>" id="wallet-<%= i %>">
+
+          <% if (!isTW) { %>
+            <!-- 🟢 บัญชีธนาคารทั่วไป -->
+            <section class="card soft">
+              <h3 class="title" style="text-align:center;">มายังบัญชี</h3>
+              <div class="grid method-grid">
+                <div class="method-tile">
+                  <img src="/static/assets/payment/<%= w.accountCode %>.webp" alt="<%= w.accountCode %>"/>
+                  <div><%= w.accountName %></div>
+                  <small><%= w.accountNumber %></small>
+                </div>
+              </div>
+              <div class="muted mt" style="text-align:center;">กรุณาโอนจากบัญชีของคุณมายังบัญชีนี้เท่านั้น</div>
+            </section>
+
+            <section class="card soft mt">
+              <h4 class="title">📋 ขั้นตอนการโอนเงิน</h4>
+              <ol class="steps">
+                <li>เข้าสู่แอปธนาคารของคุณ (เช่น SCB EASY, KBank, Krungthai NEXT)</li>
+                <li>เลือกเมนู <b>“โอนเงิน”</b></li>
+                <li>เลือกบัญชีต้นทางของคุณ (ที่ลงทะเบียนไว้กับระบบ)</li>
+                <li>ใส่หมายเลขบัญชีปลายทาง: <b><%= w.accountNumber %></b></li>
+                <li>ตรวจสอบชื่อบัญชีปลายทางให้ตรงกับ: <b><%= w.accountName %></b></li>
+                <li>กรอกจำนวนเงินที่ต้องการเติม แล้วกดยืนยันการโอน</li>
+                <li>กลับมาที่หน้านี้และกด <b>“ยืนยันการโอนแล้ว”</b> เพื่อให้ระบบตรวจสอบ</li>
+              </ol>
+              <p class="muted">⚠️ โปรดโอนจากบัญชีที่ชื่อ-นามสกุลตรงกับที่ลงทะเบียนเท่านั้น</p>
+            </section>
+
+          <% } else { %>
+            <!-- 💜 TrueWallet -->
+            <form
+              id="topupForm-<%= i %>"
+              class="form topupForm"
+              data-wallet-code="<%= w.accountCode %>"
+              data-wallet-index="<%= i %>"
+              onsubmit="return submitTopup(event)"
+            >
+              <label>
+                จำนวนเงินที่ต้องการเติม (ขั้นต่ำ 10 บาท)
+                <div class="input-group">
+                  <span class="input-prefix">฿</span>
+                  <!-- ทำ id ให้ไม่ซ้ำใน DOM -->
+                  <input
+                    id="amount-<%= i %>"
+                    name="amount"
+                    type="number"
+                    min="10"
+                    step="any"
+                    required
+                    placeholder="เช่น 100"
+                  />
+                </div>
+              </label>
+
+              <div class="card soft mt">
+                <b>ยอดชำระ:</b> <span id="summaryAmount-<%= i %>">—</span> บาท
+              </div>
+
+              <button class="block btn primary mt-lg">ยืนยันการเติมเงิน</button>
+            </form>
+
+            <section class="card soft mt">
+              <h4 class="title">📲 วิธีการเติมเงินผ่าน TrueMoney Wallet (ค่าธรรมเนียม 3%)</h4>
+              <ol class="steps">
+                <li>ระบุจำนวนเงิน > <b>ตัวอย่าง: 100</b></li>
+                <li>กด > <b>ยืนยันการเติมเงิน</b></li>
+                <li>เปิดแอป > <b>TrueMoney Wallet</b> บนโทรศัพท์ของคุณ</li>
+                <li>เลือกเมนู > <b>“สแกน”</b></li>
+                <li>ตรวจสอบข้อมูลให้ถูกต้องแล้วกดยืนยันการโอน</li>
+                <li>กลับมาที่หน้านี้และกดปุ่ม <b>“ยืนยันการโอนแล้ว”</b></li>
+              </ol>
+              <p class="muted">💡 ระบบจะตรวจสอบยอดและปรับเครดิตอัตโนมัติภายในไม่กี่นาที</p>
+            </section>
+          <% } %>
         </div>
-        <div class="muted mt" style="text-align: center;">กรุณาโอนจากบัญชีของคุณมายังบัญชีนี้เท่านั้น</div>
-      </section>
-
-      <section class="card soft mt">
-        <h4 class="title">📋 ขั้นตอนการโอนเงิน</h4>
-        <ol class="steps">
-          <li>เข้าสู่แอปธนาคารของคุณ (เช่น SCB EASY, KBank, Krungthai NEXT)</li>
-          <li>เลือกเมนู <b>“โอนเงิน”</b></li>
-          <li>เลือกบัญชีต้นทางของคุณ (ที่ลงทะเบียนไว้กับระบบ)</li>
-          <li>ใส่หมายเลขบัญชีปลายทาง: <b><%= webWallet.accountNumber %></b></li>
-          <li>
-            ตรวจสอบชื่อบัญชีปลายทางให้ตรงกับ:
-            <b><%= webWallet.accountName %></b>
-          </li>
-          <li>กรอกจำนวนเงินที่ต้องการเติม แล้วกดยืนยันการโอน</li>
-          <li>
-            กลับมาที่หน้านี้และกด
-            <b>“ยืนยันการโอนแล้ว”</b> เพื่อแจ้งระบบตรวจสอบอัตโนมัติ
-          </li>
-        </ol>
-        <p class="muted">
-          ⚠️ โปรดโอนจากบัญชีที่ชื่อ-นามสกุลตรงกับที่ลงทะเบียนเท่านั้น
-        </p>
-      </section>
-
-      <% } else { %>
-      <!-- 💜 TrueWallet -->
-      <form
-        id="topupForm-<%= i %>"
-        class="form topupForm"
-        data-wallet-code="<%= webWallet.accountCode %>"
-        onsubmit="return submitTopup(event)"
-      >
-        <label>
-          จำนวนเงินที่ต้องการเติม (ขั้นต่ำ 10 บาท)
-          <div class="input-group">
-            <span class="input-prefix">฿</span>
-            <input
-              id="amount"
-              name="amount"
-              type="number"
-              min="10"
-              step="any"
-              required
-              placeholder="เช่น 100"
-            />
-          </div>
-        </label>
-
-        <div class="card soft mt">
-          <b>ยอดชำระ:</b> <span id="summaryAmount">—</span> บาท
-        </div>
-
-        <button class="block btn primary mt-lg">ยืนยันการเติมเงิน</button>
-      </form>
-
-      <section class="card soft mt">
-        <h4 class="title">📲 วิธีการเติมเงินผ่าน TrueMoney Wallet (ค่าธรรมเนียม 3%)</h4>
-        <ol class="steps">
-          <li>ระบุจำนวนเงิน > <b>ตัวอย่าง: 100</b></li>
-          <li>กด > <b>ยืนยันการเติมเงิน</b></li>
-          <li>เปิดแอป > <b>TrueMoney Wallet</b> บนโทรศัพท์ของคุณ</li>
-          <li>
-            เลือกเมนู > <b>“สแกน”</b>
-          </li>
-          <li>ตรวจสอบข้อมูลให้ถูกต้องแล้วกดยืนยันการโอน</li>
-          <li>กลับมาที่หน้านี้และกดปุ่ม <b>“ยืนยันการโอนแล้ว”</b></li>
-        </ol>
-        <p class="muted">
-          💡 ระบบจะตรวจสอบยอดและปรับเครดิตอัตโนมัติภายในไม่กี่นาที
-        </p>
-      </section>
-      <% } %>
-    </div>
-    <% }) %> <% } else { %>
-    <p class="muted">ยังไม่มีช่องทางเติมเงินที่พร้อมใช้งาน</p>
+      <% }) %>
     <% } %>
 
 
@@ -365,18 +357,12 @@
 
   /* 💰 Handle amount input (+3%) */
   document.querySelectorAll(".topupForm").forEach((form) => {
-    const amt = form.querySelector("#amount");
-    const sum = form.querySelector("#summaryAmount");
-
+    const amt = form.querySelector('input[name="amount"]');
+    const sum = form.querySelector('[id^="summaryAmount-"]');
     if (amt && sum) {
       amt.addEventListener("input", () => {
         const base = Number(amt.value || 0);
-        if (base > 0) {
-          const total = base * 1.03; // +3%
-          sum.textContent = fmt(total);
-        } else {
-          sum.textContent = "—";
-        }
+        sum.textContent = base > 0 ? Number(base * 1.03).toLocaleString(undefined,{minimumFractionDigits:2}) : '—';
       });
     }
   });
@@ -443,15 +429,15 @@
   });
 
   /* 💸 Submit TrueWallet topup */
-  async function submitTopup(ev) {
+   async function submitTopup(ev) {
     ev.preventDefault();
     const form = ev.target;
-    const amountInput = form.querySelector("#amount");
-    const amount = Number(amountInput.value || 0);
+    const amountInput = form.querySelector('input[name="amount"]');
+    const amount = Number(amountInput?.value || 0);
     const walletCode = form.dataset.walletCode;
 
     if (!(amount > 0)) {
-      $("#resp").innerHTML = `<div class="card soft">❌ กรุณากรอกจำนวนเงินให้ถูกต้อง</div>`;
+      document.querySelector("#resp").innerHTML = `<div class="card soft">❌ กรุณากรอกจำนวนเงินให้ถูกต้อง</div>`;
       return false;
     }
 
@@ -464,32 +450,33 @@
         });
         const data = await res.json();
         if (!data.url) {
-          $("#resp").innerHTML = `<div class="card soft">❌ ${data.error || "ไม่สามารถสร้างลิงก์ได้"}</div>`;
+          document.querySelector("#resp").innerHTML = `<div class="card soft">❌ ${data.error || "ไม่สามารถสร้างลิงก์ได้"}</div>`;
           return false;
         }
 
         // ใส่ข้อมูล QR + เปิดโมดัล
-        $("#qrImage").src = `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(data.url)}`;
-        $("#qrMethod").textContent = "TrueMoney Wallet";
-        $("#qrName").textContent   = data.accountName  || "RTSSM Web";
-        $("#qrNumber").textContent = data.accountNumber|| "0000000000";
-        $("#qrAmount").textContent = fmt(amount * 1.03);
-        $("#qrWarn").textContent = "*โปรดโอนในระยะเวลาที่กำหนด*";
+        document.querySelector("#qrImage").src = `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(data.url)}`;
+        document.querySelector("#qrMethod").textContent  = "TrueMoney Wallet";
+        document.querySelector("#qrName").textContent    = data.accountName  || "RTSSM Web";
+        document.querySelector("#qrNumber").textContent  = data.accountNumber|| "0000000000";
+        document.querySelector("#qrAmount").textContent  = Number(amount * 1.03).toLocaleString(undefined,{minimumFractionDigits:2});
+        document.querySelector("#qrWarn").textContent    = "*โปรดโอนในระยะเวลาที่กำหนด*";
         openQrModal();
       } catch (err) {
-        $("#resp").innerHTML = `<div class="card soft">❌ ขัดข้อง: ${err.message}</div>`;
+        document.querySelector("#resp").innerHTML = `<div class="card soft">❌ ขัดข้อง: ${err.message}</div>`;
       }
     }
     return false;
   }
 
   /* 🧾 Confirm topup */
-  document.getElementById("confirmTopup")?.addEventListener("click", async () => {
-    const amount = Number(document.querySelector("#amount")?.value || 0);
+   document.getElementById("confirmTopup")?.addEventListener("click", async () => {
+    const activeTab = document.querySelector(".tab-content.active");
+    const amountEl  = activeTab?.querySelector('input[name="amount"]');
+    const amount    = Number(amountEl?.value || 0);
     if (!(amount > 0)) return;
 
-    $("#qrStatus").innerHTML = `<div class="muted">⏳ กำลังตรวจสอบรายการ...</div>`;
-
+    document.querySelector("#qrStatus").innerHTML = `<div class="muted">⏳ กำลังตรวจสอบรายการ...</div>`;
     try {
       const res = await fetch("/topup/truewallet/check", {
         method: "POST",
@@ -497,9 +484,8 @@
         body: JSON.stringify({ amount }),
       });
       const data = await res.json();
-
       if (data.verified) {
-        $("#qrStatus").innerHTML = `
+        document.querySelector("#qrStatus").innerHTML = `
           <div class="card soft">
             ✅ ยืนยันการโอนสำเร็จแล้ว<br>
             <b>รหัสธุรกรรม:</b> ${data.transactionId}<br>
@@ -507,13 +493,13 @@
           </div>`;
         setTimeout(() => window.location.reload(), 1500);
       } else {
-        $("#qrStatus").innerHTML = `
+        document.querySelector("#qrStatus").innerHTML = `
           <div class="card soft">
             ⚠️ ยังไม่พบรายการ กรุณารอสักครู่ แล้วกด "ยืนยันการโอนแล้ว" อีกครั้ง
           </div>`;
       }
     } catch (err) {
-      $("#qrStatus").innerHTML = `<div class="card soft">❌ ขัดข้อง: ${err.message}</div>`;
+      document.querySelector("#qrStatus").innerHTML = `<div class="card soft">❌ ขัดข้อง: ${err.message}</div>`;
     }
   });
 </script>
