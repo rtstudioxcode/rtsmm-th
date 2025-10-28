@@ -25,7 +25,7 @@ router.get('/', async (req, res) => {
         console.error('❌ Auto-sync failed:', e?.response?.data || e.message || e);
         return res.render('catalog/index', {
           cats: [],
-          title: 'หมวดหมู่หลัก',
+          title: 'RTSMM-TH | Home',
           bodyClass: 'catalog',
           syncError:
             'ยังไม่มีรายการบริการ และการดึงจากผู้ให้บริการล้มเหลว — โปรดเช็ค .env (IPV_API_BASE/IPV_API_KEY) หรือเข้าหลังบ้านลอง Sync ใหม่',
@@ -35,7 +35,7 @@ router.get('/', async (req, res) => {
 
     return res.render('catalog/index', {
       cats,
-      title: 'หมวดหมู่หลัก',
+      title: 'RTSMM-TH | Home',
       bodyClass: 'catalog',
       syncError: null,
     });
