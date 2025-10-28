@@ -984,13 +984,16 @@
 
   .qr-img{
     display: block;
-    width: min(320px, 80vw);    /* เดสก์ท็อป 320px, มือถือ <= 80vw */
+    width: min(320px, 80vw);
     height: auto;
-    border-radius: 32px;        /* มุมโค้ง */
-    background: #c20e0e;           /* เผื่อรูปโปร่ง */
-    padding: 8px;               /* เสริมกรอบให้ดูพรีเมียม */
+    border-radius: 32px;
+    background: var(--qr-bg, #0f1116);
+    padding: 8px;
     box-shadow: 0 6px 24px rgba(0,0,0,.35);
   }
+
+  html[data-theme="dark"]  { --qr-bg: color-mix(in srgb, var(--card, #19233d) 85%, black 15%); }
+  html[data-theme="light"] { --qr-bg: color-mix(in srgb, var(--card, #e0e0e0) 85%, #d8321c 15%); }
 
   .qr-meta{
     font-size: 14px;
