@@ -84,6 +84,17 @@
 
           <% } else { %>
             <!-- 💜 TrueWallet -->
+            <section class="card soft">
+              <h3 class="title" style="text-align:center;">มายังบัญชี</h3>
+              <div class="grid method-grid">
+                <div class="method-tile">
+                  <img src="/static/assets/payment/<%= w.accountCode %>.webp" alt="<%= w.accountCode %>"/>
+                  <div><%= w.accountName %></div>
+                  <small>QR Code - Scan</small>
+                </div>
+              </div>
+              <div class="muted mt" style="text-align:center;">กรุณาโอนจากบัญชีของคุณมายังบัญชีนี้เท่านั้น</div>
+            </section>
             <form
               id="topupForm-<%= i %>"
               class="form topupForm"
@@ -362,7 +373,9 @@
     if (amt && sum) {
       amt.addEventListener("input", () => {
         const base = Number(amt.value || 0);
-        sum.textContent = base > 0 ? Number(base * 1.03).toLocaleString(undefined,{minimumFractionDigits:2}) : '—';
+        sum.textContent = base > 0
+          ? Number((base * 1.03).toFixed(2)).toLocaleString(undefined, { minimumFractionDigits: 2 })
+          : '—';
       });
     }
   });
@@ -390,11 +403,15 @@
     const el = document.getElementById('qrCountdown');
     qrExpireAt = Date.now() + seconds * 1000;
 
+    const btn = document.getElementById('confirmTopup');
+    if (btn) btn.disabled = false;
+
     const tick = () => {
       const left = qrExpireAt - Date.now();
       if (left <= 0){
         clearQrCountdown();
         if (el) el.textContent = 'หมดเวลาแล้ว';
+        if (btn) btn.disabled = true;
         closeQrModal(); // ปิดออโต้เมื่อหมดเวลา
         return;
       }
@@ -418,8 +435,9 @@
     m?.classList.add('hidden');
     document.getElementById('qrStatus').innerHTML = '';
     clearQrCountdown();
-    // เคลียร์รูปกันแคชค้าง (optional)
-    // document.getElementById('qrImage').src = '';
+
+    const btn = document.getElementById('confirmTopup');
+    if (btn) btn.disabled = true;  // กันเคสปิดก่อนหมดเวลา
   }
 
   /* bind ปิดด้วยปุ่ม/overlay (ครั้งเดียว) */
@@ -450,7 +468,7 @@
         });
         const data = await res.json();
         if (!data.url) {
-          document.querySelector("#resp").innerHTML = `<div class="card soft">❌ ${data.error || "ไม่สามารถสร้างลิงก์ได้"}</div>`;
+          document.querySelector("#resp").innerHTML = `<div class="card soft">❌ ${data.message || "ไม่สามารถสร้างลิงก์ได้"}</div>`;
           return false;
         }
 
@@ -459,7 +477,7 @@
         document.querySelector("#qrMethod").textContent  = "TrueMoney Wallet";
         document.querySelector("#qrName").textContent    = data.accountName  || "RTSSM Web";
         document.querySelector("#qrNumber").textContent  = data.accountNumber|| "0000000000";
-        document.querySelector("#qrAmount").textContent  = Number(amount * 1.03).toLocaleString(undefined,{minimumFractionDigits:2});
+        document.querySelector("#qrAmount").textContent = Number((amount * 1.03).toFixed(2)).toLocaleString(undefined,{minimumFractionDigits:2});
         document.querySelector("#qrWarn").textContent    = "*โปรดโอนในระยะเวลาที่กำหนด*";
         openQrModal();
       } catch (err) {
@@ -488,7 +506,7 @@
         document.querySelector("#qrStatus").innerHTML = `
           <div class="card soft">
             ✅ ยืนยันการโอนสำเร็จแล้ว<br>
-            <b>รหัสธุรกรรม:</b> ${data.transactionId}<br>
+            <b>รหัสธุรกรรม:</b> ${data.transactionId || data._id || "-"}<br>
             <b>สถานะ:</b> ${data.status}
           </div>`;
         setTimeout(() => window.location.reload(), 1500);

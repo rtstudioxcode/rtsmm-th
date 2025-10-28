@@ -145,7 +145,7 @@ topupRouter.post("/truewallet/gen/link", async (req, res) => {
       "https://apis.truemoneyservices.com/utils/v1/transfer-link-generator",
       {
         mobile_number: webWallet.accountNumber,
-        amount: (amount * 1.03).toString(),
+        amount: (amount * 1.03).toFixed(2),
         message: "",
       },
       {
@@ -287,6 +287,7 @@ topupRouter.post("/truewallet", async (req, res) => {
         method: "tw",
         username: user.username,
         amount: added,
+        status: "completed",
         balance: newBalance,
       });
     } else {
@@ -298,16 +299,19 @@ topupRouter.post("/truewallet", async (req, res) => {
         currency: "THB",
         status: "pending",
       });
-      console.log(
-        `✅ TrueWallet Deposit: ${user.username} +${added} THB → ${newBalance}`
-      );
+
+      console.log(`✅ TrueWallet Deposit (manual): ${user.username} +${added} THB (pending)`);
+
+      // console.log(
+      //   `✅ TrueWallet Deposit: ${user.username} +${added} THB → ${newBalance}`
+      // );
 
       return res.json({
         success: true,
         method: "tw",
         username: user.username,
         amount: added,
-        balance: newBalance,
+        status: "pending",
       });
     }
   } catch (err) {
@@ -619,18 +623,16 @@ topupRouter.post("/truewallet/check", async (req, res) => {
   try {
     const { amount } = req.body;
     const userId = req?.session?.userId;
+    if (!userId || !(amount > 0)) {
+      return res.status(400).json({ success: false, message: "missing_parameters" });
+    }
 
-    if (!userId || !amount)
-      return res
-        .status(400)
-        .json({ success: false, message: "missing_parameters" });
-
-    console.log(amount * 1.03);
-
+    // ยอดที่บันทึกใน Transaction คือ "added" = amount (ไม่ +3%)
+    const target = Math.round(Number(amount) * 100) / 100;
     const tx = await Transaction.findOne({
       userId,
       method: "tw",
-      amount: amount * 1.03,
+      amount: target,                 // ✅ เทียบยอดสุทธิ
       status: "completed",
       createdAt: { $gte: new Date(Date.now() - 10 * 60 * 1000) },
     }).sort({ createdAt: -1 });
@@ -642,15 +644,54 @@ topupRouter.post("/truewallet/check", async (req, res) => {
         transactionId: tx.transactionId,
         status: tx.status,
       });
-    } else {
-      return res.json({
-        success: true,
-        verified: false,
-        message: "ยังไม่พบรายการเติมเงินในระบบ โปรดลองอีกครั้งในอีกสักครู่",
-      });
     }
+    return res.json({
+      success: true,
+      verified: false,
+      message: "ยังไม่พบรายการเติมเงินในระบบ โปรดลองอีกครั้งในอีกสักครู่",
+    });
   } catch (err) {
     console.error("❌ /truewallet/check error:", err);
     res.status(500).json({ success: false, message: "something_wrong" });
   }
 });
+
+// topupRouter.post("/truewallet/check", async (req, res) => {
+//   try {
+//     const { amount } = req.body;
+//     const userId = req?.session?.userId;
+
+//     if (!userId || !amount)
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "missing_parameters" });
+
+//     console.log(amount * 1.03);
+
+//     const tx = await Transaction.findOne({
+//       userId,
+//       method: "tw",
+//       amount: amount * 1.03,
+//       status: "completed",
+//       createdAt: { $gte: new Date(Date.now() - 10 * 60 * 1000) },
+//     }).sort({ createdAt: -1 });
+
+//     if (tx) {
+//       return res.json({
+//         success: true,
+//         verified: true,
+//         transactionId: tx.transactionId,
+//         status: tx.status,
+//       });
+//     } else {
+//       return res.json({
+//         success: true,
+//         verified: false,
+//         message: "ยังไม่พบรายการเติมเงินในระบบ โปรดลองอีกครั้งในอีกสักครู่",
+//       });
+//     }
+//   } catch (err) {
+//     console.error("❌ /truewallet/check error:", err);
+//     res.status(500).json({ success: false, message: "something_wrong" });
+//   }
+// });
