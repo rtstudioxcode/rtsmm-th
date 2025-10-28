@@ -1,4 +1,4 @@
-// lib/syncProvider.js
+// lib/syncServices.js
 import { getServices } from './iplusviewAdapter.js';
 import { Category } from '../models/Category.js';
 import { Subcategory } from '../models/Subcategory.js';

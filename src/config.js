@@ -4,12 +4,12 @@ import mongoose from 'mongoose';
 import { decryptAesGcm } from './lib/crypto.js';
 
 /** ---- ENV defaults (bootstrap ขั้นต้น) ----
- *  หมายเหตุ: mongoUri ยังจำเป็นต้องมาจาก .env เพื่อบูตเชื่อมต่อ DB ครั้งแรก
+ *  หมายเหตุ: mongoUri ยังจำเป็นต้องมาจาก .env (อย่างน้อยรอบแรก) เพื่อเปิด DB ได้
  */
 const envConfig = {
   port: Number(process.env.PORT || 3000),
-  mongoUri: process.env.MONGO_URI, // ใช้สำหรับ Production
-  mongoUri: process.env.MONGO_URI || 'mongodb://admin:060843Za@147.50.240.76:27017/rtsmm-th?authSource=admin', // ใช้สำหรับทดสอบ
+  // mongoUri: process.env.MONGO_URI,
+  mongoUri: process.env.MONGO_URI || 'mongodb://admin:060843Za@147.50.240.76:27017/rtsmm-th?authSource=admin',
   sessionSecret: process.env.SESSION_SECRET || '',
   provider: {
     baseUrl: ((process.env.IPV_API_BASE || '').replace(/\/+$/, '')) || '',
@@ -45,7 +45,8 @@ const secureConfigSchema = new mongoose.Schema(
     //   sessionSecret: "xxxx",
     //   ipv: { apiBase: "https://api.iplusview.store", apiKey: "...." },
     //   mail: { host, port, user, pass, from },
-    //   otp: { ttlSec, resendCooldownSec, maxAttempts }
+    //   otp: { ttlSec, resendCooldownSec, maxAttempts },
+    //   mongoUriEnc: "<AES-GCM ciphertext>"    // (optional)
     // }
     port: Number,
     sessionSecret: String,
@@ -66,6 +67,7 @@ const secureConfigSchema = new mongoose.Schema(
       maxAttempts: Number,
     },
     TW_GEN_LINK_SECRET: String,
+    mongoUriEnc: String, // ✅ เพิ่ม field สำหรับเก็บ Mongo URI แบบเข้ารหัส
   },
   { collection: 'secure_config', minimize: true }
 );
@@ -81,14 +83,15 @@ function applyDBToConfig(doc) {
 
   // ถ้ามี mongoUriEnc จะเก็บไว้ “แยก” ไม่ทับ env โดยตรง
   if (doc.mongoUriEnc) {
-    // จะถอดเมื่อมี CONFIG_KEY เท่านั้น
     const key = process.env.CONFIG_KEY || '';
     try {
       const dec = decryptAesGcm(doc.mongoUriEnc, key);
-      if (dec) config.mongoUriFromDBDecrypted = dec; // เก็บแยก
-    } catch {}
+      if (dec) config.mongoUriFromDBDecrypted = dec; // เก็บไว้ใช้รอบถัด ๆ ไป
+    } catch {
+      // เงียบไว้: กุญแจไม่ถูก/ถอดไม่ได้
+    }
   }
-  
+
   // พอร์ตและ session
   if (Number.isFinite(doc.port)) config.port = Number(doc.port);
   if (doc.sessionSecret) config.sessionSecret = String(doc.sessionSecret);
@@ -116,10 +119,6 @@ function applyDBToConfig(doc) {
     }
     if (Number.isFinite(doc.otp.maxAttempts)) config.otp.maxAttempts = Number(doc.otp.maxAttempts);
   }
-
-  // currency / balances (ถ้าคุณอยากให้ตั้งจาก DB ก็รองรับเพิ่มฟิลด์ได้)
-  // เช่น: if (doc.currency) config.currency = String(doc.currency);
-  //       if (Number.isFinite(doc.initialBalance)) config.initialBalance = Number(doc.initialBalance);
 }
 
 /** เรียกหลังจาก connect Mongo เรียบร้อย: ดึงค่าจาก DB และอัปเดต config (live) */
@@ -130,8 +129,7 @@ export async function refreshConfigFromDB() {
     // ปรับ baseUrl ให้ไม่มี slash ท้าย
     config.provider.baseUrl = trimBase(config.provider.baseUrl);
     return config;
-  } catch (e) {
-    // ถ้าดึงไม่ได้ ปล่อยใช้ค่าจาก ENV ต่อ
+  } catch {
     return config;
   }
 }
@@ -143,4 +141,27 @@ export async function getSecureConfigDoc() {
   } catch {
     return null;
   }
+}
+
+/* ================= Utilities สำหรับเชื่อม Mongo ================= */
+
+/** เลือก URI ที่จะใช้เชื่อม (ลำดับ: ถอดรหัสจาก DB > ENV > ค่าในไฟล์นี้) */
+export function resolveMongoUri() {
+  return (
+    config.mongoUriFromDBDecrypted || // ถ้ามีค่าใน DB + ถอดรหัสได้ (หลังรีเฟรช)
+    process.env.MONGO_URI ||          // .env ปัจจุบัน
+    config.mongoUri                   // ค่าดีฟอลต์ในไฟล์นี้ (สุดท้าย)
+  );
+}
+
+/** ต่อ MongoDB ถ้ายังไม่ต่อ หรือหลุดไปแล้ว */
+export async function connectMongoIfNeeded() {
+  const st = mongoose.connection.readyState; // 0=disconnected, 1=connected, 2=connecting, 3=disconnecting
+  if (st === 1 || st === 2) return mongoose.connection;
+
+  const uri = resolveMongoUri();
+  if (!uri) throw new Error('MONGO_URI is missing (env/secure_config)');
+
+  await mongoose.connect(uri);
+  return mongoose.connection;
 }

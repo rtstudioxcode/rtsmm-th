@@ -1,55 +1,42 @@
-// lib/iplusviewAdapter.js
+// src/lib/iplusviewAdapter.js
 import axios from 'axios';
-import mongoose from 'mongoose';
-import { config } from '../config.js';
+import { config, refreshConfigFromDB } from '../config.js';
 
-/* ======================= Secure runtime config (from DB) ======================= */
-const secureConfigSchema = new mongoose.Schema({
-  ipv: { apiBase: String, apiKey: String },
-  mail: { host: String, port: Number, user: String, pass: String, from: String },
-  otp: { ttlSec: Number, resendCooldownSec: Number, maxAttempts: Number },
-  port: Number,
-  sessionSecret: String,
-}, { collection: 'secure_config', minimize: true });
+/* ======================= utils ======================= */
+const trimBase = (u = '') => String(u).replace(/\/+$/, '');
+const pick = (...vals) => vals.find(v => v !== undefined && v !== null);
 
-const SecureConfig =
-  mongoose.models.SecureConfig || mongoose.model('SecureConfig', secureConfigSchema);
-
-// โหลดค่าจาก DB (ครั้งเดียว/cache ไว้ในหน่วยความจำ)
-let _secCache = null;
-async function getSecureConfig() {
-  if (_secCache) return _secCache;
-  try {
-    const doc = await SecureConfig.findOne().lean();
-    _secCache = doc || null;
-  } catch { _secCache = null; }
-  return _secCache;
-}
-
-function trimBase(u='') {
-  return String(u).replace(/\/+$/, '');
-}
-
-/* ======================= Axios client factory with cache ======================= */
+/* ======================= Axios client (cached) ======================= */
 let _clientKey = null;
 let _clientInst = null;
+let _triedRefreshOnce = false;
 
 async function getProviderRuntime() {
-  // 1) DB -> 2) env -> 3) config.js (legacy)
-  const sec = await getSecureConfig();
-  const baseFromDB = sec?.ipv?.apiBase;
-  const keyFromDB  = sec?.ipv?.apiKey;
+  // 1) live config (DB-merged) -> 2) ENV fallback
+  let baseURL = trimBase(config?.provider?.baseUrl || config?.provider?.baseURL || '');
+  let apiKey  = (config?.provider?.apiKey || '').trim();
 
-  const baseFromEnv = process.env.IPV_API_BASE;
-  const keyFromEnv  = process.env.IPV_API_KEY;
+  // ถ้ายังว่าง ลอง refresh จาก DB หนึ่งครั้ง
+  if ((!baseURL || !apiKey) && !_triedRefreshOnce) {
+    _triedRefreshOnce = true;
+    try {
+      await refreshConfigFromDB();
+      baseURL = trimBase(config?.provider?.baseUrl || config?.provider?.baseURL || '');
+      apiKey  = (config?.provider?.apiKey || '').trim();
+    } catch {/* noop */}
+  }
 
-  const baseFromCfg = config?.provider?.baseURL || config?.provider?.baseUrl;
-  const keyFromCfg  = config?.provider?.apiKey;
-
-  const baseURL = trimBase(baseFromDB || baseFromEnv || baseFromCfg || '');
-  const apiKey  = (keyFromDB || keyFromEnv || keyFromCfg || '').trim();
+  // ENV สำรอง
+  if (!baseURL) baseURL = trimBase(process.env.IPV_API_BASE || '');
+  if (!apiKey)  apiKey  = (process.env.IPV_API_KEY || '').trim();
 
   return { baseURL, apiKey };
+}
+
+export function resetProviderClientCache() {
+  _clientKey = null;
+  _clientInst = null;
+  _triedRefreshOnce = false;
 }
 
 async function getClient() {
@@ -57,33 +44,31 @@ async function getClient() {
   if (!baseURL || !apiKey) {
     throw new Error('Provider credentials are not configured (baseURL/apiKey missing).');
   }
+
   const key = `${baseURL}|${apiKey}`;
   if (_clientInst && _clientKey === key) return _clientInst;
 
   _clientKey = key;
   _clientInst = axios.create({
     baseURL,
-    timeout: 20000,
+    timeout: 30000,
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
+      // รองรับทั้ง 2 แบบ
+      Authorization: apiKey,
       'X-API-Key': apiKey,
     },
+    // อนุญาต HTTPS ที่บางที cert แปลก (ถ้าเจอค่อยเปิด)
+    // httpsAgent: new https.Agent({ rejectUnauthorized: false }),
   });
   return _clientInst;
 }
 
-/* ======================= helpers ======================= */
-const pick = (...vals) => vals.find(v => v !== undefined && v !== null);
-
+/* ======================= normalizers ======================= */
 function normalizeOrderId(data) {
   return pick(
-    data?.order,
-    data?.order_id,
-    data?.orderId,
-    data?.id,
-    data?.data?.order_id,
-    data?.data?.id
+    data?.order, data?.order_id, data?.orderId, data?.id, data?.data?.order_id, data?.data?.id
   );
 }
 
@@ -119,6 +104,7 @@ function normCancelCreateResp(data) {
 }
 
 /* ======================= provider catalog ======================= */
+/** รุ่นแปลงแล้ว (normalize โครง basic) */
 export async function getProviderCatalog() {
   const client = await getClient();
   const { data } = await client.get('/services');
@@ -145,11 +131,15 @@ export async function getProviderCatalog() {
   }));
 }
 
+/** รุ่นดิบจากผู้ให้บริการ (บางรายส่งเป็น array ตรง ๆ) */
 export async function getServices() {
   const client = await getClient();
-  const res = await client.get('/services');
-  if (!Array.isArray(res.data)) throw new Error('Invalid /services response');
-  return res.data;
+  const { data } = await client.get('/services');
+
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.data)) return data.data;
+
+  throw new Error('Invalid /services response: expected array or {data: array}');
 }
 
 export async function getBalance() {
@@ -165,9 +155,7 @@ export async function getBalance() {
 export async function createOrder(payload) {
   const client = await getClient();
 
-  const serviceIdNum = Number(
-    payload?.service_id ?? payload?.serviceId ?? payload?.providerServiceId
-  );
+  const serviceIdNum = Number(payload?.service_id ?? payload?.serviceId ?? payload?.providerServiceId);
   if (!Number.isFinite(serviceIdNum) || serviceIdNum <= 0) {
     throw new Error('createOrder: invalid service_id');
   }
@@ -200,10 +188,10 @@ export async function getOrderStatus(orderId) {
   const { status, rawStatus } = normalizeStatus(data);
   return {
     status, rawStatus,
-    charge: pick(data?.charge, data?.amount, data?.price),
+    charge:   pick(data?.charge, data?.amount, data?.price),
     currency: pick(data?.currency, 'THB'),
     start_count: pick(data?.start_count, data?.startCount, data?.start),
-    remains: pick(data?.remains, data?.remain, data?.left),
+    remains:     pick(data?.remains, data?.remain, data?.left),
     raw: data,
   };
 }
@@ -222,7 +210,7 @@ export async function getRefillStatus(refillIdOrOrderId) {
   try {
     const { data } = await client.get(`/refills/${refillIdOrOrderId}`);
     return { raw: data, status: (data?.status || '').toLowerCase() };
-  } catch {}
+  } catch {/* fallthrough */}
   const { data } = await client.get(`/orders/${refillIdOrOrderId}/refill-status`);
   return { raw: data, status: (data?.status || '').toLowerCase() };
 }
@@ -267,7 +255,7 @@ export async function findCancelsByIds(ids = []) {
   return { map, raw: data };
 }
 
-// alias ให้เดิม
+// alias
 export async function cancelOrder(orderId) {
   return createCancel(orderId);
 }
