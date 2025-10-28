@@ -96,14 +96,14 @@
         onsubmit="return submitTopup(event)"
       >
         <label>
-          จำนวนเงินที่ต้องการเติม (บาท)
+          จำนวนเงินที่ต้องการเติม (ขั้นต่ำ 10 บาท)
           <div class="input-group">
             <span class="input-prefix">฿</span>
             <input
               id="amount"
               name="amount"
               type="number"
-              min="1"
+              min="10"
               step="any"
               required
               placeholder="เช่น 100"
@@ -180,84 +180,6 @@
         <div id="qrStatus" class="mt"></div>
       </div>
     </div>
-    <!-- 🟡 Modal -->
-    <!-- <div id="qrModal" class="hidden modal">
-      <div class="overlay" data-close="1"></div>
-      <div class="dialog qr-dialog" role="dialog" aria-modal="true" aria-labelledby="qrTitle">
-        <div class="hdr">
-          <div class="title" id="qrTitle" style="text-align: center;">สแกนเพื่อเติมเงิน</div>
-          <button class="icon close" id="qrClose" aria-label="ปิด">×</button>
-        </div>
-
-        <hr class="sep" />
-
-        <div class="body text-center">
-          <div class="qr-frame">
-            <img id="qrImage" src="" alt="QR Code">
-          </div>
-
-          <div class="qr-meta">
-            <div><b>ช่องทาง:</b> <span id="qrMethod"></span></div>
-            <div><b>ชื่อบัญชี:</b> <span id="qrName"></span></div>
-            <div><b>เลขบัญชี:</b> <span id="qrNumber"></span></div>
-            <div><b>ยอดเติม:</b> <span id="qrAmount" class="text-success"></span> บาท</div>
-            <div>
-              <span class="muted" style="color: #e7ac08; text-align: center;">โปรดโอนในระยะเวลาที่กำหนด</span> 
-            </div>
-          </div>
-        </div>
-
-        <hr class="sep" />
-
-        <div class="footer">
-          <button class="btn primary qr-confirm" id="confirmTopup">ยืนยันการโอนแล้ว</button>
-        </div>
-
-        <div id="qrStatus" class="mt"></div>
-      </div>
-    </div> -->
-
-    <!-- 🟡 Modal -->
-    <!-- <div id="qrModal" class="hidden modal">
-      <div class="overlay" data-close="1"></div>
-      <div
-        class="dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="qrTitle"
-      >
-        <div class="hdr">
-          <div class="title" id="qrTitle">สแกนเพื่อเติมเงิน</div>
-          <button class="icon close" id="qrClose" aria-label="ปิด">×</button>
-        </div>
-        <hr class="sep" />
-        <div class="text-center body">
-          <img
-            id="qrImage"
-            src=""
-            alt="QR Code"
-            class="mb-3 rounded img-fluid"
-            style="max-width: 320px"
-          />
-          <div class="mb-2">
-            <b>ช่องทาง:</b> <span id="qrMethod"></span><br />
-            <b>ชื่อบัญชี:</b> <span id="qrName"></span><br />
-            <b>เลขบัญชี:</b> <span id="qrNumber"></span><br />
-            <b>ยอดเติม:</b> <span id="qrAmount" class="text-success"></span> บาท
-          </div>
-        </div>
-        <hr class="sep" />
-        <div
-          class="footer d-flex justify-content-center"
-          style="margin-top: 12px"
-        >
-          <button class="btn primary" id="confirmTopup">
-            ยืนยันการโอนแล้ว
-          </button>
-        </div>
-        <div id="qrStatus" class="mt"></div>
-      </div>
-    </div> -->
 
     <div id="resp" class="mt"></div>
   </section>
