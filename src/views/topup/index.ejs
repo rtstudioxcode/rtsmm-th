@@ -205,7 +205,7 @@
       </thead>
       <tbody>
         <% transactions.forEach(tx => { const methodName = tx.method === "tw" ?
-        "TrueWallet" : tx.method === "scb" ? "SCB ไทยพาณิชย์" : "ไม่ระบุ"; const
+        "TrueWallet" : tx.method === "scb" ? "SCB ไทยพาณิชย์" : tx.method === "kbank" ? "KBANK กสิกรไทย" :"ไม่ระบุ"; const
         statusLabel = tx.status === "completed" ? "สำเร็จ" : tx.status ===
         "pending" ? "รอดำเนินการ" : tx.status === "failed" ? "ล้มเหลว" :
         "ยกเลิก"; %>

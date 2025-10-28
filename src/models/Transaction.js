@@ -13,7 +13,7 @@ const TransactionSchema = new mongoose.Schema(
     // ── ช่องทางการเติมเงิน ─────────────────────────────
     method: {
       type: String,
-      enum: ["tw", "scb", "manual"],
+      enum: ["tw", "scb", "kbank", "manual"],
       required: true,
     },
 

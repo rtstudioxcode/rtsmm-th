@@ -30,12 +30,14 @@ topupRouter.get("/", async (req, res) => {
     if (!user) return res.redirect("/login");
 
     // โค้ดบัญชีที่ผู้ใช้ผูกไว้ (เช่น ["tw"] หรือ ["kbank", "scb"] ฯลฯ)
-    const codes = (user.bankAccounts || []).map(acc => (acc.accountCode || "").toLowerCase());
+    const codes = (user.bankAccounts || []).map((acc) =>
+      (acc.accountCode || "").toLowerCase()
+    );
 
     // ดึงสถานะ wallet ที่ระบบเปิดใช้อยู่จริง
     const [twActive, scbActive] = await Promise.all([
-      Topup.findOne({ accountCode: "tw",  isActive: true }).lean(),
-      Topup.findOne({ accountCode: "scb", isActive: true }).lean(),
+      Topup.findOne({ accountCode: "tw", isActive: true }).lean(),
+      Topup.findOne({ accountCode: ["kbank", "scb"], isActive: true }).lean(),
     ]);
 
     const webWallets = [];
@@ -46,7 +48,7 @@ topupRouter.get("/", async (req, res) => {
     }
 
     // ถ้ามี “บัญชีธนาคารใดๆ” ในโปรไฟล์ และ SCB เปิดใช้งาน → แสดง SCB
-    if (codes.some(c => c && c !== "tw") && scbActive) {
+    if (codes.some((c) => c && c !== "tw") && scbActive) {
       webWallets.push(scbActive);
     }
 
@@ -64,7 +66,7 @@ topupRouter.get("/", async (req, res) => {
     res.render("topup/index", {
       title: "เติมเงิน",
       user,
-      webWallets,      // ✅ มีเฉพาะกระเป๋าที่ isActive จริง
+      webWallets, // ✅ มีเฉพาะกระเป๋าที่ isActive จริง
       transactions,
     });
   } catch (err) {
@@ -132,13 +134,20 @@ topupRouter.post("/truewallet/gen/link", async (req, res) => {
     const { amount } = req.body;
     const userId = req?.session?.userId;
     if (!userId || !(amount > 0)) {
-      return res.status(400).json({ success: false, message: "missing_parameters" });
+      return res
+        .status(400)
+        .json({ success: false, message: "missing_parameters" });
     }
 
     // ใช้เฉพาะกระเป๋า TW ที่เปิดใช้งานอยู่จริง
-    const webWallet = await Topup.findOne({ accountCode: "tw", isActive: true }).lean();
+    const webWallet = await Topup.findOne({
+      accountCode: "tw",
+      isActive: true,
+    }).lean();
     if (!webWallet) {
-      return res.status(404).json({ success: false, message: "wallet_inactive" });
+      return res
+        .status(404)
+        .json({ success: false, message: "wallet_inactive" });
     }
 
     const response = await axios.post(
@@ -300,7 +309,9 @@ topupRouter.post("/truewallet", async (req, res) => {
         status: "pending",
       });
 
-      console.log(`✅ TrueWallet Deposit (manual): ${user.username} +${added} THB (pending)`);
+      console.log(
+        `✅ TrueWallet Deposit (manual): ${user.username} +${added} THB (pending)`
+      );
 
       // console.log(
       //   `✅ TrueWallet Deposit: ${user.username} +${added} THB → ${newBalance}`
@@ -325,10 +336,15 @@ topupRouter.post("/truewallet", async (req, res) => {
 ──────────────────────────────── */
 topupRouter.post("/scb", async (req, res) => {
   try {
-    const { message, secret } = req.body;
-    if (!message || !secret) {
-      return res.status(400).json({ success: false, message: "missing_parameters" });
+    const { message, secret, timestamp } = req.body;
+    if (!message || !secret || !timestamp) {
+      return res
+        .status(400)
+        .json({ success: false, message: "missing_parameters" });
     }
+
+    const baseDate = new Date(timestamp * 1000);
+    const seconds = baseDate.getSeconds();
 
     // ตัวอย่าง SCB: "26/10@18:54 1,234.00 จากKBANK/x123456 เข้าบัญชี xxx เข้าx987654"
     // ยืดหยุ่นขึ้นเล็กน้อย (ช่องว่าง/ตัวหนังสือคั่น)
@@ -337,13 +353,27 @@ topupRouter.post("/scb", async (req, res) => {
 
     const match = String(message).match(regex);
     if (!match) {
-      return res.status(400).json({ success: false, message: "invalid_message_format" });
+      return res
+        .status(400)
+        .json({ success: false, message: "invalid_message_format" });
     }
 
-    let [, day, month, hour, minute, amountStr, bankLogoRaw, senderLast6, receiverLast6] = match;
+    let [
+      ,
+      day,
+      month,
+      hour,
+      minute,
+      amountStr,
+      bankLogoRaw,
+      senderLast6,
+      receiverLast6,
+    ] = match;
 
     // Normalize bank logo
-    let bankLogo = String(bankLogoRaw || "").trim().toUpperCase();
+    let bankLogo = String(bankLogoRaw || "")
+      .trim()
+      .toUpperCase();
     const bankMap = {
       KBNK: "KBANK",
       KTBK: "KTB",
@@ -353,7 +383,13 @@ topupRouter.post("/scb", async (req, res) => {
     if (bankMap[bankLogo]) bankLogo = bankMap[bankLogo];
 
     const year = new Date().getFullYear();
-    const timestamp = new Date(`${year}-${month}-${day}T${hour}:${minute}:00+07:00`);
+
+    // Construct UTC date directly (no timezone conversion)
+    const parsedDate = new Date(
+      Date.UTC(year, month - 1, day, hour, minute, seconds)
+    );
+
+    console.log("Final UTC ISO:", parsedDate.toISOString());
 
     const amount = Number(String(amountStr).replace(/,/g, "")) || 0;
     const amt = Math.round(amount * 100) / 100;
@@ -370,36 +406,40 @@ topupRouter.post("/scb", async (req, res) => {
     }).lean();
 
     if (!topup) {
-      return res.status(404).json({ success: false, message: "account_not_found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "account_not_found" });
     }
     if (secret !== topup.secret) {
       return res.status(401).json({ success: false, message: "unauthorized" });
     }
 
     // 🔐 กันยิงซ้ำ: หา tx ที่เหมือนกันภายใน ±2 นาที
-    const twoMinAgo = new Date(timestamp.getTime() - 2 * 60 * 1000);
-    const twoMinAfter = new Date(timestamp.getTime() + 2 * 60 * 1000);
-    const duplicate = await Transaction.findOne({
-      method: "scb",
-      senderLast6: senderDigits,
-      receiverLast6: receiverDigits,
-      amount: amt,
-      createdAt: { $gte: twoMinAgo, $lte: twoMinAfter },
-    }).lean();
+    // const twoMinAgo = new Date(timestamp.getTime() - 2 * 60 * 1000);
+    // const twoMinAfter = new Date(timestamp.getTime() + 2 * 60 * 1000);
+    // const duplicate = await Transaction.findOne({
+    //   method: "scb",
+    //   senderLast6: senderDigits,
+    //   receiverLast6: receiverDigits,
+    //   amount: amt,
+    //   createdAt: { $gte: twoMinAgo, $lte: twoMinAfter },
+    // }).lean();
 
-    if (duplicate) {
-      return res.json({
-        success: true,
-        method: "scb",
-        deduped: true,
-        amount: amt,
-        timestamp,
-      });
-    }
+    // if (duplicate) {
+    //   return res.json({
+    //     success: true,
+    //     method: "scb",
+    //     deduped: true,
+    //     amount: amt,
+    //     timestamp,
+    //   });
+    // }
 
     // หาเจ้าของบัญชีผู้โอน (last6)
     const user = await User.findOne({
-      bankAccounts: { $elemMatch: { accountNumber: new RegExp(`${senderDigits}$`) } },
+      bankAccounts: {
+        $elemMatch: { accountNumber: new RegExp(`${senderDigits}$`) },
+      },
     });
 
     // 📨 กรณีไม่รู้ว่าเป็นผู้ใช้คนไหน → บันทึก pending เพื่อให้แอดมินจับคู่
@@ -412,7 +452,7 @@ topupRouter.post("/scb", async (req, res) => {
         amount: amt,
         currency: "THB",
         status: "pending",
-        createdAt: timestamp,
+        createdAt: parsedDate,
       });
       console.log(`✅ SCB Deposit (unmatched): +${amt} THB`);
       return res.json({ success: true, method: "scb", amount: amt, timestamp });
@@ -430,10 +470,12 @@ topupRouter.post("/scb", async (req, res) => {
         amount: amt,
         currency: "THB",
         status: "completed",
-        createdAt: timestamp,
+        createdAt: parsedDate,
       });
 
-      console.log(`✅ SCB Deposit: ${user.username} +${amt} THB → ${newBalance}`);
+      console.log(
+        `✅ SCB Deposit: ${user.username} +${amt} THB → ${newBalance}`
+      );
       return res.json({
         success: true,
         method: "scb",
@@ -452,13 +494,168 @@ topupRouter.post("/scb", async (req, res) => {
         amount: amt,
         currency: "THB",
         status: "pending",
-        createdAt: timestamp,
+        createdAt: parsedDate,
       });
 
-      console.log(`✅ SCB Deposit (manual): ${user.username} +${amt} THB (pending)`);
+      console.log(
+        `✅ SCB Deposit (manual): ${user.username} +${amt} THB (pending)`
+      );
       return res.json({
         success: true,
         method: "scb",
+        username: user.username,
+        amount: amt,
+        status: "pending",
+        timestamp,
+      });
+    }
+  } catch (err) {
+    console.error("❌ /scb error:", err);
+    return res.status(500).json({ success: false, message: "something_wrong" });
+  }
+});
+
+topupRouter.post("/kbank", async (req, res) => {
+  try {
+    const { message, secret, timestamp } = req.body;
+    if (!message || !secret || !timestamp) {
+      return res
+        .status(400)
+        .json({ success: false, message: "missing_parameters" });
+    }
+
+    const baseDate = new Date(timestamp * 1000);
+    const seconds = baseDate.getSeconds();
+
+    const regex =
+      /(\d{2})\/(\d{2})(?:\/\d{2})?\s+(\d{2}):(\d{2})\s+บช\s+X-(\d+)\s+รับโอนจาก\s+X-(\d+)\s+([\d,]+\.\d{2})\s+คงเหลือ/i;
+
+    const match = String(message).match(regex);
+    if (!match) {
+      return res
+        .status(400)
+        .json({ success: false, message: "invalid_message_format" });
+    }
+
+    let [, day, month, hour, minute, receiverLast6, senderLast6, amountStr] =
+      match;
+
+    const year = new Date().getFullYear();
+
+    // Construct UTC date directly (no timezone conversion)
+    const parsedDate = new Date(
+      Date.UTC(year, month - 1, day, hour, minute, seconds)
+    );
+
+    console.log("Final UTC ISO:", parsedDate.toISOString());
+
+    const amount = Number(String(amountStr).replace(/,/g, "")) || 0;
+    const amt = Math.round(amount * 100) / 100;
+    const senderDigits = String(senderLast6 || "").trim();
+    const receiverDigits = String(receiverLast6 || "").trim();
+
+    const topup = await Topup.findOne({
+      type: "DEPOSIT",
+      accountCode: "kbank",
+      accountNumber: new RegExp(`${receiverDigits}$`, "i"),
+      isActive: true,
+      isSMS: true,
+    }).lean();
+
+    if (!topup) {
+      return res
+        .status(404)
+        .json({ success: false, message: "account_not_found" });
+    }
+    if (secret !== topup.secret) {
+      return res.status(401).json({ success: false, message: "unauthorized" });
+    }
+
+    // 🔐 กันยิงซ้ำ: หา tx ที่เหมือนกันภายใน ±2 นาที
+    // const twoMinAgo = new Date(timestamp.getTime() - 2 * 60 * 1000);
+    // const twoMinAfter = new Date(timestamp.getTime() + 2 * 60 * 1000);
+    // const duplicate = await Transaction.findOne({
+    //   method: "scb",
+    //   senderLast6: senderDigits,
+    //   receiverLast6: receiverDigits,
+    //   amount: amt,
+    //   createdAt: { $gte: twoMinAgo, $lte: twoMinAfter },
+    // }).lean();
+
+    // if (duplicate) {
+    //   return res.json({
+    //     success: true,
+    //     method: "scb",
+    //     deduped: true,
+    //     amount: amt,
+    //     timestamp,
+    //   });
+    // }
+
+    const user = await User.findOne({
+      bankAccounts: {
+        $elemMatch: { accountNumber: new RegExp(`${senderDigits}$`) },
+      },
+    });
+
+    // 📨 กรณีไม่รู้ว่าเป็นผู้ใช้คนไหน → บันทึก pending เพื่อให้แอดมินจับคู่
+    if (!user) {
+      await Transaction.create({
+        method: "kbank",
+        senderLast6: senderDigits,
+        receiverLast6: receiverDigits,
+        amount: amt,
+        currency: "THB",
+        status: "pending",
+        createdAt: parsedDate,
+      });
+      console.log(`✅ SCB Deposit (unmatched): +${amt} THB`);
+      return res.json({ success: true, method: "scb", amount: amt, timestamp });
+    }
+
+    if (topup.isAuto) {
+      const newBalance = await user.addBalance(amt);
+
+      await Transaction.create({
+        userId: user._id,
+        method: "kbank",
+        senderLast6: senderDigits,
+        receiverLast6: receiverDigits,
+        amount: amt,
+        currency: "THB",
+        status: "completed",
+        createdAt: parsedDate,
+      });
+
+      console.log(
+        `✅ SCB Deposit: ${user.username} +${amt} THB → ${newBalance}`
+      );
+      return res.json({
+        success: true,
+        method: "kbank",
+        username: user.username,
+        amount: amt,
+        status: "completed",
+        timestamp,
+      });
+    } else {
+      await Transaction.create({
+        userId: user._id,
+        method: "kbank",
+        senderLast6: senderDigits,
+        receiverLast6: receiverDigits,
+        amount: amt,
+        currency: "THB",
+        status: "pending",
+        createdAt: parsedDate,
+      });
+
+      console.log(
+        `✅ SCB Deposit (manual): ${user.username} +${amt} THB (pending)`
+      );
+      return res.json({
+        success: true,
+        method: "kbank",
         username: user.username,
         amount: amt,
         status: "pending",
@@ -624,7 +821,9 @@ topupRouter.post("/truewallet/check", async (req, res) => {
     const { amount } = req.body;
     const userId = req?.session?.userId;
     if (!userId || !(amount > 0)) {
-      return res.status(400).json({ success: false, message: "missing_parameters" });
+      return res
+        .status(400)
+        .json({ success: false, message: "missing_parameters" });
     }
 
     // ยอดที่บันทึกใน Transaction คือ "added" = amount (ไม่ +3%)
@@ -632,7 +831,7 @@ topupRouter.post("/truewallet/check", async (req, res) => {
     const tx = await Transaction.findOne({
       userId,
       method: "tw",
-      amount: target,                 // ✅ เทียบยอดสุทธิ
+      amount: target, // ✅ เทียบยอดสุทธิ
       status: "completed",
       createdAt: { $gte: new Date(Date.now() - 10 * 60 * 1000) },
     }).sort({ createdAt: -1 });
