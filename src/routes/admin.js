@@ -8,9 +8,15 @@ import { Order } from "../models/Order.js";
 import { Transaction } from "../models/Transaction.js";
 import { Topup } from "../models/Topup.js";
 import { ulid } from "ulid";
+import { Service } from '../models/Service.js';
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
+
+// กันซิงก์ซ้อน
+let SYNC_LOCK = false;
+let SYNC_STARTED_AT = 0;
+const MAX_RUN_MS = 15 * 60 * 1000; // 15 นาที
 
 // === helper : normalize + validate ===
 function normDigits(s = "") {
@@ -41,6 +47,14 @@ router.get("/", async (req, res) => {
     let ps = await ProviderSettings.findOne();
     if (!ps) ps = new ProviderSettings();
 
+    const servicesTotal = await Service.countDocuments({});
+
+    const orderCount = await Order.countDocuments({
+      status: { $nin: ['canceled', 'cancelled'] }
+    });
+
+    const userCount = await User.countDocuments({});
+
     // 🟢 Fetch all pending top-up transactions
     const pendingTransactions = await Transaction.find({ status: "pending" })
       .sort({ createdAt: -1 })
@@ -54,9 +68,14 @@ router.get("/", async (req, res) => {
     res.render("admin/dashboard", {
       title: "หลังบ้าน",
       balance: ps.lastBalance || 0,
+      servicesTotal,
       lastSyncAt: ps.lastSyncAt || null,
       transactions: pendingTransactions,
-      webWallets, // 🔥 now available in EJS
+      webWallets,
+      stats: {
+        orderCount,
+        userCount,
+      },
     });
   } catch (err) {
     console.error("Dashboard error:", err);
@@ -85,18 +104,73 @@ router.post("/refresh-balance", async (req, res) => {
 });
 
 // Sync services
-router.post("/sync-services", async (_req, res) => {
+router.post('/sync-services', requireAuth, async (req, res) => {
+  // ✅ อนุญาตเฉพาะแอดมิน
+  const me = req.user || req.session?.user;
+  const isAdmin = !!(me?.role === 'admin' || me?.isAdmin);
+  if (!isAdmin) {
+    return res.status(403).json({ ok: false, error: 'forbidden' });
+  }
+
+  // ✅ กันล็อกค้าง (ถ้าล็อกอยู่นานเกิน MAX_RUN_MS ให้ถือว่าหมดอายุ)
+  if (SYNC_LOCK && (Date.now() - SYNC_STARTED_AT) > MAX_RUN_MS) {
+    SYNC_LOCK = false; // clear stale lock
+  }
+
+  // ✅ กันซิงก์ซ้อน
+  if (SYNC_LOCK) {
+    return res.status(429).json({ ok: false, error: 'sync is already running' });
+  }
+
+  const t0 = Date.now();
+  SYNC_LOCK = true;
+  SYNC_STARTED_AT = t0;
+
   try {
-    const r = await syncServicesFromProvider();
-    // อัปเดต lastSyncAt ให้ชัวร์ (แม้ syncServices จะทำให้แล้ว)
+    // ทำงานจริง
+    const result = await syncServicesFromProvider(); // { count, skipped, logs }
+
+    // อัปเดตสถานะการซิงก์ล่าสุด
     let ps = await ProviderSettings.findOne();
     if (!ps) ps = new ProviderSettings();
+
     ps.lastSyncAt = new Date();
+    ps.lastSyncResult = {
+      ok: true,
+      count: result?.count ?? 0,
+      skipped: result?.skipped ?? 0,
+      logs: result?.logs ?? 0,
+      durationMs: Date.now() - t0,
+    };
     await ps.save();
-    res.json({ ok: true, ...r });
+
+    return res.json({
+      ok: true,
+      ...result,
+      lastSyncAt: ps.lastSyncAt,
+      durationMs: ps.lastSyncResult.durationMs,
+    });
   } catch (e) {
-    console.error("Admin sync failed:", e?.response?.data || e);
-    res.status(500).json({ ok: false, error: e.message || "sync failed" });
+    console.error('Admin sync failed:', e?.response?.data || e);
+    const msg = e?.response?.data?.message || e?.message || 'sync failed';
+
+    // บันทึกผลล้มเหลวไว้ใน settings ด้วย
+    try {
+      let ps = await ProviderSettings.findOne();
+      if (!ps) ps = new ProviderSettings();
+      ps.lastSyncAt = new Date();
+      ps.lastSyncResult = {
+        ok: false,
+        error: msg,
+        durationMs: Date.now() - t0,
+      };
+      await ps.save();
+    } catch {}
+
+    return res.status(500).json({ ok: false, error: msg });
+  } finally {
+    SYNC_LOCK = false;
+    SYNC_STARTED_AT = 0;
   }
 });
 

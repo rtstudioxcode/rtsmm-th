@@ -1,14 +1,47 @@
 <!-- //admin/dashboard.ejs -->
 <h2>หลังบ้าน</h2>
 <div class="grid cards">
+  <section class="card2">
+    <div class="card-head row-head">
+      <h3>ขายแล้ว</h3>
+      <div class="head-right">
+        <span class="metric-badge">
+          <%= (stats?.orderCount || 0).toLocaleString() %> รายการ
+        </span>
+      </div>
+    </div>
+  </section>
+  <section class="card2">
+    <div class="card-head row-head">
+      <h3>สมาชิกทั้งหมดในเว็บ</h3>
+      <div class="head-right">
+        <span class="metric-badge">
+          <%= (stats?.userCount || 0).toLocaleString() %> คน
+        </span>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="grid cards">
   <section class="card">
     <h3>เครดิตผู้ให้บริการ</h3>
     <div id="bal" class="big"><%= balance %></div>
     <button class="btn" onclick="refreshBal()">รีเฟรชเครดิต</button>
   </section>
   <section class="card">
-    <h3>ซิงก์บริการ</h3>
-    <button class="btn" onclick="syncServices()">Sync Services</button>
+    <div class="card-head row-head">
+      <h3>ซิงก์บริการ</h3>
+
+      <!-- ชิดขวา: จำนวนบริการปัจจุบัน -->
+      <div class="head-right muted">
+        บริการในปัจจุบัน:
+        <b id="svcTotal"><%= (servicesTotal ?? 0).toLocaleString() %></b> รายการ
+      </div>
+    </div>
+
+    <button class="btn" onclick="syncServices()">ดึงบริการทั้งหมด</button>
+
     <div id="syncRes" class="mt muted">
       ล่าสุด: <%= lastSyncAt ? new Date(lastSyncAt).toLocaleString() : '—' %>
     </div>
@@ -33,6 +66,11 @@
     <h3>รายการสั่งซื้อบริการ</h3>
     <a class="btn" href="/admin/orders">รายการออเดอร์</a>
     <p class="muted mt">ไปที่หน้ารายการสั่งซื้อออบริการของผู้ใช้</p>
+  </section>
+  <section class="card">
+    <h3>สรุปยอดขายรายเดือน</h3>
+    <a class="btn" href="/admin/report/summary">สรุปยอดขายรายเดือน</a>
+    <p class="muted mt">ไปที่หน้าสรุปยอดขายรายเดือน</p>
   </section>
 </div>
 <% const BANK_LABELS = { bbl: 'ธนาคารกรุงเทพ', kbank: 'ธนาคารกสิกรไทย', ktb:
@@ -276,6 +314,53 @@
     </div>
   </div>
 </div>
+
+<script>
+async function refreshBal(){
+  const r = await fetch('/admin/refresh-balance',{ method:'POST' });
+  const d = await r.json();
+  document.getElementById('bal').innerText = d.balance + (d.currency ? (' '+d.currency) : '');
+  window.showMsg({
+    variant: 'success',
+    title: 'อัปเดตเครดิตสำเร็จ',
+    text: `ยอดคงเหลือ: ${d.balance}${d.currency?(' '+d.currency):''}`,
+    okText: 'ปิด'
+  });
+  // toast.success('อัปเดตเครดิตสำเร็จ', `ยอดคงเหลือ: ${d.balance}${d.currency?(' '+d.currency):''}`);
+}
+
+async function syncServices() {
+  try {
+    const res   = await fetch('/admin/sync-services', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' } // ขอ JSON ชัดๆ
+    });
+
+    const text  = await res.text(); // อ่านเป็นข้อความก่อน
+    let data    = null;
+    try { data = JSON.parse(text); } catch { /* ไม่ใช่ JSON */ }
+
+    // ตรวจทุกเคส: HTTP ไม่ ok หรือ payload ไม่ ok
+    if (!res.ok) {
+      const msg = data?.error || `${res.status} ${res.statusText}: ${text}`;
+      throw new Error(msg);
+    }
+    if (!data?.ok) {
+      throw new Error(data?.error || 'Unknown error');
+    }
+
+    // สำเร็จ
+    const synced = data.synced ?? data.count ?? 0;
+    notify?.success?.('ซิงก์สำเร็จ', `ดึงบริการสำเร็จ ${synced.toLocaleString()} รายการ`);
+    // อัปเดต UI ใต้ปุ่ม (ถ้ามี element id="syncRes")
+    const el = document.getElementById('syncRes');
+    if (el) el.textContent = `ดึงบริการ ${synced.toLocaleString()} รายการแล้ว`;
+  } catch (err) {
+    notify?.error?.('ซิงก์ล้มเหลว', String(err?.message || err));
+    console.error('[syncServices] failed:', err);
+  }
+}
+</script>
 
 <script>
   function debounce(fn, ms=250){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
@@ -670,4 +755,105 @@
   /* ไอคอน + / – */
   .tx-accordion[data-open="1"] .tx-accordion__meta .tx-toggle::before { content: '–'; }
   .tx-accordion[data-open="0"] .tx-accordion__meta .tx-toggle::before { content: '+'; }
+
+  .row-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:8px;
+  }
+
+  .head-right{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-left:auto;
+  }
+
+  .metric-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:6px 10px;
+    border-radius:999px;
+    font-weight:700;
+    letter-spacing:.2px;
+    background:var(--pick-chip-bg, rgba(255,255,255,.06));
+    border:1px solid var(--pick-chip-border, #24262b);
+    color:var(--text-primary, #f2f4f8);
+  }
+
+  /* light theme */
+  html[data-theme="light"] .metric-badge{
+    background:var(--pick-chip-bg, #f3f4f6);
+    border-color:var(--pick-chip-border, #e5e7eb);
+    color:var(--text-primary, #111827);
+  }
+
+  /* ── Card v2 ────────────────────────────────────────── */
+  .card2{
+    position: relative;
+    border-radius: 5px;
+    background: var(--elevated-bg, #141518);
+    border: 1px solid var(--elevated-border, #24262b);
+    box-shadow: var(--elevated-shadow, 0 10px 24px rgba(0,0,0,.35));
+    padding: 14px 16px;
+    transition: transform .12s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
+    will-change: transform, box-shadow;
+  }
+
+  /* แถบเน้นซ้ายแบบบาง ๆ (ซ่อนไว้ก่อน) */
+  .card2::before{
+    content:"";
+    position:absolute; inset:0 auto 0 0; width:0;
+    background: var(--accent, #2a84ff);
+    border-radius: 16px 0 0 16px;
+    transition: width .15s ease;
+  }
+
+  /* Hover: ยกเงา + ขอบสว่างขึ้น + โชว์แถบซ้าย */
+  .card2:hover{
+    transform: translateY(-1px);
+    box-shadow: 0 14px 30px rgba(0,0,0,.4);
+    border-color: color-mix(in oklab, var(--accent,#2a84ff) 28%, var(--elevated-border,#24262b));
+  }
+  .card2:hover::before{ width: 3px; }
+
+  /* Focus (รองรับคีย์บอร์ด) */
+  .card2:focus-within{
+    box-shadow: 0 0 0 3px rgba(42,132,255,.25), 0 14px 30px rgba(0,0,0,.4);
+    outline: none;
+  }
+  .card2:active{ transform: translateY(0); }
+
+  /* Layout หัวการ์ด */
+  .row-head{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:12px; margin-bottom:2px;
+  }
+  .card-head h3{ margin:0; }
+
+  /* Metric badge (รีใช้ของเดิมได้) */
+  .metric-badge{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:6px 10px; border-radius:999px; font-weight:700; letter-spacing:.2px;
+    background: var(--pick-chip-bg, rgba(255,255,255,.06));
+    border: 1px solid var(--pick-chip-border, #24262b);
+    color: var(--text-primary, #f2f4f8);
+  }
+
+  /* Light theme tweaks */
+  html[data-theme="light"] .card2{
+    background:#fff;
+    border-color:#e5e7eb;
+    box-shadow: 0 10px 24px rgba(0,0,0,.12);
+  }
+  html[data-theme="light"] .card2:hover{
+    border-color: color-mix(in oklab, var(--accent,#2a84ff) 35%, #e5e7eb);
+    box-shadow: 0 16px 36px rgba(0,0,0,.16);
+  }
+  html[data-theme="light"] .metric-badge{
+    background:#f3f4f6; border-color:#e5e7eb; color:#111827;
+  }
 </style>

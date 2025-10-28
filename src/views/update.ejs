@@ -1,9 +1,13 @@
-<% const PAGE_TITLE = title || "อัปเดตรายการบริการ"; %>
+<% const PAGE_TITLE = title || "อัปเดตบริการ"; %>
 
 <section class="page-head">
   <div class="page-title">
     <h1><%= PAGE_TITLE %></h1>
     <small class="muted">หน้าหลัก → <%= PAGE_TITLE %></small>
+  </div>
+
+  <div class="right-actions">
+    <button id="btnRefresh" class="btn">รีเฟรช</button>
   </div>
 </section>
 
@@ -13,7 +17,7 @@
   <!-- Desktop table -->
   <div class="upd-desktop">
     <div class="table-wrap">
-      <table class="upd-table">
+      <table class="upd-table zebra">
         <thead>
           <tr>
             <th style="width:90px">ID</th>
@@ -22,40 +26,69 @@
             <th style="width:180px">วันที่</th>
           </tr>
         </thead>
-        <tbody id="updTbody">
-          <!-- filled by JS -->
-        </tbody>
+        <tbody id="updTbody"><!-- filled by JS --></tbody>
       </table>
     </div>
   </div>
 
   <!-- Mobile cards -->
-  <div class="upd-mobile" id="upCards">
-    <!-- filled by JS -->
-  </div>
+  <div class="upd-mobile" id="upCards"><!-- filled by JS --></div>
 
   <div id="foot" class="muted" style="margin-top:10px;"></div>
 </section>
 
 <style>
+  :root{
+    --surface: var(--elevated-bg, #141518);
+    --border:  var(--elevated-border, #24262b);
+    --muted:   var(--text-muted, #a7b0bb);
+    --success: var(--success, #10b981);
+    --danger:  var(--danger,  #ef4444);
+    --accent:  var(--accent,  #2a84ff);
+    --warning: var(--warn,    #f59e0b);
+    --tbl-row:       #13161b;
+    --tbl-row-alt:   #181c22;
+    --tbl-hover:     #212633;
+    --tbl-head-bg:   color-mix(in oklab,var(--surface) 92%, transparent);
+  }
+  html[data-theme="light"]{
+    --surface:#fff; --border:#e5e7eb; --muted:#64748b;
+    --tbl-row:#ffffff; --tbl-row-alt:#f3f4f6; --tbl-hover:#eef2f7;
+    --tbl-head-bg:#f6f7fb;
+  }
+
   /* ====== Table (Desktop) ====== */
-  .upd-table{ width:100%; border-collapse:collapse; font-size:14px; }
+  .upd-table{ width:100%; border-collapse:separate; border-spacing:0; font-size:14px; }
   .upd-table thead th{
     text-align:left; font-weight:700;
     padding:10px 12px; position:sticky; top:0;
-    background:color-mix(in oklab,var(--surface) 92%, transparent);
+    background:var(--tbl-head-bg);
     border-bottom:1px solid var(--border);
-    z-index:1;
+    z-index:2;
   }
-  .upd-table td{ padding:12px; border-bottom:1px solid var(--border); vertical-align:top; }
+  .upd-table td{ padding:12px; border-bottom:1px solid var(--border); vertical-align:top; transition:background .15s ease; }
+  .upd-table.zebra tbody tr:nth-child(odd)  td { background: var(--tbl-row); }
+  .upd-table.zebra tbody tr:nth-child(even) td { background: var(--tbl-row-alt); }
+  .upd-table.zebra tbody tr:hover td { background: var(--tbl-hover); }
+  .upd-table.zebra tbody tr:hover td:first-child { box-shadow: inset 3px 0 0 0 var(--accent); }
+
   .id-mono{ font-family:ui-monospace,Menlo,Consolas,monospace; opacity:.9; }
 
   /* ป้ายผลลัพธ์ */
   .pill{ display:inline-flex; align-items:center; gap:.4rem; padding:6px 10px; border-radius:999px; font-weight:800; border:1px solid transparent; white-space:nowrap; }
-  .pill.ok{ background:color-mix(in oklab,var(--success) 35%, transparent); color:#123; }
+  .pill.ok{ background:color-mix(in oklab,var(--success) 35%, transparent); color:#0b2; }
   .pill.danger{ background:color-mix(in oklab,var(--danger) 35%, transparent); }
   .pill.info{ background:color-mix(in oklab,var(--accent) 22%, transparent); color:#fff; border-color:var(--accent) }
   .pill.warn{ background:color-mix(in oklab,var(--warning) 35%, transparent); color:#222; }
+  .pill.neutral{ background:color-mix(in oklab,#94a3b8 30%, transparent); color:#111; }
+
+  .chip{
+    display:inline-flex; align-items:center; gap:.35rem;
+    padding:.25rem .5rem; font-size:12px; border-radius:999px;
+    background:color-mix(in oklab,var(--accent) 18%, transparent);
+    border:1px solid color-mix(in oklab,var(--accent) 40%, transparent);
+    color:#fff; font-weight:800;
+  }
 
   /* ไอคอนเล็กข้าง ID */
   .dot{ width:8px; height:8px; border-radius:50%; display:inline-block; background:color-mix(in oklab,#9ca3af 75%, transparent); margin-right:8px; }
@@ -71,8 +104,9 @@
     border:1px solid var(--border); border-radius:12px;
     background:var(--surface); overflow:hidden; cursor:pointer;
     transition:box-shadow .15s ease, transform .06s ease;
-    content-visibility: auto; contain-intrinsic-size: 160px 320px;
+    content-visibility:auto; contain-intrinsic-size:160px 320px;
   }
+  .u-card:hover{ box-shadow:0 10px 24px rgba(0,0,0,.25); }
   .u-card:active{ transform:translateY(1px) }
 
   .u-head{
@@ -89,7 +123,6 @@
   .u-row:last-child{ border-bottom:0 }
   .u-label{ color:var(--muted); font-weight:700; font-size:13px }
 
-  /* คำว่า UPDATED ... ในชื่อ */
   .name-badge{
     font-size:12px; font-weight:900; letter-spacing:.1px;
     color:color-mix(in oklab,var(--accent) 90%, #fff);
@@ -98,38 +131,64 @@
 </style>
 
 <script>
-/* ========= helpers ========= */
 const $ = s => document.querySelector(s);
-const fmtDate = (d) => new Date(d).toLocaleDateString();
-const fmtTime = (d) => new Date(d).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
 
-/* map ป้าย */
+// --- 1) helper ปลอดภัย + ฟอร์แมตไทย ---
+const h = (s='') => String(s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+
+const fmtDate = d => new Date(d).toLocaleDateString('th-TH', { year:'numeric', month:'2-digit', day:'2-digit' });
+const fmtTime = d => new Date(d).toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' });
+
+// --- ป้ายสถานะ ---
 function buildPill(it){
-  // diff: 'new' | 'open' | 'close' | 'removed' (ตามที่ routes/changes.js สร้าง)
   const isCat = it.target === 'category';
-  if (it.diff === 'open')   return `<span class="pill ok">${isCat?'หมวดหมู่ - ':''}✔ เปิดใช้งาน</span>`;
-  if (it.diff === 'close')  return `<span class="pill danger">${isCat?'หมวดหมู่ - ':''}✖ ปิดใช้งาน</span>`;
-  if (it.diff === 'new')    return `<span class="pill info">ใหม่</span>`;
-  if (it.diff === 'removed')return `<span class="pill warn">นำออก</span>`;
-  // เผื่ออนาคต (เช่น ปรับราคา/เพดาน)
-  return `<span class="pill info">${it.diff}</span>`;
+  const labelCat = isCat ? 'หมวดหมู่ - ' : '';
+  const before = it.oldStatus ? String(it.oldStatus).toUpperCase() : null;
+  const after  = it.newStatus ? String(it.newStatus).toUpperCase() : null;
+
+  if (it.diff === 'open')    return `<span class="pill ok">${labelCat}✔ เปิดใช้งาน</span>`;
+  if (it.diff === 'close')   return `<span class="pill danger">${labelCat}✖ ปิดใช้งาน</span>`;
+  if (it.diff === 'removed') return `<span class="pill warn">นำออก</span>`;
+  if (it.diff === 'new')     return `<span class="pill info">ใหม่</span>`;
+  if (it.diff === 'state' && after) {
+    const tone = (after === 'OPEN') ? 'ok' : (after === 'CLOSE' ? 'danger' : 'neutral');
+    return `<span class="pill ${tone}">${labelCat}สถานะ: ${after}</span>`;
+  }
+  if (it.diff === 'updated') {
+    if (before && after && before !== after) {
+      const tone = (after === 'OPEN') ? 'ok' : (after === 'CLOSE' ? 'danger' : 'info');
+      return `<span class="pill ${tone}">${labelCat}${before} → ${after}</span>`;
+    }
+    return `<span class="pill info">อัปเดต</span>`;
+  }
+  return `<span class="pill info">${h(it.diff)}</span>`;
 }
 
-/* ========= render desktop table ========= */
+function targetChip(it){ return `<span class="chip">${it.target === 'category' ? 'หมวดหมู่' : 'บริการ'}</span>`; }
+
+// --- 2) render table ---
 function renderTable(items){
   const tbody = $('#updTbody');
   const rows = items.map(it => {
-    const id = (it.target === 'service') ? (it.providerServiceId || '') : (it.serviceGroupId || '');
-    const name = (it.target === 'service') ? (it.serviceName || '(ไม่ทราบชื่อ)') : (it.categoryName || '(ไม่ทราบหมวด)');
+    const id   = it.target === 'service' ? (it.providerServiceId || '') : (it.serviceGroupId || '');
+    const name = it.target === 'service' ? (it.serviceName || '(ไม่ทราบชื่อ)') : (it.categoryName || '(ไม่ทราบหมวด)');
     const pill = buildPill(it);
+    const chip = targetChip(it);
+    const platform = it.platform ? `<div class="muted" style="margin-top:2px">${h(it.platform)}</div>` : ``;
+
     return `
-      <tr>
-        <td class="id-mono"><span class="dot"></span>${id}</td>
+      <tr tabindex="0">
+        <td class="id-mono"><span class="dot"></span>${h(id)}</td>
         <td>
-          <div style="font-weight:700">${name}
-            ${it.target==='service' ? `<span class="name-badge">UPDATED ${fmtDate(it.ts)}</span>` : ``}
+          <div style="display:flex; align-items:center; gap:.5rem; flex-wrap:wrap">
+            <div style="font-weight:700">${h(name)}
+              ${it.target==='service' ? `<span class="name-badge">UPDATED ${fmtDate(it.ts)}</span>` : ``}
+            </div>
+            ${chip}
           </div>
-          ${it.platform ? `<div class="muted" style="margin-top:2px">${it.platform}</div>` : ``}
+          ${platform}
         </td>
         <td>${pill}</td>
         <td class="muted">${fmtDate(it.ts)}, ${fmtTime(it.ts)}</td>
@@ -139,40 +198,43 @@ function renderTable(items){
   tbody.innerHTML = rows || `<tr><td colspan="4" class="muted">ไม่มีรายการของวันล่าสุด</td></tr>`;
 }
 
-/* ========= render mobile cards ========= */
+// --- 3) render mobile ---
 function renderCards(items){
   const root = $('#upCards');
   root.innerHTML = items.map(it => {
-    const id = (it.target === 'service') ? (it.providerServiceId || '') : (it.serviceGroupId || '');
-    const name = (it.target === 'service') ? (it.serviceName || '(ไม่ทราบชื่อ)') : (it.categoryName || '(ไม่ทราบหมวด)');
+    const id   = it.target === 'service' ? (it.providerServiceId || '') : (it.serviceGroupId || '');
+    const name = it.target === 'service' ? (it.serviceName || '(ไม่ทราบชื่อ)') : (it.categoryName || '(ไม่ทราบหมวด)');
     const pill = buildPill(it);
+    const chip = targetChip(it);
+    const platform = it.platform ? `<div class="u-meta">${h(it.platform)}</div>` : ``;
+
     return `
-      <div class="u-card" data-key="${it._id || ''}">
+      <div class="u-card" data-key="${h(it._id || '')}">
         <div class="u-head">
           <div>
-            <div class="u-id">#${id}</div>
-            <div class="u-name">${name}
+            <div class="u-id">#${h(id)}</div>
+            <div class="u-name">${h(name)}
               ${it.target==='service' ? `<span class="name-badge">UPDATED ${fmtDate(it.ts)}</span>` : ``}
             </div>
-            ${it.platform ? `<div class="u-meta">${it.platform}</div>` : ``}
+            ${platform}
           </div>
-          <div style="align-self:center">${pill}</div>
+          <div style="align-self:center; display:flex; gap:.5rem; align-items:center">
+            ${chip}
+            ${pill}
+          </div>
         </div>
         <div class="u-body">
-          <div class="u-row">
-            <div class="u-label">สิ่งที่อัปเดต</div>
-            <div>${pill}</div>
-          </div>
-          <div class="u-row">
-            <div class="u-label">วันที่</div>
-            <div>${fmtDate(it.ts)} ${fmtTime(it.ts)}</div>
-          </div>
+          <div class="u-row"><div class="u-label">สิ่งที่อัปเดต</div><div>${pill}</div></div>
+          ${(it.oldStatus || it.newStatus) ? `
+          <div class="u-row"><div class="u-label">สถานะ</div>
+            <div>${h((it.oldStatus||'—')).toUpperCase()} → ${h((it.newStatus||'—')).toUpperCase()}</div>
+          </div>` : ``}
+          <div class="u-row"><div class="u-label">วันที่</div><div>${fmtDate(it.ts)} ${fmtTime(it.ts)}</div></div>
         </div>
       </div>
     `;
   }).join('');
 
-  // กด “ตรงไหนก็ขยาย”
   root.addEventListener('click', e => {
     const card = e.target.closest('.u-card');
     if (!card) return;
@@ -180,21 +242,40 @@ function renderCards(items){
   }, { passive:true });
 }
 
-/* ========= load only latest day ========= */
+// --- 4) load + ปุ่มรีเฟรชมีสถานะ ---
 async function loadLatest(){
-  $('#foot').textContent = 'กำลังโหลด…';
-  const res = await fetch('/api/changes?latest=1&limit=800');
-  const data = await res.json();
-  if (!data?.ok) {
-    $('#foot').textContent = 'โหลดไม่สำเร็จ';
-    return;
+  const foot = $('#foot');
+  const btn  = $('#btnRefresh');
+  foot.textContent = 'กำลังโหลด…';
+  btn?.setAttribute('disabled','');
+  btn && (btn.textContent = 'กำลังรีเฟรช…');
+
+  try{
+    const res = await fetch('/api/changes?latest=1&limit=800', { cache:'no-store' });
+    const data = await res.json();
+    const items = Array.isArray(data?.items) ? data.items : [];
+
+    // อัปหัวข้อ “วันล่าสุด” ถ้ามี
+    if (data?.latestDay) {
+      $('.title')?.setAttribute('title', `วันล่าสุด: ${data.latestDay}`);
+    }
+
+    renderTable(items);
+    renderCards(items);
+    foot.textContent = items.length ? '' : 'ไม่มีรายการของวันล่าสุด';
+  }catch(e){
+    foot.textContent = 'โหลดไม่สำเร็จ';
+  }finally{
+    btn?.removeAttribute('disabled');
+    btn && (btn.textContent = 'รีเฟรช');
   }
-  const items = Array.isArray(data.items) ? data.items : [];
-  renderTable(items);
-  renderCards(items);
-  $('#foot').textContent = items.length ? '' : 'ไม่มีรายการของวันล่าสุด';
 }
 
-/* boot */
+// hooks
+$('#btnRefresh')?.addEventListener('click', loadLatest);
+window.addEventListener('services-synced', loadLatest);
+
+// boot
 loadLatest();
 </script>
+

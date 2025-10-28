@@ -20,7 +20,7 @@ import { syncServicesFromProvider } from "./lib/syncServices.js";
 import { Category } from "./models/Category.js";
 import { servicesRouter } from "./routes/services.js";
 import changesRoute from "./routes/changes.js";
-import { initDailyChangeSync } from "./jobs/dailyChangeSync.js";
+import { initDailyChangeSync } from './jobs/dailyChangeSync.js';
 import accountRouter from "./routes/account.js";
 import resetPasswordRoutes from "./routes/reset-password.js";
 import dashboardRouter from "./routes/dashboard.js";
@@ -36,6 +36,7 @@ import apiPricingRouter from "./routes/api-pricing.js";
 import compression from "compression";
 import { startSpendAutoRecalc } from "./services/spendWatcher.js";
 import { topupRouter } from "./routes/topup.js";
+import adminReport from './routes/admin-report.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -298,6 +299,7 @@ app.use(requireAuth, accountRouter);
 app.use("/", requireAuth, dashboardRouter);
 app.use("/otp", otpRouter);
 app.use("/api", apiPricingRouter);
+app.use(adminReport);
 
 // Healthcheck (optional)
 app.get("/healthz", (_req, res) => res.json({ ok: true }));

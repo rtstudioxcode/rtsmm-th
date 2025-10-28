@@ -2074,3 +2074,6 @@ html[data-theme="dark"]{
 
 .pill.long.warn, .pill.progress.warn{ background:#FACC15; color:#111; font-weight:700; }
 .pill.long.warn .bar, .pill.progress.warn .bar{ background:rgba(0,0,0,.18); }
+
+.row-head{ display:flex; align-items:center; gap:12px; }
+.row-head .head-right{ margin-left:auto; }

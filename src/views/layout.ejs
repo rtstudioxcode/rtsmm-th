@@ -257,6 +257,9 @@
     </main>
 
     <footer class="container footer">All Right Reserved © <%= new Date().getFullYear() %> Powered By RTStudioXCode</footer>
+
+    <!-- Notify root (ซ้ายบน) -->
+    <div id="notify-root" class="notify-root top-left" aria-live="polite" aria-atomic="false"></div>
   </div>
 
   <!-- Global Toast Modal (ใช้ทุกหน้า) -->
@@ -312,144 +315,200 @@
   </script>
 
   <script>
-    (function(){
-      const $ = (s,p=document)=>p.querySelector(s);
-      // ======= RESET PASSWORD (server-driven grant) =======
-      const modal = $('#resetPwModal');
-      if (!modal) return; // ไม่มี modal ก็ไม่ต้องทำอะไร
+  /* ==========================================================
+    NOTIFY SYSTEM (Top-Left) + Back-Compat showMsg/alert
+    - ใช้ notify.push({ variant, title, text, timeout })
+    - ช็อตคัต: notify.info/success/warn/error(title, text)
+    - แม็ป showMsg(opts) เดิม -> แจ้งเตือนแบบ Notify อัตโนมัติ
+    - โหลดครั้งเดียวใน layout แล้วใช้ได้ทุกหน้า
+    ========================================================== */
+  (() => {
+    // สร้าง <style> และ <div id="notify-root"> ให้อัตโนมัติ ถ้ายังไม่มี
+    const STYLES = `
+    .notify-root{
+      position:fixed; inset:16px 16px auto auto;  /* top-right */
+      z-index:2147483647; display:flex; flex-direction:column; gap:12px;
+      pointer-events:none;
+    }
+    .notify{
+      width:min(440px,92vw);
+      background:#ffffff; color:#111827;
+      border:1px solid #e5e7eb; border-radius:12px;
+      box-shadow:0 10px 30px rgba(2,6,23,.12), 0 2px 8px rgba(2,6,23,.08);
+      pointer-events:auto; overflow:hidden; opacity:1; transform:translateY(0);
+      transition:opacity .18s ease, transform .18s ease;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Thai", "Prompt", Arial, sans-serif;
+    }
+    .notify.hide{ opacity:0; transform:translateY(-6px); }
+    .notify__head{
+      display:flex; align-items:center; gap:10px; padding:10px 12px 8px 12px;
+    }
+    .notify__icon{
+      width:22px; height:22px; display:grid; place-items:center;
+      background:#d1fae5; color:#059669; border-radius:999px; flex:0 0 22px;
+    }
+    .notify__title{
+      font-weight:600; color:#111827; font-size:14px; line-height:1;
+    }
+    .notify__meta{
+      margin-left:auto; color:#6b7280; font-size:12px;
+      display:flex; align-items:center; gap:10px;
+    }
+    .notify__close{
+      appearance:none; background:transparent; border:0; color:#9ca3af;
+      cursor:pointer; font-size:16px; line-height:1; padding:2px; border-radius:6px;
+    }
+    .notify__close:hover{ color:#6b7280; background:#f3f4f6; }
+    .notify__body{
+      padding:10px 12px 12px 12px; color:#374151; font-size:13px;
+      border-top:1px solid #f3f4f6;
+    }
+    /* variants: ปรับเฉพาะสีไอคอน (พื้น+ตัว) */
+    .notify--success .notify__icon{ background:#d1fae5; color:#059669; }
+    .notify--info    .notify__icon{ background:#e0e7ff; color:#4f46e5; }
+    .notify--warn    .notify__icon{ background:#fef3c7; color:#d97706; }
+    .notify--error   .notify__icon{ background:#fee2e2; color:#dc2626; }
+    `;
 
-      const open  = () => { if (modal.hidden) { modal.hidden = false; document.body.classList.add('blurred'); } };
-      const close = () => { if (!modal.hidden) { modal.hidden = true;  document.body.classList.remove('blurred'); } };
-
-      // เปิดได้เฉพาะเมื่อเซิร์ฟเวอร์อนุญาต (ผู้ใช้มากดลิงก์ในเมลมาแล้ว)
-      if (window.__rp?.allowed === true) open();
-
-      // ปิด = ยกเลิก grant ฝั่ง server ด้วย
-      $('#resetCancel')?.addEventListener('click', async () => {
-        close();
-        try { await fetch('/password/reset/cancel', { method:'POST' }); } catch {}
-      });
-
-      // บันทึกรหัสใหม่ (ไม่ต้องส่ง token/email — server ดูจาก session grant)
-      $('#resetSubmit')?.addEventListener('click', async () => {
-        const p1 = ($('#newPw')?.value || '').trim();
-        const p2 = ($('#newPw2')?.value || '').trim();
-
-        if (p1.length < 6) return alert('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
-        if (p1 !== p2)     return alert('รหัสผ่านไม่ตรงกัน');
-
-        try {
-          const r = await fetch('/password/reset', {
-            method: 'POST',
-            headers: { 'Content-Type':'application/json' },
-            body: JSON.stringify({ newPassword: p1 })
-          });
-          const j = await r.json();
-          if (!j.ok) throw new Error(j.error || 'รีเซ็ตไม่สำเร็จ');
-
-          // สำเร็จ → login ให้แล้วในฝั่ง server
-          const t = document.createElement('div');
-          t.textContent = 'รีเซ็ตรหัสผ่านแล้ว กำลังเข้าสู่ระบบ...';
-          t.style.cssText = 'position:fixed;top:16px;right:16px;background:#10b981;color:#fff;padding:10px 14px;border-radius:10px;z-index:2000';
-          document.body.appendChild(t);
-          setTimeout(() => { t.remove(); location.href = '/'; }, 1200);
-        } catch (e) {
-          alert(e.message);
-        }
-      });
-
-      // คลิกฉากหลังเพื่อปิด (ทางเลือก)
-      modal.querySelector('.modal__backdrop')?.addEventListener('click', async () => {
-        close();
-        try { await fetch('/password/reset/cancel', { method:'POST' }); } catch {}
-      });
-
-      // ======= Modal Dialog Main =======
-      const dlg = $('#msgDialog'), badge=$('#msgBadge'), title=$('#msgTitle'), text=$('#msgText');
-      const btnOk = $('#msgClose'), btnCancel=$('#msgCancel');
-
-      window.showMsg = function({
-        variant='info', icon, title:tt='ข้อความ', text:tx='', okText='ตกลง', cancelText,
-        onOk, onCancel
-      } = {}) {
-        const iconMap = { info:'❔', success:'✅', warn:'⚠️', error:'✖' };
-        dlg.setAttribute('data-variant', variant);
-        badge.textContent = icon || iconMap[variant] || '❔';
-        title.textContent = tt;
-        text.textContent  = tx;
-
-        btnOk.textContent = okText || 'ตกลง';
-        if (cancelText) { btnCancel.hidden=false; btnCancel.textContent=cancelText; } else { btnCancel.hidden=true; }
-
-        btnOk.onclick    = () => { dlg.close(); onOk && onOk(); };
-        btnCancel.onclick= () => { dlg.close(); onCancel && onCancel(); };
-
-        if (!dlg.open && dlg.showModal) dlg.showModal();
-        requestAnimationFrame(()=> btnOk.focus());
-      };
-
-      dlg?.addEventListener('cancel', (e)=>{ e.preventDefault(); dlg.close(); });
-    })();
-
-    // อ่าน flash ที่ฝั่ง server ยัดมาไว้ใน res.locals.flash (ตั้งแล้วใน index.js)
-    window.__flash = <%- JSON.stringify(flash || null) %>;
-    document.addEventListener('DOMContentLoaded', () => {
-      if (window.__flash && typeof window.showMsg === 'function') {
-        window.showMsg(window.__flash);
-        window.__flash = null;
+    const ensureStyle = () => {
+      if (!document.getElementById('notify-style')) {
+        const s = document.createElement('style');
+        s.id = 'notify-style'; s.textContent = STYLES; document.head.appendChild(s);
       }
-    });
+    };
+    const ensureRoot = () => {
+      let root = document.getElementById('notify-root');
+      if (!root) { root = document.createElement('div'); root.id = 'notify-root'; root.className='notify-root'; document.body.appendChild(root); }
+      return root;
+    };
+    const html = (s) => { const t=document.createElement('template'); t.innerHTML=s.trim(); return t.content.firstElementChild; };
+    const nowLabel = () => 'just now';
 
-    // ===== Override alert/confirm ให้ใช้ dialog กลางระบบ =====
-    (function(){
-      const ensure = () => typeof window.showMsg === 'function';
+    function push({ variant='info', title='', text='', timeout=3500 } = {}) {
+      ensureStyle();
+      const root = ensureRoot();
 
-      // แทนที่ window.alert
-      window.alert = function(msg) {
-        if (ensure()) {
-          window.showMsg({
-            variant: 'info',
-            title: 'แจ้งเตือน',
-            text: String(msg ?? ''),
-            okText: 'ตกลง'
-          });
-        } else {
-          // fallback กรณีโหลด showMsg ไม่ทัน
-          console.log('[alert->dialog]', msg);
-        }
-      };
+      // ไอคอนติ๊กถูก (SVG) ให้เหมือนตัวอย่าง
+      const iconSVG = `
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+          <path d="M9.55 16.2 5.8 12.45a1 1 0 1 1 1.4-1.4l2.35 2.34 5.24-5.24a1 1 0 1 1 1.42 1.42l-5.95 5.95a1 1 0 0 1-1.41 0Z"/>
+        </svg>`;
 
-      // เพิ่ม confirm แบบ dialog (คืนค่า Promise<boolean>)
-      window.confirm = function(msg) {
-        return new Promise((resolve) => {
-          if (ensure()) {
-            window.showMsg({
-              variant: 'warn',
-              title: 'ยืนยันการทำรายการ',
-              text: String(msg ?? ''),
-              okText: 'ตกลง',
-              cancelText: 'ยกเลิก',
-              onOk:    () => resolve(true),
-              onCancel:() => resolve(false)
-            });
-          } else {
-            // fallback
-            resolve(window.originalConfirm ? window.originalConfirm(msg) : false);
-          }
-        });
-      };
+      const el = html(`
+        <div class="notify notify--${variant}" role="status" aria-live="polite">
+          <div class="notify__head">
+            <span class="notify__icon">${iconSVG}</span>
+            <span class="notify__title">${title}</span>
+            <div class="notify__meta">
+              <span class="notify__time">${nowLabel()}</span>
+              <button class="notify__close" aria-label="close">×</button>
+            </div>
+          </div>
+          ${text ? `<div class="notify__body">${text}</div>` : ``}
+        </div>
+      `);
 
-      // ยูทิลสรุ่นย่อ (สะดวกเรียกทั่วเว็บ)
-      window.toast = {
-        info   : (t, d='') => window.showMsg({ variant:'info',    title:t, text:d }),
-        success: (t, d='') => window.showMsg({ variant:'success', title:t, text:d }),
-        warn   : (t, d='') => window.showMsg({ variant:'warn',    title:t, text:d }),
-        error  : (t, d='') => window.showMsg({ variant:'error',   title:t, text:d })
-      };
-    })();
+      const close = () => { el.classList.add('hide'); setTimeout(() => el.remove(), 180); };
+      el.querySelector('.notify__close')?.addEventListener('click', close);
+
+      // แทรกบนสุด (ล่าสุดอยู่บน)
+      root.prepend(el);
+      if (timeout > 0) setTimeout(close, timeout);
+      return close;
+    }
+
+    // Public API
+    window.notify = {
+      push,
+      success: (t,d) => push({ variant:'success', title:t, text:d }),
+      info:    (t,d) => push({ variant:'info',    title:t, text:d }),
+      warn:    (t,d) => push({ variant:'warn',    title:t, text:d }),
+      error:   (t,d) => push({ variant:'error',   title:t, text:d }),
+    };
+
+    // Back-compat: showMsg(opts) -> notify
+    window.showMsg = (opts={}) => {
+      const { variant='info', title='', text='', timeout } = opts;
+      return push({ variant, title, text, timeout });
+    };
+
+    // alert ให้เป็นการ์ด Notify
+    window.alert = (msg) => push({ variant:'info', title:'แจ้งเตือน', text:String(msg ?? '') });
+    // เก็บ confirm เดิมไว้ใช้ (ถ้าต้องยืนยันจริง ๆ)
+    window.originalConfirm = window.confirm;
+  })();
   </script>
 
   <script>
+  /* ==========================================================
+    RESET PASSWORD MODAL (คงไว้ เพราะเป็นฟอร์มโต้ตอบจริง)
+    ========================================================== */
+  (() => {
+    const $ = (s,p=document)=>p.querySelector(s);
+    const modal = $('#resetPwModal');
+    if (!modal) return;
+
+    const open  = () => { if (modal.hidden) { modal.hidden = false; document.body.classList.add('blurred'); } };
+    const close = () => { if (!modal.hidden) { modal.hidden = true;  document.body.classList.remove('blurred'); } };
+
+    if (window.__rp?.allowed === true) open();
+
+    $('#resetCancel')?.addEventListener('click', async () => {
+      close();
+      try { await fetch('/password/reset/cancel', { method:'POST' }); } catch {}
+    });
+
+    $('#resetSubmit')?.addEventListener('click', async () => {
+      const p1 = ($('#newPw')?.value || '').trim();
+      const p2 = ($('#newPw2')?.value || '').trim();
+
+      if (p1.length < 6) return notify.warn('รหัสผ่านสั้นเกินไป','รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
+      if (p1 !== p2)     return notify.warn('รหัสผ่านไม่ตรงกัน','กรุณาพิมพ์ใหม่อีกครั้ง');
+
+      try {
+        const r = await fetch('/password/reset', {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json' },
+          body: JSON.stringify({ newPassword: p1 })
+        });
+        const j = await r.json();
+        if (!j.ok) throw new Error(j.error || 'รีเซ็ตไม่สำเร็จ');
+
+        notify.success('รีเซ็ตรหัสผ่านแล้ว', 'กำลังเข้าสู่ระบบ...');
+        setTimeout(() => { location.href = '/'; }, 1100);
+      } catch (e) {
+        notify.error('รีเซ็ตไม่สำเร็จ', String(e.message||e));
+      }
+    });
+
+    modal.querySelector('.modal__backdrop')?.addEventListener('click', async () => {
+      close();
+      try { await fetch('/password/reset/cancel', { method:'POST' }); } catch {}
+    });
+  })();
+  </script>
+
+  <script>
+  /* ==========================================================
+    FLASH MESSAGE จาก server (res.locals.flash) -> Notify
+    ========================================================== */
+  (() => {
+    window.__flash = <%- JSON.stringify(flash || null) %>;
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.__flash) {
+        // รองรับรูปแบบเดิม { variant, title, text, timeout }
+        const f = window.__flash;
+        notify.push({ variant: f.variant || 'info', title: f.title || '', text: f.text || '', timeout: f.timeout ?? 3500 });
+        window.__flash = null;
+      }
+    });
+  })();
+  </script>
+
+  <script>
+  /* ==========================================================
+    SIDEBAR / THEME (คงลอจิกเดิม)
+    ========================================================== */
   (() => {
     const sb = document.getElementById('sb');
     const sbBtns = document.querySelectorAll('[id=sbToggle]');
@@ -460,12 +519,10 @@
       sb.classList.toggle('open', willOpen);
       document.body.classList.toggle('sb-open', willOpen);
 
-      // สลับโลโก้แบบเนียน: รอสไลด์เมนูเริ่ม แล้วค่อยเฟด wordmark
       if (willOpen) {
-        // ล้างก่อนเผื่อเปิดซ้ำเร็ว ๆ
         sbBrand?.classList.remove('logo-swap');
         requestAnimationFrame(() => {
-          setTimeout(() => sbBrand?.classList.add('logo-swap'), 120); // ดีเลย์ ~0.12s
+          setTimeout(() => sbBrand?.classList.add('logo-swap'), 120);
         });
       } else {
         sbBrand?.classList.remove('logo-swap');
@@ -474,9 +531,8 @@
 
     sbBtns.forEach(btn => btn.addEventListener('click', toggleSidebar));
 
-    // คลิกฉากหลังปิดเมนู
     document.addEventListener('click', (e) => {
-      if (!sb.classList.contains('open')) return;
+      if (!sb?.classList.contains('open')) return;
       const inside = e.target.closest('#sb');
       const toggle = e.target.closest('[id=sbToggle]');
       if (!inside && !toggle) {
@@ -486,7 +542,6 @@
       }
     });
 
-    /* ปุ่มธีม / ปักหมุด (ตามเดสก์ท็อป) เหมือนเดิมได้ */
     const themeBtns = document.querySelectorAll('[id=themeToggle]');
     const renderThemeIcon = () => {
       const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -499,7 +554,6 @@
     }));
     window.addEventListener?.('themechange', renderThemeIcon);
 
-    // ซ่อนปุ่ม pin บนมือถืออยู่แล้วใน CSS; เดสก์ท็อปใช้ได้ปกติ
     const pinBtn = document.getElementById('sbPin');
     const KEY = 'sidebarPinned';
     const pinned = localStorage.getItem(KEY) === '1';
@@ -512,7 +566,6 @@
       localStorage.setItem(KEY, willPin ? '1' : '0');
     });
 
-    // ไฮไลต์เมนูปัจจุบัน
     const path = location.pathname.replace(/\/+$/,'') || '/';
     document.querySelectorAll('.sb-item').forEach(a => {
       const href = (a.getAttribute('href')||'').replace(/\/+$/,'') || '/';
