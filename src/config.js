@@ -8,8 +8,8 @@ import { decryptAesGcm } from './lib/crypto.js';
  */
 const envConfig = {
   port: Number(process.env.PORT || 3000),
-  // mongoUri: process.env.MONGO_URI, // ใช้สำหรับ Production
-  mongoUri: process.env.MONGO_URI || 'mongodb://admin:060843Za@147.50.240.76:27017/rtsmm-th?authSource=admin', // ใช้สำหรับทดสอบ
+  mongoUri: process.env.MONGO_URI, // ใช้สำหรับ Production
+  // mongoUri: process.env.MONGO_URI || 'mongodb://admin:060843Za@147.50.240.76:27017/rtsmm-th?authSource=admin', // ใช้สำหรับทดสอบ
   sessionSecret: process.env.SESSION_SECRET || 'rtstudioxcoe78rt58y9643y5t8y7u6i5o4p3',
   provider: {
     baseUrl: ((process.env.IPV_API_BASE || '').replace(/\/+$/, '')) || '',
