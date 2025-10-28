@@ -145,8 +145,8 @@
     <div id="qrModal" class="hidden modal">
       <div class="overlay" data-close="1"></div>
       <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="qrTitle">
-        <div class="hdr">
-          <div class="title" id="qrTitle">สแกนเพื่อเติมเงิน</div>
+        <div class="hdr" style="align-items: center; text-align:center">
+          <div class="title" id="qrTitle" style="align-items: center; text-align:center">สแกนเพื่อเติมเงิน</div>
           <button class="icon close" id="qrClose" aria-label="ปิด">×</button>
         </div>
         <hr class="sep" />
@@ -552,7 +552,7 @@
         $("#qrName").textContent   = data.accountName  || "RTSSM Web";
         $("#qrNumber").textContent = data.accountNumber|| "0000000000";
         $("#qrAmount").textContent = fmt(amount * 1.03);
-        $("#qrWarn").textContent = "โปรดโอนในระยะเวลาที่กำหนด";
+        $("#qrWarn").textContent = "*โปรดโอนในระยะเวลาที่กำหนด*";
         openQrModal();
       } catch (err) {
         $("#resp").innerHTML = `<div class="card soft">❌ ขัดข้อง: ${err.message}</div>`;
@@ -785,6 +785,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    text-align: center;
   }
 
   .modal .title {
@@ -916,6 +917,7 @@
     border: 1px solid var(--border, #2a2f36);
     box-shadow: 0 20px 60px rgba(0,0,0,.45);
   }
+
 
   .qr-frame{
     display: inline-block;
