@@ -126,7 +126,7 @@
         return;
       }
 
-      window.showMsg?.({ variant:'success', icon:'✅', title:'สำเร็จ!', text:'กำลังเข้าสู่ระบบ...' });
+      window.showMsg?.({ variant:'success', icon:'✅', title:'สำเร็จ!', text:'ล็อกอินสำเร็จ' });
       setTimeout(()=> location.assign(data.redirect || next || '/'), 500);
     } catch (err) {
       console.error(err);

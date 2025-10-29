@@ -303,28 +303,68 @@ export function buildVerifyEmailHTML({
 export async function sendVerifyEmail({
   to,
   verifyUrl,
-  // ถ้าระบุ path จะใช้เป็น CID; ถ้าไม่ระบุจะ fallback ไปใช้ URL ภายนอก (ถ้ามีใน config.brand.logoPath/URL)
-  brandLogoPath = config.brand?.logoPath, // แนะนำ: PNG/JPG
-  brandUrl = config.brand?.url || 'https://rtsmm-th.com',
-  productName = config.brand?.name || 'RTSMM-TH',
-}) {
-  const useCid = !!brandLogoPath;
-  const html = buildVerifyEmailHTML({
+  subject,
+  replyTo,
+  headers,
+  // ถ้าระบุ path จะใช้เป็น CID; ถ้าไม่ระบุจะ fallback ใช้ URL (config.brand.logoUrl) หรือไม่แนบ
+  brandLogoPath = config.brand?.logoPath,   // แนะนำไฟล์โลโก้ PNG/JPG ในเครื่อง
+  brandUrl      = config.brand?.url  || 'https://rtsmm-th.com',
+  productName   = config.brand?.name || 'RTSMM-TH',
+} = {}) {
+  const norm    = v => (Array.isArray(v) ? v : [v]).map(s => String(s || '').trim()).filter(Boolean);
+  const isEmail = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+
+  // ✅ กรองผู้รับให้เหลือเฉพาะอีเมลถูกต้อง
+  const recipients = norm(to).filter(isEmail);
+  if (recipients.length === 0) {
+    throw new Error('sendVerifyEmail: no valid recipient email(s)');
+  }
+
+  // ✅ เตรียม HTML (ถ้ามี brandLogoPath จะใช้ CID; ไม่งั้นพยายามใช้ URL จาก config)
+  const useCid   = !!brandLogoPath;
+  const logoSrc  = useCid ? 'cid:brandlogo' : (config.brand?.logoUrl || '');
+  const html     = buildVerifyEmailHTML({
     verifyUrl,
     brandUrl,
     productName,
-    brandLogo: useCid ? 'cid:brandlogo' : (config.brand?.logoUrl || 'cid:brandlogo'),
+    brandLogo: logoSrc || 'cid:brandlogo', // เผื่อกรณีไม่มี URL ก็ยัง render ได้
   });
 
+  // ✅ text fallback (กันเมลคลไคลเอนต์ที่บล็อก HTML)
+  const text = [
+    `ยืนยันการสมัคร ${productName}`,
+    '',
+    `กรุณาคลิกลิงก์เพื่อยืนยันอีเมลของคุณ:`,
+    verifyUrl,
+    '',
+    `หากคุณไม่ได้ร้องขอ สามารถเพิกเฉยได้`
+  ].join('\n');
+
+  // ✅ attachments เฉพาะกรณีมี path (cid:brandlogo)
+  const attachments = useCid ? [{
+    filename: 'logo.png',
+    path: brandLogoPath,
+    cid: 'brandlogo',
+  }] : undefined;
+
+  // ✅ subject ใส่เองได้ หรือใช้ค่าเริ่มต้น
+  const subj = subject || `ยืนยันอีเมล • ${productName}`;
+
+  // ✅ headers เพิ่ม metadata ไว้ debug/track ได้
+  const safeHeaders = {
+    'X-Template': 'verify-link',
+    'X-Product': productName,
+    ...(headers || {}),
+  };
+
+  // ยิงจริง
   return sendEmail({
-    to,
-    subject: `ยืนยันอีเมล • ${productName}`,
+    to: recipients,
+    subject: subj,
     html,
-    // แนบไฟล์เมื่อมี path (จะแสดงผ่าน <img src="cid:brandlogo">)
-    attachments: useCid ? [{
-      filename: 'logo.png',
-      path: brandLogoPath,
-      cid: 'brandlogo',
-    }] : undefined,
+    text,
+    headers: safeHeaders,
+    attachments,
+    ...(replyTo ? { replyTo } : {}),
   });
 }

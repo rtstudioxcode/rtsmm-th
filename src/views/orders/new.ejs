@@ -110,6 +110,70 @@
 </section>
 
 <script>
+// ✅ local wrapper: ใช้ชื่อ notify ในไฟล์นี้โดยไม่พึ่ง window.notify
+const notify = (opts = {}) => {
+  const { variant='info', title='ข้อความ', text='' } = opts || {};
+  // ถ้ามี window.notify ที่เป็นฟังก์ชัน ให้เรียกอันนั้น
+  if (typeof window.notify === 'function') {
+    return window.notify({ variant, title, text });
+  }
+  // ถ้ามี showMsg (ของ dialog) ก็ใช้ได้
+  if (typeof window.showMsg === 'function') {
+    return window.showMsg({ variant, title, text });
+  }
+  // fallback สุดท้าย
+  alert((title ? title + '\n' : '') + (text || ''));
+};
+</script>
+
+<script>
+// ⬇️ helper: อ่านเหตุผลจาก response (รองรับ JSON หรือ text เผื่อ 502/HTML)
+async function extractErrorInfo(res) {
+  let bodyText = '';
+  const ct = res.headers.get('content-type') || '';
+  try {
+    if (ct.includes('application/json')) {
+      const j = await res.json();
+      // คืนทั้ง object และข้อความสรุป
+      const msg =
+        j?.error ||
+        j?.message ||
+        (typeof j?.detail === 'string' ? j.detail :
+          (j?.detail?.message || j?.detail?.error)) ||
+        '';
+      return { data:j, message: String(msg || '').trim() };
+    }
+    // ไม่ใช่ JSON -> เอา text
+    bodyText = (await res.text() || '').trim();
+  } catch {
+    // ถ้า parse พัง ลองอ่านเป็น text อีกที
+    try { bodyText = (await res.text() || '').trim(); } catch {}
+  }
+  return { data:null, message: bodyText };
+}
+
+// ⬇️ แปลงรหัสสถานะให้เป็นเหตุผลที่อ่านง่าย
+function explainHttpStatus(status, fallbackMsg='') {
+  const clean = (fallbackMsg || '').replace(/\s+/g,' ').trim();
+  switch (status) {
+    case 400: return clean || 'คำขอไม่ถูกต้อง (ข้อมูลไม่ครบ/รูปแบบไม่ถูกต้อง)';
+    case 401: return clean || 'ยังไม่ได้เข้าสู่ระบบ หรือสิทธิ์ไม่พอ';
+    case 402: return clean || 'เครดิต/ยอดเงินไม่เพียงพอ';
+    case 403: return clean || 'ไม่มีสิทธิ์ทำรายการนี้';
+    case 404: return clean || 'ไม่พบบริการหรือเส้นทาง /orders';
+    case 409: return clean || 'รายการซ้ำ/ชนเงื่อนไขบางอย่าง';
+    case 422: return clean || 'จำนวนไม่อยู่ในช่วงขั้นต่ำ-สูงสุด หรือข้อมูลไม่ผ่าน validation';
+    case 429: return clean || 'ส่งคำขอบ่อยเกินไป (rate limit)';
+    case 500: return clean || 'ระบบภายในขัดข้อง';
+    case 502: return clean || 'Gateway รับคำตอบจากผู้ให้บริการไม่สำเร็จ (ปลายทางล่ม/timeout/format ผิด)';
+    case 503: return clean || 'ผู้ให้บริการปิดปรับปรุง/โหลดสูง';
+    case 504: return clean || 'ผู้ให้บริการตอบช้าเกินกำหนด (timeout)';
+    default:  return clean || 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ';
+  }
+}
+</script>
+
+<script>
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
 const br = s=>String(s||'').replace(/\r?\n/g,'<br>');
 const linkify = s=>String(s||'').replace(/https?:\/\/\S+/g,m=>`<a href="${m}" target="_blank" rel="noopener">${m}</a>`);
@@ -480,34 +544,6 @@ function renderChildList(){
     chooseChild(svc);
   };
 }
-// function renderChildList(){
-//   const q = ($('#childSearch').value || '').toLowerCase().trim();
-//   const globalQ = ($('#searchAll').value || '').toLowerCase().trim();
-
-//   const list = children.filter(c=>{
-//     const s = `${c.id} ${c.name}`.toLowerCase();
-//     return (!q || s.includes(q)) && (!globalQ || s.includes(globalQ));
-//   });
-
-//   $('#childList').innerHTML = list.length ? list.map(c=>`
-//     <div class="opt" data-id="${c.id}">
-//       <div class="row">
-//         <div>
-//           <span class="id">ID: ${c.id}</span>
-//           <span class="name"> — ${c.name||''}</span>
-//         </div>
-//         <div class="rate">${fmt(c.rate||0)} ${c.currency||'THB'}</div>
-//       </div>
-//     </div>`).join('') : `<div class="empty muted">ไม่พบบริการที่ตรงกับคำค้น</div>`;
-
-//   $('#childList').onclick = e=>{
-//     const el=e.target.closest('.opt'); if(!el) return;
-//     $('#childSel').classList.remove('open');
-//     $('#childBtn').setAttribute('aria-expanded','false');
-//     const svc = children.find(v=>String(v.id)===el.dataset.id);
-//     chooseChild(svc);
-//   };
-// }
 function filterChildrenFromGlobal(){ renderChildList(); }
 let effectiveRateCache = new Map();
 
@@ -530,20 +566,6 @@ async function fetchEffectiveRateIfAvailable(groupId, childId, baseRate){
   effectiveRateCache.set(key, null);
   return null; // ไม่มี/ใช้ไม่ได้ -> fallback base
 }
-// async function fetchEffectiveRateIfAvailable(groupId, childId, baseRate){
-//   // คุณสามารถเปิดใช้ endpoint ต่อไปนี้ได้ที่ฝั่งเซิร์ฟเวอร์:
-//   //   GET /api/pricing/effective-rate?serviceId=<groupId>&childId=<providerServiceId>
-//   // ให้คืน { ok:true, rate:number } หรือ { rate:number }
-//   try{
-//     const url = `/api/pricing/effective-rate?serviceId=${encodeURIComponent(groupId)}&childId=${encodeURIComponent(childId)}`;
-//     const r = await fetch(url);
-//     if (!r.ok) return null;
-//     const data = await r.json();
-//     const val = Number(data?.rate ?? data?.effectiveRate);
-//     if (Number.isFinite(val) && val >= 0) return val;
-//   }catch{}
-//   return null; // ไม่มี/ใช้ไม่ได้ -> fallback base
-// }
 
 /* ---------- รายละเอียด/ฟอร์ม ---------- */
 async function chooseChild(svc){
@@ -614,70 +636,6 @@ async function chooseChild(svc){
   updateEstimate();
   $('#detailBox').style.display = '';
 }
-// async function chooseChild(svc){
-//   currentChild = svc;
-
-//   $('#childText').textContent = svc?.name || '—';
-//   $('#providerServiceId').value = svc?.id || '';
-
-//   // base
-//   rate     = Number(svc?.rate || 0);
-//   currency = svc?.currency || 'THB';
-//   effectiveRate = null;
-//   rateSource = 'base';
-//   $('#rateNote').style.display = 'none';
-
-//   // ลองดึง effective rate (ถ้ามี endpoint)
-//   const gid = $('#groupId').value;
-//   const cid = String(svc?.id || '');
-//   const er = await fetchEffectiveRateIfAvailable(gid, cid, rate);
-//   if (er !== null) {
-//     effectiveRate = er;
-//     rateSource = 'effective';
-//     $('#rateNote').style.display = '';
-//     $('#rateNote').textContent = `อัตรานี้เป็นราคาหลังปรับตามกฎของบัญชีคุณ (ต่อ 1,000 หน่วย)`;
-//   }
-
-//   const displayRate = rateSource==='effective' ? effectiveRate : rate;
-
-//   const bits = [];
-//   bits.push(`อัตรา: ${fmt(displayRate)} ${currency} / 1,000`);
-//   bits.push(`ช่วง: ${svc.min||0}-${svc.max||0}${svc.step? ' | ขั้นละ '+svc.step: ''}`);
-//   if (svc.average_delivery) bits.push(`เฉลี่ย: ${svc.average_delivery}`);
-//   if (svc.dripfeed) bits.push('Dripfeed');
-//   if (svc.refill)   bits.push('Refill');
-//   if (svc.cancel)   bits.push('ยกเลิกได้');
-
-//   $('#hdr').innerHTML  = currentGroup?.name || '';
-//   $('#meta').innerHTML = bits.join(' | ');
-//   $('#desc').innerHTML =
-//     (svc?.description ? linkify(br(svc.description)) :
-//     (currentGroup?.description ? linkify(br(currentGroup.description)) : '—'));
-
-//   const q    = $('#qty');
-//   const min  = Math.max(1, Number(svc.min || 1));
-//   const max  = Math.max(min, Number(svc.max || min));
-//   const step = Number(svc.step || 1);
-
-//   q.min  = String(min);
-//   q.max  = String(max);
-//   q.step = 'any';
-//   q.value = '';
-//   q.placeholder = `เช่น ${min.toLocaleString()} – ${max.toLocaleString()}`;
-
-//   const minVal = $('#minVal'), maxVal = $('#maxVal');
-//   if (minVal) minVal.textContent = min.toLocaleString();
-//   if (maxVal) maxVal.textContent = max.toLocaleString();
-
-//   q.removeEventListener('input', updateEstimate);
-//   q.addEventListener('input', updateEstimate);
-
-//   $('#drip').disabled = !svc.dripfeed;
-//   $('#drip').checked  = !!svc.dripfeed;
-
-//   updateEstimate();
-//   $('#detailBox').style.display = '';
-// }
 function resetDetail(){ $('#childText').textContent='—'; $('#detailBox').style.display='none'; }
 function clearAll(){
   $('#groupText').textContent = '—';
@@ -703,42 +661,101 @@ async function submitOrder(ev){
 
   const groupId = $('#groupId').value?.trim();
   const childId = $('#providerServiceId').value?.trim();
-  const link = $('#link').value?.trim();
-  const qty  = Number($('#qty').value || 0);
+  const link    = $('#link').value?.trim();
+  const qty     = Number($('#qty').value || 0);
 
   const errs = [];
-  if(!groupId) errs.push('ไม่พบรหัสกลุ่มบริการ (groupId)');
-  if(!childId) errs.push('ยังไม่ได้เลือก “บริการย่อย”');
-  if(!link)    errs.push('กรุณากรอกลิงก์/เป้าหมาย');
-  if(!(qty > 0)) errs.push('จำนวนต้องมากกว่า 0');
+  if (!groupId) errs.push('ไม่พบรหัสกลุ่มบริการ (groupId)');
+  if (!childId) errs.push('ยังไม่ได้เลือก “บริการย่อย”');
+  if (!link)    errs.push('กรุณากรอกลิงก์/เป้าหมาย');
+  if (!(qty > 0)) errs.push('จำนวนต้องมากกว่า 0');
 
   if (errs.length){
-    $('#resp').innerHTML = `<div class="card soft">❌ ${errs.join(' • ')}</div>`;
+    notify({
+      variant: 'warn',
+      title: 'ข้อมูลไม่ครบถ้วน',
+      text: errs.join(' • ')
+    });
     return false;
   }
 
   const payload = {
     groupId,
-    providerServiceId: childId,     // id ของบริการย่อยใน details.services[].id
+    providerServiceId: childId,
     link,
     quantity: qty,
     dripfeed: $('#drip').checked,
     follow_system: $('#sys').checked
   };
 
-  try{
+  // ปิดปุ่มกันกดซ้ำระหว่างส่ง
+  const submitBtn = $('#orderForm button[type="submit"]');
+  submitBtn && (submitBtn.disabled = true);
+
+  try {
     const res  = await fetch('/orders', {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Accept': 'application/json' },
       body: JSON.stringify(payload)
     });
-    const data = await res.json().catch(()=>({}));
-    $('#resp').innerHTML = data?.ok
-      ? `<div class="card soft">✅ สั่งซื้อสำเร็จ Provider Order: <b>${data.providerOrderId||'-'}</b></div>`
-      : `<div class="card soft">❌ ${data?.error||'สั่งซื้อไม่สำเร็จ'}<br><small class="muted">${data?.detail ? (typeof data.detail==='string'? data.detail : JSON.stringify(data.detail)) : ''}</small></div>`;
-  }catch(err){
-    $('#resp').innerHTML = `<div class="card soft">❌ ส่งคำสั่งไม่สำเร็จ (${err.message})</div>`;
+    const data = await res.json().catch(()=> ({}));
+
+    if (!res.ok || !data?.ok) {
+      // ดึงเหตุผลสั้น (หัวข้อ) และสาเหตุเชิงลึกจาก provider
+      const titleErr =
+        (typeof data?.error === 'string' && data.error.trim()) ||
+        `สั่งซื้อไม่สำเร็จ (${res.status})`;
+
+      const reason =
+        (typeof data?.detail === 'string' && data.detail) ||
+        (typeof data?.detail?.error === 'string' && data.detail.error) ||
+        (typeof data?.message === 'string' && data.message) ||
+        res.statusText || 'เกิดข้อผิดพลาด โปรดลองใหม่';
+
+      notify({
+        variant: 'error',
+        title: titleErr,            // << ใช้ error เป็น "หัวข้อ"
+        text: `เหตุผล: ${reason}`   // << เอา detail.error มาแสดงเป็นเหตุผล
+      });
+
+      console.warn('ORDER ERROR => status:', res.status, 'reason:', titleErr, 'payload:', data);
+      return false;
+    }
+
+    // ok => พยายามอ่าน JSON ตอบกลับ
+    if (!data?.ok) {
+      notify({
+        variant: 'error',
+        title: 'สั่งซื้อไม่สำเร็จ',
+        text: data?.error || 'เกิดข้อผิดพลาด โปรดลองใหม่'
+      });
+      console.warn('order error (ok=false):', data);
+      return false;
+    }
+
+    notify({
+      variant: 'success',
+      title: 'สั่งซื้อสำเร็จ',
+      text: `สร้างคำสั่งซื้อแล้ว • Provider Order: ${data.providerOrderId || '-'}`
+    });
+
+    // เคลียร์ฟอร์มเล็กน้อย (แล้วแต่ต้องการ)
+    $('#qty').value = '';
+    $('#link').value = '';
+    updateEstimate();
+    return false;
+
+  } catch (err) {
+    // network/JS error
+    notify({
+      variant: 'error',
+      title: 'เครือข่ายมีปัญหา',
+      text: `ไม่สามารถติดต่อเซิร์ฟเวอร์ได้ (${err?.message || 'unknown'})`
+    });
+    console.error('network error:', err);
+    return false;
+  } finally {
+    submitBtn && (submitBtn.disabled = false);
   }
-  return false;
 }
 </script>

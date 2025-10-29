@@ -145,7 +145,9 @@ router.post('/register', parseUrlencoded, async (req, res) => {
   try {
     const username = (req.body.username || '').trim();
     const name     = (req.body.name || '').trim();
-    const email    = (req.body.email || '').trim().toLowerCase();
+    const emailRaw = (req.body.email || '').trim();
+    const email    = emailRaw.toLowerCase();
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     const password = req.body.password || '';
     const nextUrl  = safeNext(req.body.next);
 
@@ -184,6 +186,9 @@ router.post('/register', parseUrlencoded, async (req, res) => {
     // ---------- ตรวจข้อมูลผู้ใช้พื้นฐาน ----------
     if (!username || !name || !email || !password) {
       return res.status(400).json({ ok:false, message:'⚠️กรุณากรอกข้อมูลให้ครบ' });
+    }
+    if (!isValidEmail) {
+      return res.status(400).json({ ok:false, message:'⚠️ อีเมลไม่ถูกต้อง' });
     }
 
     const dupUser = await User.findOne({ $or: [{ username }, { email }] }).lean();

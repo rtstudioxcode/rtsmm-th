@@ -50,7 +50,7 @@ router.get("/", async (req, res) => {
     const servicesTotal = await Service.countDocuments({});
 
     const orderCount = await Order.countDocuments({
-      status: { $nin: ['canceled', 'cancelled'] }
+      status: { $nin: ['canceled', 'cancelled', 'processing'] }
     });
 
     const userCount = await User.countDocuments({});

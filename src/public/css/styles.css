@@ -632,7 +632,7 @@ html,body{ background:var(--page); color:var(--text) }
 @media (max-width:900px){
   #platformGrid{
     display:grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap:8px;                       /* ระยะห่างระหว่างปุ่ม */
   }
 
@@ -678,7 +678,7 @@ html,body{ background:var(--page); color:var(--text) }
 /* มือถือจอแคบมาก: บีบเป็น 6 คอลัมน์ + ลดขนาดไอคอนลงอีกนิด */
 @media (max-width:380px){
   #platformGrid{
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap:6px;
   }
   .p-icon{ width:42px; height:42px; border-radius:12px; }
@@ -2077,3 +2077,10 @@ html[data-theme="dark"]{
 
 .row-head{ display:flex; align-items:center; gap:12px; }
 .row-head .head-right{ margin-left:auto; }
+
+/* คอนเทนเนอร์ของเมนู (ใส่คลาสตามที่มีจริง) */
+.sidebar .sb-list { 
+  display: flex;
+  flex-direction: column; /* เรียงลง */
+  gap: 8px;               /* ระยะห่างแต่ละแถว */
+}
