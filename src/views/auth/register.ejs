@@ -14,6 +14,13 @@
   <form id="registerForm" class="auth-form stack" action="/register" method="post" novalidate>
     <input type="hidden" name="next" value="<%= next %>">
 
+    <% if (typeof affKey === 'string' && affKey) { %>
+      <div class="alert info" style="margin-top:-4px;margin-bottom:12px">
+        สมัครผ่านลิงก์แนะนำ: <code><%= affKey %></code>
+      </div>
+      <input type="hidden" name="affiliateKey" value="<%= affKey %>">
+    <% } %>
+
     <!-- ชื่อผู้ใช้ -->
     <label class="f-field">
       <span class="f-label">ชื่อผู้ใช้</span>
@@ -460,7 +467,7 @@ form.addEventListener('submit', async (e)=>{
 
   // ✅ สร้าง payload ให้ครบ (ของเดิมหาย)
   const payload = new URLSearchParams();
-  ['username','email','name','password','next'].forEach(k=>{
+  ['username','email','name','password','next','affiliateKey'].forEach(k=>{
     const v = fd.get(k);
     if (v != null) payload.append(k, v);
   });

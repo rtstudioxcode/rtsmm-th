@@ -136,7 +136,19 @@ router.post('/login', parseUrlencoded, async (req, res) => {
 router.get('/register', (req, res) => {
   if (req.session?.user) return res.redirect('/');
   const next = typeof req.query.next === 'string' ? req.query.next : '/';
-  res.render('auth/register', { title: 'สมัครสมาชิก', next });
+
+  // ดึง aff key (ลำดับความสำคัญ: query > cookie)
+  let affKey = '';
+  const qAff = String(req.query.aff || req.query.ref || req.query['='] || '').trim();
+  if (qAff) {
+    affKey = qAff;
+    // ย้ำให้มี cookie ไว้ใช้ตอน verify
+    res.cookie('affiliate_ref', qAff, { httpOnly:true, maxAge:30*24*3600*1000, sameSite:'lax' });
+  } else if (req.cookies?.affiliate_ref) {
+    affKey = String(req.cookies.affiliate_ref);
+  }
+
+  res.render('auth/register', { title: 'สมัครสมาชิก', next, affKey });
 });
 
 /** POST /register  (init สมัคร + ส่งอีเมลปุ่มยืนยัน) */
@@ -169,12 +181,15 @@ router.post('/register', parseUrlencoded, async (req, res) => {
     // ---------- ผ่านทุกเงื่อนไข -> เก็บ pending + ส่งอีเมลยืนยัน ----------
     const passwordHash = await bcrypt.hash(password, 10);
 
+    const affiliateKey = String(req.body.affiliateKey || req.cookies?.affiliate_ref || '').trim();
+
     req.session.regPending = {
       username,
       name,
       email,
       passwordHash,
       nextUrl,
+      affiliateKey,
       createdAt: Date.now()
     };
     await req.session.save();
@@ -264,19 +279,24 @@ router.get('/register/verify', async (req, res) => {
       role: 'user',
     });
 
-  try {
-    const refKey = req.cookies?.affiliate_ref;
-    if (refKey) {
-      const refUser = await User.findOne({ affiliateKey: refKey }).select('_id');
-      if (refUser?._id) {
-        u.referredBy = refUser._id;
-        await u.save();
+    try {
+      const refKey = (pending.affiliateKey && String(pending.affiliateKey).trim())
+                  || (req.cookies?.affiliate_ref && String(req.cookies.affiliate_ref).trim())
+                  || '';
+      if (refKey) {
+        const refUser = await User.findOne({ affiliateKey: refKey }).select('_id');
+        if (refUser?._id) {
+          user.referredBy = refUser._id;   // ← แก้ u → user
+          await user.save();
 
-        // อัปเดตแคชตัวนับ (ไม่บล็อกรีเควสต์)
-        User.updateOne({ _id: refUser._id }, { $inc: { 'affiliate.referredCount': 1 } }).catch(()=>{});
+          // อัปเดตนับคนที่แนะนำแบบ async ไม่บล็อกรีเควสต์
+          User.updateOne(
+            { _id: refUser._id },
+            { $inc: { 'affiliate.referredCount': 1 } }
+          ).catch(()=>{});
+        }
       }
-    }
-  } catch {}
+    } catch {}
 
     // login & redirect
     req.session.user = { _id:String(user._id), username:user.username, role:user.role || 'user' };

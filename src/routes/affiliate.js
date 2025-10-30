@@ -5,27 +5,14 @@ const router = Router();
 
 // รองรับ ?=KEY, ?ref=KEY, ?k=KEY, ?key=KEY
 router.get('/aff', async (req, res) => {
-  const raw =
-    req.query.ref ??
-    req.query.key ??
-    req.query.k ??
-    req.query['='] ??
-    req.query[''] ??
-    '';
-
+  const raw = req.query[''] || req.query.ref || req.query['='] || '';
   const key = String(raw || '').trim();
-  if (!key) return res.redirect('/register'); // ไม่มีคีย์ก็พาไปสมัครเฉย ๆ
+  if (!key) return res.redirect('/register');
 
-  // เก็บคีย์ไว้ในคุกกี้ 30 วัน
-  res.cookie('affiliate_ref', key, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 30 * 24 * 3600 * 1000
-  });
-
-  // ✅ บังคับไปหน้า "สมัครสมาชิก" โดยส่งค่ากำกับไปด้วย
-  return res.redirect(302, `/register?ref=${encodeURIComponent(key)}`);
+  // เก็บ cookie 30 วัน
+  res.cookie('affiliate_ref', key, { httpOnly: true, maxAge: 30*24*3600*1000, sameSite:'lax' });
+  // ส่งต่อไป /register พร้อม aff ใน query
+  return res.redirect(`/register?aff=${encodeURIComponent(key)}`);
 });
 
 export default router;
