@@ -65,8 +65,8 @@
                   <small>QR Code แสกนได้ทุกธนาคาร</small>
                 </div>
               </div>
-              <p class="muted mt" style="text-align:center;">⚠️ โอนได้ 30,000 บาทต่อรอบ</p>
-              <p class="muted mt" style="text-align:center;">⚠️ หลีกเลี่ยงการโอนเงินช่วงเวลา 23:30 - 01:30 เพราะอาจทำให้การเติมล่าช้าไปมาก</p>
+              <p class="muted mt" style="text-align:center;">❗️โอนสูงสุดได้ 30,000 บาทต่อรอบเท่านั้น</p>
+              <p class="muted mt" style="text-align:center;">⚠️หลีกเลี่ยงการโอนเงินช่วงเวลา 23:30 - 01:30 เพราะอาจทำให้การเติมล่าช้าไปมาก</p>
             </section>
 
             <form
@@ -93,7 +93,7 @@
                 </div>
               </label>
 
-              <button class="block btn primary mt-lg">ยืนยันการเติมเงิน</button>
+              <button class="block btn primary mt-lg">ดำเนินการเติมเงิน</button>
             </form>
 
             <!-- กล่องแสดง QR (ซ่อนไว้ก่อน) -->
@@ -102,7 +102,8 @@
                 <img id="qrImg-<%= i %>" src="" alt="QR Code" width="220" height="220" loading="lazy" />
                 <div>
                   <div><b>ยอดที่ต้องโอน (รวมเศษ):</b> <span id="qrAmount-<%= i %>">—</span> บาท</div>
-                  <small class="muted">โปรดโอน “ตรงตามยอด” และ “ครั้งเดียว” เพื่อให้ระบบเติมอัตโนมัติ</small>
+                  <small class="muted">⚠️โปรดโอน “ตรงตามยอด” และ “ครั้งเดียว” เพื่อให้ระบบเติมอัตโนมัติ⚠️</small>
+                  <small class="muted">⚠️ห้ามกดปิดจนกว่าการทำรายการจะเสร็จสิ้น⚠️</small>
                   <div class="mt-sm">
                     <button type="button" class="btn" onclick="closeQr(<%= i %>)">ปิด</button>
                   </div>
@@ -113,13 +114,15 @@
             <section class="card soft mt">
               <h4 class="title">📋 ขั้นตอนการโอนเงิน</h4>
               <ol class="steps">
+                <li>ระบุจำนวนเงิน > <b>ตัวอย่าง: 10</b></li>
+                <li>กด > <b>ดำเนินการเติมเงิน</b></li>
                 <li>เข้าสู่แอปธนาคารของคุณ (เช่น SCB EASY, KBank, Krungthai NEXT)</li>
                 <li>เลือกเมนู <b>“แสกนหรือจ่ายบิล”</b></li>
                 <li>แสกน QRCode: <b>ใส่ยอดเงินให้ตรงกับหน้าเว็บ</b></li>
                 <li>ตรวจสอบชื่อบัญชีปลายทางให้ตรงกับ: <b><%= w.accountName %></b></li>
                 <li>หลังจากโอนแล้วเงินเครดิตจะเข้าอัตโนมัติ</li>
               </ol>
-              <p class="muted">⚠️ โปรดโอนจากบัญชีที่ชื่อ-นามสกุลตรงกับที่ลงทะเบียนเท่านั้น</p>
+              <p class="muted">💡 ระบบจะตรวจสอบยอดและปรับเครดิตอัตโนมัติภายในไม่กี่นาที</p>
             </section>
 
           <% } else { %>
@@ -130,12 +133,10 @@
                 <div class="method-tile">
                   <img src="/static/assets/payment/<%= w.accountCode %>.webp" alt="<%= w.accountCode %>"/>
                   <div><%= w.accountName %></div>
-                  <small>QR Code - Scan</small>
+                  <small>QR Code - True Wallet เท่านั้น</small>
                 </div>
               </div>
-              <div class="muted mt" style="text-align:center;">
-                ใช้แอป TrueMoney Wallet สแกน QR เท่านั้น แล้วชำระตามยอดที่แสดงระบบจะตรวจสอบและเติมเครดิตให้อัตโนมัติ
-              </div>
+              <div class="muted mt" style="text-align:center;">❗️ใช้แอป TrueMoney Wallet สแกน QR เท่านั้น</div>
             </section>
             <form
               id="topupForm-<%= i %>"
@@ -161,21 +162,16 @@
                 </div>
               </label>
 
-              <!-- <div class="card soft mt">
-                <b>ยอดชำระ:</b> <span id="summaryAmount-<%= i %>">—</span> บาท
-              </div> -->
-
-              <button class="block btn primary mt-lg">ยืนยันการเติมเงิน</button>
+              <button class="block btn primary mt-lg">ดำเนินการเติมเงิน</button>
             </form>
 
             <section class="card soft mt">
-              <h4 class="title">📲 วิธีการเติมเงินผ่าน TrueMoney Wallet (ค่าธรรมเนียม 3%)</h4>
+              <h4 class="title">📲 วิธีการเติมเงินผ่าน TrueMoney Wallet (มีค่าธรรมเนียม 3%)</h4>
               <ol class="steps">
-                <li>ระบุจำนวนเงิน > <b>ตัวอย่าง: 100</b></li>
-                <li>กด > <b>ยืนยันการเติมเงิน</b></li>
+                <li>ระบุจำนวนเงิน > <b>ตัวอย่าง: 10</b></li>
+                <li>กด > <b>ดำเนินการเติมเงิน</b></li>
                 <li>เปิดแอป > <b>TrueMoney Wallet</b> บนโทรศัพท์ของคุณ</li>
                 <li>เลือกเมนู > <b>“สแกน”</b></li>
-                <li>ตรวจสอบข้อมูลให้ถูกต้องแล้วกดยืนยันการโอน</li>
                 <li>กลับมาที่หน้านี้ ระบบจะตรวจสอบยอดอัตโนมัติและปิดหน้าต่างให้เอง</li>
               </ol>
               <p class="muted">💡 ระบบจะตรวจสอบยอดและปรับเครดิตอัตโนมัติภายในไม่กี่นาที</p>
@@ -185,13 +181,12 @@
       <% }) %>
     <% } %>
 
-
     <!-- 🟡 Modal -->
     <div id="qrModal" class="hidden modal">
       <div class="overlay" data-close="1"></div>
       <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="qrTitle">
         <div class="hdr" style="align-items:center; text-align:center">
-          <div class="title" id="qrTitle" style="align-items:center; text-align:center">สแกนเพื่อเติมเงิน</div>
+          <div class="title" id="qrTitle" style="align-items:center; text-align:center">สแกน QRCode เพื่อเติมเงิน</div>
           <button class="icon close" id="qrClose" aria-label="ปิด">×</button>
         </div>
         <hr class="sep" />
@@ -212,7 +207,7 @@
             <!-- โหมดธนาคาร: โชว์เฉพาะจำนวนเงิน + คำเตือน -->
             <div data-for="bankOnly">
               <div><b>ยอดที่ต้องโอน:</b> <span id="qrAmount" class="text-success">—</span> บาท</div>
-              <div style="margin-top:6px;color:#e7ac08;font-weight:600">
+              <div style="margin-top:6px;color:#e7ac08;font-weight:400">
                 ⚠️ โปรดโอนตามยอดที่แสดงเท่านั้น ไม่งั้นเครดิตไม่เข้า
               </div>
             </div>
@@ -224,6 +219,7 @@
               <div><b>เลขบัญชี:</b> <span id="qrNumber"></span></div>
               <div><b>ยอดเติม:</b> <span id="qrAmountTw" class="text-success"></span> บาท</div>
               <div class="muted" style="color:#e7ac08; text-align:center;">โปรดโอนในระยะเวลาที่กำหนด</div>
+              <div class="muted" style="color:#e7ac08; text-align:center;">ห้ามกดปิดจนกว่าจะทำรายการสำเร็จ</div>
             </div>
           </div>
         </div>
@@ -309,7 +305,7 @@
       <div class="toast-badge" aria-hidden="true">⚠️</div>
       <div class="toast-headtxt">
         <h3 class="toast-title" id="topupNoticeTitle">แจ้งเตือน</h3>
-        <div class="muted" style="font-weight:600;font-size:13px">โปรดอ่านข้อมูลต่อไปนี้ก่อนเติมเงิน</div>
+        <div class="muted" style="font-weight:400;font-size:13px">โปรดอ่านข้อมูลต่อไปนี้ก่อนเติมเงิน</div>
       </div>
     </div>
 
@@ -824,7 +820,7 @@
   .tab-switch-btn {
     flex: 1;
     text-align: center;
-    font-weight: 600;
+    font-weight: 400;
     font-size: 0.95rem;
     border: none;
     border-radius: 0.75rem;
@@ -933,7 +929,7 @@
     object-fit: contain;
   }
   .method-tile > div {
-    font-weight: 700;
+    font-weight: 400;
   }
   .method-tile small {
     display: block;
@@ -1002,7 +998,7 @@
   }
 
   .modal .title {
-    font-weight: 700;
+    font-weight: 400;
     font-size: 16px;
     text-align: center;
     align-items: center;
@@ -1054,7 +1050,7 @@
   }
 
   .history-table th {
-    font-weight: 600;
+    font-weight: 400;
     text-transform: none;
     font-size: 0.95rem;
   }
@@ -1076,17 +1072,17 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-weight: 500;
+    font-weight: 300;
   }
 
   .amount {
     color: #ffe99b;
-    font-weight: 600;
+    font-weight: 300;
   }
 
   .status {
     text-align: center;
-    font-weight: 600;
+    font-weight: 300;
     padding: 0.25rem 0.5rem;
     border-radius: 0.5rem;
   }

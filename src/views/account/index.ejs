@@ -153,8 +153,6 @@
         </form>
       </div>
 
-      
-
       <!-- =========== Tab: Points และ Level(แทนที่บล็อกเดิมทั้งหมด) =========== -->
       <div class="tabpane" id="tab-points">
         <div class="card" style="margin-bottom:14px">
@@ -175,8 +173,6 @@
                   <%= __points.toLocaleString(undefined,{maximumFractionDigits:2}) %> คะแนน
                 </div>
                 <div class="muted" style="color: #31d810;">ใช้จ่ายครบ ฿50 | ได้รับ 0.5 Point</div>
-                <!-- <div class="muted" style="color: #e2bc0f;">แต้มสะสมจะรีเซ็ตทุกวันที่ 1 ของทุกเดือน</div>
-                <div class="muted" style="color: #e2bc0f;">ให้แลกก่อนจะรีเซ็ตไม่งั้นแต้มจะหายทั้งหมด</div> -->
               </div>
 
               <div>
@@ -319,7 +315,7 @@ html[data-theme="light"]{
 }
 
 /* ===== Layout base ===== */
-.page-title{margin:8px 0 18px;color:var(--text);font-weight:800;letter-spacing:.2px}
+.page-title{margin:8px 0 18px;color:var(--text);font-weight:400;letter-spacing:.2px}
 .page-title.center{display:block;text-align:center}
 
 .acc-wrap{display:grid;grid-template-columns:300px 1fr;gap:22px}
@@ -336,7 +332,7 @@ html[data-theme="light"]{
   width:108px;height:108px;object-fit:cover;border-radius:999px;
   box-shadow:0 6px 16px rgba(0,0,0,.28); border:3px solid rgba(255,255,255,.06)
 }
-.prof-name{font-weight:800;margin:.25rem 0 .35rem;font-size:1.05rem}
+.prof-name{font-weight:400;margin:.25rem 0 .35rem;font-size:1.05rem}
 .prof-mail{color:var(--muted);font-size:.92rem;margin-bottom:.6rem;word-break:break-all}
 
 .kv{display:flex;justify-content:space-between;gap:10px;margin:10px 0}
@@ -344,7 +340,7 @@ html[data-theme="light"]{
   display:inline-flex;align-items:center;gap:6px;
   background:color-mix(in oklab,var(--accent) 10%, transparent);
   border:1px solid color-mix(in oklab,var(--accent) 25%, var(--line));
-  color:var(--text); padding:6px 10px; border-radius:999px; font-weight:600
+  color:var(--text); padding:6px 10px; border-radius:999px; font-weight:400
 }
 .pill.lvl{background:color-mix(in oklab,#f1c40f 16%, transparent);border-color:#f1c40f33;color:#f1c40f}
 
@@ -368,7 +364,7 @@ html[data-theme="light"]{
 .tab{
   background:var(--surface);border:1px solid var(--line);
   border-radius:12px;padding:10px 14px;cursor:pointer;
-  color:var(--text);font-weight:600;transition:all .15s ease
+  color:var(--text);font-weight:400;transition:all .15s ease
 }
 .tab:hover{border-color:color-mix(in oklab,var(--accent) 35%, var(--line))}
 .tab.active{
@@ -387,7 +383,7 @@ html[data-theme="light"]{
   display:flex;justify-content:space-between;align-items:center;
   padding:16px 18px;border-bottom:1px solid var(--line)
 }
-.card .title{font-weight:800}
+.card .title{font-weight:400}
 .card-actions{padding:14px 18px;border-top:1px solid var(--line);text-align:right}
 
 .form-grid{display:grid;grid-template-columns:1fr;gap:14px;padding:16px 18px}
@@ -404,7 +400,7 @@ input:disabled{opacity:.75;cursor:not-allowed}
 /* ===== Buttons ===== */
 .btn{
   border-radius:12px;border:1px solid var(--line);
-  padding:10px 12px;cursor:pointer;background:var(--surface);color:var(--text);font-weight:600
+  padding:10px 12px;cursor:pointer;background:var(--surface);color:var(--text);font-weight:400
 }
 .btn.primary{
   background:linear-gradient(180deg,var(--accent),var(--accent));
@@ -429,7 +425,7 @@ input:disabled{opacity:.75;cursor:not-allowed}
 /* ===== Progress (tab-points) ===== */
 .score-wrap{display:grid;grid-template-columns:260px 1fr;gap:18px}
 @media (max-width:720px){.score-wrap{grid-template-columns:1fr}}
-.bignum{font-size:2rem;font-weight:900;letter-spacing:.2px}
+.bignum{font-size:2rem;font-weight:400;letter-spacing:.2px}
 .subcap{color:var(--muted);margin-top:4px}
 
 .prog{height:12px;border-radius:999px;background:color-mix(in oklab,#94a3b8 20%, transparent);overflow:hidden}
@@ -445,7 +441,7 @@ input:disabled{opacity:.75;cursor:not-allowed}
 .chip{
   display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;
   background:color-mix(in oklab,var(--accent) 12%, transparent);
-  border:1px solid color-mix(in oklab,var(--accent) 28%, var(--line)); font-weight:700
+  border:1px solid color-mix(in oklab,var(--accent) 28%, var(--line)); font-weight:400
 }
 .rate{background:#0b1220;color:#fff;border:1px solid rgba(255, 255, 255, .15);border-radius:8px;padding:4px 8px;font-size:.85rem}
 html[data-theme="light"] .rate{background:#0f172a}
@@ -498,14 +494,44 @@ html[data-theme="light"] .static-input{
 
 .rt-card{background:var(--surface);color:var(--text);border:1px solid var(--line);
   border-radius:16px;padding:16px;box-shadow:var(--shadow)}
-.rt-title{margin:0 0 6px;font-weight:900;font-size:18px}
+.rt-title{margin:0 0 6px;font-weight:400;font-size:18px}
 .fsel{background:color-mix(in oklab,var(--surface) 70%, #000 30%);
   border:1px solid var(--line);border-radius:12px;padding:10px 12px;color:var(--text)}
 </style>
 
+<!-- 1) BRIDGE: map showMsg → notify และยึด alert ทั้งหน้าให้เป็น notify -->
 <script>
 (() => {
-  // ====== Eye icons (ขาว-ดำ เรียบ ๆ)
+  // ถ้ามี layout.notify ให้แมป showMsg → notify
+  if (window.notify) {
+    window.showMsg = (opts) => window.notify(opts);
+  }
+
+  // เปลี่ยน alert ทั้งหน้า → notify
+  const __origAlert = window.alert.bind(window);
+  window.alert = (message) => {
+    if (window.notify) {
+      window.notify({ variant:'info', title:'แจ้งเตือน', text:String(message ?? '') });
+    } else {
+      __origAlert(message);
+    }
+  };
+
+  // ยูทิลสั้น
+  window._n   = (variant, title, text='', extras={}) =>
+    (window.notify ? window.notify({ variant, title, text, ...extras }) : __origAlert(`${title}\n${text||''}`));
+
+  // Helper มาตรฐาน (ไม่มี fallback เป็น alert อีก)
+  window.ok   = (detail='ดำเนินการเรียบร้อย', extras={}) => window.showMsg?.({ variant:'success', title:'สำเร็จ', text:detail, ...extras });
+  window.warn = (title, text='', extras={})                 => window.showMsg?.({ variant:'warn',    title, text, ...extras });
+  window.fail = (title, text='', extras={})                 => window.showMsg?.({ variant:'error',   title, text, ...extras });
+  window.info = (title, text='', extras={})                 => window.showMsg?.({ variant:'info',    title, text, ...extras });
+})();
+</script>
+
+<!-- 2) Password eye + validate (เดิม แต่ไม่แตะระบบแจ้งเตือน) -->
+<script>
+(() => {
   const ICON_EYE = `
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path fill="currentColor" d="M12 5c-5.5 0-9.5 4.5-10.7 6 1.2 1.5 5.2 6 10.7 6s9.5-4.5 10.7-6C21.5 9.5 17.5 5 12 5zm0 10a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/>
@@ -515,22 +541,16 @@ html[data-theme="light"] .static-input{
       <path fill="currentColor" d="M2.8 1.4 1.4 2.8l3.1 3.1C2.8 7.3 1.5 8.9 1.3 9.2l-.3.4.3.4C2.5 11.5 6.5 16 12 16c1.7 0 3.2-.4 4.6-1.1l3.6 3.6 1.4-1.4L2.8 1.4zM12 14c-3.9 0-7.2-3-8.8-4.8C4.2 7.8 7.2 5 12 5c2 0 3.8.6 5.4 1.7l-2 2A4 4 0 0 0 10.7 8l-2 2A4 4 0 0 0 12 14z"/>
     </svg>`;
 
-  // ติดไอคอนเริ่มต้นให้ปุ่มทุกตัว
   document.querySelectorAll('.pw-toggle').forEach(btn => { btn.innerHTML = ICON_EYE; });
-
-  // toggle แสดง/ซ่อนรหัสผ่าน
   document.addEventListener('click', (e) => {
-    const btn = e.target.closest('.pw-toggle');
-    if (!btn) return;
-    const input = btn.previousElementSibling; // input อยู่ก่อนปุ่ม
-    if (!input) return;
+    const btn = e.target.closest('.pw-toggle'); if (!btn) return;
+    const input = btn.previousElementSibling;   if (!input) return;
     const show = input.type === 'password';
     input.type = show ? 'text' : 'password';
     btn.setAttribute('aria-pressed', show ? 'true' : 'false');
     btn.innerHTML = show ? ICON_EYE_OFF : ICON_EYE;
   });
 
-  // ====== ตรวจรหัสผ่านแบบเรียลไทม์ + คุมปุ่ม submit
   const form = document.getElementById('formPassword');
   const btnSubmit = form?.querySelector('button[type="submit"]');
   const cur = form?.querySelector('input[name="currentPassword"]');
@@ -543,50 +563,29 @@ html[data-theme="light"] .static-input{
     const v0 = (cur?.value || '').trim();
     const v1 = (pw1?.value || '').trim();
     const v2 = (pw2?.value || '').trim();
-
     const tooShort = v1.length > 0 && v1.length < MIN;
     const mismatch = v2.length > 0 && v1 !== v2;
-
-    // แสดง/ซ่อนข้อความเตือน
     msg.style.display = mismatch ? '' : 'none';
-
-    const ok = v0.length >= 1 && v1.length >= MIN && v2.length >= MIN && !mismatch && !tooShort;
-    if (btnSubmit) btnSubmit.disabled = !ok;
+    const okBtn = v0.length >= 1 && v1.length >= MIN && v2.length >= MIN && !mismatch && !tooShort;
+    if (btnSubmit) btnSubmit.disabled = !okBtn;
   }
-
   ['input','blur'].forEach(ev => {
     cur?.addEventListener(ev, validate);
     pw1?.addEventListener(ev, validate);
     pw2?.addEventListener(ev, validate);
   });
-  form?.addEventListener('submit', (e) => {
-    validate();
-    if (btnSubmit?.disabled) e.preventDefault();
-  });
-
-  // เริ่มต้นปิดปุ่มไว้ก่อน
+  form?.addEventListener('submit', (e) => { validate(); if (btnSubmit?.disabled) e.preventDefault(); });
   validate();
 })();
 </script>
 
+<!-- 3) หน้า Account ทั้งหมด → ใช้ notify 100% -->
 <script>
 (() => {
   const $ = s => document.querySelector(s);
   const pick = id => document.getElementById(id);
 
-  // helper เรียก modal แบบย่อ (ถ้า showMsg ไม่มี ให้ fallback เป็น alert)
-  const toast = (variant, title, text) => {
-    if (window.showMsg) window.showMsg({ variant, title, text });
-    else alert(`${title}\n${text || ''}`);
-  };
-
-  // เปลี่ยน ok() ให้ตั้งหัวข้อ "สำเร็จ" เสมอ แล้วเอา argument เป็นรายละเอียด
-  const ok   = (detail='ดำเนินการเรียบร้อย') => toast('success', 'สำเร็จ', detail);
-  const warn = (title, text='')  => toast('warn',   title, text);
-  const fail = (title, text='')  => toast('error',  title, text);
-  const info = (title, text='')  => toast('info',   title, text);
-
-  // ===== Data for levels (ใช้ของเซิร์ฟเวอร์ถ้ามี ไม่งั้นใช้ mock) =====
+  // ===== Levels data =====
   window.__LEVELS__ = <%- JSON.stringify(levels || []) %>;
   if (!Array.isArray(window.__LEVELS__) || !window.__LEVELS__.length) {
     window.__LEVELS__ = [
@@ -613,105 +612,56 @@ html[data-theme="light"] .static-input{
     });
   });
 
+  // ===== Avatar upload =====
   const btnAvatar = pick('btnChangeAvatar');
   const input = pick('avatarInput');
   const img = pick('avatarPreview');
-
-  // เคล็ดลับ: อนุญาต GIF, เช็คขนาดก่อนอัปโหลด
   const MAX_MB = 10;
   const ACCEPT = /image\/(png|jpe?g|webp|gif)/i;
-
   let tmpUrl = null;
 
-  // กดปุ่ม → เปิด file chooser
   btnAvatar?.addEventListener('click', () => input?.click());
 
-  // เลือกไฟล์ → พรีวิวทันที + อัปโหลดอัตโนมัติ
   input?.addEventListener('change', async (e) => {
-    const f = e.currentTarget.files?.[0];
-    if (!f) return;
+    const f = e.currentTarget.files?.[0]; if (!f) return;
+    if (!ACCEPT.test(f.type)) { return warn('ไฟล์ไม่รองรับ', 'อนุญาตเฉพาะ PNG, JPG, WEBP และ GIF'); }
+    if (f.size > MAX_MB * 1024 * 1024) { return warn('ไฟล์ใหญ่เกินไป', `ขนาดสูงสุด ${MAX_MB}MB`); }
 
-    // validate เบื้องต้น
-    if (!ACCEPT.test(f.type)) {
-      return (window.showMsg
-        ? showMsg({ variant:'warn', title:'ไฟล์ไม่รองรับ', text:'อนุญาตเฉพาะ PNG, JPG, WEBP และ GIF' })
-        : alert('ไฟล์ไม่รองรับ (PNG/JPG/WEBP/GIF เท่านั้น)'));
-    }
-    if (f.size > MAX_MB * 1024 * 1024) {
-      return (window.showMsg
-        ? showMsg({ variant:'warn', title:'ไฟล์ใหญ่เกินไป', text:`ขนาดสูงสุด ${MAX_MB}MB` })
-        : alert(`ไฟล์ใหญ่เกินไป (สูงสุด ${MAX_MB}MB)`));
-    }
-
-    // พรีวิวทันที (GIF แสดงอนิเมชันได้)
     if (tmpUrl) URL.revokeObjectURL(tmpUrl);
     tmpUrl = URL.createObjectURL(f);
     img.src = tmpUrl;
 
-    // ปิดปุ่มกันกดซ้ำช่วงอัปโหลด
     btnAvatar.disabled = true;
-
-    // อัปโหลดไป /account/profile (multipart/form-data)
-    const fd = new FormData();
-    fd.append('avatar', f);
+    const fd = new FormData(); fd.append('avatar', f);
 
     try {
       const r = await fetch('/account/profile', { method: 'POST', body: fd });
-      // ถ้าเซิร์ฟเวอร์ส่ง JSON (ตามโค้ดของคุณ) ให้ parse
-      let j = null;
-      try { j = await r.json(); } catch {}
+      let j = null; try { j = await r.json(); } catch {}
+      if (!r.ok || !j?.ok) { fail('อัปโหลดไม่สำเร็จ', j?.error || ''); return; }
 
-      if (!r.ok || !j?.ok) {
-        // ย้อนรูปพรีวิวถ้าอยากทำ (ข้ามได้)
-        (window.showMsg
-          ? showMsg({ variant:'error', title:'อัปโหลดไม่สำเร็จ', text: j?.error || '' })
-          : alert('อัปโหลดไม่สำเร็จ'));
-        return;
-      }
-
-      // ใช้ URL กันแคชที่เซิร์ฟเวอร์ส่งกลับมา เพื่อให้เห็นผลทันที
       if (j.user?.avatarUrl) img.src = j.user.avatarUrl;
-
-      // ถ้ายังไม่ได้ยืนยันอีเมล โชว์ช่อง OTP
-      if (j.user?.email && !j.user?.emailVerified) {
-        document.getElementById('otpArea')?.removeAttribute('hidden');
-      }
-
-      // แจ้งสำเร็จ (ไม่ต้องรีเฟรชก็ได้)
-      (window.showMsg
-        ? showMsg({ variant:'success', title:'สำเร็จ', text:'อัปโหลดรูปโปรไฟล์แล้ว' })
-        : alert('อัปโหลดสำเร็จ'));
-
-      // ถ้าต้องการ sync ส่วนอื่น ๆ บนหน้าแบบชัวร์ ๆ:
-      // setTimeout(()=> location.replace('/account'), 400);
-
-    } catch (err) {
-      (window.showMsg
-        ? showMsg({ variant:'error', title:'เครือข่ายมีปัญหา', text:'โปรดลองใหม่อีกครั้ง' })
-        : alert('อัปโหลดไม่สำเร็จ: เครือข่ายมีปัญหา'));
+      if (j.user?.email && !j.user?.emailVerified) document.getElementById('otpArea')?.removeAttribute('hidden');
+      ok('อัปโหลดรูปโปรไฟล์แล้ว');
+    } catch {
+      fail('อัปโหลดไม่สำเร็จ', 'เครือข่ายมีปัญหา');
     } finally {
       btnAvatar.disabled = false;
-      // reset input ให้เลือกไฟล์เดิมซ้ำได้
       input.value = '';
     }
   });
 
-  // Change password
+  // ===== Change password =====
   $('#formPassword')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-
     const form = e.currentTarget;
     const btn  = form.querySelector('button[type=submit]');
     btn.disabled = true;
 
     const fd   = new FormData(form);
     const body = Object.fromEntries(fd.entries());
-
-    // เช็คก่อนยิง API
     if ((body.newPassword || '') !== (body.newPassword2 || '')) {
       fail('เปลี่ยนรหัสไม่สำเร็จ', '⚠️รหัสผ่านใหม่ทั้งสองช่องไม่ตรงกัน');
-      btn.disabled = false;
-      return;
+      btn.disabled = false; return;
     }
 
     try {
@@ -720,33 +670,16 @@ html[data-theme="light"] .static-input{
         headers: { 'Content-Type':'application/json' },
         body: JSON.stringify(body)
       });
-
-      let j = null;
-      try { j = await r.json(); } catch {}
+      let j = null; try { j = await r.json(); } catch {}
 
       if (r.ok && j?.ok) {
         form.reset();
-
-        // ✅ แสดงผลลัพธ์ แล้ว redirect เมื่อปิดโมดอล (ถ้ามี onClose)
-        if (window.showMsg) {
-          window.showMsg({
-            variant: 'success',
-            title: 'สำเร็จ',
-            text: 'เปลี่ยนรหัสผ่านเรียบร้อย',
-            onClose: () => window.location.replace('/account')
-          });
-          // safety net: ไม่ว่าปุ่มจะกดหรือไม่ ให้เปลี่ยนหน้าใน 2 วิ
-          setTimeout(() => { try{ window.location.replace('/account'); }catch{} }, 300);
-        } else {
-          alert('เปลี่ยนรหัสผ่านเรียบร้อย');
-          window.location.replace('/account');
-        }
+        ok('เปลี่ยนรหัสผ่านเรียบร้อย', { onClose: () => window.location.replace('/account') });
+        setTimeout(() => { try{ window.location.replace('/account'); }catch{} }, 300);
         return;
       }
-
       const msg = j?.error || (r.status >= 500 ? 'เซิร์ฟเวอร์มีปัญหา' : '⚠️ดำเนินการไม่สำเร็จเครือข่ายมีปัญหา');
       fail('เปลี่ยนรหัสไม่สำเร็จ', msg);
-
     } catch {
       fail('เปลี่ยนรหัสผ่านไม่สำเร็จ', '⚠️เครือข่ายมีปัญหา');
     } finally {
@@ -754,16 +687,13 @@ html[data-theme="light"] .static-input{
     }
   });
 
-  // OTP: request
+  // ===== OTP =====
   const btnSendOtp   = $('#btnSendOtp');
-  const otpArea      = $('#otpArea');
   const otpCodeInput = $('#otpCode');
 
-  // helper: dialog
   const show = (variant, title, text, icon) =>
     window.showMsg?.({ variant, title, text, icon });
 
-  // helper: ดึงอีเมลจาก data-attr หรือ input[name="email"]
   function getEmail() {
     const dataEmail = btnSendOtp?.dataset.email?.trim().toLowerCase();
     if (dataEmail) return dataEmail;
@@ -771,15 +701,12 @@ html[data-theme="light"] .static-input{
     return (field?.value || '').trim().toLowerCase();
   }
 
-  // helper: เคานท์ดาวน์ตอนโดนคูลดาวน์
   function startCooldown(seconds) {
     if (!btnSendOtp || !Number.isFinite(seconds) || seconds <= 0) return;
     const original = btnSendOtp.textContent;
     btnSendOtp.disabled = true;
-
     let left = Math.ceil(seconds);
     btnSendOtp.textContent = `ส่งใหม่ได้ใน ${left}s`;
-
     const t = setInterval(() => {
       left -= 1;
       if (left <= 0) {
@@ -792,13 +719,9 @@ html[data-theme="light"] .static-input{
     }, 1000);
   }
 
-  // ===== OTP: request =====
   btnSendOtp?.addEventListener('click', async () => {
     const email = getEmail();
-    if (!email) {
-      show('warn', 'กรอกอีเมลก่อน', 'โปรดกรอกอีเมลที่ใช้สมัคร', '⚠️');
-      return;
-    }
+    if (!email) { show('warn', 'กรอกอีเมลก่อน', 'โปรดกรอกอีเมลที่ใช้สมัคร', '⚠️'); return; }
 
     btnSendOtp.disabled = true;
     try {
@@ -808,10 +731,8 @@ html[data-theme="light"] .static-input{
         body: JSON.stringify({ email, channel: 'email' })
       });
 
-      // แยก handling สถานะ 429 (คูลดาวน์) ก่อน
       if (r.status === 429) {
         const j = await r.json().catch(()=>({}));
-        // พยายามดึงจำนวนวินาทีจากข้อความ error เช่น "โปรดรอ 42s ก่อนขอรหัสใหม่"
         const m = /\s(\d+)s\s/.exec(j?.error || '');
         const waitSec = m ? Number(m[1]) : 60;
         show('warn', 'ขอรหัสถี่เกินไป', j?.error || 'โปรดรอสักครู่ก่อนขอใหม่', '⏳');
@@ -820,32 +741,22 @@ html[data-theme="light"] .static-input{
       }
 
       const j = await r.json().catch(()=>({}));
+      if (!r.ok || !j?.ok) { show('error', 'ส่งรหัสไม่สำเร็จ', j?.error || 'โปรดลองใหม่อีกครั้ง', '✖'); return; }
 
-      if (!r.ok || !j?.ok) {
-        show('error', 'ส่งรหัสไม่สำเร็จ', j?.error || 'โปรดลองใหม่อีกครั้ง', '✖');
-        return;
-      }
-
-      // สำเร็จ → โชว์ช่อง OTP + โฟกัส + แจ้งเตือน
-      const otpArea = document.getElementById('otpArea');
-      if (otpArea) otpArea.hidden = false;
+      document.getElementById('otpArea')?.removeAttribute('hidden');
       otpCodeInput?.focus();
 
       const ttlSec = Number(j.ttl || 300);
       const ttlMin = Math.max(1, Math.round(ttlSec/60));
       show('success', 'ส่งรหัสแล้ว', `เราได้ส่งรหัสไปยังอีเมลของคุณ (ใช้ได้ประมาณ ${ttlMin} นาที)`, '✅');
-
-      // ออปชัน: ใส่คูลดาวน์เบา ๆ เพื่อกันเผลอกดซ้ำทันที (เช่น 30s)
       startCooldown(30);
-    } catch (e) {
+    } catch {
       show('error', 'เครือข่ายมีปัญหา', 'โปรดลองใหม่อีกครั้ง', '✖');
     } finally {
-      // ถ้าติดคูลดาวน์อยู่จะยัง disabled ตาม startCooldown
       if (!btnSendOtp.hasAttribute('disabled')) btnSendOtp.disabled = false;
     }
   });
 
-  // OTP: verify
   const verifyBtn = document.getElementById('btnVerifyOtp');
   verifyBtn?.addEventListener('click', async () => {
     const code = (document.getElementById('otpCode')?.value || '').trim();
@@ -866,74 +777,50 @@ html[data-theme="light"] .static-input{
   });
 
   // ===== Redeem Points =====
-  const btn = document.getElementById('btnRedeemPoints');
-  if (!btn) return;
+  const btnRedeem = document.getElementById('btnRedeemPoints');
+  if (btnRedeem) {
+    btnRedeem.addEventListener('click', async () => {
+      if (btnRedeem.disabled) return;
+      btnRedeem.disabled = true;
+      const oldLabel = btnRedeem.textContent;
+      btnRedeem.textContent = 'กำลังแลก…';
 
-  btn.addEventListener('click', async () => {
-    if (btn.disabled) return;
-    btn.disabled = true;
+      try {
+        const r = await fetch('/account/points/redeem', { method: 'POST' });
+        const j = await r.json();
 
-    // ใส่สถานะโหลดนิดหน่อย
-    const oldLabel = btn.textContent;
-    btn.textContent = 'กำลังแลก…';
+        if (!r.ok || !j?.ok) { fail('แลกแต้มไม่สำเร็จ', j?.error || 'โปรดลองใหม่'); return; }
 
-    try {
-      const r = await fetch('/account/points/redeem', { method: 'POST' });
-      const j = await r.json();
+        const pointsNum = Number(j.remainPoints || 0);
+        const pointsEl = document.querySelector('[data-id="points-num"]');
+        if (pointsEl) pointsEl.innerHTML = `${pointsNum.toLocaleString(undefined,{ maximumFractionDigits: 2})} คะแนน`;
 
-      if (!r.ok || !j?.ok) {
-        fail('แลกแต้มไม่สำเร็จ', j?.error || 'โปรดลองใหม่');
-        return;
-      }
+        const rateEl = document.querySelector('[data-id="point-rate"]');
+        if (rateEl) rateEl.textContent = `฿${(j.rate || 0).toLocaleString()} / 1 แต้ม`;
 
-      // ====== อัปเดต UI ทันที (ไม่ต้องรีเฟรช) ======
-      // 1) คะแนนคงเหลือ
-      const pointsNum = Number(j.remainPoints || 0);
-      const pointsEl = document.querySelector('[data-id="points-num"]');
-      if (pointsEl) {
-        pointsEl.innerHTML = `${pointsNum.toLocaleString(undefined,{ maximumFractionDigits: 2})} คะแนน`;
-      }
+        const valEl = document.querySelector('[data-id="point-value"]');
+        if (valEl) valEl.textContent = `≈ ฿${(j.pointValueTHB || 0).toLocaleString(undefined,{ maximumFractionDigits: 2 })}`;
 
-      // 2) เรท/มูลค่าแลกได้ (ถ้าในหน้าใส่ตำแหน่ง badge เหล่านี้ไว้แล้ว)
-      const rateEl = document.querySelector('[data-id="point-rate"]'); // <span data-id="point-rate">
-      if (rateEl) rateEl.textContent = `฿${(j.rate || 0).toLocaleString()} / 1 แต้ม`;
+        if (pointsNum < 100) {
+          btnRedeem.classList.remove('primary');
+          btnRedeem.setAttribute('disabled', 'disabled');
+        }
 
-      const valEl = document.querySelector('[data-id="point-value"]'); // <span data-id="point-value">
-      if (valEl) valEl.textContent = `≈ ฿${(j.pointValueTHB || 0).toLocaleString(undefined,{ maximumFractionDigits: 2 })}`;
-
-      // 3) ปุ่มแลก (ถ้าคะแนน < 100 ให้ปิด)
-      if (pointsNum < 100) {
-        btn.classList.remove('primary');
-        btn.setAttribute('disabled', 'disabled');
-      }
-
-      // 4) แจ้งผลลัพธ์
-      const added = Number(j.addedBalance || 0);
-      if (window.showMsg) {
-        window.showMsg({
-          variant: 'success',
-          title: 'สำเร็จ',
-          text: `แลก ${j.redeemed} แต้ม เป็น ฿${added.toLocaleString(undefined,{ maximumFractionDigits: 2 })} แล้ว`,
-          // ถ้าอยากรีเฟรชให้แน่ใจว่าส่วนอื่น ๆ ตรงกันก็ปล่อย redirect นี้ไว้ได้
+        const added = Number(j.addedBalance || 0);
+        ok(`แลก ${j.redeemed} แต้ม เป็น ฿${added.toLocaleString(undefined,{ maximumFractionDigits: 2 })} แล้ว`, {
           onClose: () => window.location.replace('/account')
         });
-        // safety net เผื่อผู้ใช้ไม่ปิด modal
         setTimeout(() => { try { window.location.replace('/account'); } catch {} }, 300);
-      } else {
-        alert(`แลกสำเร็จ: ${j.redeemed} แต้ม → ฿${added.toLocaleString(undefined,{ maximumFractionDigits: 2 })}`);
-        window.location.replace('/account');
+      } catch {
+        fail('แลกแต้มไม่สำเร็จ', 'เครือข่ายมีปัญหา');
+      } finally {
+        btnRedeem.textContent = oldLabel;
+        if (!btnRedeem.hasAttribute('disabled')) btnRedeem.disabled = false;
       }
-    } catch {
-      fail('แลกแต้มไม่สำเร็จ', 'เครือข่ายมีปัญหา');
-    } finally {
-      // คืนปุ่มถ้าไม่ได้ redirect ทันที
-      btn.textContent = oldLabel;
-      // อย่าปลดล็อกถ้าคะแนนต่ำกว่า 100 แล้ว—ปล่อยให้ disabled ต่อไป
-      if (!btn.hasAttribute('disabled')) btn.disabled = false;
-    }
-  });
+    });
+  }
 
-  // Levels renderer (2 columns slide)
+  // ===== Levels renderer (2 cols) =====
   const track = document.getElementById('levelsTrack');
   const pages = [];
   const _levels = window.__LEVELS__ || [];
@@ -946,7 +833,6 @@ html[data-theme="light"] .static-input{
       const m = (s || '').match(/-?\d+(?:\.\d+)?%/);
       return m ? m[0] : (s || '—');
     };
-
     (pages[page] || []).forEach(lv => {
       const perks = lv.perks || [];
       const bonusTxt    = perks.find(p => p.includes('โบนัสเติมเงิน')) || '';
@@ -969,7 +855,6 @@ html[data-theme="light"] .static-input{
       `);
     });
   }
-
   render();
   document.getElementById('lvPrev')?.addEventListener('click', () => { page = (page-1+pages.length)%pages.length; render(); });
   document.getElementById('lvNext')?.addEventListener('click', () => { page = (page+1)%pages.length; render(); });

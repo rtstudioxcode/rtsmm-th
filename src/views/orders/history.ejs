@@ -1179,3 +1179,73 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
   }[String(s||'').toLowerCase()] || s));
 })();
 </script>
+
+<script>
+/* ===== Inject external icons into status tabs ===== */
+(function(){
+  const wrap = document.getElementById('statusTabs');
+  if (!wrap) return;
+
+  // ← เปลี่ยน URL ไอคอนตามที่คุณมีได้เลย (SVG/PNG ก็ได้)
+  const ICONS = {
+    all:        '/static/assets/status/all.png',
+    processing: '/static/assets/status/processing.png',   // นาฬิกา
+    inprogress: '/static/assets/status/inprogress.png',   // กำลังทำ
+    completed:  '/static/assets/status/completed.png',    // เช็คถูก
+    partial:    '/static/assets/status/partial.png',      // คืนบางส่วน
+    canceled:   '/static/assets/status/canceled.png'      // กากบาท
+  };
+
+  wrap.querySelectorAll('.chip').forEach(btn => {
+    const st = String(btn.dataset.st || '').toLowerCase();
+    const src = ICONS[st];
+    if (!src) return;
+
+    // กันซ้อน ถ้าเคยใส่แล้วไม่ต้องใส่ซ้ำ
+    if (btn.querySelector('img.chip-ico')) return;
+
+    const img = document.createElement('img');
+    img.className = 'chip-ico';
+    img.src = src;
+    img.alt = '';
+    img.width = 16;
+    img.height = 16;
+    img.loading = 'lazy';
+
+    // ใส่ไว้หน้าข้อความ
+    btn.prepend(img);
+  });
+})();
+</script>
+
+<script>
+(function(){
+  const ICONS = {
+    processing: '/static/assets/status/processing.png',
+    inprogress: '/static/assets/status/inprogress.png',
+    completed:  '/static/assets/status/completed.png',
+    partial:    '/static/assets/status/partial.png',
+    canceled:   '/static/assets/status/canceled.png',
+    default:    '/static/assets/status/processing.png'
+  };
+
+  document.querySelectorAll('.pill.progress, .pill.long .label').forEach(node => {
+    const pill = node.closest('.pill.progress, .pill.long');
+    if (!pill || pill.classList.contains('has-ico')) return;
+
+    const st = (pill.closest('[data-status]')?.dataset?.status || '').toLowerCase();
+    const url = ICONS[st] || ICONS.default;
+
+    // สร้างกล่องไอคอน
+    const ico = document.createElement('span');
+    ico.className = 'st-ico';
+    ico.style.setProperty('--st-ico', `url("${url}")`);
+
+    // ใส่หน้า label/text
+    if (node.classList.contains('label')) node.prepend(ico);
+    else pill.prepend(ico);
+
+    pill.classList.add('has-ico'); // <- ป้ายเพื่อปิด ::before
+  });
+})();
+</script>
