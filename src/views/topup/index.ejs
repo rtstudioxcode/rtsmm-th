@@ -62,10 +62,10 @@
                 <div class="method-tile">
                   <img src="/static/assets/payment/<%= w.accountCode %>.webp" alt="<%= w.accountCode %>"/>
                   <div><%= w.accountName %></div>
-                  <small><%= w.accountNumber %></small>
+                  <small>QR Code แสกนได้ทุกธนาคาร</small>
                 </div>
               </div>
-              <div class="muted mt" style="text-align:center;">⚠️ กรุณาโอนจากบัญชีที่เพิ่มไว้ในยูสโอนมายังบัญชีนี้เท่านั้น ไม่งั้นระบบจะไม่เติมเครดิตให้</div>
+              <p class="muted mt" style="text-align:center;">⚠️ โอนได้ 30,000 บาทต่อรอบ</p>
               <p class="muted mt" style="text-align:center;">⚠️ หลีกเลี่ยงการโอนเงินช่วงเวลา 23:30 - 01:30 เพราะอาจทำให้การเติมล่าช้าไปมาก</p>
             </section>
 
@@ -77,10 +77,9 @@
               onsubmit="return submitqrTopup(event)"
             >
               <label>
-                จำนวนเงินที่ต้องการเติม (ขั้นต่ำ 1 บาท)
+                จำนวนเงินที่ต้องการเติม (ขั้นต่ำ 10 บาท)
                 <div class="input-group">
                   <span class="input-prefix">฿</span>
-                  <!-- ทำ id ให้ไม่ซ้ำใน DOM -->
                   <input
                     id="amount-<%= i %>"
                     name="amount"
@@ -115,9 +114,8 @@
               <h4 class="title">📋 ขั้นตอนการโอนเงิน</h4>
               <ol class="steps">
                 <li>เข้าสู่แอปธนาคารของคุณ (เช่น SCB EASY, KBank, Krungthai NEXT)</li>
-                <li>เลือกเมนู <b>“โอนเงิน”</b></li>
-                <li>เลือกบัญชีต้นทางของคุณ (ที่ลงทะเบียนไว้กับระบบ)</li>
-                <li>ใส่หมายเลขบัญชีปลายทาง: <b><%= w.accountNumber %></b></li>
+                <li>เลือกเมนู <b>“แสกนหรือจ่ายบิล”</b></li>
+                <li>แสกน QRCode: <b>ใส่ยอดเงินให้ตรงกับหน้าเว็บ</b></li>
                 <li>ตรวจสอบชื่อบัญชีปลายทางให้ตรงกับ: <b><%= w.accountName %></b></li>
                 <li>หลังจากโอนแล้วเงินเครดิตจะเข้าอัตโนมัติ</li>
               </ol>
@@ -442,7 +440,7 @@
 
     const form       = ev.currentTarget;
     const i          = form.dataset.walletIndex;
-    const walletCode = form.dataset.walletCode; // "kbank" | "scb" | ...
+    const walletCode = form.dataset.walletCode;
     const amountEl   = document.getElementById(`amount-${i}`);
     const base       = parseFloat(amountEl?.value || '0');
 
@@ -556,14 +554,15 @@
   }
 
   function setQrMode(mode){
-    qrMode = mode; // 'bank' หรือ 'tw'
+    window.qrMode = mode; // 'bank' | 'tw'
     const bankEls = document.querySelectorAll('#qrMeta [data-for="bankOnly"]');
     const twEls   = document.querySelectorAll('#qrMeta [data-for="twOnly"]');
     const footerTw = document.getElementById('qrFooterTw');
 
     bankEls.forEach(e => e.style.display = (mode === 'bank' ? '' : 'none'));
     twEls.forEach(e   => e.style.display = (mode === 'tw'   ? '' : 'none'));
-    if (footerTw) footerTw.style.display = (mode === 'tw' ? '' : 'none'); // ปุ่มยืนยันเฉพาะ TW
+    // ❗️สำคัญ: ซ่อนปุ่มยืนยันเสมอ (เราใช้ watcher อัตโนมัติแทน)
+    if (footerTw) footerTw.style.display = 'none';
   }
 
   function startQrCountdown(seconds = 300){
@@ -610,42 +609,78 @@
   });
 
   /* 💸 Submit TrueWallet topup */
-   async function submitTopup(ev) {
+  async function submitTopup(ev){
     ev.preventDefault();
-    const form = ev.target;
-    const amountInput = form.querySelector('input[name="amount"]');
-    const amount = Number(amountInput?.value || 0);
-    const walletCode = form.dataset.walletCode;
 
-    if (!(amount > 0)) {
-      document.querySelector("#resp").innerHTML = `<div class="card soft">❌ กรุณากรอกจำนวนเงินให้ถูกต้อง</div>`;
+    const form = ev.target;
+    const walletCode  = form.dataset.walletCode; // ควรเป็น 'tw'
+    const amountInput = form.querySelector('input[name="amount"]');
+    const base        = Number(amountInput?.value || 0);
+
+    if (walletCode !== 'tw'){
+      document.querySelector("#resp").innerHTML =
+        `<div class="card soft">❌ วิธีนี้รองรับเฉพาะ TrueWallet</div>`;
+      return false;
+    }
+    if (!(base > 0)){
+      document.querySelector("#resp").innerHTML =
+        `<div class="card soft">❌ กรุณากรอกจำนวนเงินให้ถูกต้อง</div>`;
       return false;
     }
 
-    if (walletCode === "tw") {
-      try {
-        const res = await fetch("/topup/truewallet/gen/link", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount }),
-        });
-        const data = await res.json();
-        if (!data.url) {
-          document.querySelector("#resp").innerHTML = `<div class="card soft">❌ ${data.message || "ไม่สามารถสร้างลิงก์ได้"}</div>`;
-          return false;
-        }
+    // 1) คิดค่าธรรมเนียม 3%
+    const subtotal = Math.round(base * 1.03 * 100) / 100; // รวม fee, ยังไม่ใส่เศษ
 
-        // ใส่ข้อมูล QR + เปิดโมดัล
-        document.querySelector("#qrImage").src = `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(data.url)}`;
-        document.querySelector("#qrMethod").textContent  = "TrueMoney Wallet";
-        document.querySelector("#qrName").textContent    = data.accountName  || "RTSSM Web";
-        document.querySelector("#qrNumber").textContent  = data.accountNumber|| "0000000000";
-        document.querySelector("#qrAmount").textContent = Number((amount * 1.03).toFixed(2)).toLocaleString(undefined,{minimumFractionDigits:2});
-        document.querySelector("#qrWarn").textContent    = "*โปรดโอนในระยะเวลาที่กำหนด*";
-        openQrModal();
-      } catch (err) {
-        document.querySelector("#resp").innerHTML = `<div class="card soft">❌ ขัดข้อง: ${err.message}</div>`;
+    try{
+      // 2) ให้ backend "สุ่มเศษ" + สร้าง tx (สำคัญ: walletCode='tw')
+      const cRes = await fetch('/topup/create', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({ amount: subtotal, walletCode: 'tw' })
+      });
+      const c = await cRes.json();
+      if (!cRes.ok || !c?.ok){
+        const err = c?.error || 'สร้างคำสั่งเติมเงินไม่สำเร็จ';
+        window.showMsg ? window.showMsg({ variant:'error', title:'ไม่สำเร็จ', text: err }) : alert(err);
+        return false;
       }
+
+      // 3) ใช้ยอดสุทธิที่ "สุ่มเศษแล้ว" ไปขอ link จาก TrueMoney
+      const payAmount = Number(c.displayAmount);
+      const gRes = await fetch('/topup/truewallet/gen/link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: payAmount })
+      });
+      const g = await gRes.json();
+      if (!gRes.ok || !g?.url){
+        const err = g?.message || 'ไม่สามารถสร้างลิงก์ TrueWallet ได้';
+        window.showMsg ? window.showMsg({ variant:'error', title:'ไม่สำเร็จ', text: err }) : alert(err);
+        return false;
+      }
+
+      // 4) เติมข้อมูลลงโมดัล + เปิดแบบโหมด TW + เริ่ม watcher
+      window.currentTxId = c.txId;
+
+      const img = document.getElementById('qrImage');
+      if (img) img.src = `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(g.url)}`;
+
+      document.getElementById('qrMethod')?.replaceChildren(document.createTextNode('TrueMoney Wallet'));
+      document.getElementById('qrName')?.replaceChildren(document.createTextNode(g.accountName || 'RTSMM'));
+      document.getElementById('qrNumber')?.replaceChildren(document.createTextNode(g.accountNumber || '-'));
+      document.getElementById('qrAmountTw')?.replaceChildren(document.createTextNode(
+        payAmount.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2})
+      ));
+
+      // เปิด modal โหมด TW + เริ่มจับเวลา
+      openQrModal('tw', c.expiresIn || 300);
+
+      // ดูสถานะอัตโนมัติ (webhook มาปุ๊บ → ปิด modal + reload)
+      startTxWatcher(window.currentTxId, c.expiresIn || 300);
+
+    }catch(err){
+      const msg = `ขัดข้อง: ${err.message}`;
+      window.showMsg ? window.showMsg({ variant:'error', title:'ไม่สำเร็จ', text: msg }) : alert(msg);
     }
     return false;
   }

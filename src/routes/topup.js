@@ -38,7 +38,7 @@ topupRouter.get("/", async (req, res) => {
     // ดึงสถานะ wallet ที่ระบบเปิดใช้อยู่จริง
     const [twActive, scbActive] = await Promise.all([
       Topup.findOne({ accountCode: "tw", isActive: true }).lean(),
-      Topup.findOne({ accountCode: ["kbank", "scb"], isActive: true }).lean(),
+      Topup.findOne({ accountCode: { $in: ["kbank", "scb"] }, isActive: true }).lean(),
     ]);
 
     const webWallets = [];
@@ -135,27 +135,17 @@ topupRouter.post("/truewallet/gen/link", async (req, res) => {
     const { amount } = req.body;
     const userId = req?.session?.userId;
     if (!userId || !(amount > 0)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "missing_parameters" });
+      return res.status(400).json({ success: false, message: "missing_parameters" });
     }
 
-    // ใช้เฉพาะกระเป๋า TW ที่เปิดใช้งานอยู่จริง
-    const webWallet = await Topup.findOne({
-      accountCode: "tw",
-      isActive: true,
-    }).lean();
-    if (!webWallet) {
-      return res
-        .status(404)
-        .json({ success: false, message: "wallet_inactive" });
-    }
+    const webWallet = await Topup.findOne({ accountCode: "tw", isActive: true }).lean();
+    if (!webWallet) return res.status(404).json({ success: false, message: "wallet_inactive" });
 
     const response = await axios.post(
       "https://apis.truemoneyservices.com/utils/v1/transfer-link-generator",
       {
         mobile_number: webWallet.accountNumber,
-        amount: (amount * 1.03).toFixed(2),
+        amount: Number(amount).toFixed(2),   // ✅ ใช้ยอดสุดท้ายที่ FE ส่งมา (สุ่มเศษ + fee แล้ว)
         message: "",
       },
       {
@@ -176,6 +166,53 @@ topupRouter.post("/truewallet/gen/link", async (req, res) => {
     res.status(500).json({ success: false, message: "something_wrong" });
   }
 });
+
+// topupRouter.post("/truewallet/gen/link", async (req, res) => {
+//   try {
+//     const { amount } = req.body;
+//     const userId = req?.session?.userId;
+//     if (!userId || !(amount > 0)) {
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "missing_parameters" });
+//     }
+
+//     // ใช้เฉพาะกระเป๋า TW ที่เปิดใช้งานอยู่จริง
+//     const webWallet = await Topup.findOne({
+//       accountCode: "tw",
+//       isActive: true,
+//     }).lean();
+//     if (!webWallet) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "wallet_inactive" });
+//     }
+
+//     const response = await axios.post(
+//       "https://apis.truemoneyservices.com/utils/v1/transfer-link-generator",
+//       {
+//         mobile_number: webWallet.accountNumber,
+//         amount: Number(amount).toFixed(2),
+//         message: "",
+//       },
+//       {
+//         headers: {
+//           Authorization: `Bearer ${config?.TW_GEN_LINK_SECRET}`,
+//           "Content-Type": "application/json",
+//         },
+//       }
+//     );
+
+//     return res.json({
+//       accountNumber: webWallet.accountNumber,
+//       accountName: webWallet.accountName,
+//       url: response.data.data.url,
+//     });
+//   } catch (err) {
+//     console.error("❌ /truewallet/gen/link error:", err);
+//     res.status(500).json({ success: false, message: "something_wrong" });
+//   }
+// });
 
 // topupRouter.post("/truewallet/gen/link", async (req, res) => {
 //   try {
@@ -218,28 +255,16 @@ topupRouter.post("/truewallet/gen/link", async (req, res) => {
 topupRouter.post("/truewallet", async (req, res) => {
   try {
     const { message } = req.body;
+    if (!message) return res.status(400).json({ success: false, message: "missing_message" });
 
-    if (!message)
-      return res
-        .status(400)
-        .json({ success: false, message: "missing_message" });
+    // ใช้เฉพาะ TW ที่ active และไม่ได้โหมด SMS
+    const twCfg = await Topup.findOne({ accountCode: "tw", isActive: true, isSMS: false }).lean();
+    if (!twCfg) return res.status(404).json({ success: false, message: "account_not_found" });
 
-    // return res.status(200).json({ ok: true });
-
-    const topup = await Topup.findOne({
-      accountCode: "tw",
-      isActive: true,
-      isSMS: false,
-    }).lean();
-
-    if (!topup)
-      return res
-        .status(404)
-        .json({ success: false, message: "account_not_found" });
-
+    // ✅ verify JWT (จาก TrueMoney)
     let payload;
     try {
-      const secret = new TextEncoder().encode(topup.secret);
+      const secret = new TextEncoder().encode(twCfg.secret);
       const { payload: decoded } = await jwtVerify(message, secret);
       payload = decoded;
     } catch (err) {
@@ -247,51 +272,82 @@ topupRouter.post("/truewallet", async (req, res) => {
       return res.status(401).json({ success: false, message: "unauthorized" });
     }
 
-    const { event_type, amount, sender_mobile } = payload;
-    if (event_type !== "P2P")
-      return res
-        .status(400)
-        .json({ success: false, message: "invalid_event_type" });
+    const { event_type, amount, sender_mobile, occurred_at } = payload; // amount เป็นสตางค์, occurred_at (ถ้ามี)
+    if (event_type !== "P2P") {
+      return res.status(400).json({ success: false, message: "invalid_event_type" });
+    }
 
+    // แปลงยอดเป็นบาทและสตางค์
+    const added = Math.round(Number(amount) || 0) / 100;        // บาท เช่น 100.27
+    const amtCents = Math.round(added * 100);                   // สตางค์ int เช่น 10027
+    const paidAt = occurred_at ? new Date(occurred_at * 1000) : new Date();
+
+    // 1) หา user จากเบอร์ผู้โอน
     const user = await User.findOne({
       bankAccounts: { $elemMatch: { accountNumber: sender_mobile } },
     });
 
-    const added = amount / 100;
+    // 2) จับคู่กับ Transaction ที่สร้างจาก /topup/create (method='tw', pending, amountCents ตรงกัน)
+    let pendingTx = await Transaction.findOne({
+      method: "tw",
+      amountCents: amtCents,
+      status: "pending",
+    }).sort({ createdAt: -1 });
 
     if (!user) {
-      await Transaction.create({
-        method: "tw",
-        senderNumber: sender_mobile,
-        amount: added,
-        currency: "THB",
-        status: "pending",
-      });
-      console.log(`✅ TrueWallet Deposit: +${added} THB`);
-
-      return res.json({
-        success: true,
-        method: "tw",
-        amount: added,
-      });
+      // ไม่รู้ว่าเป็นของใคร → บันทึก pending/unmatched (ให้แอดมินผูกทีหลัง)
+      if (!pendingTx) {
+        await Transaction.create({
+          method: "tw",
+          amount: added,
+          amountCents: amtCents,
+          currency: "THB",
+          status: "pending",
+          senderNumber: sender_mobile,
+          note: "unmatched by owner",
+          createdAt: paidAt,
+        });
+      } else {
+        // มี pendingTx แต่ยังไม่รู้ user → เก็บข้อมูลผู้โอนไว้รอแอดมิน
+        pendingTx.set({ senderNumber: sender_mobile, createdAt: paidAt, note: "pending: no owner" });
+        await pendingTx.save();
+      }
+      console.log(`✅ TrueWallet Deposit (unmatched): +${added} THB`);
+      return res.json({ success: true, method: "tw", amount: added });
     }
 
-    if (topup.isAuto) {
+    // 3) มี user แล้ว
+    if (twCfg.isAuto) {
+      // ถ้ายังไม่มี pendingTx (เช่นโอนตรง ไม่ได้เปิดหน้าสร้าง QR) → สร้างใหม่แล้วปิดให้เสร็จ
+      if (!pendingTx) {
+        pendingTx = await Transaction.create({
+          userId: user._id,
+          method: "tw",
+          amount: added,
+          amountCents: amtCents,
+          currency: "THB",
+          status: "pending",
+          createdAt: paidAt,
+        });
+      }
+
+      // ถ้าถูกปิดไปแล้ว อย่าบวกซ้ำ
+      if (pendingTx.status === "completed") {
+        return res.json({ success: true, method: "tw", username: user.username, amount: added, status: "completed" });
+      }
+
       const newBalance = await user.addBalance(added);
-
-      await Transaction.create({
+      pendingTx.set({
         userId: user._id,
-        method: "tw",
-        senderNumber: sender_mobile,
-        amount: added,
-        currency: "THB",
         status: "completed",
+        paidAt,
+        username: user.username,
+        matchedBy: "amount",
+        senderNumber: sender_mobile,
       });
+      await pendingTx.save();
 
-      console.log(
-        `✅ TrueWallet Deposit: ${user.username} +${added} THB → ${newBalance}`
-      );
-
+      console.log(`✅ TrueWallet Auto-Topup: ${user.username} +${added} THB → ${newBalance}`);
       return res.json({
         success: true,
         method: "tw",
@@ -301,23 +357,23 @@ topupRouter.post("/truewallet", async (req, res) => {
         balance: newBalance,
       });
     } else {
-      await Transaction.create({
-        userId: user._id,
-        method: "tw",
-        senderNumber: sender_mobile,
-        amount: added,
-        currency: "THB",
-        status: "pending",
-      });
-
-      console.log(
-        `✅ TrueWallet Deposit (manual): ${user.username} +${added} THB (pending)`
-      );
-
-      // console.log(
-      //   `✅ TrueWallet Deposit: ${user.username} +${added} THB → ${newBalance}`
-      // );
-
+      // โหมด manual: แค่ผูก user ให้ pendingTx (หรือสร้างใหม่)
+      if (!pendingTx) {
+        await Transaction.create({
+          userId: user._id,
+          method: "tw",
+          amount: added,
+          amountCents: amtCents,
+          currency: "THB",
+          status: "pending",
+          createdAt: paidAt,
+          senderNumber: sender_mobile,
+        });
+      } else {
+        pendingTx.set({ userId: user._id, senderNumber: sender_mobile, createdAt: paidAt });
+        await pendingTx.save();
+      }
+      console.log(`✅ TrueWallet Deposit (manual): ${user.username} +${added} THB (pending)`);
       return res.json({
         success: true,
         method: "tw",
@@ -331,6 +387,123 @@ topupRouter.post("/truewallet", async (req, res) => {
     res.status(500).json({ success: false, message: "something_wrong" });
   }
 });
+
+// topupRouter.post("/truewallet", async (req, res) => {
+//   try {
+//     const { message } = req.body;
+
+//     if (!message)
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "missing_message" });
+
+//     // return res.status(200).json({ ok: true });
+
+//     const topup = await Topup.findOne({
+//       accountCode: "tw",
+//       isActive: true,
+//       isSMS: false,
+//     }).lean();
+
+//     if (!topup)
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "account_not_found" });
+
+//     let payload;
+//     try {
+//       const secret = new TextEncoder().encode(topup.secret);
+//       const { payload: decoded } = await jwtVerify(message, secret);
+//       payload = decoded;
+//     } catch (err) {
+//       console.error("❌ JWT verify failed:", err);
+//       return res.status(401).json({ success: false, message: "unauthorized" });
+//     }
+
+//     const { event_type, amount, sender_mobile } = payload;
+//     if (event_type !== "P2P")
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "invalid_event_type" });
+
+//     const user = await User.findOne({
+//       bankAccounts: { $elemMatch: { accountNumber: sender_mobile } },
+//     });
+
+//     const added = amount / 100;
+
+//     if (!user) {
+//       await Transaction.create({
+//         method: "tw",
+//         senderNumber: sender_mobile,
+//         amount: added,
+//         currency: "THB",
+//         status: "pending",
+//       });
+//       console.log(`✅ TrueWallet Deposit: +${added} THB`);
+
+//       return res.json({
+//         success: true,
+//         method: "tw",
+//         amount: added,
+//       });
+//     }
+
+//     if (topup.isAuto) {
+//       const newBalance = await user.addBalance(added);
+
+//       await Transaction.create({
+//         userId: user._id,
+//         method: "tw",
+//         senderNumber: sender_mobile,
+//         amount: added,
+//         currency: "THB",
+//         status: "completed",
+//       });
+
+//       console.log(
+//         `✅ TrueWallet Deposit: ${user.username} +${added} THB → ${newBalance}`
+//       );
+
+//       return res.json({
+//         success: true,
+//         method: "tw",
+//         username: user.username,
+//         amount: added,
+//         status: "completed",
+//         balance: newBalance,
+//       });
+//     } else {
+//       await Transaction.create({
+//         userId: user._id,
+//         method: "tw",
+//         senderNumber: sender_mobile,
+//         amount: added,
+//         currency: "THB",
+//         status: "pending",
+//       });
+
+//       console.log(
+//         `✅ TrueWallet Deposit (manual): ${user.username} +${added} THB (pending)`
+//       );
+
+//       // console.log(
+//       //   `✅ TrueWallet Deposit: ${user.username} +${added} THB → ${newBalance}`
+//       // );
+
+//       return res.json({
+//         success: true,
+//         method: "tw",
+//         username: user.username,
+//         amount: added,
+//         status: "pending",
+//       });
+//     }
+//   } catch (err) {
+//     console.error("❌ /truewallet error:", err);
+//     res.status(500).json({ success: false, message: "something_wrong" });
+//   }
+// });
 
 /* ───────────────────────────────
    POST /scb (Auto SMS webhook)
@@ -653,13 +826,6 @@ topupRouter.post("/kbank", async (req, res) => {
       username: user.username 
     });
     await pendingTx.save();
-    // pendingTx.status = "completed";
-    // pendingTx.matchedBy = "amount";
-    // pendingTx.senderLast6 = senderDigits;
-    // pendingTx.receiverLast6 = receiverDigits;
-    // pendingTx.createdAt = parsedDate;
-    // pendingTx.paidAt = new Date();
-    // await pendingTx.save();
 
     console.log(`✅ KBANK Auto-Topup: ${user.username} +${amt} → ${newBalance}`);
     return res.json({ success:true, method:"kbank", username:user.username, amount:amt, status:"completed", timestamp });
@@ -669,6 +835,7 @@ topupRouter.post("/kbank", async (req, res) => {
   }
 });
 
+// อันเก่า
 // topupRouter.post("/kbank", async (req, res) => {
 //   try {
 //     const { message, secret, timestamp } = req.body;
