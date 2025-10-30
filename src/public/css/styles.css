@@ -295,11 +295,11 @@ body.orders-wide .container{
   z-index:200; transition:width .18s ease, transform .18s ease; }
 .sidebar.pinned, .sidebar:not(.pinned):hover{ width:var(--sb-w) }
 .sb-head{ display:flex; align-items:center; justify-content:end; padding:12px 10px; border-bottom:1px solid var(--border) }
-.sb-brand{ display:flex; gap:10px; align-items:center; color:inherit; text-decoration:none; font-weight:400 }
+.sb-brand{ display:flex; gap:5px; align-items:center; color:inherit; text-decoration:none; font-weight:400 }
 .sb-pin{ border:1px solid var(--border); background:transparent; color:inherit; border-radius:10px; padding:6px 8px; cursor:pointer }
 .sb-pin.active{ background:var(--accent); border-color:var(--accent); color:#fff }
-.sb-list{ padding:8px 6px 18px }
-.sb-group{ display:flex; font-size:.86rem; color:var(--muted); padding:10px 10px 6px; margin-top:6px }
+.sb-list{ padding:8px 6px 10px }
+.sb-group{ display:flex; font-size:.66rem; color:var(--muted); padding:10px 10px 6px; margin-top:6px }
 .sb-item{ display:flex; align-items:center; gap:12px; padding:10px; margin:4px; border-radius:10px;
   text-decoration:none; color:inherit; border:1px solid transparent; white-space:nowrap; overflow:hidden }
 .sb-item .ico{ width:36px; text-align:center; font-size:18px }
@@ -2081,8 +2081,7 @@ html[data-theme="dark"]{
 /* คอนเทนเนอร์ของเมนู (ใส่คลาสตามที่มีจริง) */
 .sidebar .sb-list { 
   display: flex;
-  flex-direction: column; /* เรียงลง */
-  gap: 8px;               /* ระยะห่างแต่ละแถว */
+  flex-direction: column;
 }
 
 /* ========== Compact Status Pills (fit to text) ========== */
@@ -2756,3 +2755,47 @@ html[data-theme="dark"] .tabs.chips .chip[data-st="canceled"] {
     white-space: nowrap;
   }
 }
+
+/* โครง sidebar สูงเต็มหน้าจอ แบ่งส่วนหัว/รายการเลื่อน ด้วย flex */
+.sidebar{
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;              /* แม่นยำบนมือถือ */
+  max-height: 100dvh;
+}
+
+/* ส่วนหัวคงที่ (โลโก้/ปุ่มเมนู) */
+.sidebar .sb-head{ flex: 0 0 auto; }
+
+/* ทำ .sb-list ให้เป็นส่วนเลื่อน */
+.sidebar .sb-list{
+  flex: 1 1 auto;
+  min-height: 0;               /* สำคัญ: ให้ overflow ทำงานใน flex item */
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;  /* เลื่อนลื่นบน iOS */
+  overscroll-behavior: contain;
+  padding-right: 6px;          /* กันข้อความชิดขอบเมื่อซ่อนแถบเลื่อน */
+}
+
+/* ซ่อนสกรอลล์บาร์ทุกเบราว์เซอร์หลัก */
+.sidebar .sb-list{ 
+  scrollbar-width: none;       /* Firefox */
+  -ms-overflow-style: none;    /* IE/Edge legacy */
+}
+.sidebar .sb-list::-webkit-scrollbar{
+  width: 0; height: 0;         /* Chrome/Safari */
+}
+
+/* เอฟเฟกต์เฟดบน/ล่าง (เป็นนัยว่ามีเนื้อหาเลื่อนได้) — ไม่บังคับ */
+@supports (mask-image: linear-gradient(#000, #000)) {
+  .sidebar .sb-list{
+    mask-image: linear-gradient(to bottom,
+      rgba(0,0,0,0) 0,
+      rgba(0,0,0,1) 10px,
+      rgba(0,0,0,1) calc(100% - 10px),
+      rgba(0,0,0,0) 100%);
+  }
+}
+
+/* กันเพจทั้งหน้าพลอยเลื่อนแกน X โดยไม่ตั้งใจ */
+html, body{ overflow-x: hidden; }

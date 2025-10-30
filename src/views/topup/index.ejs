@@ -1477,12 +1477,12 @@
   .hx-label{ color:var(--text-muted,#a7b0bb); }
   .hx-val.money{ font-weight:300; letter-spacing:.2px; }
   .hx-val .method{ display:flex; align-items:center; gap:8px; }
+  
   /* ===== Mobile compact width (leave small side gutters) ===== */
   @media (max-width: 640px) {
-    :root { --gutter: 16px; }            /* ระยะเว้นขอบซ้าย-ขวา */
+    :root { --gutter: 15px; }            /* ระยะเว้นขอบซ้าย-ขวา */
 
     /* ปิดกฎ full-bleed เก่าด้วยความเฉพาะเจาะจง + !important */
-    .topup-tab-header,
     #tab-history .history-wrapper,
     #tab-history .history-table,
     #tab-history .history-list {
@@ -1492,19 +1492,6 @@
       padding-left: var(--gutter);
       padding-right: var(--gutter);
       border-radius: 16px;
-    }
-
-    /* แถบสลับแท็บด้านบน */
-    .topup-tab-header {
-      padding-top: 10px;
-      padding-bottom: 10px;
-    }
-    .topup-tab-header .tab-switch-btn.btn {
-      display: block;
-      width: 95%;
-    }
-    .topup-tab-header .tab-switch-btn + .tab-switch-btn {
-      margin-top: 10px;                   /* ระยะระหว่างสองปุ่ม */
     }
 
     /* การ์ดในประวัติ (details/summary) */

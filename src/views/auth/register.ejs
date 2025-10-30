@@ -192,11 +192,11 @@
   padding:2px 10px 2px calc(var(--sw) + 10px);
   border-radius:999px; border:1px solid var(--border);
   background: color-mix(in srgb, var(--card) 92%, transparent); color:var(--text);
-  font-weight:800; cursor:pointer; display:flex; align-items:center; gap:10px;
+  font-weight:400; cursor:pointer; display:flex; align-items:center; gap:10px;
   transition: background .15s, border-color .15s;
 }
 .pwd-toggle .txt{ font-size:12px; opacity:.9 }
-.pwd-toggle .txt b{ font-weight:900 }
+.pwd-toggle .txt b{ font-weight:400 }
 .pwd-toggle .knob{
   position:absolute; left:6px; top:50%; transform:translateY(-50%);
   width:var(--sw); height:var(--sh); border-radius:999px;
@@ -206,7 +206,7 @@
 .pwd-toggle[aria-pressed="true"]{ background:color-mix(in srgb, var(--accent) 14%, var(--card)); border-color:transparent }
 
 /* buttons */
-.btn{ border:1px solid transparent; border-radius:14px; padding:12px 16px; font-weight:800; }
+.btn{ border:1px solid transparent; border-radius:14px; padding:12px 16px; font-weight:400; }
 .btn.primary{ background:linear-gradient(180deg,var(--accent),var(--accent)); color:#fff }
 .btn.block{ width:100% }
 

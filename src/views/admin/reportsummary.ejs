@@ -3,20 +3,20 @@
     <h1><%= typeof title !== 'undefined' && title ? title : 'สรุปยอดขายรายเดือน' %></h1>
     <small class="muted">หน้าผู้ดูแล → รายงาน → สรุปยอดขายรายเดือน</small>
   </div>
-
-  <div class="month-toolbar" role="group" aria-label="เลือกเดือน">
-    <button class="btn ghost" id="btnPrev" type="button" aria-label="เดือนก่อนหน้า">◀︎</button>
-
-    <label class="month-ctrl">
-      <!-- ใช้ input แบบ readOnly เป็นปุ่มเปิด popup -->
-      <input id="monthInput" type="text" value="<%= monthStr %>" readonly aria-label="เลือกเดือน" />
-      <button class="icon-btn" id="btnOpenPicker" type="button" aria-label="เปิดตัวเลือกเดือน">📅</button>
-    </label>
-
-    <button class="btn ghost" id="btnNext" type="button" aria-label="เดือนถัดไป">▶︎</button>
-    <button class="btn" id="btnThisMonth" type="button">เดือนนี้</button>
-  </div>
 </section>
+
+<div class="month-toolbar" role="group" aria-label="เลือกเดือน">
+  <button class="btn ghost" id="btnPrev" type="button" aria-label="เดือนก่อนหน้า">◀︎</button>
+
+  <label class="month-ctrl">
+    <!-- ใช้ input แบบ readOnly เป็นปุ่มเปิด popup -->
+    <input id="monthInput" type="text" value="<%= monthStr %>" readonly aria-label="เลือกเดือน" />
+    <button class="icon-btn" id="btnOpenPicker" type="button" aria-label="เปิดตัวเลือกเดือน">📅</button>
+  </label>
+
+  <button class="btn ghost" id="btnNext" type="button" aria-label="เดือนถัดไป">▶︎</button>
+  <button class="btn" id="btnThisMonth" type="button">เดือนนี้</button>
+</div>
 
 <!-- Popup: Month Picker -->
 <div id="monthPicker" class="mp-popup" hidden>
@@ -89,190 +89,98 @@ const headMonthLabel = `${MONTHS_TH[(mm||1)-1]} ${yy}`; // ถ้าอยาก
 </section>
 
 <style>
-    .table-wrap{ overflow:auto; }
-    .tbl{ width:100%; border-collapse:separate; border-spacing:0; }
-    .tbl th, .tbl td{ padding:10px 12px; border-bottom:1px solid var(--elevated-border,#24262b); text-align:right; }
-    .tbl th:first-child, .tbl td:first-child{ text-align:left; }
-    .tbl thead th{ position:sticky; top:0; background:var(--elevated-bg,#111316); z-index:1; }
-    .text-success{ color: var(--success,#10b981); font-weight:600; }
-    .text-danger { color: var(--danger,#ef4444); font-weight:600; }
-    .page-head{ display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:16px; }
-    .month-toolbar{
-        display:flex; align-items:center; gap:10px;
-        background: var(--elevated-bg, #15171b);
-        border:1px solid var(--elevated-border, #24262b);
-        border-radius: 999px; padding:6px 10px;
-        box-shadow: var(--elevated-shadow, 0 10px 24px rgba(0,0,0,.25));
-    }
-    .month-ctrl{
-        display:flex; align-items:center; gap:8px;
-        background: rgba(255,255,255,.04);
-        border:1px solid var(--elevated-border, #24262b);
-        border-radius: 999px; padding:6px 10px;
-    }
-    .month-ctrl input[type="month"]{
-        background:transparent; border:0; outline:none; color:var(--text-primary,#f2f4f8);
-        font-weight:600; letter-spacing:.2px;
-    }
-    .btn.ghost{
-        background: transparent; border:1px solid var(--elevated-border,#24262b);
-    }
-    .btn.ghost:hover{ background: rgba(255,255,255,.06); }
-    .textsummary{color:var(--tbl-summary-text);}
-    .month-toolbar{display:flex;align-items:center;gap:10px;background:var(--elevated-bg,#15171b);
-        border:1px solid var(--elevated-border,#24262b);border-radius:999px;padding:6px 10px;
-        box-shadow:var(--elevated-shadow,0 10px 24px rgba(0,0,0,.25))}
-    .month-ctrl{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.04);
-        border:1px solid var(--elevated-border,#24262b);border-radius:999px;padding:6px 10px}
-    .month-ctrl input{background:transparent;border:0;outline:none;color:var(--text-primary,#f2f4f8);
-        font-weight:700;letter-spacing:.3px;min-width:115px;text-align:center;cursor:pointer}
-    .icon-btn{background:transparent;border:0;cursor:pointer;color:var(--text-muted,#a7b0bb);font-size:16px}
-    .icon-btn:hover{color:#fff}
+/* ====== Base (เดสก์ท็อปและรวมของที่ซ้ำ) ====== */
+.table-wrap{overflow:auto}
+.tbl{width:100%;border-collapse:separate;border-spacing:0;color:var(--tbl-text,inherit)}
+.tbl th,.tbl td{padding:10px 12px;border-bottom:1px solid var(--tbl-border,#24262b);transition:background .15s ease,box-shadow .15s ease;text-align:right}
+.tbl th:first-child,.tbl td:first-child{text-align:left}
+.tbl thead th{background:var(--tbl-head-bg,#111316);color:var(--tbl-head-text,var(--title,#eadfb8));position:sticky;top:0;z-index:5}
+.tbl-head-month th{background:var(--tbl-head-bg,#111316);color:var(--tbl-head-text,var(--title,#eadfb8));text-align:center;font-weight:400;padding:12px;border-bottom:1px solid var(--tbl-border,#24262b);position:sticky;top:0;z-index:6}
+.tbl.zebra tbody tr:nth-child(odd)  td{background:var(--tbl-row,#13161b)}
+.tbl.zebra tbody tr:nth-child(even) td{background:var(--tbl-row-alt,#181c22)}
+.tbl.zebra tbody tr:hover td{background:var(--tbl-hover,#212633)}
+.tbl.zebra tbody tr:hover td:first-child,
+.tbl.zebra tbody tr:focus-within td:first-child{box-shadow:inset 3px 0 0 0 var(--accent,#2a84ff)}
+.tbl.zebra tbody tr:focus-within td{background:var(--tbl-hover,#212633)}
+.text-success{color:var(--success,#10b981);font-weight:400}
+.text-danger{color:var(--danger,#ef4444);font-weight:400}
 
-    /* Popup */
-    .mp-popup{position:fixed;inset:0;display:grid;place-items:start end;padding:72px 16px 16px 16px;
-        background:rgba(0,0,0,.28);z-index:2147483647;animation:fadeIn .12s ease}
-    .mp-card{width:260px;background:#121418;border:1px solid #262a32;border-radius:14px;
-        box-shadow:0 18px 60px rgba(0,0,0,.45);transform-origin:top right;animation:pop .12s ease}
-    .mp-head{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 12px;border-bottom:1px solid #1e2128}
-    .mp-year{font-weight:700;color:#e5e7eb;letter-spacing:.5px}
-    .mp-nav{background:transparent;border:1px solid #2a2e37;border-radius:8px;color:#aeb6c4;cursor:pointer;padding:4px 8px}
-    .mp-nav:hover{background:#1b1f27;color:#fff}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:16px}
+.month-toolbar{display:flex;align-items:center;gap:10px;background:var(--pick-toolbar-bg,#15171b);border:1px solid var(--tbl-border,#24262b);border-radius:999px;padding:6px 10px;box-shadow:var(--elevated-shadow,0 10px 24px rgba(0,0,0,.25))}
+.month-ctrl{display:flex;align-items:center;gap:6px;background:var(--pick-chip-bg,rgba(255,255,255,.06));border:1px solid var(--pick-chip-border,#24262b);border-radius:999px;padding:6px 10px}
+.month-ctrl input{background:transparent;border:0;outline:none;color:var(--pick-input,#f2f4f8);font-weight:400;letter-spacing:.3px;min-width:115px;text-align:center;cursor:pointer}
+.month-ctrl input:focus-visible{box-shadow:0 0 0 3px var(--pick-toolbar-ring,rgba(42,132,255,.35));border-radius:8px}
+.icon-btn{background:transparent;border:0;cursor:pointer;color:var(--pick-icon,#a7b0bb);font-size:16px}
+.icon-btn:hover{color:var(--pick-icon-hover,#fff)}
 
-    .mp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px}
-    .mp-m{display:grid;place-items:center;padding:10px 0;border:1px solid #242a33;border-radius:10px;
-        color:#cbd5e1;cursor:pointer;font-weight:600;letter-spacing:.3px}
-    .mp-m:hover{background:#1b2130;color:#fff;border-color:#2f3745}
-    .mp-m.active{background:#2a84ff;color:#fff;border-color:#2a84ff}
-    .mp-m.current{outline:2px dashed rgba(42,132,255,.6);outline-offset:2px}
+/* Month Picker (popup) */
+#monthPicker[hidden]{display:none!important}
+.mp-popup{position:fixed;inset:0;display:grid;place-items:start end;padding:72px 16px 16px;background:rgba(0,0,0,.28);z-index:2147483647}
+.mp-card{width:260px;background:var(--pick-bg,#121418);border:1px solid var(--pick-border,#262a32);border-radius:14px;box-shadow:var(--pick-shadow,0 18px 60px rgba(0,0,0,.45))}
+.mp-head{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--tbl-border,#1e2128)}
+.mp-year{font-weight:400;color:var(--pick-year,#e5e7eb);letter-spacing:.5px}
+.mp-nav{background:transparent;border:1px solid var(--pick-nav-bg,#2a2e37);border-radius:8px;color:var(--pick-nav,#aeb6c4);cursor:pointer;padding:4px 8px}
+.mp-nav:hover{background:var(--pick-nav-bg-hover,#1b1f27)}
+.mp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px}
+.mp-m{display:grid;place-items:center;padding:10px 0;border:1px solid var(--pick-month-bg,#242a33);border-radius:10px;color:var(--pick-month,#cbd5e1);cursor:pointer;font-weight:400;letter-spacing:.3px;transition:background .12s ease,color .12s ease,border-color .12s ease}
+.mp-m:hover{background:var(--pick-month-hover,#1b2130);border-color:var(--pick-month-hover,#1b2130)}
+.mp-m.active{background:var(--pick-month-active,#2a84ff);color:var(--pick-month-active-text,#fff);border-color:var(--pick-month-active,#2a84ff)}
+.mp-m.current{outline:2px dashed var(--pick-month-current,rgba(42,132,255,.6));outline-offset:2px}
+.mp-actions{display:flex;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid var(--tbl-border,#1e2128)}
+.mp-actions .spacer{flex:1}
 
-    .mp-actions{display:flex;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid #1e2128}
-    .mp-actions .spacer{flex:1}
+/* Light theme tokens (สรุป) */
+html[data-theme="light"]{
+  --tbl-head-bg:#f6f7fb;--tbl-head-text:#334155;--tbl-row:#fff;--tbl-row-alt:#f3f4f6;--tbl-text:#111827;--tbl-border:#e5e7eb;--tbl-hover:#eef2f7;
+  --pick-toolbar-bg:#fff;--pick-chip-bg:#f3f4f6;--pick-chip-border:#e5e7eb;--pick-icon:#64748b;--pick-icon-hover:#111827;--pick-input:#111827;
+  --pick-bg:#fff;--pick-border:#e5e7eb;--pick-shadow:0 18px 60px rgba(0,0,0,.12);--pick-year:#0f172a;--pick-nav:#334155;--pick-nav-bg:#e5e7eb;--pick-nav-bg-hover:#dbe2ea;
+  --pick-month:#0f172a;--pick-month-bg:#e9eef5;--pick-month-hover:#dde6f2;--pick-month-active:#2a84ff;--pick-month-active-text:#fff;--pick-month-current:rgba(42,132,255,.45)
+}
 
-    @keyframes pop{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:scale(1)}}
-    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-    #monthPicker[hidden] { display: none !important; }
+/* ====== Mobile overrides (<=640px) ====== */
+@media (max-width: 640px){
+  /* ให้หัวข้อชิดขอบ + แถบเครื่องมือกว้างไม่เกินจอ */
+  .page-head{ padding-inline: 12px; }
 
-    /* =========================
-    THEME TOKENS (Table + Month Picker)
-    ========================= */
-    :root{
-    /* table */
-    --tbl-head-bg:#111316; --tbl-head-text:var(--title,#eadfb8);
-    --tbl-row:#13161b; --tbl-row-alt:#181c22;
-    --tbl-text:var(--text-primary,#f2f4f8);
-    --tbl-border:#24262b; --tbl-hover:#212633;
-    --tbl-row:#13161b;
-    --tbl-row-alt:#181c22;
-    --tbl-hover:#212633;
+  /* จัด month-toolbar เป็นกริด 4 ช่อง: [ก่อนหน้า][ตัวเลือกเดือนยืด][ถัดไป][เดือนนี้] */
+  .month-toolbar{
+    width: 100%;
+    max-width: min(92vw, 420px);
+    margin-inline: auto;
+    padding: 6px 8px;
+    gap: 6px;
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    align-items: center;
+    border-radius: 14px;
+  }
 
-    --tbl-summary-text:var(--text-summary,#33e706);
+  /* ช่องตัวเลือกเดือนให้หด/ยืดได้ และไม่ดันปุ่มอื่น */
+  .month-ctrl{
+    min-width: 0;
+    padding: 6px 10px;
+  }
+  .month-ctrl input{
+    min-width: 0;
+    width: 100%;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    font-size: 14px;
+  }
 
-    /* picker toolbar */
-    --pick-toolbar-bg:#15171b; --pick-toolbar-ring:rgba(42,132,255,.35);
-    --pick-chip-bg:rgba(255,255,255,.06); --pick-chip-border:#24262b;
-    --pick-icon:#a7b0bb; --pick-icon-hover:#fff;
-    --pick-input:#f2f4f8;
+  /* ปุ่มต่าง ๆ ให้เล็กลงนิด เพื่อไม่ล้น */
+  .month-toolbar .btn,
+  .month-toolbar .btn.ghost{
+    padding: 6px 10px;
+    font-size: 14px;
+    min-width: auto;      /* อนุญาตให้หด */
+    white-space: nowrap;  /* ไม่หักบรรทัด */
+  }
 
-    /* popup picker */
-    --pick-bg:#121418; --pick-border:#262a32; --pick-shadow:0 18px 60px rgba(0,0,0,.45);
-    --pick-year:#e5e7eb; --pick-nav:#aeb6c4; --pick-nav-bg:#2a2e37; --pick-nav-bg-hover:#1b1f27;
-    --pick-month:#cbd5e1; --pick-month-bg:#242a33; --pick-month-hover:#1b2130;
-    --pick-month-active:#2a84ff; --pick-month-active-text:#fff;
-    --pick-month-current:rgba(42,132,255,.6);
-    }
-    html[data-theme="light"]{
-    --tbl-head-bg:#f6f7fb; --tbl-head-text:#334155;
-    --tbl-row:#ffffff; --tbl-row-alt:#f3f4f6;
-    --tbl-text:#111827; --tbl-border:#e5e7eb; --tbl-hover:#eef2f7;
-    --tbl-row:#ffffff;
-    --tbl-row-alt:#f3f4f6;
-    --tbl-hover:#eef2f7;
-    --tbl-summary-text:var(--text-summary,#26920b);
-    --pick-toolbar-bg:#ffffff; --pick-toolbar-ring:rgba(42,132,255,.25);
-    --pick-chip-bg:#f3f4f6; --pick-chip-border:#e5e7eb;
-    --pick-icon:#64748b; --pick-icon-hover:#111827; --pick-input:#111827;
-
-    --pick-bg:#ffffff; --pick-border:#e5e7eb; --pick-shadow:0 18px 60px rgba(0,0,0,.12);
-    --pick-year:#0f172a; --pick-nav:#334155; --pick-nav-bg:#e5e7eb; --pick-nav-bg-hover:#dbe2ea;
-    --pick-month:#0f172a; --pick-month-bg:#e9eef5; --pick-month-hover:#dde6f2;
-    --pick-month-active:#2a84ff; --pick-month-active-text:#fff;
-    --pick-month-current:rgba(42,132,255,.45);
-    }
-
-    /* =========================
-    TABLE (zebra + HOVER + focusable rows)
-    ========================= */
-    .table-wrap{overflow:auto;}
-    .tbl{width:100%;border-collapse:separate;border-spacing:0;color:var(--tbl-text);}
-    .tbl th,.tbl td{padding:10px 12px;border-bottom:1px solid var(--tbl-border);transition:background .15s ease, box-shadow .15s ease;}
-    .tbl thead th{background:var(--tbl-head-bg);color:var(--tbl-head-text);position:sticky;top:0;z-index:1;}
-    .tbl-head-month th{background:var(--tbl-head-bg);color:var(--tbl-head-text);text-align:center;font-weight:700;padding:12px;border-bottom:1px solid var(--tbl-border);position:sticky;top:0;z-index:2;}
-    .tbl th:first-child,.tbl td:first-child{text-align:left;}
-
-    /* — Zebra ตามวัน — */
-    .tbl.zebra tbody tr:nth-child(odd)  td { background: var(--tbl-row); }
-    .tbl.zebra tbody tr:nth-child(even) td { background: var(--tbl-row-alt); }
-
-    /* ให้เซลล์เปลี่ยนสี ไม่ใช่ทั้งแถว (ไม่ชน sticky header) */
-    .tbl tbody td { transition: background .12s ease; }
-
-    /* — Hover: เปลี่ยนพื้นหลังทั้งแถวแบบปลอดภัย — */
-    .tbl.zebra tbody tr:hover td {
-    background: var(--tbl-hover);
-    }
-
-    /* เส้นไฮไลต์ซ้าย: ทำเฉพาะคอลัมน์แรก */
-    .tbl.zebra tbody tr:hover td:first-child {
-    box-shadow: inset 3px 0 0 0 var(--accent, #2a84ff);
-    }
-
-    /* รองรับคีย์บอร์ด: โฟกัสแล้วเน้นเหมือน hover */
-    .tbl.zebra tbody tr:focus-within td {
-    background: var(--tbl-hover);
-    }
-    .tbl.zebra tbody tr:focus-within td:first-child {
-    box-shadow: inset 3px 0 0 0 var(--accent, #2a84ff);
-    }
-
-    /* กันทับหัวตาราง sticky */
-    .tbl thead th { z-index: 5; position: sticky; top: 0; }
-
-    /* success / danger */
-    .text-success{color:var(--success,#10b981);font-weight:600;}
-    .text-danger{color:var(--danger,#ef4444);font-weight:600;}
-
-    /* =========================
-    MONTH TOOLBAR
-    ========================= */
-    .month-toolbar{display:flex;align-items:center;gap:10px;background:var(--pick-toolbar-bg);
-    border:1px solid var(--tbl-border);border-radius:999px;padding:6px 10px;box-shadow:var(--elevated-shadow,0 10px 24px rgba(0,0,0,.25));}
-    .month-ctrl{display:flex;align-items:center;gap:6px;background:var(--pick-chip-bg);
-    border:1px solid var(--pick-chip-border);border-radius:999px;padding:6px 10px;}
-    .month-ctrl input{background:transparent;border:0;outline:none;color:var(--pick-input);font-weight:700;letter-spacing:.3px;min-width:115px;text-align:center;cursor:pointer}
-    .month-ctrl input:focus-visible{box-shadow:0 0 0 3px var(--pick-toolbar-ring);border-radius:8px;}
-    .icon-btn{background:transparent;border:0;cursor:pointer;color:var(--pick-icon);font-size:16px}
-    .icon-btn:hover{color:var(--pick-icon-hover)}
-
-    /* =========================
-    MONTH POPUP
-    ========================= */
-    #monthPicker[hidden]{display:none!important;}
-    .mp-popup{position:fixed;inset:0;display:grid;place-items:start end;padding:72px 16px 16px;background:rgba(0,0,0,.28);z-index:2147483647;}
-    .mp-card{width:260px;background:var(--pick-bg);border:1px solid var(--pick-border);border-radius:14px;box-shadow:var(--pick-shadow);}
-    .mp-head{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--tbl-border);}
-    .mp-year{font-weight:700;color:var(--pick-year);letter-spacing:.5px}
-    .mp-nav{background:transparent;border:1px solid var(--pick-nav-bg);border-radius:8px;color:var(--pick-nav);cursor:pointer;padding:4px 8px}
-    .mp-nav:hover{background:var(--pick-nav-bg-hover);}
-
-    .mp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px}
-    .mp-m{display:grid;place-items:center;padding:10px 0;border:1px solid var(--pick-month-bg);border-radius:10px;color:var(--pick-month);cursor:pointer;font-weight:600;letter-spacing:.3px;transition:background .12s ease, color .12s ease, border-color .12s ease}
-    .mp-m:hover{background:var(--pick-month-hover);border-color:var(--pick-month-hover)}
-    .mp-m.active{background:var(--pick-month-active);color:var(--pick-month-active-text);border-color:var(--pick-month-active)}
-    .mp-m.current{outline:2px dashed var(--pick-month-current);outline-offset:2px}
-
-    .mp-actions{display:flex;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid var(--tbl-border)}
-    .mp-actions .spacer{flex:1}
+  /* ไอคอนปฏิทินเล็กลงนิด */
+  .icon-btn{ font-size: 15px; }
+}
 </style>
 
 <script>
