@@ -69,6 +69,48 @@
               <p class="muted mt" style="text-align:center;">⚠️ หลีกเลี่ยงการโอนเงินช่วงเวลา 23:30 - 01:30 เพราะอาจทำให้การเติมล่าช้าไปมาก</p>
             </section>
 
+            <form
+              id="createTopupForm-<%= i %>"
+              class="form topupForm"
+              data-wallet-code="<%= w.accountCode %>"
+              data-wallet-index="<%= i %>"
+              onsubmit="return submitqrTopup(event)"
+            >
+              <label>
+                จำนวนเงินที่ต้องการเติม (ขั้นต่ำ 1 บาท)
+                <div class="input-group">
+                  <span class="input-prefix">฿</span>
+                  <!-- ทำ id ให้ไม่ซ้ำใน DOM -->
+                  <input
+                    id="amount-<%= i %>"
+                    name="amount"
+                    type="number"
+                    min="10"
+                    step="any"
+                    required
+                    placeholder="เช่น 100"
+                    oninput="updateqrSummary(<%= i %>)"
+                  />
+                </div>
+              </label>
+
+              <button class="block btn primary mt-lg">ยืนยันการเติมเงิน</button>
+            </form>
+
+            <!-- กล่องแสดง QR (ซ่อนไว้ก่อน) -->
+            <div id="qrBox-<%= i %>" class="card soft mt" style="display:none">
+              <div class="row" style="align-items:center; gap:16px">
+                <img id="qrImg-<%= i %>" src="" alt="QR Code" width="220" height="220" loading="lazy" />
+                <div>
+                  <div><b>ยอดที่ต้องโอน (รวมเศษ):</b> <span id="qrAmount-<%= i %>">—</span> บาท</div>
+                  <small class="muted">โปรดโอน “ตรงตามยอด” และ “ครั้งเดียว” เพื่อให้ระบบเติมอัตโนมัติ</small>
+                  <div class="mt-sm">
+                    <button type="button" class="btn" onclick="closeQr(<%= i %>)">ปิด</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <section class="card soft mt">
               <h4 class="title">📋 ขั้นตอนการโอนเงิน</h4>
               <ol class="steps">
@@ -148,38 +190,50 @@
     <div id="qrModal" class="hidden modal">
       <div class="overlay" data-close="1"></div>
       <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="qrTitle">
-        <div class="hdr" style="align-items: center; text-align:center">
-          <div class="title" id="qrTitle" style="align-items: center; text-align:center">สแกนเพื่อเติมเงิน</div>
+        <div class="hdr" style="align-items:center; text-align:center">
+          <div class="title" id="qrTitle" style="align-items:center; text-align:center">สแกนเพื่อเติมเงิน</div>
           <button class="icon close" id="qrClose" aria-label="ปิด">×</button>
         </div>
         <hr class="sep" />
 
-        <!-- ⬇️ ตัวนับถอยหลัง (ประกาศก่อนเนื้อหา) -->
+        <!-- ⏳ Countdown -->
         <div id="qrCountdown" class="muted" style="text-align:center" aria-live="polite">
           หมดอายุใน 05:00
         </div>
 
         <div class="body">
-          <!-- ⬇️ ห่อภาพเพื่อจัดกลางแนว flex -->
+          <!-- QR -->
           <div class="qr-img-wrap">
             <img id="qrImage" src="" alt="QR Code" class="qr-img" />
           </div>
 
-          <div class="qr-meta">
-            <div><b>ช่องทาง:</b> <span id="qrMethod"></span></div>
-            <div><b>ชื่อบัญชี:</b> <span id="qrName"></span></div>
-            <div><b>เลขบัญชี:</b> <span id="qrNumber"></span></div>
-            <div><b>ยอดเติม:</b> <span id="qrAmount" class="text-success"></span> บาท</div>
-            <div>
-              <span id="qrWarn" class="muted" style="color: #e7ac08; text-align: center;">โปรดโอนในระยะเวลาที่กำหนด</span> 
+          <!-- Meta (จะแสดงต่างกันตามโหมด) -->
+          <div id="qrMeta" class="qr-meta">
+            <!-- โหมดธนาคาร: โชว์เฉพาะจำนวนเงิน + คำเตือน -->
+            <div data-for="bankOnly">
+              <div><b>ยอดที่ต้องโอน:</b> <span id="qrAmount" class="text-success">—</span> บาท</div>
+              <div style="margin-top:6px;color:#e7ac08;font-weight:600">
+                ⚠️ โปรดโอนตามยอดที่แสดงเท่านั้น ไม่งั้นเครดิตไม่เข้า
+              </div>
+            </div>
+
+            <!-- โหมด TrueWallet: โชว์รายละเอียดเดิม -->
+            <div data-for="twOnly" style="display:none">
+              <div><b>ช่องทาง:</b> <span id="qrMethod"></span></div>
+              <div><b>ชื่อบัญชี:</b> <span id="qrName"></span></div>
+              <div><b>เลขบัญชี:</b> <span id="qrNumber"></span></div>
+              <div><b>ยอดเติม:</b> <span id="qrAmountTw" class="text-success"></span> บาท</div>
+              <div class="muted" style="color:#e7ac08; text-align:center;">โปรดโอนในระยะเวลาที่กำหนด</div>
             </div>
           </div>
         </div>
 
         <hr class="sep" />
-        <div class="footer d-flex justify-content-center" style="margin-top:12px">
+        <!-- ปุ่มนี้ใช้เฉพาะ TrueWallet -->
+        <div class="footer d-flex justify-content-center" id="qrFooterTw" style="margin-top:12px; display:none">
           <button class="btn primary" id="confirmTopup">ยืนยันการโอนแล้ว</button>
         </div>
+
         <div id="qrStatus" class="mt"></div>
       </div>
     </div>
@@ -331,6 +385,109 @@
 </script>
 
 <script>
+  let currentTxId = null;
+  let txWatcher = null;
+
+  function startTxWatcher(txId, timeoutSec = 300){
+    stopTxWatcher();
+    const started = Date.now();
+
+    txWatcher = setInterval(async ()=>{
+      try{
+        // หมดอายุ safety เผื่อ webhook ไม่มา
+        if (Date.now() - started > timeoutSec*1000) {
+          stopTxWatcher();
+          closeQrModal();
+          return;
+        }
+        const r = await fetch(`/topup/tx/${txId}`);
+        const j = await r.json();
+        if (j?.ok && j.status === 'completed'){
+          stopTxWatcher();
+          closeQrModal();
+          // รีเฟรชเพื่ออัปเดตยอด/ประวัติ
+          location.reload();
+        }
+      }catch(e){
+        // เงียบ ๆ ไว้ แล้วค่อยเช็คใหม่รอบถัดไป
+      }
+    }, 2500); // เช็คทุก 2.5 วิ
+  }
+
+  function stopTxWatcher(){
+    if (txWatcher) clearInterval(txWatcher);
+    txWatcher = null;
+  }
+
+  function fmtMoney(n){
+    try {
+      return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    } catch { return n; }
+  }
+
+  function updateqrSummary(i){
+    const v = parseFloat(document.getElementById(`amount-${i}`)?.value || '0');
+    const el = document.getElementById(`summaryAmount-${i}`);
+    if (!el) return;
+    el.textContent = v >= 10 ? fmtMoney(v) : '—';
+  }
+
+  function closeQr(i){
+    const box = document.getElementById(`qrBox-${i}`);
+    if (box) box.style.display = 'none';
+  }
+
+  async function submitqrTopup(ev){
+    ev.preventDefault();
+
+    const form       = ev.currentTarget;
+    const i          = form.dataset.walletIndex;
+    const walletCode = form.dataset.walletCode; // "kbank" | "scb" | ...
+    const amountEl   = document.getElementById(`amount-${i}`);
+    const base       = parseFloat(amountEl?.value || '0');
+
+    if (!Number.isFinite(base) || base < 10){
+      const msg = 'จำนวนเงินขั้นต่ำ 10 บาท';
+      window.showMsg ? window.showMsg({ variant:'error', title:'จำนวนเงินไม่ถูกต้อง', text: msg }) : alert(msg);
+      return false;
+    }
+
+    try {
+      const res = await fetch('/topup/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: base, walletCode })
+      });
+      const j = await res.json();
+      if (!res.ok || !j?.ok) {
+        const err = j?.error || 'สร้างคำสั่งเติมเงินไม่สำเร็จ';
+        window.showMsg ? window.showMsg({ variant:'error', title:'ไม่สำเร็จ', text: err }) : alert(err);
+        return false;
+      }
+
+      // เติมข้อมูล QR + เปิดโมดัล (โหมดธนาคาร)
+      currentTxId = j.txId;
+      const finalAmount = Number(j.displayAmount);
+      const qrUrl       = j.qrUrl;
+
+      const img = document.getElementById('qrImage');
+      if (img && qrUrl) img.src = qrUrl;
+      const amtEl = document.getElementById('qrAmount');
+      if (amtEl) amtEl.textContent = finalAmount.toLocaleString(undefined,{ minimumFractionDigits:2 });
+
+      openQrModal('bank', j.expiresIn || 300);
+
+      // 🔔 เริ่มเฝ้าสถานะ: webhook เคลียร์ปุ๊บ → ปิด modal + reload
+      startTxWatcher(currentTxId, j.expiresIn || 300);
+    } catch (err) {
+      const msg = `ขัดข้อง: ${err.message}`;
+      window.showMsg ? window.showMsg({ variant:'error', title:'ไม่สำเร็จ', text: msg }) : alert(msg);
+    }
+    return false;
+  }
+</script>
+
+<script>
   const $ = (s, r = document) => r.querySelector(s);
   const fmt = (n) =>
     Number(n || 0).toLocaleString(undefined, {
@@ -398,20 +555,27 @@
     if (el) el.textContent = 'หมดอายุใน 05:00';
   }
 
+  function setQrMode(mode){
+    qrMode = mode; // 'bank' หรือ 'tw'
+    const bankEls = document.querySelectorAll('#qrMeta [data-for="bankOnly"]');
+    const twEls   = document.querySelectorAll('#qrMeta [data-for="twOnly"]');
+    const footerTw = document.getElementById('qrFooterTw');
+
+    bankEls.forEach(e => e.style.display = (mode === 'bank' ? '' : 'none'));
+    twEls.forEach(e   => e.style.display = (mode === 'tw'   ? '' : 'none'));
+    if (footerTw) footerTw.style.display = (mode === 'tw' ? '' : 'none'); // ปุ่มยืนยันเฉพาะ TW
+  }
+
   function startQrCountdown(seconds = 300){
     clearQrCountdown();
     const el = document.getElementById('qrCountdown');
     qrExpireAt = Date.now() + seconds * 1000;
-
-    const btn = document.getElementById('confirmTopup');
-    if (btn) btn.disabled = false;
 
     const tick = () => {
       const left = qrExpireAt - Date.now();
       if (left <= 0){
         clearQrCountdown();
         if (el) el.textContent = 'หมดเวลาแล้ว';
-        if (btn) btn.disabled = true;
         closeQrModal(); // ปิดออโต้เมื่อหมดเวลา
         return;
       }
@@ -423,21 +587,20 @@
   }
 
   /* 🟢 Modal controls */
-  function openQrModal() {
+  function openQrModal(mode = 'bank', seconds = 300) {
+    setQrMode(mode);
     const m = document.getElementById('qrModal');
     m?.classList.remove('hidden');
     document.getElementById('qrStatus').innerHTML = '';
-    startQrCountdown(300); // 5 นาที
+    startQrCountdown(seconds);
   }
 
-  function closeQrModal() {
+  function closeQrModal(){
     const m = document.getElementById('qrModal');
     m?.classList.add('hidden');
     document.getElementById('qrStatus').innerHTML = '';
     clearQrCountdown();
-
-    const btn = document.getElementById('confirmTopup');
-    if (btn) btn.disabled = true;  // กันเคสปิดก่อนหมดเวลา
+    stopTxWatcher();
   }
 
   /* bind ปิดด้วยปุ่ม/overlay (ครั้งเดียว) */

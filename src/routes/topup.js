@@ -6,6 +6,7 @@ import express from "express";
 import axios from "axios";
 import { jwtVerify } from "jose";
 
+import { getAuthUserId } from "../lib/auth.js";
 import { User } from "../models/User.js";
 import { Topup } from "../models/Topup.js";
 import { Transaction } from "../models/Transaction.js";
@@ -515,45 +516,76 @@ topupRouter.post("/scb", async (req, res) => {
   }
 });
 
+
+topupRouter.post("/create", async (req, res) => {
+  try {
+    const uid = getAuthUserId(req);
+    if (!uid) return res.status(401).json({ ok:false, error:"unauthorized" });
+
+    const base = Number(req.body.amount);
+    const walletCode = String(req.body.walletCode || "kbank");
+    if (!Number.isFinite(base) || base < 1)
+      return res.status(400).json({ ok:false, error:"invalid_amount" });
+
+    // เศษ .01-.60
+    const decimalCents = Math.floor(Math.random() * 60) + 1;    // 1..60
+    const uniqueAmt = (Math.round(base * 100) + decimalCents) / 100;
+    const uniqueCents = Math.round(uniqueAmt * 100);
+
+    const tx = await Transaction.create({
+      userId: uid,
+      method: walletCode,          // "kbank" / "scb" ...
+      amount: uniqueAmt,
+      amountCents: uniqueCents,    // <── สำคัญ
+      expectedAmount: uniqueAmt,
+      status: "pending",
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+    });
+
+    // รูป QR ของบัญชีปลายทาง (ใส่ของจริงตามธนาคาร)
+    const qrUrl = "/static/assets/payment/qr-kbank.jpg";
+
+    res.json({ ok:true, qrUrl, displayAmount: uniqueAmt, txId: String(tx._id), expiresIn: 300 });
+  } catch (err) {
+    console.error("create topup error:", err);
+    res.status(500).json({ ok:false, error:"server_error" });
+  }
+});
+
+topupRouter.get("/tx/:id", async (req,res)=>{
+  try{
+    const tx = await Transaction.findById(req.params.id).lean();
+    if(!tx) return res.status(404).json({ok:false, error:"not_found"});
+    // คืนสถานะพอ
+    res.json({ ok:true, status: tx.status, method: tx.method, amount: tx.amount });
+  }catch(e){
+    res.status(500).json({ ok:false, error:"server_error" });
+  }
+});
+
+// เติมเครดิต KBANK แบบจับคู่ด้วยยอดเงิน + เศษ
 topupRouter.post("/kbank", async (req, res) => {
   try {
     const { message, secret, timestamp } = req.body;
-    if (!message || !secret || !timestamp) {
-      return res
-        .status(400)
-        .json({ success: false, message: "missing_parameters" });
-    }
+    if (!message || !secret || !timestamp)
+      return res.status(400).json({ success:false, message:"missing_parameters" });
 
-    const baseDate = new Date(timestamp * 1000);
-    const seconds = baseDate.getSeconds();
-
-    const regex =
-      /(\d{2})\/(\d{2})(?:\/\d{2})?\s+(\d{2}):(\d{2})\s+บช\s+X-(\d+)\s+รับโอนจาก\s+X-(\d+)\s+([\d,]+\.\d{2})\s+คงเหลือ/i;
-
+    // ดึงจาก SMS
+    const regex = /(\d{2})\/(\d{2})(?:\/\d{2})?\s+(\d{2}):(\d{2})\s+บช\s+X-(\d+)\s+รับโอนจาก\s+X-(\d+)\s+([\d,]+\.\d{2})\s+คงเหลือ/i;
     const match = String(message).match(regex);
-    if (!match) {
-      return res
-        .status(400)
-        .json({ success: false, message: "invalid_message_format" });
-    }
+    if (!match) return res.status(400).json({ success:false, message:"invalid_message_format" });
 
-    let [, day, month, hour, minute, receiverLast6, senderLast6, amountStr] =
-      match;
-
+    let [, day, month, hour, minute, receiverLast6, senderLast6, amountStr] = match;
     const year = new Date().getFullYear();
+    const seconds = new Date(timestamp * 1000).getSeconds();
+    const parsedDate = new Date(Date.UTC(year, month - 1, day, hour, minute, seconds));
 
-    // Construct UTC date directly (no timezone conversion)
-    const parsedDate = new Date(
-      Date.UTC(year, month - 1, day, hour, minute, seconds)
-    );
+    const amt = Number(String(amountStr).replace(/,/g, "")) || 0;   // 10.31
+    const amtCents = Math.round(amt * 100);                         // 1031
+    const senderDigits = String(senderLast6||"").trim();
+    const receiverDigits = String(receiverLast6||"").trim();
 
-    console.log("Final UTC ISO:", parsedDate.toISOString());
-
-    const amount = Number(String(amountStr).replace(/,/g, "")) || 0;
-    const amt = Math.round(amount * 100) / 100;
-    const senderDigits = String(senderLast6 || "").trim();
-    const receiverDigits = String(receiverLast6 || "").trim();
-
+    // ตรวจบัญชี + secret
     const topup = await Topup.findOne({
       type: "DEPOSIT",
       accountCode: "kbank",
@@ -561,15 +593,137 @@ topupRouter.post("/kbank", async (req, res) => {
       isActive: true,
       isSMS: true,
     }).lean();
+    if (!topup)  return res.status(404).json({ success:false, message:"account_not_found" });
+    if (secret !== topup.secret) return res.status(401).json({ success:false, message:"unauthorized" });
 
-    if (!topup) {
-      return res
-        .status(404)
-        .json({ success: false, message: "account_not_found" });
+    // กันยิงซ้ำ: completed ซ้ำในช่วง ±2 นาที ด้วย amountCents
+    const twoMinBefore = new Date(parsedDate.getTime() - 2*60*1000);
+    const twoMinAfter  = new Date(parsedDate.getTime() + 2*60*1000);
+    const dup = await Transaction.findOne({
+      method: "kbank",
+      amountCents: amtCents,
+      status: "completed",
+      createdAt: { $gte: twoMinBefore, $lte: twoMinAfter },
+    }).lean();
+    if (dup) {
+      return res.json({ success:true, method:"kbank", deduped:true, amount:amt, timestamp });
     }
-    if (secret !== topup.secret) {
-      return res.status(401).json({ success: false, message: "unauthorized" });
+
+    // จับคู่กับ pending ที่สร้างจาก /topup/create
+    const pendingTx = await Transaction.findOne({
+      method: "kbank",
+      amountCents: amtCents,
+      status: "pending",
+    });
+
+    if (!pendingTx) {
+      // เก็บไว้ให้แอดมินตรวจ (ยังไม่มีเจ้าของ)
+      await Transaction.create({
+        method: "kbank",
+        amount: amt,
+        amountCents: amtCents,
+        currency: "THB",
+        status: "pending",
+        senderLast6: senderDigits,
+        receiverLast6: receiverDigits,
+        createdAt: parsedDate,
+        note: "unmatched by amount",
+      });
+      console.log(`✅ KBANK Deposit (unmatched): +${amt} THB`);
+      return res.json({ success:true, method:"kbank", amount:amt, timestamp, unmatched:true });
     }
+
+    // มีเจ้าของ → เติมเครดิต
+    const user = await User.findById(pendingTx.userId);
+    if (!user) {
+      pendingTx.note = "User not found at webhook";
+      await pendingTx.save();
+      return res.json({ success:true, method:"kbank", amount:amt, unmatched:true });
+    }
+
+    const newBalance = await user.addBalance(amt);
+    pendingTx.set({
+      status: "completed",
+      matchedBy: "amount",
+      matchedTxId: pendingTx._id,
+      senderLast6: senderDigits,
+      receiverLast6: receiverDigits,
+      createdAt: parsedDate,
+      paidAt: new Date(),
+      username: user.username 
+    });
+    await pendingTx.save();
+    // pendingTx.status = "completed";
+    // pendingTx.matchedBy = "amount";
+    // pendingTx.senderLast6 = senderDigits;
+    // pendingTx.receiverLast6 = receiverDigits;
+    // pendingTx.createdAt = parsedDate;
+    // pendingTx.paidAt = new Date();
+    // await pendingTx.save();
+
+    console.log(`✅ KBANK Auto-Topup: ${user.username} +${amt} → ${newBalance}`);
+    return res.json({ success:true, method:"kbank", username:user.username, amount:amt, status:"completed", timestamp });
+  } catch (err) {
+    console.error("❌ /kbank error:", err);
+    return res.status(500).json({ success:false, message:"something_wrong" });
+  }
+});
+
+// topupRouter.post("/kbank", async (req, res) => {
+//   try {
+//     const { message, secret, timestamp } = req.body;
+//     if (!message || !secret || !timestamp) {
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "missing_parameters" });
+//     }
+
+//     const baseDate = new Date(timestamp * 1000);
+//     const seconds = baseDate.getSeconds();
+
+//     const regex =
+//       /(\d{2})\/(\d{2})(?:\/\d{2})?\s+(\d{2}):(\d{2})\s+บช\s+X-(\d+)\s+รับโอนจาก\s+X-(\d+)\s+([\d,]+\.\d{2})\s+คงเหลือ/i;
+
+//     const match = String(message).match(regex);
+//     if (!match) {
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "invalid_message_format" });
+//     }
+
+//     let [, day, month, hour, minute, receiverLast6, senderLast6, amountStr] =
+//       match;
+
+//     const year = new Date().getFullYear();
+
+//     // Construct UTC date directly (no timezone conversion)
+//     const parsedDate = new Date(
+//       Date.UTC(year, month - 1, day, hour, minute, seconds)
+//     );
+
+//     console.log("Final UTC ISO:", parsedDate.toISOString());
+
+//     const amount = Number(String(amountStr).replace(/,/g, "")) || 0;
+//     const amt = Math.round(amount * 100) / 100;
+//     const senderDigits = String(senderLast6 || "").trim();
+//     const receiverDigits = String(receiverLast6 || "").trim();
+
+//     const topup = await Topup.findOne({
+//       type: "DEPOSIT",
+//       accountCode: "kbank",
+//       accountNumber: new RegExp(`${receiverDigits}$`, "i"),
+//       isActive: true,
+//       isSMS: true,
+//     }).lean();
+
+//     if (!topup) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "account_not_found" });
+//     }
+//     if (secret !== topup.secret) {
+//       return res.status(401).json({ success: false, message: "unauthorized" });
+//     }
 
     // 🔐 กันยิงซ้ำ: หา tx ที่เหมือนกันภายใน ±2 นาที
     // const twoMinAgo = new Date(timestamp.getTime() - 2 * 60 * 1000);
@@ -592,81 +746,81 @@ topupRouter.post("/kbank", async (req, res) => {
     //   });
     // }
 
-    const user = await User.findOne({
-      bankAccounts: {
-        $elemMatch: { accountNumber: new RegExp(`${senderDigits}$`) },
-      },
-    });
+//     const user = await User.findOne({
+//       bankAccounts: {
+//         $elemMatch: { accountNumber: new RegExp(`${senderDigits}$`) },
+//       },
+//     });
 
-    // 📨 กรณีไม่รู้ว่าเป็นผู้ใช้คนไหน → บันทึก pending เพื่อให้แอดมินจับคู่
-    if (!user) {
-      await Transaction.create({
-        method: "kbank",
-        senderLast6: senderDigits,
-        receiverLast6: receiverDigits,
-        amount: amt,
-        currency: "THB",
-        status: "pending",
-        createdAt: parsedDate,
-      });
-      console.log(`✅ KBANK Deposit (unmatched): +${amt} THB`);
-      return res.json({ success: true, method: "scb", amount: amt, timestamp });
-    }
+//     // 📨 กรณีไม่รู้ว่าเป็นผู้ใช้คนไหน → บันทึก pending เพื่อให้แอดมินจับคู่
+//     if (!user) {
+//       await Transaction.create({
+//         method: "kbank",
+//         senderLast6: senderDigits,
+//         receiverLast6: receiverDigits,
+//         amount: amt,
+//         currency: "THB",
+//         status: "pending",
+//         createdAt: parsedDate,
+//       });
+//       console.log(`✅ KBANK Deposit (unmatched): +${amt} THB`);
+//       return res.json({ success: true, method: "scb", amount: amt, timestamp });
+//     }
 
-    if (topup.isAuto) {
-      const newBalance = await user.addBalance(amt);
+//     if (topup.isAuto) {
+//       const newBalance = await user.addBalance(amt);
 
-      await Transaction.create({
-        userId: user._id,
-        method: "kbank",
-        senderLast6: senderDigits,
-        receiverLast6: receiverDigits,
-        amount: amt,
-        currency: "THB",
-        status: "completed",
-        createdAt: parsedDate,
-      });
+//       await Transaction.create({
+//         userId: user._id,
+//         method: "kbank",
+//         senderLast6: senderDigits,
+//         receiverLast6: receiverDigits,
+//         amount: amt,
+//         currency: "THB",
+//         status: "completed",
+//         createdAt: parsedDate,
+//       });
 
-      console.log(
-        `✅ KBANK Deposit: ${user.username} +${amt} THB → ${newBalance}`
-      );
-      return res.json({
-        success: true,
-        method: "kbank",
-        username: user.username,
-        amount: amt,
-        status: "completed",
-        timestamp,
-      });
-    } else {
-      await Transaction.create({
-        userId: user._id,
-        method: "kbank",
-        senderLast6: senderDigits,
-        receiverLast6: receiverDigits,
-        amount: amt,
-        currency: "THB",
-        status: "pending",
-        createdAt: parsedDate,
-      });
+//       console.log(
+//         `✅ KBANK Deposit: ${user.username} +${amt} THB → ${newBalance}`
+//       );
+//       return res.json({
+//         success: true,
+//         method: "kbank",
+//         username: user.username,
+//         amount: amt,
+//         status: "completed",
+//         timestamp,
+//       });
+//     } else {
+//       await Transaction.create({
+//         userId: user._id,
+//         method: "kbank",
+//         senderLast6: senderDigits,
+//         receiverLast6: receiverDigits,
+//         amount: amt,
+//         currency: "THB",
+//         status: "pending",
+//         createdAt: parsedDate,
+//       });
 
-      console.log(
-        `✅ KBANK Deposit (manual): ${user.username} +${amt} THB (pending)`
-      );
-      return res.json({
-        success: true,
-        method: "kbank",
-        username: user.username,
-        amount: amt,
-        status: "pending",
-        timestamp,
-      });
-    }
-  } catch (err) {
-    console.error("❌ /kbank error:", err);
-    return res.status(500).json({ success: false, message: "something_wrong" });
-  }
-});
+//       console.log(
+//         `✅ KBANK Deposit (manual): ${user.username} +${amt} THB (pending)`
+//       );
+//       return res.json({
+//         success: true,
+//         method: "kbank",
+//         username: user.username,
+//         amount: amt,
+//         status: "pending",
+//         timestamp,
+//       });
+//     }
+//   } catch (err) {
+//     console.error("❌ /kbank error:", err);
+//     return res.status(500).json({ success: false, message: "something_wrong" });
+//   }
+// });
 
 // topupRouter.post("/scb", async (req, res) => {
 //   try {
