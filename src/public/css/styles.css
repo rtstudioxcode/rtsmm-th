@@ -2032,7 +2032,7 @@ html[data-theme="dark"]{
 .pill.warn{
   background: #FFCE45;     /* เหลืองเข้มอ่านง่าย */
   color: #1f1400;          /* ตัวอักษรเข้ม ตัดพื้น */
-  font-weight: 700;
+  font-weight: 400;
 }
 .pill.warn .bar{
   background: #FFE28A;     /* แถบด้านในเหลืองอ่อน */
@@ -2095,7 +2095,7 @@ html[data-theme="dark"]{
   padding: var(--pill-pad-y) var(--pill-pad-x);
   line-height: 1.2;           /* ชิดแต่ยังอ่านง่าย */
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   border-radius: 999px;       /* เม็ดถั่วสวย ๆ */
   width: max-content;         /* พอดีข้อความ */
   max-width: 100%;
@@ -2204,7 +2204,7 @@ html[data-theme="dark"] {
   padding: var(--pill-pad-y) var(--pill-pad-x);
   border-radius: var(--pill-radius);
   font-size: var(--pill-font);
-  font-weight: 700;
+  font-weight: 400;
   line-height: 1.2;
   width: max-content;
   color: var(--pill-text);
@@ -2320,7 +2320,7 @@ html[data-theme="dark"] {
   gap: 8px;
   padding: 6px 12px;              /* พอดีข้อความ */
   border-radius: 999px;
-  font-weight: 700;
+  font-weight: 400;
   line-height: 1.2;
   border: 1px solid var(--chip-border, rgba(0,0,0,.06));
   background:
@@ -2520,4 +2520,277 @@ html[data-theme="dark"] .tabs.chips .chip[data-st="canceled"] {
 .orders-history .pill.long .label .badge,
 .orders-history .pill.progress .badge {
   margin-inline-start: 2px;
+}
+
+.orders-history .pill.ok {
+  background: linear-gradient(145deg, #0b3d2e, #144f3d);
+  box-shadow:
+    inset 1px 1px 2px rgba(255,255,255,0.15),
+    inset -2px -2px 4px rgba(0,0,0,0.4),
+    0 3px 6px rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+/* =========================================
+   Metallic Pills — All statuses (Dark/Light)
+   ใช้กับทั้ง .pill.long และ .pill.progress
+   ========================================= */
+
+/* โทนสีพื้นฐาน (Dark) */
+.orders-history {
+  /* completed */
+  --ok-1: #0b3d2e; --ok-2: #144f3d; --ok-text: #e6fff3;
+  /* processing/inprogress (ฟ้า-เขียว) */
+  --blue-1: #0a2f5a; --blue-2: #12446f; --blue-text: #e8f6ff;
+  /* partial (ม่วง) */
+  --violet-1: #3a245a; --violet-2: #4b2b74; --violet-text: #f1e9ff;
+  /* warn (เหลืองส้ม) */
+  --warn-1: #5a3a0a; --warn-2: #6f4b12; --warn-text: #fff7e6;
+  /* danger (แดงเบอร์กันดี) */
+  --danger-1:#4f0f14; --danger-2:#6a1b20; --danger-text:#ffeaea;
+
+  /* เงาโลหะที่ใช้ร่วมกัน */
+  --pill-br: 999px;
+  --pill-border: 1px solid rgba(255,255,255,.08);
+  --pill-shadow:
+    inset 1px 1px 2px rgba(255,255,255,.15),
+    inset -2px -3px 5px rgba(0,0,0,.45),
+    0 3px 8px rgba(0,0,0,.28);
+  --pill-highlight: linear-gradient( to bottom,
+      rgba(255,255,255,.18) 0%,
+      rgba(255,255,255,.08) 35%,
+      rgba(0,0,0,.12) 100% );
+}
+
+/* โทนสำหรับ Light theme (ทำให้สว่างขึ้น/คอนทราสต์ดี) */
+[data-theme="light"] .orders-history{
+  --ok-1:#1b785a;  --ok-2:#23906e;  --ok-text:#f4fffb;
+  --blue-1:#1e5ba5;--blue-2:#2c71c0; --blue-text:#f5fbff;
+  --violet-1:#6c3cc6; --violet-2:#8148e6; --violet-text:#f9f5ff;
+  --warn-1:#b87315;  --warn-2:#d18a1a; --warn-text:#fffaf0;
+  --danger-1:#9a2230;--danger-2:#bb2a3b; --danger-text:#fff2f2;
+  --pill-border: 1px solid rgba(0,0,0,.06);
+  --pill-shadow:
+    inset 1px 1px 2px rgba(255,255,255,.35),
+    inset -2px -3px 5px rgba(0,0,0,.25),
+    0 3px 8px rgba(0,0,0,.12);
+}
+
+/* โครง pill รวม: ทำให้ดูเป็นเหล็ก */
+.orders-history .pill.long,
+.orders-history .pill.progress{
+  position: relative;
+  border-radius: var(--pill-br);
+  border: var(--pill-border);
+  box-shadow: var(--pill-shadow);
+  overflow: hidden;
+  will-change: transform;
+}
+
+/* แถบไฮไลต์ผิวโลหะ */
+.orders-history .pill.long::after,
+.orders-history .pill.progress::after{
+  content:"";
+  position:absolute; inset:0;
+  pointer-events:none;
+  background: var(--pill-highlight);
+  mix-blend-mode: soft-light;
+}
+
+/* ===== สีพื้นตามสถานะ ===== */
+.orders-history .pill.ok{
+  background: linear-gradient(145deg, var(--ok-1), var(--ok-2));
+  color: var(--ok-text);
+}
+.orders-history .pill.blue{
+  background: linear-gradient(145deg, var(--blue-1), var(--blue-2));
+  color: var(--blue-text);
+}
+.orders-history .pill.violet{
+  background: linear-gradient(145deg, var(--violet-1), var(--violet-2));
+  color: var(--violet-text);
+}
+.orders-history .pill.warn{
+  background: linear-gradient(145deg, var(--warn-1), var(--warn-2));
+  color: var(--warn-text);
+}
+.orders-history .pill.danger{
+  background: linear-gradient(145deg, var(--danger-1), var(--danger-2));
+  color: var(--danger-text);
+}
+
+/* ตัวหนังสือคมชัดทั้งสองธีม */
+.orders-history .pill.long .label,
+.orders-history .pill.progress{
+  font-weight: 400;
+  letter-spacing: .2px;
+  text-shadow:
+    0 1px 0 rgba(0,0,0,.25),
+    0 0 1px rgba(0,0,0,.1);
+}
+
+/* แถบ .bar (เดสก์ท็อป) ให้กลืนกับผิวโลหะ */
+.orders-history .pill.long .bar{
+  background: rgba(255,255,255,.18);
+  box-shadow:
+    inset 0 0 6px rgba(0,0,0,.35),
+    0 0 0 1px rgba(255,255,255,.15);
+}
+
+/* โหมดมีไอคอน (จากรอบก่อน) */
+.orders-history .pill.long .label,
+.orders-history .pill.progress{
+  display:inline-flex; align-items:center; gap:8px;
+}
+.orders-history .pill.progress.has-ico::before,
+.orders-history .pill.long.has-ico .label::before{ content:none!important }
+
+/* Hover เล็กน้อย */
+@media (hover:hover){
+  .orders-history .pill.long:hover,
+  .orders-history .pill.progress:hover{
+    transform: translateY(-1px);
+  }
+}
+
+/* ===== มือถือ ปรับขนาดให้แน่นขึ้น ===== */
+@media (max-width:640px){
+  .orders-history .o-card .pill.progress{
+    padding: 6px 12px;
+    min-height: 28px;
+    border-radius: var(--pill-br);
+  }
+  .orders-history .o-card .pill.progress .pct{ min-width:3.5ch; text-align:right }
+}
+
+/* =============== Lock color (ไม่ตามธีม) =============== */
+/* รอดำเนินการ + กำลังทำ → ใช้โทนเข้มคงที่ทั้ง Light/Dark */
+.orders-history [data-status="processing"] .pill.long,
+.orders-history [data-status="processing"] .pill.progress,
+.orders-history [data-status="inprogress"] .pill.long,
+.orders-history [data-status="inprogress"] .pill.progress {
+  background: linear-gradient(145deg, #1e2228, #0f1115);
+  color: #eaf1f8;
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow:
+    inset 1px 1px 2px rgba(255,255,255,0.06),
+    inset -2px -2px 4px rgba(0,0,0,0.45),
+    0 4px 10px rgba(0,0,0,0.35);
+  text-shadow: 0 1px 0 rgba(0,0,0,0.6);
+}
+
+/* แถบ .bar ใน pill แบบยาวให้กลืนกับพื้น */
+.orders-history [data-status="processing"] .pill.long .bar,
+.orders-history [data-status="inprogress"] .pill.long .bar {
+  background: linear-gradient(90deg, rgba(255,255,255,0.18), rgba(255,255,255,0.28));
+  filter: saturate(80%);
+}
+
+/* ไอคอนให้สว่างพอดีบนพื้นเข้ม */
+.orders-history [data-status="processing"] .pill.long .label::before,
+.orders-history [data-status="processing"] .pill.progress::before,
+.orders-history [data-status="inprogress"] .pill.long .label::before,
+.orders-history [data-status="inprogress"] .pill.progress::before {
+  filter: drop-shadow(0 1px 0 rgba(0,0,0,.6)) brightness(1.05);
+  opacity: .95;
+}
+
+/* =============== Cancel: กลืนขอบแบบ Success =============== */
+.orders-history .pill.danger {
+  /* พื้นแดงเข้มไล่เฉด */
+  background: linear-gradient(145deg, #5a0f12, #3d0b0d);
+  color: #ffe9e9;
+  /* ขอบให้กลืน (เหมือน .ok) */
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow:
+    inset 1px 1px 2px rgba(255,255,255,0.10),
+    inset -2px -2px 4px rgba(0,0,0,0.45),
+    0 3px 8px rgba(90, 15, 18, 0.35);
+  text-shadow: 0 1px 0 rgba(0,0,0,.35);
+}
+
+/* แถบ .bar ของ cancel ให้พองาม */
+.orders-history .pill.danger .bar {
+  background: linear-gradient(90deg, rgba(255,255,255,0.22), rgba(255,255,255,0.32));
+}
+
+/* ปรับโทน badge/ไอคอนบน danger ให้ตัดชัดแต่ไม่แสบตา */
+.orders-history .pill.danger .label .badge,
+.orders-history [data-status="canceled"] .pill.progress .badge {
+  filter: brightness(1.05) contrast(0.95);
+}
+
+/* =============== Mobile fine-tune =============== */
+@media (max-width: 640px) {
+  /* รักษาขนาด/ช่องไฟให้พอดีในมือถือ */
+  .orders-history [data-status="processing"] .pill.progress,
+  .orders-history [data-status="inprogress"] .pill.progress,
+  .orders-history .pill.danger.pill.progress {
+    padding: 6px 12px;
+    min-height: 28px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  /* ไอคอนเล็กลงนิดหน่อย */
+  .orders-history [data-status="processing"] .pill.progress::before,
+  .orders-history [data-status="inprogress"] .pill.progress::before,
+  .orders-history [data-status="canceled"]   .pill.progress::before {
+    width: 14px; height: 14px; flex-basis: 14px;
+  }
+}
+/* ========== คงที่: โทนเข้ม สำหรับ 'รอดำเนินการ' + 'กำลังทำ' ========== */
+/* ไม่ต้องขึ้นกับธีม */
+.orders-history [data-status="processing"] .pill.long,
+.orders-history [data-status="processing"] .pill.progress,
+.orders-history [data-status="inprogress"] .pill.long,
+.orders-history [data-status="inprogress"] .pill.progress {
+  background: linear-gradient(145deg, #1f242a, #111316);
+  color: #e9eef3;
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow:
+    inset 1px 1px 2px rgba(255,255,255,0.10),
+    inset -2px -2px 4px rgba(0,0,0,0.55),
+    0 6px 14px rgba(0,0,0,0.35);
+}
+
+/* ปรับตัวอักษรให้อ่านง่ายทั้ง Light/Dark */
+.orders-history [data-status="processing"] .pill .label,
+.orders-history [data-status="inprogress"] .pill .label {
+  color: #eef4f7;
+  text-shadow: 0 1px 0 rgba(0,0,0,.35);
+}
+
+/* ========== ยกเลิก: โทนแดงเข้ม + ขอบ “กลืน” เหมือนสำเร็จ ========== */
+.orders-history [data-status="canceled"] .pill.long,
+.orders-history [data-status="canceled"] .pill.progress {
+  background: linear-gradient(145deg, #5b1a1a, #7a2424);
+  color: #ffecec;
+  border: 1px solid rgba(255,255,255,0.08); /* ขอบกลืน ไม่เด่น */
+  box-shadow:
+    inset 1px 1px 2px rgba(255,255,255,0.12),
+    inset -2px -2px 4px rgba(0,0,0,0.45),
+    0 6px 14px rgba(123, 30, 30, 0.35);
+}
+
+/* ปรับไอคอน/ป้ายภายในให้กลืน */
+.orders-history [data-status="canceled"] .pill .label {
+  color: #ffe5e5;
+  text-shadow: 0 1px 0 rgba(0,0,0,.35);
+}
+.orders-history [data-status="canceled"] .pill .badge.warn {
+  background: rgba(255,255,255,.12);
+  color: #ffd7d7;
+  border-color: rgba(255,255,255,.18);
+}
+
+/* ========== mobile tuning (ให้สวยพอดีในจอเล็ก) ========== */
+@media (max-width: 640px) {
+  .orders-history [data-status="processing"] .pill.progress,
+  .orders-history [data-status="inprogress"] .pill.progress,
+  .orders-history [data-status="canceled"]   .pill.progress {
+    padding: 6px 12px;
+    min-height: 28px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
 }
