@@ -133,32 +133,20 @@ topupRouter.get("/", async (req, res) => {
 topupRouter.post("/truewallet/gen/link", async (req, res) => {
   try {
     const { amount } = req.body;
-    const userId = req?.session?.userId;
-    if (!userId || !(amount > 0)) {
-      return res.status(400).json({ success: false, message: "missing_parameters" });
+    // จำนวนต้องส่งมาเป็นยอดสุทธิที่สุ่มเศษแล้วจาก /topup/create
+    const payAmount = Math.round(Number(amount || 0) * 100) / 100;
+    if (!(payAmount > 0)) {
+      return res.status(400).json({ success: false, message: "invalid_amount" });
     }
 
-    const webWallet = await Topup.findOne({ accountCode: "tw", isActive: true }).lean();
-    if (!webWallet) return res.status(404).json({ success: false, message: "wallet_inactive" });
+    // โหลดบัญชี TrueWallet ที่ใช้งานอยู่
+    const webWallet = await Topup.findOne({ accountCode: "tw", isActive: true, isSMS: false }).lean();
+    if (!webWallet) {
+      return res.status(404).json({ success: false, message: "wallet_inactive" });
+    }
 
-    // จำนวนที่ให้ลูกค้าจ่ายจริง (รวมค่าธรรมเนียม/มาร์จิ้นที่คุณต้องการ)
-    const payAmount = Math.round(Number(amount) * 100) / 100;
-    const payCents  = Math.round(payAmount * 100);
-
-    // สร้าง pending transaction ล่วงหน้าเพื่อให้ webhook จับคู่
-    await Transaction.create({
-      userId,
-      method: "tw",
-      amount: payAmount,
-      amountCents: payCents,
-      currency: "THB",
-      status: "pending",
-      expectedAmount: payAmount,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000), // เผื่อ 10 นาที
-    });
-
-    // เรียก TrueMoney Link (ถ้าคุณยังต้องบวก 3% ให้แก้ตรงนี้)
-    const response = await axios.post(
+    // 👇 แค่ "ขอลิงก์" จาก TrueMoney — ห้ามสร้าง Transaction นะจ๊ะ
+    const r = await axios.post(
       "https://apis.truemoneyservices.com/utils/v1/transfer-link-generator",
       {
         mobile_number: webWallet.accountNumber,
@@ -167,20 +155,28 @@ topupRouter.post("/truewallet/gen/link", async (req, res) => {
       },
       {
         headers: {
-          Authorization: `Bearer ${config?.TW_GEN_LINK_SECRET}`,
+          Authorization: `Bearer ${config?.TW_GEN_LINK_SECRET || process.env.TW_GEN_LINK_SECRET}`,
           "Content-Type": "application/json",
         },
+        // timeout ใส่กันแหกเผื่อเน็ตงอแง
+        timeout: 10_000,
       }
     );
 
+    const url = r?.data?.data?.url;
+    if (!url) {
+      return res.status(502).json({ success: false, message: "tmw_no_url" });
+    }
+
     return res.json({
+      success: true,
+      url,
       accountNumber: webWallet.accountNumber,
       accountName: webWallet.accountName,
-      url: response.data.data.url,
     });
   } catch (err) {
-    console.error("❌ /truewallet/gen/link error:", err);
-    res.status(500).json({ success: false, message: "something_wrong" });
+    console.error("❌ /truewallet/gen/link error:", err?.response?.data || err);
+    return res.status(500).json({ success: false, message: "server_error" });
   }
 });
 
