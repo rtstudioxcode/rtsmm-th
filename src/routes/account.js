@@ -232,7 +232,7 @@ router.get("/account", async (req, res, next) => {
       pointValueTHB: Number(pointValueTHB ?? me.pointValueTHB ?? 0),
 
       // default อื่น ๆ
-      avatarUrl: me.avatarUrl || "/static/assets/logo/rtsmmgif2.gif",
+      avatarUrl: me.avatarUrl || "/static/assets/logortsmmgif2.gif",
       emailVerified: !!me.emailVerified,
     };
 
@@ -281,7 +281,7 @@ router.post("/account/profile", upload.single("avatar"), async (req, res) => {
       u.avatarUrl = filePath;
       await u.save();
     } else if (!u.avatarUrl) {
-      u.avatarUrl = "/static/assets/logo/rtsmmgif2.gif";
+      u.avatarUrl = "/static/assets/logortsmmgif2.gif";
       await u.save();
     }
 

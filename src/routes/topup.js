@@ -163,7 +163,7 @@ topupRouter.post("/truewallet/gen/link", async (req, res) => {
       {
         mobile_number: webWallet.accountNumber,
         amount: payAmount.toFixed(2),
-        message: "" // ใส่ metadata เช่น "UID:<userId>" ก็ได้ เผื่อใช้ fallback
+        message: ""
       },
       {
         headers: {
@@ -307,10 +307,9 @@ topupRouter.post("/truewallet", async (req, res) => {
         { expiresAt: { $exists: false } },
         { expiresAt: { $gt: new Date(now - 60 * 60 * 1000) } } // กันเคสไม่มี expiresAt
       ]
-    });
+    }).sort({ createdAt: -1 });;
 
     if (pendingTx) {
-      // มีเจ้าของแน่นอน
       const user = await User.findById(pendingTx.userId);
       if (!user) {
         pendingTx.note = "User not found at webhook";
@@ -319,10 +318,15 @@ topupRouter.post("/truewallet", async (req, res) => {
       }
 
       const newBalance = await user.addBalance(added);
+      const transferAt =
+        payload?.transferred_at    ? new Date(payload.transferred_at * 1000) :
+        payload?.created_at        ? new Date(payload.created_at     * 1000) :
+                                    new Date();
       pendingTx.set({
         status: "completed",
         paidAt: new Date(),
-        username: user.username
+        createdAt: transferAt,
+        username: user.username,
       });
       await pendingTx.save();
 
@@ -1157,11 +1161,12 @@ topupRouter.post("/truewallet/check", async (req, res) => {
     }
 
     // ยอดที่บันทึกใน Transaction คือ "added" = amount (ไม่ +3%)
-    const target = Math.round(Number(amount) * 100) / 100;
+    // const target = Math.round(Number(amount) * 100) / 100;
+    const targetCents = Math.round(Number(amount) * 100);
     const tx = await Transaction.findOne({
       userId,
       method: "tw",
-      amount: target, // ✅ เทียบยอดสุทธิ
+      amount: targetCents, // ✅ เทียบยอดสุทธิ
       status: "completed",
       createdAt: { $gte: new Date(Date.now() - 10 * 60 * 1000) },
     }).sort({ createdAt: -1 });

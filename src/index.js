@@ -255,7 +255,7 @@ app.use(async (req, res, next) => {
           raw = "/uploads/" + raw.replace(/^\/+/, "");
         avatarUrl = `${base}${raw}`;
       } else {
-        avatarUrl = `${base}/static/assets/logo/rtsmmgif2.gif`;
+        avatarUrl = `${base}/static/assets/logortsmmgif2.gif`;
       }
 
       res.locals.me = {
