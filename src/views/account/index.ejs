@@ -1,5 +1,5 @@
 <!-- /account/index.ejs -->
-<section class="page account-v3">
+<section class="account-container">
   <h1 class="page-title" style="align-items: center; text-align: center;" >ตั้งค่าข้อมูลส่วนตัว</h1>
 
   <div class="acc-wrap">
@@ -63,7 +63,7 @@
       <div class="tabs">
         <button class="tab active" data-tab="tab-general">การตั้งค่าทั่วไป</button>
         <button class="tab" data-tab="tab-points">ข้อมูลระดับบัญชี</button>
-        <!-- <button class="tab" data-tab="tab-notify">การแจ้งเตือน</button> -->
+        <button class="tab" data-tab="tab-affiliate">แนะนำเพื่อน</button>
       </div>
 
       <!-- GENERAL -->
@@ -273,11 +273,96 @@
         </div>
       </div>
 
-      <!-- NOTIFY -->
-      <div class="tabpane" id="tab-notify">
+      <!-- =========== Tab: AFFILIATE(แนะนำเพื่อน) =========== -->
+      <!-- AFFILIATE -->
+      <div class="tabpane" id="tab-affiliate">
+        <!-- Section: รายละเอียด -->
         <div class="card">
-          <div class="card-header"><div class="title">การแจ้งเตือน</div></div>
-          <div class="form-grid"><p class="muted">จะเพิ่มภายหลัง</p></div>
+          <div class="card-header">
+            <div class="title">ระบบแนะนำเพื่อน (Affiliate <span id="aff-rate-title">—</span>%)</div>
+          </div>
+          <div class="form-grid">
+            <div class="muted">
+              <ul style="margin:0 0 0 18px;padding:0">
+                <li>คุณจะได้รับ <strong><span id="aff-rate-inline"></span>%</strong> ของยอดออเดอร์ทุกคำสั่งซื้อของเพื่อนที่สมัครผ่านลิงก์ของคุณ</li>
+                <li>ระบบคิดให้อัตโนมัติทุกครั้งที่คำสั่งซื้อของเพื่อนอยู่ในสถานะนับยอด (paid/completed/success/done/processing)</li>
+                <li>ลิงก์แนะนำจะถูกสร้างเมื่อคุณกดปุ่ม “สร้างลิงก์แนะนำ” เท่านั้น และเป็นคีย์เฉพาะตัว ไม่ผูกกับชื่อผู้ใช้</li>
+                <li>ตัวอย่างรูปแบบลิงก์: <code>https://rtsmm-th.com/aff?=(AFF_KEY)</code></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: สรุปรายได้ -->
+        <div class="card" style="margin-top:14px">
+          <div class="card-header aff-header">
+            <div class="title">สรุปรายได้จากการแนะนำ</div>
+
+            <!-- หลอดความคืบหน้า (อยู่บรรทัดเดียวกัน) -->
+            <div class="aff-progress" aria-label="Affiliate tier progress">
+              <div class="bar"><div class="fill" id="aff-tier-fill" style="width:0%"></div></div>
+              <div class="note muted" id="aff-tier-note"></div>
+            </div>
+
+            <span class="pill clickable" id="aff-tier-pill">
+              <span id="aff-refcount">0</span> คนที่คุณแนะนำ
+            </span>
+          </div>
+
+          <!-- ▼ เปลี่ยนตรงนี้ -->
+          <div class="card-stack" id="aff-kpis">
+            <div class="summary-kpi">
+              <div class="rt-title">จำนวนออเดอร์ทั้งหมด</div>
+              <div class="bignum" id="aff-orders">0</div>
+            </div>
+            <div class="summary-kpi">
+              <div class="rt-title">ยอดใช้จ่ายรวมของเพื่อน</div>
+              <div class="bignum">฿<span id="aff-spent">0.00</span></div>
+            </div>
+            <div class="summary-kpi">
+              <div class="rt-title">
+                รายได้สะสมของคุณ (<span id="aff-rate-inline-2"><%= (typeof affRatePct === 'number' ? affRatePct : 5) %></span>%)
+              </div>
+
+              <div class="bignum" style="color:#31d810">
+                ฿<span id="aff-earn">0.00</span>
+              </div>
+
+              <div class="kpi-actions">
+                <div class="muted small">ยอดที่ถอนได้ตอนนี้: ฿<span id="aff-withdrawable">0.00</span></div>
+                <button class="btn success" id="btnAffWithdraw" disabled>ถอนรายได้</button>
+              </div>
+            </div>
+          </div>
+          <!-- ▲ เปลี่ยนตรงนี้ -->
+        </div>
+
+        <!-- Section: สร้าง/แสดงลิงก์ -->
+        <div class="card" style="margin-top:14px">
+          <div class="card-header"><div class="title">ลิงก์แนะนำเพื่อน</div></div>
+          <div class="form-grid">
+            <div id="aff-create-area">
+              <button id="btnCreateAff" class="btn primary">+ สร้างลิงก์แนะนำ</button>
+              <small class="muted">ลิงก์จะถูกสร้างเพียงครั้งเดียว และใช้งานได้ตลอด</small>
+            </div>
+            <div id="aff-link-area" hidden>
+              <label>ลิงก์ของคุณ
+                <div class="static-input" id="aff-link" style="word-break:break-all"></div>
+              </label>
+              <div class="card-actions" style="text-align:right;padding:0">
+                <button class="btn" id="btnCopyAff">คัดลอกลิงก์</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: รายชื่อผู้ที่คุณแนะนำ (พับ/หุบแบบมือถือ) -->
+        <div class="card" style="margin-top:14px">
+          <div class="card-header"><div class="title">รายชื่อผู้ที่คุณแนะนำ</div></div>
+          <div class="form-grid">
+            <div id="aff-list" class="aff-list"></div>
+            <div class="muted" id="aff-empty" style="display:none">ยังไม่มีข้อมูล</div>
+          </div>
         </div>
       </div>
     </div>
@@ -314,11 +399,27 @@ html[data-theme="light"]{
   --shadow:0 12px 28px rgba(16,24,40,.08);
 }
 
+/* ===== Container กลางจอ และกันล้นขวา ===== */
+html, body { overflow-x: hidden; }              /* กันล้นทั้งหน้า */
+.account-container{
+  width: 100%;
+  max-width: 2000px !important;
+  margin: 0 auto;
+}
+@media (min-width: 1280px){
+  .acc-wrap{ grid-template-columns: 360px minmax(0,1fr); gap: 24px; }
+}
+@media (min-width: 1536px){
+  .acc-wrap{ grid-template-columns: 400px minmax(0,1fr); gap: 26px; }
+}
 /* ===== Layout base ===== */
 .page-title{margin:8px 0 18px;color:var(--text);font-weight:400;letter-spacing:.2px}
 .page-title.center{display:block;text-align:center}
 
 .acc-wrap{display:grid;grid-template-columns:300px 1fr;gap:22px}
+.acc-wrap > *, .card, .form-grid, .tabs { min-width: 0; }
+.card{ width:100%; }
+.email-row, .otp-row { flex-wrap: wrap; }
 @media (max-width:980px){.acc-wrap{grid-template-columns:1fr}}
 
 /* ===== Sidebar summary ===== */
@@ -497,6 +598,152 @@ html[data-theme="light"] .static-input{
 .rt-title{margin:0 0 6px;font-weight:400;font-size:18px}
 .fsel{background:color-mix(in oklab,var(--surface) 70%, #000 30%);
   border:1px solid var(--line);border-radius:12px;padding:10px 12px;color:var(--text)}
+
+/* Collapse item เหมือน history */
+.aff-item{border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden}
+.aff-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer}
+.aff-ttl{font-weight:400}
+.aff-more{display:none;border-top:1px solid var(--line);padding:12px 14px}
+.aff-item.open .aff-more{display:block}
+.aff-chip{border:1px solid var(--line);border-radius:999px;padding:4px 8px}
+@media (max-width:720px){
+  .aff-hd{gap:6px}
+  .aff-ttl{font-size:.58rem}
+}
+/* กลุ่มการ์ดแบบ stack */
+.card-stack{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 14px;
+}
+
+/* การ์ดเล็กสำหรับ KPI */
+.summary-kpi{
+  border: 1px solid var(--elevated-border, #24262b);
+  background: var(--elevated-bg, #111316);
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: var(--elevated-shadow, 0 10px 24px rgba(0,0,0,.35));
+}
+
+/* จัดสไตล์ตัวเลข */
+.summary-kpi .bignum{
+  line-height: 1.1;
+  margin-top: 4px;
+}
+
+/* ปรับทุก section ให้แน่นขึ้นบนมือถือ */
+@media (max-width: 768px){
+  /* stack เป็นคอลัมน์เดียว */
+  .card-stack{
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* เผื่อมี .rt-card เก่าหลงเหลือในหน้าอื่น ให้ดูเป็นการ์ดด้วย */
+  #tab-affiliate .rt-card{
+    border: 1px solid var(--elevated-border, #24262b);
+    background: var(--elevated-bg, #111316);
+    border-radius: 16px;
+    padding: 14px 16px;
+  }
+
+  /* header ของการ์ดบนมือถือให้กระชับ */
+  #tab-affiliate .card .card-header{
+    padding: 12px 14px;
+  }
+
+  /* ปรับ list ของผู้ที่แนะนำให้หายอึดอัด */
+  #tab-affiliate .aff-item{
+    border-radius: 14px;
+  }
+  #tab-affiliate .aff-hd{
+    padding: 12px 14px;
+  }
+  #tab-affiliate .aff-more{
+    padding: 12px 14px;
+  }
+
+  /* ปรับช่องว่างในส่วนลิงก์แนะนำเพื่อนให้เข้ารูป */
+  #tab-affiliate #aff-link{
+    padding: 10px 12px;
+    border-radius: 10px;
+  }
+  #tab-affiliate .card-actions{
+    padding: 6px 0 0 0 !important;
+  }
+}
+.summary-kpi .kpi-actions{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-top:10px; gap:10px;
+}
+.summary-kpi .kpi-actions .small{font-size:.9rem}
+@media (max-width:768px){
+  .summary-kpi .kpi-actions{flex-direction:row; gap:8px}
+}
+/* header layout */
+.aff-header{
+  display:flex; align-items:center; gap:14px;
+  flex-wrap:wrap;
+}
+.aff-header .title{ flex:0 0 auto; }
+
+/* ความกว้างหลอด: กลาง, ไม่ยาวเกินไป, ชิดขวานิด ๆ */
+.aff-progress{
+  flex:1 1 auto;
+  display:flex; align-items:center; gap:10px; justify-content:center;
+  min-width: 220px;
+}
+.aff-progress .bar{
+  position:relative; height:10px;
+  background:rgba(255,255,255,.06); border-radius:999px; overflow:hidden;
+  width: clamp(160px, 42vw, 320px);
+}
+.aff-progress .bar .fill{
+  position:absolute; inset:0 100% 0 0; height:100%;
+  background:linear-gradient(90deg, var(--accent,#2a84ff), #2ae0ff);
+  transition:width .35s ease;
+}
+.aff-progress .note{
+  font-size:12px; white-space:nowrap;
+}
+
+/* pill คลิกเพื่อเปิดโมดัล */
+.pill.clickable{ cursor:pointer; }
+
+/* เมื่อถึงสูงสุด 40% → แสดงสถานะ muted บนหลอด */
+.aff-progress.max .bar{
+  background:rgba(255,255,255,.09);
+}
+.aff-progress.max .note{
+  color: var(--text-muted,#a7b0bb);
+}
+
+/* responsive */
+@media (max-width: 768px){
+  .aff-header{ gap:5px }
+  .aff-progress .bar{ width: clamp(160px, 70vw, 300px); }
+}
+.tabs{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.tabs::-webkit-scrollbar{ display:none; }
+
+/* form-grid สองคอลัมน์: จอเล็กเอา 1 คอลัมน์ */
+@media (max-width: 480px){
+  .form-grid.two{ grid-template-columns: 1fr; }
+}
+img, video, canvas, table, pre, code, .static-input { max-width: 100%; }
+.card{ overflow: hidden; }     
+* header ของการ์ดสรุป affiliate */
+.aff-header{
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  justify-content: space-between;               /* เว้นพื้นที่ซ้ายหน่อย ตามที่ขอ */
+}
+.aff-header .title{ flex: 0 0 auto; }
+.aff-progress{ flex: 1 1 auto; justify-content: center; }
+.pill.clickable{ flex: 0 0 auto; }
+@media (max-width: 768px){
+  .acc-wrap{ grid-template-columns: 1fr; gap: 14px; }
+}
 </style>
 
 <!-- 1) BRIDGE: map showMsg → notify และยึด alert ทั้งหน้าให้เป็น notify -->
@@ -858,6 +1105,180 @@ html[data-theme="light"] .static-input{
   render();
   document.getElementById('lvPrev')?.addEventListener('click', () => { page = (page-1+pages.length)%pages.length; render(); });
   document.getElementById('lvNext')?.addEventListener('click', () => { page = (page+1)%pages.length; render(); });
+})();
+</script>
+
+<script>
+(() => {
+  const $  = s => document.querySelector(s);
+  const fmt = n => Number(n||0).toLocaleString(undefined,{maximumFractionDigits:2});
+  // fallback สำหรับ ok/fail ถ้าไม่มีตัวช่วย
+  const ok  = window.ok  || (msg => alert(msg));
+  const fail= window.fail|| (msg => alert(msg));
+  const btn = document.getElementById('btnCreateAff');
+  if (!btn) return;
+
+  btn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (btn.disabled) return;
+    const old = btn.textContent;
+    btn.disabled = true; btn.textContent = 'กำลังสร้าง…';
+
+    try {
+      const r = await fetch('/account/affiliate/create-link', { method:'POST' });
+      const j = await r.json();
+      if (!r.ok || !j?.ok || !j?.link) {
+        fail(j?.error || 'สร้างลิงก์ไม่สำเร็จ');
+        return;
+      }
+
+      // สลับ UI มาโชว์ลิงก์ทันที
+      const create = document.getElementById('aff-create-area');
+      const area   = document.getElementById('aff-link-area');
+      const out    = document.getElementById('aff-link');
+      if (create && area && out) {
+        create.hidden = true;
+        area.hidden   = false;
+        out.textContent = j.link; // เช่น https://rtsmm-th.com/aff?=KEY
+      }
+
+      ok('สร้างลิงก์แนะนำเรียบร้อย');
+    } catch {
+      fail('เครือข่ายมีปัญหา โปรดลองใหม่');
+    } finally {
+      btn.disabled = false; btn.textContent = old;
+    }
+  });
+
+  let lastStats = null; // เก็บไว้ใช้เปิดโมดัลโดยไม่ต้อง fetch ซ้ำ
+
+  async function loadStats(){
+    try{
+      const r = await fetch('/account/affiliate/stats');
+      const j = await r.json();
+      if (!r.ok || !j?.ok) throw new Error('fail');
+      lastStats = j;
+
+      // % เรต (ป้องกัน NaN และปัดเศษ)
+      const rawRate = Number(j?.summary?.ratePct);
+      const rate = Number.isFinite(rawRate) ? Math.min(40, Math.max(5, Math.round(rawRate))) : 5;
+      $('#aff-rate-title')  && ($('#aff-rate-title').textContent   = rate);
+      $('#aff-rate-inline') && ($('#aff-rate-inline').textContent  = rate);
+      $('#aff-rate-inline-2')&&($('#aff-rate-inline-2').textContent= rate);
+
+      $('#aff-refcount') && ($('#aff-refcount').textContent = j.summary.referredCount || 0);
+      $('#aff-orders')   && ($('#aff-orders').textContent   = j.summary.orders || 0);
+      $('#aff-spent')    && ($('#aff-spent').textContent    = fmt(j.summary.spentTHB || 0));
+      $('#aff-earn')     && ($('#aff-earn').textContent     = fmt(j.summary.earningsTHB || 0));
+
+      // ยอดถอนได้ + ปุ่ม
+      const wd = Number(j.summary.withdrawableTHB || 0);
+      $('#aff-withdrawable') && ($('#aff-withdrawable').textContent = fmt(wd));
+      const btn = $('#btnAffWithdraw');
+      if (btn) btn.disabled = !(wd > 0.0001);
+
+      // หลอดเลื่อนระดับ
+      const t = j.tier || {};
+      const cont = $('.aff-progress');
+      const fill = $('#aff-tier-fill');
+      const note = $('#aff-tier-note');
+
+      const atMax = !!(t.atMax || rate >= 40);
+      cont && cont.classList.toggle('max', atMax);
+
+      if (atMax){
+        fill && (fill.style.width = '100%');
+        note && (note.textContent = 'ระดับของคุณถึงระดับสูงสุดแล้ว');
+      } else if (t){
+        const p = Math.max(0, Math.min(100, Number(t.progressPct || 0)));
+        fill && (fill.style.width = p + '%');
+        if (note && t.next) note.textContent = `ระดับถัดไป: ${t.next.rate}%`;
+      }
+    } catch { /* เงียบไว้: SSR ควรมีค่าเริ่ม */ }
+  }
+
+  function openTierModal(payload){
+    const next = payload?.tier?.next;
+    const refs = payload?.summary?.referredCount || 0;
+    const earn = payload?.summary?.earningsTHB   || 0;
+
+    let html;
+    if (!next) {
+      html = `<div class="modal"><div class="modal-body">
+        <h3>ระดับสูงสุดแล้ว</h3>
+        <p class="muted">คุณได้รับ 40% และไม่ต้องทำเงื่อนไขเพิ่มเติม</p>
+        <div style="text-align:right;margin-top:12px"><button class="btn" id="tierClose">ปิด</button></div>
+      </div></div>`;
+    } else {
+      const needRefs = Math.max(0, next.refs - refs);
+      const needEarn = Math.max(0, next.earn - earn);
+      html = `<div class="modal"><div class="modal-body">
+        <h3>ระดับถัดไป ${next.rate}%</h3>
+        <ul>
+          <li>แนะนำเพิ่มอีก <b>${needRefs}</b> คน (เป้าหมาย ${next.refs})</li>
+          <li>ยอดรายได้รวมถึง <b>฿${next.earn.toLocaleString()}</b>
+              <small class="muted">(ขาดอีก ฿${needEarn.toLocaleString()})</small></li>
+        </ul>
+        <div style="text-align:right;margin-top:12px"><button class="btn" id="tierClose">ปิด</button></div>
+      </div></div>`;
+    }
+    const wrap = document.createElement('div');
+    wrap.className = 'modal-wrap';
+    wrap.innerHTML = html;
+    document.body.appendChild(wrap);
+    wrap.addEventListener('click', e=>{
+      if (e.target.id==='tierClose' || e.target===wrap) wrap.remove();
+    });
+  }
+
+  // เปิดโมดัลจากข้อมูลล่าสุด ถ้าไม่มีค่อย fetch
+  $('#aff-tier-pill')?.addEventListener('click', async ()=>{
+    if (lastStats) return openTierModal(lastStats);
+    try{
+      const r = await fetch('/account/affiliate/stats');
+      const j = await r.json();
+      if (r.ok && j?.ok) openTierModal(j);
+    }catch{}
+  });
+
+  // ถอนรายได้
+  $('#btnAffWithdraw')?.addEventListener('click', async ()=>{
+    const btn = $('#btnAffWithdraw');
+    if (!btn || btn.disabled) return;
+    const old = btn.textContent;
+    btn.disabled = true; btn.textContent = 'กำลังถอน...';
+    try{
+      const r = await fetch('/account/affiliate/withdraw', { method:'POST' });
+      const j = await r.json();
+      if (!r.ok || !j?.ok){
+        fail(j?.error || 'ถอนรายได้ไม่สำเร็จ');
+        btn.disabled = false; btn.textContent = old;
+        return;
+      }
+      ok(`เพิ่มยอดกระเป๋าแล้ว ฿${(j.addedBalance||0).toLocaleString(undefined,{maximumFractionDigits:2})}`);
+      await loadStats();
+    } catch {
+      fail('เครือข่ายมีปัญหา โปรดลองใหม่');
+    } finally {
+      btn.textContent = old;
+    }
+  });
+
+  loadStats();
+})();
+
+// สลับโชว์ลิงก์ถ้ามีคีย์อยู่แล้ว + ใช้ https:
+(()=>{
+  const key = <%- JSON.stringify(userDoc.affiliateKey || null) %>;
+  if (key){
+    const link = `https://rtsmm-th.com/aff?=${key}`;
+    const create = document.getElementById('aff-create-area');
+    const area = document.getElementById('aff-link-area');
+    const out = document.getElementById('aff-link');
+    if (create && area && out){
+      create.hidden = true; area.hidden = false; out.textContent = link;
+    }
+  }
 })();
 </script>
 

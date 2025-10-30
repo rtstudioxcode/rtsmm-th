@@ -37,6 +37,7 @@ import compression from "compression";
 import { startSpendAutoRecalc } from "./services/spendWatcher.js";
 import { topupRouter } from "./routes/topup.js";
 import adminReport from './routes/admin-report.js';
+import affiliateRoutes from './routes/affiliate.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -302,6 +303,7 @@ app.use("/", requireAuth, dashboardRouter);
 app.use("/otp", otpRouter);
 app.use("/api", apiPricingRouter);
 app.use(adminReport);
+app.use(affiliateRoutes);
 
 // Healthcheck (optional)
 app.get("/healthz", (_req, res) => res.json({ ok: true }));

@@ -13,9 +13,15 @@ import { OtpToken } from "../models/OtpToken.js";
 import { sendEmail } from "../lib/mailer.js";
 import { config } from "../config.js";
 
+import { Transaction } from '../models/Transaction.js';
+
 /* ==== NEW: loyalty & spend services (ไม่แตะ Order.js) ==== */
 import { LEVELS, getRateForLevelIndex } from "../services/loyalty.js";
 import { recalcUserTotalSpent } from "../services/spend.js";
+
+import crypto from 'crypto';
+import { Order } from '../models/Order.js';
+import { getAffRateForUser, computeAffiliateTotals, PAID_STATUSES } from '../lib/affiliate.js';
 
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
@@ -28,6 +34,9 @@ function getAuthUserId(req) {
     req.user?._id || req.session?.user?._id || req.res?.locals?.me?._id || null
   );
 }
+
+/* ---------------- helpers Affiliate ---------------- */
+const genAffKey = () => [...crypto.randomUUID().replace(/-/g,'')].sort(()=>0.5-Math.random()).slice(0,12).join('');
 
 // รหัส 6 หลัก + เทมเพลตอีเมล
 const genCode = () => String(Math.floor(100000 + Math.random() * 900000));
@@ -171,6 +180,9 @@ router.get("/account", async (req, res, next) => {
       emailVerified: !!me.emailVerified,
     };
 
+    const affRatePct =
+      (me?.affiliate?.rateLockedPct ?? me?.affiliate?.ratePct ?? 5);
+
     // (3) ส่งค่าให้หน้า view (agg ใช้กับการ์ดสรุปด้านบน)
     res.render("account/index", {
       title: "ตั้งค่าข้อมูลส่วนตัว",
@@ -183,6 +195,7 @@ router.get("/account", async (req, res, next) => {
         pointRateTHB: viewUser.pointRateTHB,
         pointValueTHB: viewUser.pointValueTHB,
       },
+      affRatePct,
       levels: LEVELS,
       bodyClass: "page-account",
     });
@@ -543,6 +556,132 @@ router.post("/account/points/redeem", async (req, res) => {
   } catch (e) {
     console.error("redeem points", e);
     res.status(500).json({ ok: false, error: "แลกแต้มไม่สำเร็จ" });
+  }
+});
+
+// routes/affiliate.js
+router.get('/aff', async (req, res) => {
+  const key = String(
+    req.query.ref ??
+    req.query[''] ??
+    req.query['='] ??
+    Object.values(req.query ?? {})[0] ?? ''
+  ).trim();
+
+  if (!key) return res.redirect('/register');
+  res.cookie('affiliate_ref', key, { httpOnly:true, maxAge:30*24*3600*1000, sameSite:'lax' });
+  return res.redirect('/register');
+});
+
+// routes/affiliate.js
+router.post('/account/affiliate/create-link', async (req, res) => {
+  try {
+    const uid = getAuthUserId(req);
+    if (!uid) return res.status(401).json({ ok:false });
+
+    const u = await User.findById(uid);
+    if (!u)  return res.status(404).json({ ok:false });
+
+    if (!u.affiliateKey) {
+      // 1) สร้างคีย์
+      let key;
+      for (let i=0;i<5;i++){
+        key = genAffKey();
+        const exist = await User.exists({ affiliateKey: key });
+        if (!exist) break;
+        key = null;
+      }
+      if (!key) return res.status(500).json({ ok:false, error:'สร้างคีย์ไม่สำเร็จ' });
+
+      // 2) ล็อกเรต ณ ตอนนี้ (ถ้ายังไม่เคยล็อก)
+      const now = new Date();
+      const currentPct = (u.affiliate?.ratePct ?? 5);
+      u.affiliateKey = key;
+
+      if (!u.affiliate) u.affiliate = {};
+      if (!u.affiliate.linkCreatedAt) u.affiliate.linkCreatedAt = now;
+      if (typeof u.affiliate.rateLockedPct !== 'number')
+        u.affiliate.rateLockedPct = currentPct;
+
+      await u.save();
+    }
+
+    const link = `https://rtsmm-th.com/aff?=${u.affiliateKey}`;
+    return res.json({
+      ok:true,
+      key: u.affiliateKey,
+      link,
+      rate: (u.affiliate?.rateLockedPct ?? u.affiliate?.ratePct ?? 5)
+    });
+  } catch (e) {
+    return res.status(500).json({ ok:false });
+  }
+});
+
+// สรุปสถิติ + รายชื่อ
+router.get('/account/affiliate/stats', async (req, res) => {
+  try {
+    const uid = getAuthUserId(req);
+    if (!uid) return res.status(401).json({ ok:false });
+
+    const totals = await computeAffiliateTotals(uid);
+
+    res.json({
+      ok: true,
+      summary: {
+        ratePct: totals.ratePct,
+        referredCount: totals.referredCount,
+        orders: totals.orders,
+        spentTHB: totals.spentTHB,
+        earningsTHB: totals.earningsTHB,
+        paidTHB: totals.paidTHB,
+        withdrawableTHB: totals.withdrawableTHB
+      },
+      tier: totals.tier,     // 👈 เพิ่มอันนี้
+      list: []               // (ถ้าคุณส่งรายชื่ออยู่แล้ว คงไว้)
+    });
+  } catch (e) {
+    res.status(500).json({ ok:false });
+  }
+});
+// ถอนรายได้
+router.post('/account/affiliate/withdraw', async (req, res) => {
+  try {
+    const uid = getAuthUserId(req);
+    if (!uid) return res.status(401).json({ ok:false });
+
+    // คำนวณแบบสด เพื่อกันถอนซ้ำ
+    const totals = await computeAffiliateTotals(uid);
+    const amount = +totals.withdrawableTHB.toFixed(2);
+    if (amount <= 0) return res.status(400).json({ ok:false, error: 'ยังไม่มียอดที่ถอนได้' });
+
+    // โอนเข้ากระเป๋า + บันทึกว่า "จ่ายแล้ว"
+    const u = await User.findById(uid);
+    if (!u) return res.status(404).json({ ok:false });
+
+    u.balance = +(u.balance || 0) + amount; // ✅ addBalance
+    if (!u.affiliate) u.affiliate = {};
+    u.affiliate.paidTHB = +(u.affiliate.paidTHB || 0) + amount;
+    u.affiliate.earningsTHB = Math.max(0, +totals.earningsTHB - +u.affiliate.paidTHB);
+    u.affiliate.lastCalcAt = new Date();
+    await u.save();
+
+    // สร้าง Transaction (เครดิตเข้า)
+    try {
+      await Transaction.create({
+        userId: u._id,
+        type: 'affiliate_withdraw',
+        amount: amount,
+        currency: 'THB',
+        direction: 'in',
+        note: `Affiliate earnings withdraw`,
+        meta: { ratePct: totals.ratePct, referredCount: totals.referredCount }
+      });
+    } catch {}
+
+    return res.json({ ok:true, addedBalance: amount, newBalance: u.balance });
+  } catch (e) {
+    return res.status(500).json({ ok:false, error:'ถอนเงินไม่สำเร็จ' });
   }
 });
 

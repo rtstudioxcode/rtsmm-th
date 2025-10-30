@@ -47,6 +47,20 @@ const UserSchema = new mongoose.Schema({
   pointRateTHB:   { type: Number, default: 0 },
   pointValueTHB:  { type: Number, default: 0 },
 
+
+  // ── แนะนำเพื่อน ────────────────────────────────────────────
+  affiliateKey: { type: String, index: true, unique: true, sparse: true },
+  referredBy:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
+  affiliate: {
+    ratePct: { type: Number, default: 5, min: 0, max: 100 },
+    referredCount: { type: Number, default: 0 },
+    earningsTHB: { type: Number, default: 0 },
+    paidTHB: { type: Number, default: 0 },
+    lastCalcAt: { type: Date },
+    linkCreatedAt: { type: Date },
+    rateLockedPct: { type: Number, min: 0, max: 100 }
+  },
+
 }, { timestamps: true });
 
 // ── Methods ───────────────────────────────────────────────

@@ -104,4 +104,26 @@ router.patch('/admin/users/:id', async (req, res) => {
   }
 });
 
+router.post('/admin/users/:id/affiliate-rate', requireAdmin, async (req, res) => {
+  try {
+    const id = req.params.id;
+    let { ratePct } = req.body;
+    ratePct = Number(ratePct);
+    if (!Number.isFinite(ratePct)) return res.status(400).json({ ok:false, error:'ratePct ต้องเป็นตัวเลข' });
+
+    ratePct = Math.max(0, Math.min(100, ratePct));
+
+    const u = await User.findById(id);
+    if (!u) return res.status(404).json({ ok:false, error:'ไม่พบผู้ใช้' });
+
+    if (!u.affiliate) u.affiliate = {};
+    u.affiliate.ratePct = ratePct;
+    await u.save();
+
+    return res.json({ ok:true, userId: id, ratePct });
+  } catch (e) {
+    return res.status(500).json({ ok:false });
+  }
+});
+
 export default router;

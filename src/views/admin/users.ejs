@@ -107,6 +107,17 @@
             <div class="label">ยอดใช้จ่ายรวม</div><div class="value" id="mTotalSpent">—</div>
             <div class="label">แต้มสะสม</div><div class="value" id="mPoints">—</div>
             <div class="label">ยอดการสั่งออเดอร์ทั้งหมด</div><div class="value" id="mTotalOrders">—</div>
+            <!-- คั่นกลาง -->
+            <div class="separator"><div class="split"></div></div>
+            <!-- Affiliate (read-only) -->
+            <div class="label">Affiliate %</div>
+            <div class="value" id="mAffRate">—</div>
+            <div class="label">แนะนำแล้ว</div>
+            <div class="value" id="mAffRefs">—</div>
+            <div class="label">รายได้แนะนำ</div>
+            <div class="value" id="mAffEarn">—</div>
+            <!-- คั่นกลาง -->            
+            <div class="separator"><div class="split"></div></div>
             <div class="label">สร้างเมื่อ</div><div class="value" id="mCreatedAt">—</div>
             <div class="label">อัปเดตล่าสุด</div><div class="value" id="mUpdatedAt">—</div>
 
@@ -294,7 +305,15 @@
 .admin-users .empty-state[hidden]{
   display: none !important;
 }
-
+/* ให้เส้นคั่นกินเต็ม 2 คอลัมน์ใน grid เดิม */
+.separator{ grid-column: 1 / -1; }
+.separator .split{
+  height: 1px;
+  background: var(--u-line, #2a2d33);
+  opacity: .6;
+  margin: 10px 0 6px;
+  border-radius: 1px;
+}
 </style>
 
 <script>
@@ -341,6 +360,35 @@
     catch { return String(d); }
   }
 
+  function num(v){ const n = Number(v); return Number.isFinite(n) ? n : 0; }
+  function fmtTHB(n){ return '฿' + Number(n||0).toLocaleString(undefined,{maximumFractionDigits:2}); }
+  function fmtInt(n){ return Number(n||0).toLocaleString(); }
+
+  /* เลือกเรตที่ “น่าเชื่อถือที่สุด” จากข้อมูลใน DB แบบ read-only
+    ลำดับความสำคัญ: rateLockedPct > ratePct > 5 (cap 40) */
+  function getAffRatePct(u){
+    const lock  = Number(u?.affiliate?.rateLockedPct);
+    const admin = Number(u?.affiliate?.ratePct);
+    let pct = 5;
+    if (Number.isFinite(lock))  pct = lock;
+    else if (Number.isFinite(admin)) pct = admin;
+    return Math.max(5, Math.min(40, pct));
+  }
+
+  function fillAffiliateSection(u){
+    const rate = getAffRatePct(u);
+    const refs = num(u?.affiliate?.referredCount);
+    const earn = num(u?.affiliate?.earningsTHB);
+
+    const elRate = document.getElementById('mAffRate');
+    const elRefs = document.getElementById('mAffRefs');
+    const elEarn = document.getElementById('mAffEarn');
+
+    if (elRate) elRate.textContent = rate.toFixed(0) + ' %';
+    if (elRefs) elRefs.textContent = fmtInt(refs) + ' คน';
+    if (elEarn) elEarn.textContent = fmtTHB(earn);
+  }
+
   async function openUserModal(userId){
     const res = await fetch(`/admin/users/${encodeURIComponent(userId)}.json`, { credentials: 'same-origin' });
     const j = await res.json();
@@ -367,6 +415,7 @@
     m.totalOrders.textContent = Number(u.totalOrders||0).toLocaleString('th-TH');
     m.createdAt.textContent = fmtDate(u.createdAt);
     m.updatedAt.textContent = fmtDate(u.updatedAt || u.createdAt);
+    fillAffiliateSection(u);
 
     m.saveNote.textContent = ' ';
     m.saveNote.className = 'save-note';

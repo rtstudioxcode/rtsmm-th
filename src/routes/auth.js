@@ -264,6 +264,20 @@ router.get('/register/verify', async (req, res) => {
       role: 'user',
     });
 
+  try {
+    const refKey = req.cookies?.affiliate_ref;
+    if (refKey) {
+      const refUser = await User.findOne({ affiliateKey: refKey }).select('_id');
+      if (refUser?._id) {
+        u.referredBy = refUser._id;
+        await u.save();
+
+        // อัปเดตแคชตัวนับ (ไม่บล็อกรีเควสต์)
+        User.updateOne({ _id: refUser._id }, { $inc: { 'affiliate.referredCount': 1 } }).catch(()=>{});
+      }
+    }
+  } catch {}
+
     // login & redirect
     req.session.user = { _id:String(user._id), username:user.username, role:user.role || 'user' };
     req.session.userId = String(user._id);
