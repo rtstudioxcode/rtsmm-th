@@ -4,6 +4,7 @@ import utc from 'dayjs/plugin/utc.js';
 import tz from 'dayjs/plugin/timezone.js';
 import { ChangeLog } from '../models/ChangeLog.js';
 import { syncServicesFromProvider } from '../lib/syncServices.js';
+import { connectMongoIfNeeded } from '../config.js';
 
 dayjs.extend(utc); dayjs.extend(tz);
 const TZ = 'Asia/Bangkok';
@@ -36,6 +37,9 @@ async function pruneOldChangeLogs() {
 // ── งานหลัก: ซิงก์บริการ + ล้าง log เก่า ─────────────────────────────
 let _running = false;
 async function runDaily() {
+  
+  await connectMongoIfNeeded();
+
   if (_running) {
     console.log('[services] skip: daily sync already running');
     return;
@@ -46,6 +50,7 @@ async function runDaily() {
     console.log('[services] 07:00 sync starting…');
     const r = await syncServicesFromProvider();
     console.log('[services] sync done:', {
+      ok: r?.ok, mode: r?.mode,
       count: r?.count ?? 0,
       skipped: r?.skipped ?? 0,
       logs: r?.logs ?? 0,
