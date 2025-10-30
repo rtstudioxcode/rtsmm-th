@@ -47,14 +47,6 @@ const UserSchema = new mongoose.Schema({
   pointRateTHB:   { type: Number, default: 0 },
   pointValueTHB:  { type: Number, default: 0 },
 
-  // ── บัญชีธนาคารของผู้ใช้ (บังคับมี 1–2 บัญชี) ────────────
-  bankAccounts: {
-    type: [BankAccountSchema],
-    validate: {
-      validator(arr){ return Array.isArray(arr) && arr.length >= 1 && arr.length <= 2; },
-      message: 'ต้องมีบัญชีอย่างน้อย 1 และไม่เกิน 2 บัญชี'
-    }
-  },
 }, { timestamps: true });
 
 // ── Methods ───────────────────────────────────────────────
@@ -76,7 +68,6 @@ UserSchema.methods.addBalance = async function(amount){
 };
 
 // ── Indexes ───────────────────────────────────────────────
-UserSchema.index({ 'bankAccounts.accountCode': 1 });
 UserSchema.index({ totalSpentRaw: 1 });
 UserSchema.index({ levelIndex: 1 });
 

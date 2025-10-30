@@ -31,8 +31,8 @@
     <!-- ชื่อจริง -->
     <label class="f-field">
       <span class="f-label">ชื่อ–นามสกุล</span>
-      <span class="muted">(ชื่อ–นามสกุล ต้องตรงกับบัญชีที่ผูกด้วยไม่งั้นเวลาเติมเงินเครดิตจะไม่เข้าออโต้)</span>
       <input class="f-input" name="name" required autocomplete="name" placeholder="ชื่อจริง นามสกุล">
+      <small class="f-hint">ใช้ชื่อ–นามสกุลจริงเพื่อความปลอดภัยของบัญชี</small>
     </label>
 
     <!-- รหัสผ่าน + สวิตช์ แสดง/ซ่อน -->
@@ -46,66 +46,6 @@
         </button>
       </div>
     </label>
-
-    <!-- ===== บัญชีธนาคาร/วอลเล็ท (บังคับกรอกอย่างน้อย 1, สูงสุด 2) ===== -->
-    <div class="bank-accounts">
-      <div class="f-label" style="margin-top:6px">บัญชีของฉัน (ธนาคารไทย/TrueMoney Wallet)</div>
-
-      <template id="tplBankRow">
-        <div class="bank-row" data-index="">
-          <div class="bank-grid">
-            <label class="f-field">
-              <span class="muted" style="color: #cea32b;">ต้องเพิ่มอย่างน้อย 1 บัญชี (ต้องใช้สำหรับการฝากเงิน)</span>
-              <select name="accountCode" class="f-input sel-bank" required>
-                <option value="">— เลือกธนาคาร/วอลเล็ท —</option>
-                <!-- รายชื่อจาก server (render) -->
-                <% const BANKS = [
-                  {code:'bbl',label:'ธนาคารกรุงเทพ'},
-                  {code:'kbank',label:'ธนาคารกสิกรไทย'},
-                  {code:'ktb',label:'ธนาคารกรุงไทย'},
-                  {code:'bay',label:'ธนาคารกรุงศรีอยุธยา'},
-                  {code:'scb',label:'ธนาคารไทยพาณิชย์'},
-                  {code:'ttb',label:'ทหารไทยธนชาต (TTB)'},
-                  {code:'cimbt',label:'ธนาคารซีไอเอ็มบีไทย'},
-                  {code:'uobt',label:'ธนาคารยูโอบี'},
-                  {code:'gsb',label:'ธนาคารออมสิน'},
-                  {code:'baac',label:'ธ.เพื่อการเกษตรและสหกรณ์การเกษตร'},
-                  {code:'kkp',label:'ธนาคารเกียรตินาคินภัทร'},
-                  {code:'tw',label:'TrueMoney Wallet'}
-                ]; %>
-                <% BANKS.forEach(b=>{ %>
-                  <option value="<%= b.code %>"><%= b.label %></option>
-                <% }) %>
-              </select>
-              <small class="f-hint">แนะนำให้เพิ่ม True Wallet ไว้ 1 บัญชี</small>
-            </label>
-
-            <label class="f-field">
-              <span class="f-label">เลขบัญชี / เบอร์วอลเล็ท</span>
-              <input class="f-input in-number" name="accountNumber" placeholder="ตัวเลขเท่านั้น" inputmode="numeric" required>
-              <small class="f-hint hint-number">ธนาคาร: 10-15 หลัก • TrueWallet: มือถือ 10 หลัก</small>
-            </label>
-          </div>
-
-          <label class="f-field" style="margin-top:10px">
-            <span class="f-label">ชื่อบัญชี</span>
-            <span class="muted">(ข้อมูลบัญชีที่ผูก ต้องตรงกับชื่อ-นามสกุลด้วยไม่งั้นเวลาเติมเงินเครดิตจะไม่เข้าออโต้)</span>
-            <input class="f-input" name="accountName" placeholder="ชื่อ–นามสกุลตามบัญชี" required>
-          </label>
-
-          <div class="flex" style="display:flex;gap:10px;justify-content:flex-end;margin-top:6px">
-            <button class="pill" type="button" data-action="remove" aria-label="ลบบัญชีนี้">ลบรายการ</button>
-          </div>
-
-          <hr style="border:0;border-top:1px solid var(--border);margin:12px 0">
-        </div>
-      </template>
-
-      <div id="bankList"></div>
-      <div style="display:flex;gap:10px;justify-content:flex-end">
-        <button class="pill" type="button" id="btnAddBank">+ เพิ่มบัญชีอีก 1 รายการ</button>
-      </div>
-    </div>
 
     <button class="block btn primary" type="submit" id="btnRegister">สมัคร</button>
     <div class="auth-foot">มีบัญชีอยู่แล้ว? <a href="/login">เข้าสู่ระบบ</a></div>
@@ -154,12 +94,10 @@
         <li>ข้อมูลที่ใช้ต้องเป็นข้อมูลจริงตามกฏหมาย</li>
         <li>อีเมลต้องสามารถยืนยันได้จริง</li>
         <li>ชื่อ-นามสกุลต้องใช้ตามบัตรประชาชน</li>
-        <li>บัญชีธนาคาร / TrueMoney Wallet ต้องเพิ่มอย่างน้อย 1 บัญชี (แนะนำ Wallet จะเร็วกว่า)</li>
-        <li>ข้อมูลบัญชีต้องตรงกับชื่อนามสกุลเท่านั้น</li>
       </ul>
 
       <p style="margin-top:8px;color:var(--t-red-1);font-weight:700">
-        คำเตือน: กรอกข้อมูลให้ครบตามความเป็นจริง เพราะมีผลทางกฎหมาย ระบบเติมเงินอัตโนมัติต้องการข้อมูลจริงในการเติมเครดิต
+        คำเตือน: กรอกข้อมูลให้ครบตามความเป็นจริง เพราะมีผลทางกฎหมาย
       </p>
 
       <label style="display:flex; gap:10px; align-items:center; margin-top:12px; color:var(--t-muted)">
@@ -365,28 +303,6 @@ dialog::backdrop{ background:var(--backdrop); backdrop-filter: blur(8px) }
 .rt-actions{ display:flex; justify-content:flex-end; gap:8px }
 .link{ background:none; border:0; color:var(--accent); cursor:pointer }
 .muted{ color:var(--muted) }
-/* ===== Bank Accounts: make fields full-width ===== */
-.bank-accounts { width: 100%; }
-
-.bank-grid{
-  display: grid;
-  grid-template-columns: 1fr;  /* ทำให้ทุกช่องยาวเต็มเหมือนฟิลด์อื่น */
-  gap: 10px;
-}
-
-/* ถ้าอนาคตอยากให้หน้าจอกว้างมาก ๆ เป็น 2 คอลัมน์ ค่อยเปิดใช้อันนี้ได้
-@media (min-width: 1024px){
-  .bank-grid{ grid-template-columns: 1fr 1fr; }
-}
-*/
-
-.bank-accounts .f-field { width: 100%; }
-.bank-accounts .f-input,
-.bank-accounts select.f-input,
-.bank-accounts input.f-input{ width: 100%; }
-
-/* ปุ่มลบ/เพิ่ม — ให้ชิดขวาและไม่ดันความกว้างฟอร์ม */
-.bank-accounts .flex { width: 100%; }
 
 #registerNoticeModal .toast-body ul { margin-left: 1rem; }
 </style>
@@ -477,9 +393,6 @@ const $$ = (s, p=document)=>[...p.querySelectorAll(s)];
 
 const form       = $('#registerForm');
 const btnRegister= $('#btnRegister');
-const bankList   = $('#bankList');
-const btnAddBank = $('#btnAddBank');
-const tplBankRow = $('#tplBankRow');
 
 /* ============== Toast/Dialog (msgDialog) ============== */
 const msgDlg    = $('#msgDialog');
@@ -531,70 +444,6 @@ togglePwd?.addEventListener('click', ()=>{
 });
 
 /* =======================================================
-   บัญชีของฉัน (บังคับ >=1 และ <=2) + Validation ฝั่ง client
-   ======================================================= */
-function validateAccount(a){
-  const code   = (a.accountCode||'').trim();
-  const digits = (a.accountNumber||'').replace(/[^\d]/g,'');
-  if (!code)            return { ok:false, msg:'เลือกธนาคาร/วอลเล็ท' };
-  if (!a.accountName)   return { ok:false, msg:'กรอกชื่อบัญชี' };
-  if (code === 'tw') {
-    if (!/^0\d{9}$/.test(digits)) return { ok:false, msg:'True Wallet ต้องเป็นเบอร์ 10 หลักขึ้นต้น 0' };
-  } else {
-    if (!/^\d{10,15}$/.test(digits)) return { ok:false, msg:'เลขบัญชีต้องเป็นตัวเลข 9–12 หลัก' };
-  }
-  return { ok:true };
-}
-
-function getAccountsFromDom(){
-  return $$('.bank-row', bankList).map(r=>({
-    accountCode: r.querySelector('.sel-bank')?.value || '',
-    accountNumber: r.querySelector('.in-number')?.value || '',
-    accountName: r.querySelector('[name="accountName"]')?.value || ''
-  })).filter(a => a.accountCode || a.accountNumber || a.accountName); // ตัดแถวว่าง
-}
-
-function attachRowBehaviors(row){
-  row.querySelector('.in-number')?.addEventListener('input', e=>{
-    e.target.value = e.target.value.replace(/[^\d]/g,'').slice(0,12);
-    updateSubmitState();
-  });
-  row.querySelector('.sel-bank')?.addEventListener('change', updateSubmitState);
-  row.querySelector('[name="accountName"]')?.addEventListener('input', updateSubmitState);
-  row.querySelector('[data-action="remove"]')?.addEventListener('click', ()=>{
-    row.remove(); updateSubmitState();
-  });
-}
-
-function addRow(prefill={}){
-  const frag = tplBankRow.content.cloneNode(true);
-  const row  = frag.querySelector('.bank-row');
-  if (!row) return;
-
-  if (prefill.accountCode)   row.querySelector('.sel-bank').value = prefill.accountCode;
-  if (prefill.accountNumber) row.querySelector('.in-number').value = prefill.accountNumber;
-  if (prefill.accountName)   row.querySelector('[name="accountName"]').value = prefill.accountName;
-
-  attachRowBehaviors(row);
-  bankList.appendChild(frag);
-  updateSubmitState();
-}
-
-function updateSubmitState(){
-  const rows = $$('.bank-row', bankList);
-  btnAddBank.disabled = rows.length >= 2; // สูงสุด 2 แถว
-
-  const accs = getAccountsFromDom();
-  let ok = accs.length >= 1 && accs.length <= 2;
-  if (ok) ok = accs.every(a => validateAccount(a).ok);
-
-  btnRegister.disabled = !ok;
-}
-
-btnAddBank?.addEventListener('click', ()=> addRow());
-if (bankList.childElementCount === 0) addRow(); // เริ่มด้วย 1 แถว
-
-/* =======================================================
    สมัครสมาชิก: ส่งฟอร์ม -> /register
    (รองรับสองกรณี: needOtp=true | verify-link)
    ======================================================= */
@@ -602,53 +451,52 @@ let nextUrl = '/';
 
 form.addEventListener('submit', async (e)=>{
   e.preventDefault();
-  updateSubmitState();
-  if (btnRegister.disabled) {
-    notify({ variant:'warn', title:'กรอกข้อมูลไม่ครบ', text:'โปรดเพิ่มบัญชีอย่างน้อย 1 รายการ และกรอกให้ถูกต้อง' });
-    return;
-  }
 
+  // (ถ้าจะเช็คเพิ่ม: รูปแบบ username/email/password ก็ทำตรงนี้ได้)
   btnRegister.disabled = true;
 
-  // เก็บค่าฟอร์มพื้นฐาน
   const fd = new FormData(form);
   nextUrl = fd.get('next') || '/';
-  // เก็บ accounts จาก DOM แล้ว append เป็น array fields
-  const accs = getAccountsFromDom();
-  // สร้าง payload เป็น URLSearchParams เองเพื่อควบคุม array
+
+  // ✅ สร้าง payload ให้ครบ (ของเดิมหาย)
   const payload = new URLSearchParams();
   ['username','email','name','password','next'].forEach(k=>{
     const v = fd.get(k);
-    if (v!=null) payload.append(k, v);
-  });
-  accs.forEach(a=>{
-    payload.append('accountCode',   (a.accountCode||'').trim());
-    payload.append('accountNumber', (a.accountNumber||'').replace(/[^\d]/g,''));
-    payload.append('accountName',   (a.accountName||'').trim());
+    if (v != null) payload.append(k, v);
   });
 
   try {
     const res = await fetch('/register', {
       method: 'POST',
-      headers: { 'Accept':'application/json', 'Content-Type':'application/x-www-form-urlencoded' },
+      headers: {
+        'Accept':'application/json',
+        'Content-Type':'application/x-www-form-urlencoded'
+      },
       body: payload
     });
+
     let data = {};
     try { data = await res.json(); } catch {}
 
     if (!res.ok || !data?.ok) {
-      notify({ variant:'error', title:'สมัครสมาชิกไม่สำเร็จ', text: data?.message || 'กรุณาตรวจสอบข้อมูล' });
+      notify({
+        variant:'error',
+        title:'สมัครสมาชิกไม่สำเร็จ',
+        text: data?.message || 'กรุณาตรวจสอบข้อมูล'
+      });
       return;
     }
 
-    // ถ้าเซิร์ฟเวอร์ตอบแบบ OTP
     if (data.needOtp) {
       openOtp(data.email, data.ttl || 300, 60);
       return;
     }
 
-    // ถ้าเป็น verify-link (อีเมลยืนยัน)
-    notify({ variant:'success', title:'ส่งอีเมลยืนยันแล้ว', text:'โปรดตรวจกล่องจดหมายของคุณ แล้วคลิกลิงก์เพื่อเปิดใช้งานบัญชี' });
+    notify({
+      variant:'success',
+      title:'ส่งอีเมลยืนยันแล้ว',
+      text:'โปรดตรวจกล่องจดหมายของคุณ แล้วคลิกลิงก์เพื่อเปิดใช้งานบัญชี'
+    });
   } catch (err) {
     console.error(err);
     notify({ variant:'error', title:'เครือข่ายมีปัญหา', text:'โปรดลองใหม่อีกครั้ง' });

@@ -120,41 +120,6 @@
           </div>
         </form>
 
-        <!-- บัญชีของฉัน -->
-        <div class="card" style="margin-top:14px">
-          <div class="card-header">
-            <div class="title">บัญชีของฉัน</div>
-            <div class="actions">
-              <span class="pill">สูงสุด 2 บัญชี</span>
-              <button id="btnAddBank" type="button" class="btn primary"
-                      <% if (Array.isArray(bankAccounts) && bankAccounts.length >= 2) { %>disabled<% } %>>
-                เพิ่มบัญชี
-              </button>
-            </div>
-          </div>
-
-          <div class="bank-list" id="bankListView">
-            <% if (Array.isArray(bankAccounts) && bankAccounts.length) { %>
-              <% bankAccounts.forEach(function(a, idx){ %>
-                <div class="bank-item" data-code="<%= a.code %>" data-number="<%= a.number %>">
-                  <div class="bank-meta">
-                    <div class="bank-name">
-                      <span class="badge <%= a.code === 'TRUEWALLET' ? 'warn' : 'balance' %>"><%= a.label %></span>
-                    </div>
-                    <div class="bank-no"><%= a.numberMasked %></div>
-                    <div class="bank-owner muted">ชื่อบัญชี: <%= a.name || '-' %></div>
-                  </div>
-                </div>
-                <% if (idx !== bankAccounts.length - 1) { %><div class="bank-sep"></div><% } %>
-              <% }) %>
-            <% } else { %>
-              <div class="bank-empty muted" id="bankEmptyMsg">
-                ยังไม่มีข้อมูลบัญชี — หากต้องการแก้ไข/เพิ่ม โปรดติดต่อผู้ดูแลระบบ
-              </div>
-            <% } %>
-          </div>
-        </div>
-
         <form id="formPassword" class="card">
           <div class="card-header"><div class="title">เปลี่ยนรหัสผ่าน</div></div>
           <div class="form-grid">
@@ -191,70 +156,70 @@
       
 
       <!-- =========== Tab: Points และ Level(แทนที่บล็อกเดิมทั้งหมด) =========== -->
-      <div class="card" style="margin-bottom:14px">
-        <div class="card-header">
-          <div class="title">คะแนนสะสม (Points)</div>
-          <span class="pill lvl">
-            <%= userDoc.levelName ? userDoc.levelName : ('เลเวล ' + (userDoc.level || '1')) %>
-          </span>
-        </div>
+      <div class="tabpane" id="tab-points">
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-header">
+            <div class="title">คะแนนสะสม (Points)</div>
+            <span class="pill lvl">
+              <%= userDoc.levelName ? userDoc.levelName : ('เลเวล ' + (userDoc.level || '1')) %>
+            </span>
+          </div>
 
-        <div class="form-grid">
-          <div class="score-wrap">
-            <div>
-              <div class="bignum" data-id="points-num">
-                <%
-                  var __points = (agg && typeof agg.points === 'number') ? agg.points : 0;
-                %>
-                <%= __points.toLocaleString(undefined,{maximumFractionDigits:2}) %> คะแนน
-              </div>
-              <div class="muted" style="color: #31d810;">ใช้จ่ายครบ ฿50 | ได้รับ 0.5 Point</div>
-              <!-- <div class="muted" style="color: #e2bc0f;">แต้มสะสมจะรีเซ็ตทุกวันที่ 1 ของทุกเดือน</div>
-              <div class="muted" style="color: #e2bc0f;">ให้แลกก่อนจะรีเซ็ตไม่งั้นแต้มจะหายทั้งหมด</div> -->
-            </div>
-
-            <div>
-              <div class="kv" style="margin-bottom:8px">
-                <div>เรทแลกเป็นเงิน</div>
-                <%
-                  var __rate = (agg && typeof agg.pointRateTHB === 'number') ? agg.pointRateTHB : 0;
-                %>
-                <div><span class="badge balance" data-id="point-rate">฿<%= __rate.toLocaleString() %> / 1 แต้ม</span></div>
-              </div>
-              <div class="kv">
-                <div>มูลค่าแลกได้ (หากแลกทั้งหมด)</div>
-                <%
-                  var __val = (agg && typeof agg.pointValueTHB === 'number') ? agg.pointValueTHB : 0;
-                %>
-                <div><span class="badge balance" data-id="point-value">≈ ฿<%= __val.toLocaleString(undefined,{maximumFractionDigits:2}) %></span></div>
+          <div class="form-grid">
+            <div class="score-wrap">
+              <div>
+                <div class="bignum" data-id="points-num">
+                  <%
+                    var __points = (agg && typeof agg.points === 'number') ? agg.points : 0;
+                  %>
+                  <%= __points.toLocaleString(undefined,{maximumFractionDigits:2}) %> คะแนน
+                </div>
+                <div class="muted" style="color: #31d810;">ใช้จ่ายครบ ฿50 | ได้รับ 0.5 Point</div>
+                <!-- <div class="muted" style="color: #e2bc0f;">แต้มสะสมจะรีเซ็ตทุกวันที่ 1 ของทุกเดือน</div>
+                <div class="muted" style="color: #e2bc0f;">ให้แลกก่อนจะรีเซ็ตไม่งั้นแต้มจะหายทั้งหมด</div> -->
               </div>
 
-              <div class="kv" style="color: #dbad16;">
-                <div>⚠️ คำเตือน: เมื่อแลกแต้มเป็นเงินระดับบัญชีของคุณจะลดลงตามไปด้วย</div>
-              </div>
+              <div>
+                <div class="kv" style="margin-bottom:8px">
+                  <div>เรทแลกเป็นเงิน</div>
+                  <%
+                    var __rate = (agg && typeof agg.pointRateTHB === 'number') ? agg.pointRateTHB : 0;
+                  %>
+                  <div><span class="badge balance" data-id="point-rate">฿<%= __rate.toLocaleString() %> / 1 แต้ม</span></div>
+                </div>
+                <div class="kv">
+                  <div>มูลค่าแลกได้ (หากแลกทั้งหมด)</div>
+                  <%
+                    var __val = (agg && typeof agg.pointValueTHB === 'number') ? agg.pointValueTHB : 0;
+                  %>
+                  <div><span class="badge balance" data-id="point-value">≈ ฿<%= __val.toLocaleString(undefined,{maximumFractionDigits:2}) %></span></div>
+                </div>
 
-              <div class="card-actions" style="text-align:right;padding:12px 0 0">
-                <% 
-                  var __canRedeem = (__points >= 100);
-                  var __needLeft  = Math.max(0, 100 - __points); 
-                %>
-                <button
-                  id="btnRedeemPoints"
-                  class="btn <%= __canRedeem ? 'primary' : '' %>"
-                  <% if (!__canRedeem) { %>
-                    disabled aria-disabled="true"
-                    title="ต้องมีอย่างน้อย 100 แต้ม (ขาดอีก <%= __needLeft.toLocaleString() %> แต้ม)"
-                  <% } %>
-                >
-                  แลกแต้มเป็นเงิน (ขั้นต่ำ 100 แต้ม)
-                </button>
+                <div class="kv" style="color: #dbad16;">
+                  <div>⚠️ คำเตือน: เมื่อแลกแต้มเป็นเงินระดับบัญชีของคุณจะลดลงตามไปด้วย</div>
+                </div>
+
+                <div class="card-actions" style="text-align:right;padding:12px 0 0">
+                  <% 
+                    var __canRedeem = (__points >= 100);
+                    var __needLeft  = Math.max(0, 100 - __points); 
+                  %>
+                  <button
+                    id="btnRedeemPoints"
+                    class="btn <%= __canRedeem ? 'primary' : '' %>"
+                    <% if (!__canRedeem) { %>
+                      disabled aria-disabled="true"
+                      title="ต้องมีอย่างน้อย 100 แต้ม (ขาดอีก <%= __needLeft.toLocaleString() %> แต้ม)"
+                    <% } %>
+                  >
+                    แลกแต้มเป็นเงิน (ขั้นต่ำ 100 แต้ม)
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="tabpane" id="tab-points">
         <div class="card">
             <div class="card-header">
             <div class="title">ยอดใช้จ่ายสะสม</div>
@@ -322,49 +287,6 @@
     </div>
   </div>
 </section>
-
-<dialog id="bankModal" class="rt-modal">
-  <div class="rt-card" style="min-width:380px">
-    <h3 class="rt-title">เพิ่มบัญชีของฉัน</h3>
-
-    <form id="bankForm" class="form-grid" style="padding:0;margin-top:8px">
-      <label>ผู้ให้บริการ
-        <select name="accountCode" class="fsel" required>
-          <option value="">— เลือกธนาคาร/วอลเล็ท —</option>
-          <option value="bbl">ธนาคารกรุงเทพ</option>
-          <option value="kbank">ธนาคารกสิกรไทย</option>
-          <option value="ktb">ธนาคารกรุงไทย</option>
-          <option value="bay">ธนาคารกรุงศรีอยุธยา</option>
-          <option value="scb">ธนาคารไทยพาณิชย์</option>
-          <option value="tmb">ทหารไทยธนชาต (TTB)</option>
-          <option value="cimb">ธนาคารซีไอเอ็มบีไทย</option>
-          <option value="uob">ธนาคารยูโอบี</option>
-          <option value="gsb">ธนาคารออมสิน</option>
-          <option value="baac">ธ.เพื่อการเกษตรและสหกรณ์การเกษตร</option>
-          <option value="kkb">ธนาคารเกียรตินาคินภัทร</option>
-          <option value="lhfg">ธนาคารแลนด์ แอนด์ เฮ้าส์</option>
-          <option value="icbc">ธนาคารไอซีบีซี (ไทย)</option>
-          <option value="tisco">ธนาคารทิสโก้</option>
-          <option value="tw">TrueMoney Wallet</option>
-        </select>
-      </label>
-
-      <label>เลขบัญชี / เบอร์วอลเล็ท
-        <input name="accountNumber" type="text" inputmode="numeric" placeholder="ตัวเลขเท่านั้น" required>
-        <small class="muted sm">ธนาคาร 9–12 หลัก • TrueWallet มือถือ 10 หลักขึ้นต้น 0</small>
-      </label>
-
-      <label>ชื่อบัญชี
-        <input name="accountName" type="text" placeholder="ชื่อ–นามสกุลตามบัญชี" required>
-      </label>
-
-      <div class="rt-actions" style="margin-top:6px">
-        <button type="button" class="btn" id="bankCancel">ยกเลิก</button>
-        <button type="submit" class="btn primary" id="bankSave">บันทึก</button>
-      </div>
-    </form>
-  </div>
-</dialog>
 
 <style>
 /* ===== Theme tokens (sync กับ layout.ejs: html[data-theme]) ===== */
@@ -573,22 +495,7 @@ html[data-theme="light"] .static-input{
 }
 .pw-toggle:hover{ opacity:1; }
 .pw-toggle svg{ width:18px; height:18px; }
-/* ===== Bank account list ===== */
-.bank-list{ padding: 12px 16px; }
-.bank-item{
-  display:flex; align-items:flex-start; gap:12px;
-  padding: 8px 2px;
-}
-.bank-meta{ display:flex; flex-direction:column; gap:4px; }
-.bank-name{ font-weight:800; color:var(--text); }
-.bank-no{ font-size:1.05rem; font-weight:900; letter-spacing:.2px; }
-.bank-owner{ font-size:.92rem; }
-.bank-sep{ height:1px; background:var(--line); margin:8px 0; opacity:.8; }
-.bank-empty{ padding:8px 2px; }
 
-.card-header .actions{display:flex;align-items:center;gap:8px}
-dialog.rt-modal{border:0;background:transparent;padding:0}
-dialog.rt-modal::backdrop{background:rgba(0,0,0,.5);backdrop-filter:blur(6px)}
 .rt-card{background:var(--surface);color:var(--text);border:1px solid var(--line);
   border-radius:16px;padding:16px;box-shadow:var(--shadow)}
 .rt-title{margin:0 0 6px;font-weight:900;font-size:18px}
@@ -1062,114 +969,7 @@ dialog.rt-modal::backdrop{background:rgba(0,0,0,.5);backdrop-filter:blur(6px)}
       `);
     });
   }
-  const btnOpen = document.getElementById('btnAddBank');
-  const modal   = document.getElementById('bankModal');
-  const form    = document.getElementById('bankForm');
-  const btnCancel = document.getElementById('bankCancel');
-  const btnSave   = document.getElementById('bankSave');
-  const listView  = document.getElementById('bankListView');
-  const emptyMsg  = document.getElementById('bankEmptyMsg');
 
-  const BANK_LABELS = {
-    bbl: 'ธนาคารกรุงเทพ',
-    kbank: 'ธนาคารกสิกรไทย',
-    ktb: 'ธนาคารกรุงไทย',
-    bay: 'ธนาคารกรุงศรีอยุธยา',
-    scb: 'ธนาคารไทยพาณิชย์',
-    tmb: 'ทหารไทยธนชาต (TTB)',
-    cimb: 'ธนาคารซีไอเอ็มบีไทย',
-    uob: 'ธนาคารยูโอบี',
-    gsb: 'ธนาคารออมสิน',
-    baac: 'ธ.เพื่อการเกษตรและสหกรณ์การเกษตร',
-    kkb: 'ธนาคารเกียรตินาคินภัทร',
-    lhfg: 'ธนาคารแลนด์ แอนด์ เฮ้าส์',
-    icbc: 'ธนาคารไอซีบีซี (ไทย)',
-    tisco: 'ธนาคารทิสโก้',
-    tw: 'TrueMoney Wallet'
-  };
-
-  function maskNumber(code, raw) {
-    const digits = (raw || '').replace(/[^\d]/g,'');
-    if (code === 'TRUEWALLET') {
-      return /^0\d{9}$/.test(digits) ? `${digits.slice(0,3)}-${digits.slice(3,6)}-${digits.slice(6)}` : raw;
-    }
-    if (digits.length >= 9) {
-      const a=digits.slice(0,3), b=digits.slice(3,4), c=digits.slice(4,-1), d=digits.slice(-1);
-      return `${a}-${b}-${c}-${d}`;
-    }
-    return raw;
-  }
-
-  btnOpen?.addEventListener('click', () => {
-    if (!modal.open) modal.showModal();
-    form.reset();
-    form.accountCode.focus();
-  });
-  btnCancel?.addEventListener('click', () => modal.close());
-  modal?.addEventListener('cancel', e => { e.preventDefault(); modal.close(); });
-
-  form?.accountNumber?.addEventListener('input', e => {
-    e.target.value = e.target.value.replace(/[^\d]/g,'').slice(0,12);
-  });
-
-  form?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    btnSave.disabled = true;
-
-    const code = (form.accountCode.value || '').trim();
-    const number = (form.accountNumber.value || '').trim();
-    const name = (form.accountName.value || '').trim();
-
-    // client-validate
-    const digits = number.replace(/[^\d]/g,'');
-    if (!code) { window.showMsg?.({variant:'warn',title:'กรุณาเลือกผู้ให้บริการ'}); btnSave.disabled=false; return; }
-    if (!name) { window.showMsg?.({variant:'warn',title:'กรุณากรอกชื่อบัญชี'}); btnSave.disabled=false; return; }
-    if (code === 'TRUEWALLET') {
-      if (!/^0\d{9}$/.test(digits)) { window.showMsg?.({variant:'warn',title:'เบอร์วอลเล็ทไม่ถูกต้อง',text:'ต้องขึ้นต้น 0 และยาว 10 หลัก'}); btnSave.disabled=false; return; }
-    } else {
-      if (!/^\d{10,15}$/.test(digits)) { window.showMsg?.({variant:'warn',title:'เลขบัญชีไม่ถูกต้อง',text:'ต้องเป็นตัวเลข 9–12 หลัก'}); btnSave.disabled=false; return; }
-    }
-
-    try {
-      const r = await fetch('/account/bank/add', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ accountCode:code, accountNumber:digits, accountName:name })
-      });
-      const j = await r.json().catch(()=>({}));
-      if (!r.ok || !j?.ok) {
-        window.showMsg?.({variant:'error',title:'เพิ่มบัญชีไม่สำเร็จ',text:j?.error||'โปรดลองใหม่'});
-        btnSave.disabled=false; return;
-      }
-
-      // อัปเดต UI
-      modal.close();
-      const itemHtml = `
-        <div class="bank-item" data-code="${code}" data-number="${digits}">
-          <div class="bank-meta">
-            <div class="bank-name"><span class="badge ${code==='TRUEWALLET'?'warn':'balance'}">${BANK_LABELS[code]||code}</span></div>
-            <div class="bank-no">${maskNumber(code, digits)}</div>
-            <div class="bank-owner muted">ชื่อบัญชี: ${name || '-'}</div>
-          </div>
-        </div>`;
-      // ลบข้อความว่าง + คั่นเส้นถ้ามีรายการอยู่ก่อน
-      emptyMsg?.remove();
-      if (listView?.lastElementChild && listView.lastElementChild.classList.contains('bank-item')) {
-        listView.insertAdjacentHTML('beforeend','<div class="bank-sep"></div>');
-      }
-      listView?.insertAdjacentHTML('beforeend', itemHtml);
-
-      window.showMsg?.({variant:'success',title:'สำเร็จ',text:'เพิ่มบัญชีแล้ว'});
-      // ปิดปุ่มถ้าครบ 2
-      const count = listView.querySelectorAll('.bank-item').length;
-      if (count >= 2) btnOpen.disabled = true;
-
-    } catch {
-      window.showMsg?.({variant:'error',title:'เครือข่ายมีปัญหา',text:'โปรดลองใหม่อีกครั้ง'});
-    } finally {
-      btnSave.disabled = false;
-    }
-  });
   render();
   document.getElementById('lvPrev')?.addEventListener('click', () => { page = (page-1+pages.length)%pages.length; render(); });
   document.getElementById('lvNext')?.addEventListener('click', () => { page = (page+1)%pages.length; render(); });

@@ -4,7 +4,6 @@ import bcrypt from 'bcryptjs';
 import { User } from '../models/User.js';
 import { OtpToken } from '../models/OtpToken.js';
 import { sendEmail } from '../lib/mailer.js';
-import { normalizeAndValidateAccount } from '../lib/banks.js';
 import crypto from 'crypto';
 
 const router = express.Router();
@@ -151,38 +150,6 @@ router.post('/register', parseUrlencoded, async (req, res) => {
     const password = req.body.password || '';
     const nextUrl  = safeNext(req.body.next);
 
-    // ---------- ดึงบัญชีจากฟอร์ม ----------
-    const codes   = Array.isArray(req.body.accountCode)   ? req.body.accountCode   : [req.body.accountCode].filter(Boolean);
-    const numbers = Array.isArray(req.body.accountNumber) ? req.body.accountNumber : [req.body.accountNumber].filter(Boolean);
-    const names   = Array.isArray(req.body.accountName)   ? req.body.accountName   : [req.body.accountName].filter(Boolean);
-
-    const accs = [];
-    const maxLen = Math.max(codes.length, numbers.length, names.length);
-    for (let i = 0; i < maxLen; i++) {
-      const cc = (codes[i]   || '').trim();
-      const nn = (numbers[i] || '').trim();
-      const an = (names[i]   || '').trim();
-      if (!cc && !nn && !an) continue;           // แถวว่าง ข้าม
-      if (!cc || !nn || !an) {
-        return res.status(400).json({ ok:false, message:'⚠️ กรุณากรอกข้อมูลบัญชีให้ครบทุกช่อง' });
-      }
-      const v = normalizeAndValidateAccount({ accountCode: cc, accountNumber: nn });
-      if (!v.ok) return res.status(400).json({ ok:false, message: v.error });
-      accs.push({ accountCode: v.code, accountNumber: v.number, accountName: an });
-    }
-
-    // ต้องมี 1–2 บัญชี
-    if (accs.length < 1 || accs.length > 2) {
-      return res.status(400).json({ ok:false, message:'⚠️ ต้องมีบัญชีอย่างน้อย 1 และไม่เกิน 2 บัญชี' });
-    }
-
-    // กันซ้ำภายในแบบฟอร์มเดียวกัน
-    const sig = a => `${a.accountCode}#${a.accountNumber}`;
-    const hasDupInForm = new Set(accs.map(sig)).size !== accs.length;
-    if (hasDupInForm) {
-      return res.status(400).json({ ok:false, message:'⚠️ มีเลขบัญชีซ้ำกันภายในแบบฟอร์ม' });
-    }
-
     // ---------- ตรวจข้อมูลผู้ใช้พื้นฐาน ----------
     if (!username || !name || !email || !password) {
       return res.status(400).json({ ok:false, message:'⚠️กรุณากรอกข้อมูลให้ครบ' });
@@ -199,20 +166,6 @@ router.post('/register', parseUrlencoded, async (req, res) => {
       });
     }
 
-    // ---------- กันซ้ำข้ามผู้ใช้: 1 บัญชีใช้ได้แค่ 1 ยูส ----------
-    const usedByOther = await User.findOne({
-      $or: accs.map(a => ({
-        bankAccounts: { $elemMatch: { accountCode: a.accountCode, accountNumber: a.accountNumber } }
-      }))
-    }).lean();
-
-    if (usedByOther) {
-      return res.status(409).json({
-        ok:false,
-        message:'บัญชีนี้ถูกใช้งานอยู่ในผู้ใช้อื่นแล้ว (1 บัญชีใช้ได้เพียง 1 ผู้ใช้)'
-      });
-    }
-
     // ---------- ผ่านทุกเงื่อนไข -> เก็บ pending + ส่งอีเมลยืนยัน ----------
     const passwordHash = await bcrypt.hash(password, 10);
 
@@ -222,14 +175,13 @@ router.post('/register', parseUrlencoded, async (req, res) => {
       email,
       passwordHash,
       nextUrl,
-      bankAccounts: accs,   // << เก็บลง field ให้ตรง schema
       createdAt: Date.now()
     };
     await req.session.save();
 
     const token   = genToken(32);
     const codeHash = await bcrypt.hash(token, 10);
-    const ttlSec   = 60 * 30; // 30 นาที
+    const ttlSec   = 60 * 30;
 
     await OtpToken.create({
       email,
@@ -310,7 +262,6 @@ router.get('/register/verify', async (req, res) => {
       emailVerified: true,
       passwordHash: pending.passwordHash,
       role: 'user',
-      bankAccounts: Array.isArray(pending.bankAccounts) ? pending.bankAccounts : []
     });
 
     // login & redirect
