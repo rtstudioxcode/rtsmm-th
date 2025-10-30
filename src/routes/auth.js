@@ -131,44 +131,65 @@ router.post('/login', parseUrlencoded, async (req, res) => {
  * 1) POST /register         -> ตรวจ/เก็บ regPending ใน session + ส่ง OTP อัตโนมัติ
  * 2) POST /register/finalize-> (หลัง verify สำเร็จ) ค่อยสร้าง user + login
  * ========================= */
-const AFF_COOKIE = 'affiliate_ref';
-const AFF_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 วัน
+// function pickAffKey(req) {
+//   // รองรับทั้ง aff, key, ref, r, k และคีย์ว่างจาก ?=xxxx
+//   let k =
+//     req.query.aff ??
+//     req.query.key ??
+//     req.query.ref ??
+//     req.query.r ??
+//     req.query.k ??
+//     req.query[''];
 
-router.get(['/aff', '/aff/:key'], (req, res) => {
-  let key =
-    req.params?.key ||
-    req.query?.aff ||
-    req.query?.key ||
-    // รองรับ /aff?=KEY (ไม่มีชื่อพารามิเตอร์)
-    (typeof req.url === 'string' && req.url.includes('?=') ? req.url.split('?=')[1] : '');
+//   // เผื่อบางรีเวิร์สพร็อกซีส่งมาเป็น “?=xxxx” ตรง ๆ
+//   if (!k && typeof req.url === 'string') {
+//     const qs = req.url.split('?')[1] || '';
+//     if (qs.startsWith('=')) k = decodeURIComponent(qs.slice(1));
+//   }
+//   return (k ?? '').toString().trim();
+// }
 
-  key = (key || '').trim();
-  if (!key) return res.redirect('/register');
+// router.get('/aff', (req, res) => {
+//   const affKey = pickAffKey(req);
+//   const isSecure = req.secure || req.get('x-forwarded-proto') === 'https';
 
-  // วางคุกกี้ให้ส่งไปทุกเพจ (สำคัญคือ path:'/')
-  res.cookie('affiliate_ref', key, {
-    maxAge: 30 * 24 * 3600 * 1000, // 30 วัน
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: true,     // โปรดใช้ https (คุณตั้ง trust proxy + https แล้ว)
-    path: '/',        // <- ตัวนี้แหละที่หาย ทำให้ /register มองไม่เห็นคุกกี้
-  });
+//   if (affKey) {
+//     res.cookie('affiliate_ref', affKey, {
+//       path: '/',
+//       maxAge: 90 * 24 * 60 * 60 * 1000, // 90 วัน
+//       sameSite: 'lax',
+//       secure: isSecure,                 // ✅ เฉพาะ prod/https เท่านั้น
+//       httpOnly: false,                  // ให้ client-side อ่านได้ถ้าจำเป็น
+//     });
+//   }
 
-  // เพิ่ม aff ใน query เพื่อให้เห็นชัด ๆ ด้วย
-  return res.redirect('/register?aff=' + encodeURIComponent(key));
-});
+//   // แนบ affKey ไปที่ /register ด้วย
+//   const q = affKey ? `?aff=${encodeURIComponent(affKey)}` : '';
+//   return res.redirect(302, `/register${q}`);
+// });
 
 /** GET /register */
 router.get('/register', (req, res) => {
   if (req.session?.user) return res.redirect('/');
+
+  // ดึง affKey จาก query (รองรับคีย์ว่าง)
+  const aff =
+    (req.query.aff ?? req.query.key ?? req.query.ref ?? req.query.r ?? req.query.k ?? req.query[''] ?? '')
+      .toString().trim();
+
+  const isSecure = req.secure || req.get('x-forwarded-proto') === 'https';
+  if (aff) {
+    res.cookie('affiliate_ref', aff, {
+      path: '/',
+      maxAge: 90 * 24 * 60 * 60 * 1000,
+      sameSite: 'lax',
+      secure: isSecure,
+      httpOnly: false,
+    });
+  }
+
   const next = typeof req.query.next === 'string' ? req.query.next : '/';
-
-  const affKey =
-    (typeof req.query.aff === 'string' && req.query.aff.trim()) ||
-    (typeof req.query.key === 'string' && req.query.key.trim()) ||
-    (req.cookies?.affiliate_ref || '');
-
-  res.render('auth/register', { title: 'สมัครสมาชิก', next, aff: affKey });
+  res.render('auth/register', { title: 'สมัครสมาชิก', next, aff }); // ส่ง aff ไปให้ ejs ด้วย
 });
 
 /** POST /register  (init สมัคร + ส่งอีเมลปุ่มยืนยัน) */
@@ -201,6 +222,7 @@ router.post('/register', parseUrlencoded, async (req, res) => {
     // ---------- ผ่านทุกเงื่อนไข -> เก็บ pending + ส่งอีเมลยืนยัน ----------
     const passwordHash = await bcrypt.hash(password, 10);
 
+    // ✅ รับทั้งจาก body และ cookie (รองรับกรณี /register?aff=xxx ใส่ hidden ลงฟอร์มหรือเซ็ตคุกกี้ไว้แล้ว)
     const affKey = (req.body.aff || req.cookies?.affiliate_ref || '').trim();
 
     req.session.regPending = {
@@ -209,12 +231,13 @@ router.post('/register', parseUrlencoded, async (req, res) => {
       email,
       passwordHash,
       nextUrl,
-      affKey,
+      affKey,                 // ✅ เก็บไว้ใช้ตอน verify
       createdAt: Date.now()
     };
     await req.session.save();
 
-    const token   = genToken(32);
+    // ออก OTP/ลิงก์ยืนยัน
+    const token    = genToken(32);
     const codeHash = await bcrypt.hash(token, 10);
     const ttlSec   = 60 * 30;
 
@@ -232,7 +255,7 @@ router.post('/register', parseUrlencoded, async (req, res) => {
 
     await sendEmail({
       to: email,
-      subject: 'ยืนยันการสมัคร RTSMM-TH',
+      subject: 'ยืนยันการสมัครสมาชิก RTSMM-TH',
       html: emailTemplateVerifyLink(verifyUrl),
     });
 
@@ -293,7 +316,7 @@ router.get('/register/verify', async (req, res) => {
       });
     }
 
-    // --- หา refKey: ให้ session ก่อน ถ้าไม่มีค่อยคุกกี้ ---
+    // ✅ ให้ session มาก่อน ถ้าไม่มีค่อยคุกกี้
     const refKey =
       (pending.affKey && String(pending.affKey).trim()) ||
       (req.cookies?.affiliate_ref && String(req.cookies.affiliate_ref).trim()) ||
@@ -316,10 +339,16 @@ router.get('/register/verify', async (req, res) => {
       ...(referredById ? { referredBy: referredById } : {})
     });
 
-    // เพิ่มตัวนับให้ผู้แนะนำ + ล้างคุกกี้ (path ต้อง '/')
+    // เพิ่มตัวนับให้ผู้แนะนำ + ล้างคุกกี้ (ต้องใช้ออปชันตรงกับตอนเซ็ต)
     if (referredById) {
-      User.updateOne({ _id: referredById }, { $inc: { 'affiliate.referredCount': 1 } }).catch(()=>{});
-      try { res.clearCookie('affiliate_ref', { path:'/', sameSite:'lax', secure:true }); } catch {}
+      User.updateOne(
+        { _id: referredById },
+        { $inc: { 'affiliate.referredCount': 1 } }
+      ).catch(()=>{});
+      try {
+        const isSecure = req.secure || (req.get('x-forwarded-proto') === 'https');
+        res.clearCookie('affiliate_ref', { path:'/', sameSite:'lax', secure:isSecure });
+      } catch {}
     }
 
     // login & redirect

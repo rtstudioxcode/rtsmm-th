@@ -13,13 +13,7 @@
 
   <form id="registerForm" class="auth-form stack" action="/register" method="post" novalidate>
     <input type="hidden" name="next" value="<%= next %>">
-
-    <% if (typeof aff === 'string' && aff) { %>
-      <div class="alert info" style="margin-top:-4px;margin-bottom:12px">
-        สมัครผ่านลิงก์แนะนำ: <code><%= aff %></code>
-      </div>
-      <input type="hidden" name="aff" value="<%= aff %>">
-    <% } %>
+    <input type="hidden" name="aff"  value="<%= (typeof aff==='string' ? aff : '') %>">
 
     <!-- ชื่อผู้ใช้ -->
     <label class="f-field">
@@ -611,4 +605,27 @@ btnResend?.addEventListener('click', async ()=>{
 btnOtpCancel?.addEventListener('click', closeOtp);
 otpCode?.addEventListener('input', ()=> { otpCode.value = otpCode.value.replace(/[^\d]/g,'').slice(0,6); });
 otpCode?.addEventListener('keydown', (e)=>{ if (e.key === 'Enter') btnOtpOK?.click(); });
+</script>
+
+ <script>
+(() => {
+  // รองรับทั้ง ?aff=KEY และ ?=KEY
+  const url = new URL(location.href);
+  const fromAff = url.searchParams.get('aff');
+  const weird = (!fromAff && url.search.startsWith('?=')) ? url.search.slice(2) : '';
+  const key = (fromAff || weird || '').trim();
+
+  if (key) {
+    // ถ้ายังไม่มีคุกกี้ affiliate_ref → ตั้งจากฝั่ง client เป็น fallback
+    if (!document.cookie.split('; ').some(c => c.startsWith('affiliate_ref='))) {
+      const maxAge = 30 * 24 * 60 * 60;
+      document.cookie = `affiliate_ref=${encodeURIComponent(key)}; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
+      // ไม่ใส่ Secure ตรงนี้เพื่อรองรับ dev http; ฝั่ง server ใช้ Secure ให้อยู่แล้วเมื่อ https
+    }
+    // ล้าง query ออกจาก URL ให้สวย ๆ
+    url.searchParams.delete('aff');
+    if (weird) history.replaceState(null, '', url.pathname + url.hash);
+    else history.replaceState(null, '', url.pathname + url.search + url.hash);
+  }
+})();
 </script>

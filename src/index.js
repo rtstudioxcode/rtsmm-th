@@ -172,7 +172,7 @@ app.use(expressLayouts);
 app.set("layout", "layout");
 
 app.set("trust proxy", 1);
-app.use(cookieParser());
+app.use(cookieParser(process.env.COOKIE_SECRET || 'dev-secret'));
 // Static & parsers
 app.set("etag", "strong");
 app.use("/static", express.static(path.join(__dirname, "public")));
@@ -288,7 +288,6 @@ app.use(async (req, res, next) => {
 });
 
 // Routes
-
 app.use(affiliateRouter);
 app.use(authRoutes);
 app.use(resetPasswordRoutes);
