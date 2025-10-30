@@ -759,46 +759,123 @@ topupRouter.post("/scb", async (req, res) => {
 topupRouter.post("/create", async (req, res) => {
   try {
     const uid = getAuthUserId(req);
-    if (!uid) return res.status(401).json({ ok:false, error:"unauthorized" });
+    if (!uid) return res.status(401).json({ ok: false, error: "unauthorized" });
 
     const base = Number(req.body.amount);
-    const walletCode = String(req.body.walletCode || "kbank");
-    if (!Number.isFinite(base) || base < 1)
-      return res.status(400).json({ ok:false, error:"invalid_amount" });
+    const walletCode = String(req.body.walletCode || "tw").toLowerCase(); // ค่าเริ่มต้น = 'tw'
+    if (!Number.isFinite(base) || base < 10) {
+      return res.status(400).json({ ok: false, error: "invalid_amount_min_10" });
+    }
 
-    // เศษ .01-.60
-    const decimalCents = Math.floor(Math.random() * 60) + 1;    // 1..60
-    const uniqueAmt = (Math.round(base * 100) + decimalCents) / 100;
-    const uniqueCents = Math.round(uniqueAmt * 100);
+    // ⛔ กัน pending ซ้ำของผู้ใช้เดียวกัน-วิธีเดียวกัน (ยังไม่หมดอายุ)
+    const now = Date.now();
+    const existing = await Transaction.findOne({
+      userId: uid,
+      method: walletCode,                 // 'tw' | 'kbank' | ...
+      status: "pending",
+      expiresAt: { $gt: new Date(now) }
+    }).sort({ createdAt: -1 });
+
+    if (existing) {
+      // สำหรับ TW: front จะไป gen ลิงก์เอง, ธนาคาร: ส่ง qrUrl กลับ
+      const qrUrl =
+        walletCode === "tw"
+          ? null
+          : walletCode === "kbank"
+            ? "/static/assets/payment/qr-kbank.jpg"
+            : walletCode === "scb"
+              ? "/static/assets/payment/qr-scb.jpg"
+              : `/static/assets/payment/qr-${walletCode}.jpg`;
+
+      const expiresIn = Math.max(30, Math.floor((existing.expiresAt.getTime() - now) / 1000));
+      return res.json({
+        ok: true,
+        pendingTxId: String(existing._id),
+        txId: String(existing._id),
+        displayAmount: existing.amount,    // ใช้ยอดสุ่มเศษเดิม
+        expiresIn,
+        qrUrl
+      });
+    }
+
+    // ✅ สร้าง pending ใหม่ (สุ่มเศษแบบลดโอกาสชนกับคิวอื่นๆ)
+    //      - เลือกเศษ 0.01..0.60 บาท
+    //      - รีทรายเล็กน้อยถ้าไปชน amountCents ที่มี pending 'tw' อยู่แล้ว
+    const centsCandidate = async () => {
+      for (let t = 0; t < 6; t++) {
+        const decimalCents = Math.floor(Math.random() * 60) + 1; // 1..60
+        const uniqueAmt = (Math.round(base * 100) + decimalCents) / 100;
+        const uniqueCents = Math.round(uniqueAmt * 100);
+
+        // ถ้าเป็น TW ให้เช็คไม่ให้ชนกับ pending TW อื่น ลด false match ตอน webhook
+        if (walletCode === "tw") {
+          const clash = await Transaction.exists({
+            method: "tw",
+            status: "pending",
+            amountCents: uniqueCents,
+            expiresAt: { $gt: new Date(now - 60 * 60 * 1000) }
+          });
+          if (clash) continue; // ลองสุ่มใหม่
+        }
+        return { uniqueAmt, uniqueCents };
+      }
+      // ถ้าสุ่มแล้วชนตลอด ก็ยอมใช้ตัวสุดท้ายไป
+      const decimalCents = Math.floor(Math.random() * 60) + 1;
+      const uniqueAmt = (Math.round(base * 100) + decimalCents) / 100;
+      return { uniqueAmt, uniqueCents: Math.round(uniqueAmt * 100) };
+    };
+
+    const { uniqueAmt, uniqueCents } = await centsCandidate();
 
     const tx = await Transaction.create({
       userId: uid,
-      method: walletCode,          // "kbank" / "scb" ...
+      method: walletCode,
       amount: uniqueAmt,
-      amountCents: uniqueCents,    // <── สำคัญ
+      amountCents: uniqueCents,
       expectedAmount: uniqueAmt,
       status: "pending",
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      expiresAt: new Date(now + 5 * 60 * 1000), // 5 นาที
     });
 
-    // รูป QR ของบัญชีปลายทาง (ใส่ของจริงตามธนาคาร)
-    const qrUrl = "/static/assets/payment/qr-kbank.jpg";
+    // ธนาคารเท่านั้นที่ต้องมี QR ภายใน; TW ใช้ลิงก์จาก /truewallet/gen/link
+    const qrUrl =
+      walletCode === "tw"
+        ? null
+        : walletCode === "kbank"
+          ? "/static/assets/payment/qr-kbank.jpg"
+          : walletCode === "scb"
+            ? "/static/assets/payment/qr-scb.jpg"
+            : `/static/assets/payment/qr-${walletCode}.jpg`;
 
-    res.json({ ok:true, qrUrl, displayAmount: uniqueAmt, txId: String(tx._id), expiresIn: 300 });
+    return res.json({
+      ok: true,
+      txId: String(tx._id),
+      displayAmount: uniqueAmt,
+      expiresIn: 300,
+      qrUrl
+    });
   } catch (err) {
     console.error("create topup error:", err);
-    res.status(500).json({ ok:false, error:"server_error" });
+    res.status(500).json({ ok: false, error: "server_error" });
   }
 });
 
-topupRouter.get("/tx/:id", async (req,res)=>{
-  try{
+topupRouter.get("/tx/:id", async (req, res) => {
+  try {
     const tx = await Transaction.findById(req.params.id).lean();
-    if(!tx) return res.status(404).json({ok:false, error:"not_found"});
-    // คืนสถานะพอ
-    res.json({ ok:true, status: tx.status, method: tx.method, amount: tx.amount });
-  }catch(e){
-    res.status(500).json({ ok:false, error:"server_error" });
+    if (!tx) return res.status(404).json({ ok: false, error: "not_found" });
+
+    // ให้ watcher ใช้ปิดโมดัลได้ชัวร์ ๆ
+    res.json({
+      ok: true,
+      status: tx.status,                 // 'pending' | 'completed' | 'failed' | 'cancelled'
+      method: tx.method,
+      amount: tx.amount,
+      paidAt: tx.paidAt || null,
+      updatedAt: tx.updatedAt || null
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: "server_error" });
   }
 });
 
