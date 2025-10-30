@@ -243,57 +243,119 @@
   <div class="history-wrapper card soft">
     <h3 class="title">ประวัติการเติมเงินล่าสุด</h3>
 
-    <% if (transactions && transactions.length > 0) { %>
-    <table class="history-table">
-      <thead>
-        <tr>
-          <th>วันที่</th>
-          <th>ช่องทาง</th>
-          <th>จำนวนเงิน</th>
-          <th>สถานะ</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% transactions.forEach(tx => { const methodName = tx.method === "tw" ?
-        "TrueWallet" : tx.method === "scb" ? "SCB ไทยพาณิชย์" : tx.method === "kbank" ? "KBANK กสิกรไทย" :"ไม่ระบุ"; const
-        statusLabel = tx.status === "completed" ? "สำเร็จ" : tx.status ===
-        "pending" ? "รอดำเนินการ" : tx.status === "failed" ? "ล้มเหลว" :
-        "ยกเลิก"; %>
-        <tr>
-          <td class="muted">
-            <% const ts = tx.paidAt || tx.updatedAt || tx.createdAt; %>
-            <%= new Date(ts).toLocaleString('th-TH', {
-              timeZone: 'Asia/Bangkok',
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            }) %>
-          </td>
+    <% if (transactions && transactions.length) { %>
 
-          <td class="method">
-            <img src="/static/assets/payment/<%= tx.method %>.webp" alt="<%= methodName %>" />
-            <%= methodName %>
-          </td>
+      <!-- เดสก์ท็อป: ตาราง -->
+      <table class="history-table d-desktop">
+        <thead>
+          <tr>
+            <th>วันที่</th>
+            <th>ช่องทาง</th>
+            <th class="right">จำนวนเงิน</th>
+            <th>สถานะ</th>
+          </tr>
+        </thead>
+        <tbody>
+        <% for (var i = 0; i < transactions.length; i++) {
+             var tx = transactions[i];
+             var methodName = (tx.method === 'tw')  ? 'TrueWallet'
+                            : (tx.method === 'scb') ? 'SCB ไทยพาณิชย์'
+                            : (tx.method === 'kbank') ? 'KBANK กสิกรไทย' : 'ไม่ระบุ';
+             var st = String(tx.status || '').toLowerCase(); // completed|pending|failed|canceled
+             var statusLabel = (st === 'completed') ? 'สำเร็จ'
+                             : (st === 'pending')   ? 'รอดำเนินการ'
+                             : (st === 'failed')    ? 'ล้มเหลว'
+                             : (st === 'canceled')  ? 'ยกเลิก' : st;
+             var ts = tx.paidAt || tx.updatedAt || tx.createdAt;
+             var amountNum = Number(tx.amount) || 0;
+        %>
+          <tr data-status="<%= st %>">
+            <td class="mono">
+              <%= new Date(ts).toLocaleString('th-TH',{
+                    timeZone:'Asia/Bangkok', year:'numeric', month:'2-digit',
+                    day:'2-digit', hour:'2-digit', minute:'2-digit'
+                  }) %>
+            </td>
+            <td class="method">
+              <img class="method-ico" src="/static/assets/payment/<%= tx.method %>.webp"
+                   alt="<%= methodName %>" width="22" height="22" loading="lazy">
+              <span class="method-name"><%= methodName %></span>
+            </td>
+            <td class="amount right">
+              <span class="money">฿<%= amountNum.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) %></span>
+            </td>
+            <td class="status">
+              <span class="pill sm st-<%= st %>">
+                <i class="st-ico" aria-hidden="true"></i>
+                <span class="txt"><%= statusLabel %></span>
+              </span>
+            </td>
+          </tr>
+        <% } %>
+        </tbody>
+      </table>
 
-          <td class="amount">
-            ฿<%= tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2
-            }) %>
-          </td>
+      <!-- มือถือ: การ์ดแบบหุบ/ขยาย (ค่าเริ่มต้น = หุบ) -->
+      <div class="history-list d-mobile">
+      <% for (var j = 0; j < transactions.length; j++) {
+           var t = transactions[j];
+           var mName = (t.method === 'tw')  ? 'TrueWallet'
+                    : (t.method === 'scb') ? 'SCB ไทยพาณิชย์'
+                    : (t.method === 'kbank') ? 'KBANK กสิกรไทย' : 'ไม่ระบุ';
+           var st2 = String(t.status || '').toLowerCase();
+           var stLabel = (st2 === 'completed') ? 'สำเร็จ'
+                       : (st2 === 'pending')   ? 'รอดำเนินการ'
+                       : (st2 === 'failed')    ? 'ล้มเหลว'
+                       : (st2 === 'canceled')  ? 'ยกเลิก' : st2;
+           var ts2 = t.paidAt || t.updatedAt || t.createdAt;
+           var amt = Number(t.amount) || 0;
+      %>
+        <details class="hx-card" data-status="<%= st2 %>">
+          <summary class="hx-head">
+            <!-- ตอนหุบ แสดงแค่วันที่+เวลา -->
+            <span class="hx-date mono">
+              <%= new Date(ts2).toLocaleString('th-TH',{
+                    timeZone:'Asia/Bangkok', year:'numeric', month:'2-digit',
+                    day:'2-digit', hour:'2-digit', minute:'2-digit'
+                  }) %>
+            </span>
+            <button class="hx-toggle" type="button" aria-label="toggle"></button>
+          </summary>
 
-          <td class="status <%= tx.status.toLowerCase() %>">
-            <%= statusLabel %>
-          </td>
-        </tr>
-        <% }) %>
-      </tbody>
-    </table>
+          <div class="hx-body">
+            <div class="hx-row">
+              <div class="hx-label">ช่องทาง</div>
+              <div class="hx-val method">
+                <img class="method-ico" src="/static/assets/payment/<%= t.method %>.webp"
+                     alt="<%= mName %>" width="22" height="22" loading="lazy">
+                <span><%= mName %></span>
+              </div>
+            </div>
+
+            <div class="hx-row">
+              <div class="hx-label">จำนวนเงิน</div>
+              <div class="hx-val money">฿<%= amt.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) %></div>
+            </div>
+
+            <div class="hx-row">
+              <div class="hx-label">สถานะ</div>
+              <div class="hx-val">
+                <span class="pill sm st-<%= st2 %>">
+                  <i class="st-ico" aria-hidden="true"></i>
+                  <span class="txt"><%= stLabel %></span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </details>
+      <% } %>
+      </div>
+
     <% } else { %>
-    <div class="empty-history">
-      <img src="/static/assets/empty.svg" alt="No history" />
-      <p class="muted">ยังไม่มีรายการเติมเงิน</p>
-    </div>
+      <div class="empty-history">
+        <img src="/static/assets/empty.svg" alt="No history">
+        <p class="muted">ยังไม่มีรายการเติมเงิน</p>
+      </div>
     <% } %>
   </div>
 </div>
@@ -803,6 +865,35 @@
         `<div class="card soft">❌ ขัดข้อง: ${err.message}</div>`;
     }
   });
+  (() => {
+    const $cards = document.getElementById('orderCards');
+    if (!$cards) return;
+
+    $cards.addEventListener('click', (e) => {
+      const card = e.target.closest('.o-card');
+      if (!card) return;
+
+      // กดที่หัว/ปุ่ม ถึงจะ toggle (ไม่รบกวนลิงก์/ปุ่มภายใน o-body)
+      const hitHeader = e.target.closest('.o-head, .o-toggle');
+      const isInsideBodyAction = e.target.closest('.o-body a, .o-body button, .o-body .xbtn');
+      if (!hitHeader || isInsideBodyAction) return;
+
+      // ปิดใบอื่นก่อน
+      $cards.querySelectorAll('.o-card.open').forEach(el => { if (el !== card) el.classList.remove('open'); });
+
+      // toggle ใบที่กด
+      card.classList.toggle('open');
+
+      // อัปเดตสัญลักษณ์ +/−
+      const t = card.querySelector('.o-toggle');
+      if (t) t.textContent = card.classList.contains('open') ? '' : '';
+    });
+  })();
+  document.addEventListener('DOMContentLoaded', () => {
+    // ปิดทุกการ์ดเมื่อโหลดแท็บนี้
+    document.querySelectorAll('.history-list .hx-card[open]').forEach(el => el.removeAttribute('open'));
+    // ให้คลิกทั้งหัว summary ก็ทำงาน (no extra JS needed) — ปุ่ม +/− เปลี่ยนด้วย CSS แล้ว
+  });
 </script>
 
 <style>
@@ -1215,5 +1306,225 @@
       max-width: 420px;
     }
     .qr-img{ width: min(300px, 78vw); }
+  }
+
+  /* ===== History table base ===== */
+  .history-wrapper .title{ margin-bottom:12px; }
+
+  .history-table{
+    width:100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow:hidden;
+    border-radius: 14px;
+    background: var(--elevated-bg,#141518);
+    border:1px solid var(--elevated-border,#24262b);
+    box-shadow: 0 10px 24px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.04);
+  }
+
+  .history-table thead th{
+    text-align:left;
+    font-weight:400;
+    padding:14px 16px;
+    border-bottom:1px solid var(--elevated-border,#24262b);
+    background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(0,0,0,.12));
+  }
+  .history-table .right{ text-align:right; }
+
+  .history-table tbody td{
+    padding:14px 16px;
+    border-bottom:1px solid rgba(255,255,255,.06);
+    vertical-align: middle;
+  }
+  .history-table tbody tr:last-child td{ border-bottom:0; }
+
+  .history-table tbody tr:hover{
+    background: rgba(255,255,255,.03);
+  }
+
+  /* Method column */
+  .history-table .method{
+    display:flex; align-items:center; gap:10px;
+  }
+  .history-table .method-ico{
+    border-radius:8px; box-shadow: 0 2px 6px rgba(0,0,0,.25);
+    width:22px; height:22px; object-fit:contain;
+  }
+
+  /* Amount */
+  .history-table .amount .money{
+    font-weight:300;
+    letter-spacing:.2px;
+  }
+
+  /* ===== Status pill (fixed color scheme; ไม่อิงธีม) ===== */
+  .pill{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:8px 12px; border-radius:999px;
+    line-height:1; font-weight:300;
+    letter-spacing:.2px;
+    color:#f5f7fa;
+    border:1px solid rgba(255,255,255,.10);
+    box-shadow:
+      inset 1px 1px 2px rgba(255,255,255,0.12),
+      inset -2px -2px 4px rgba(0,0,0,0.42),
+      0 4px 12px rgba(0,0,0,.28);
+    background: #30343a; /* default dark */
+  }
+  .pill.sm{ padding:6px 10px; font-size:.95rem; }
+  .pill .st-ico{
+    width:16px; height:16px; border-radius:50%;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.25);
+    background: center/contain no-repeat;
+    flex:0 0 16px;
+  }
+
+  /* completed (เขียวเข้มเมทัล) */
+  .pill.st-completed{
+    background: linear-gradient(145deg,#0b3d2e,#144f3d);
+    border-color: rgba(255,255,255,.08);
+  }
+  .pill.st-completed .st-ico{ background-image:url("/static/assets/status/completed.png"); }
+
+  /* pending (เทาเข้มเมทัล) — สีคงที่ */
+  .pill.st-pending{
+    background: linear-gradient(145deg,#2e3136,#383c42);
+    border-color: rgba(255,255,255,.10);
+    color:#e8ebef;
+  }
+  .pill.st-pending .st-ico{ background-image:url("/static/assets/status/processing.png"); }
+
+  /* failed (แดงเข้ม) */
+  .pill.st-failed{
+    background: linear-gradient(145deg,#6f1f1f,#4d0f10);
+    border-color: rgba(255,255,255,.08);
+  }
+  .pill.st-failed .st-ico{ background-image:url("/static/assets/status/failed.png"); }
+
+  /* canceled (แดงเลือดหมูเมทัล; ขอบกลืนกล่อง) */
+  .pill.st-canceled{
+    background: linear-gradient(145deg,#6a1b1b,#3b0e0f);
+    border-color: rgba(255,255,255,.06);
+    box-shadow:
+      inset 1px 1px 2px rgba(255,255,255,0.10),
+      inset -2px -2px 4px rgba(0,0,0,0.50),
+      0 4px 14px rgba(84,12,12,.35);
+  }
+  .pill.st-canceled .st-ico{ background-image:url("/static/assets/status/canceled.png"); }
+
+  /* ===== Mobile: แปลงเป็น “การ์ด” อัตโนมัติ ===== */
+  @media (max-width:640px){
+    .history-table thead{ display:none; }
+    .history-table, .history-table tbody, .history-table tr, .history-table td{ display:block; width:100%; }
+    .history-table tbody tr{
+      border:1px solid var(--elevated-border,#24262b);
+      border-radius:12px;
+      margin:10px 0;
+      padding:10px 12px;
+      background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(0,0,0,.14));
+      box-shadow: 0 8px 20px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.03);
+    }
+    .history-table tbody td{
+      border:0; padding:8px 2px;
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .history-table .cell-label{
+      display:inline-block; font-size:12px; color:var(--text-muted,#a7b0bb);
+    }
+    .history-table .right{ text-align:left; }
+    .history-table .method{ gap:8px; }
+  }
+  /* ซ่อนไว้/แสดงตามอุปกรณ์ */
+  .d-desktop{ display: table; }
+  .d-mobile{ display: none; }
+
+  @media (max-width:640px){
+    .d-desktop{ display: none !important; }
+    .d-mobile{ display: block !important; }
+  }
+
+  /* การ์ดมือถือ */
+  .hx-card{
+    border:1px solid var(--elevated-border,#24262b);
+    background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(0,0,0,.14));
+    border-radius:14px;
+    margin:12px 0;
+    box-shadow: 0 10px 24px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.03);
+    overflow:hidden;
+  }
+  .hx-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 14px;
+    list-style:none; cursor:pointer;
+  }
+  .hx-head::-webkit-details-marker{ display:none; }
+  .hx-toggle{
+    border:0; background:transparent; color:var(--text-muted,#a7b0bb);
+    font-size:18px; line-height:1; padding:2px 6px; border-radius:8px;
+  }
+  .hx-card[open] .hx-toggle{ content:"−"; }
+  .hx-card .hx-toggle::before{ content:"＋"; display:inline-block; }
+  .hx-card[open] .hx-toggle::before{ content:"−"; }
+
+  .hx-body{
+    padding:12px 14px 14px;
+    border-top:1px dashed rgba(255,255,255,.08);
+    animation: hxFade .18s ease-out;
+  }
+  @keyframes hxFade { from{opacity:.4; transform: translateY(-2px);} to{opacity:1; transform:none;} }
+
+  .hx-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:7px 0; }
+  .hx-label{ color:var(--text-muted,#a7b0bb); }
+  .hx-val.money{ font-weight:300; letter-spacing:.2px; }
+  .hx-val .method{ display:flex; align-items:center; gap:8px; }
+  /* ===== Mobile compact width (leave small side gutters) ===== */
+  @media (max-width: 640px) {
+    :root { --gutter: 16px; }            /* ระยะเว้นขอบซ้าย-ขวา */
+
+    /* ปิดกฎ full-bleed เก่าด้วยความเฉพาะเจาะจง + !important */
+    .topup-tab-header,
+    #tab-history .history-wrapper,
+    #tab-history .history-table,
+    #tab-history .history-list {
+      width: calc(95vw - (var(--gutter) * 2)) !important; /* ขนาดตามภาพ */
+      margin-left: auto !important;
+      margin-right: auto !important;
+      padding-left: var(--gutter);
+      padding-right: var(--gutter);
+      border-radius: 16px;
+    }
+
+    /* แถบสลับแท็บด้านบน */
+    .topup-tab-header {
+      padding-top: 10px;
+      padding-bottom: 10px;
+    }
+    .topup-tab-header .tab-switch-btn.btn {
+      display: block;
+      width: 95%;
+    }
+    .topup-tab-header .tab-switch-btn + .tab-switch-btn {
+      margin-top: 10px;                   /* ระยะระหว่างสองปุ่ม */
+    }
+
+    /* การ์ดในประวัติ (details/summary) */
+    #tab-history .history-list .hx-card {
+      width: 95%;                        /* เท่ากับกล่องแม่ด้านบน */
+      margin: 10px 0;
+      border-radius: 16px;
+    }
+    #tab-history .hx-head {
+      display: flex; align-items: center; gap: 10px;
+    }
+    #tab-history .hx-date { flex: 1; min-width: 0; }
+    #tab-history .hx-toggle { flex: 0 0 auto; }
+
+    /* ปุ่ม/อินพุตให้ยืดตามความกว้างกล่อง */
+    #tab-topup .btn,
+    #tab-topup .input,
+    #tab-topup input[type="text"],
+    #tab-topup input[type="number"] {
+      width: 95%;
+    }
   }
 </style>

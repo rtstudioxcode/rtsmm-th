@@ -2672,10 +2672,6 @@ html[data-theme="dark"] .tabs.chips .chip[data-st="canceled"] {
   background: linear-gradient(145deg, #1e2228, #0f1115);
   color: #eaf1f8;
   border: 1px solid rgba(255,255,255,0.06);
-  box-shadow:
-    inset 1px 1px 2px rgba(255,255,255,0.06),
-    inset -2px -2px 4px rgba(0,0,0,0.45),
-    0 4px 10px rgba(0,0,0,0.35);
   text-shadow: 0 1px 0 rgba(0,0,0,0.6);
 }
 
@@ -2693,31 +2689,6 @@ html[data-theme="dark"] .tabs.chips .chip[data-st="canceled"] {
 .orders-history [data-status="inprogress"] .pill.progress::before {
   filter: drop-shadow(0 1px 0 rgba(0,0,0,.6)) brightness(1.05);
   opacity: .95;
-}
-
-/* =============== Cancel: กลืนขอบแบบ Success =============== */
-.orders-history .pill.danger {
-  /* พื้นแดงเข้มไล่เฉด */
-  background: linear-gradient(145deg, #5a0f12, #3d0b0d);
-  color: #ffe9e9;
-  /* ขอบให้กลืน (เหมือน .ok) */
-  border: 1px solid rgba(255,255,255,0.08);
-  box-shadow:
-    inset 1px 1px 2px rgba(255,255,255,0.10),
-    inset -2px -2px 4px rgba(0,0,0,0.45),
-    0 3px 8px rgba(90, 15, 18, 0.35);
-  text-shadow: 0 1px 0 rgba(0,0,0,.35);
-}
-
-/* แถบ .bar ของ cancel ให้พองาม */
-.orders-history .pill.danger .bar {
-  background: linear-gradient(90deg, rgba(255,255,255,0.22), rgba(255,255,255,0.32));
-}
-
-/* ปรับโทน badge/ไอคอนบน danger ให้ตัดชัดแต่ไม่แสบตา */
-.orders-history .pill.danger .label .badge,
-.orders-history [data-status="canceled"] .pill.progress .badge {
-  filter: brightness(1.05) contrast(0.95);
 }
 
 /* =============== Mobile fine-tune =============== */
@@ -2747,10 +2718,6 @@ html[data-theme="dark"] .tabs.chips .chip[data-st="canceled"] {
   background: linear-gradient(145deg, #1f242a, #111316);
   color: #e9eef3;
   border: 1px solid rgba(255,255,255,0.06);
-  box-shadow:
-    inset 1px 1px 2px rgba(255,255,255,0.10),
-    inset -2px -2px 4px rgba(0,0,0,0.55),
-    0 6px 14px rgba(0,0,0,0.35);
 }
 
 /* ปรับตัวอักษรให้อ่านง่ายทั้ง Light/Dark */
@@ -2766,12 +2733,7 @@ html[data-theme="dark"] .tabs.chips .chip[data-st="canceled"] {
   background: linear-gradient(145deg, #5b1a1a, #7a2424);
   color: #ffecec;
   border: 1px solid rgba(255,255,255,0.08); /* ขอบกลืน ไม่เด่น */
-  box-shadow:
-    inset 1px 1px 2px rgba(255,255,255,0.12),
-    inset -2px -2px 4px rgba(0,0,0,0.45),
-    0 6px 14px rgba(123, 30, 30, 0.35);
 }
-
 /* ปรับไอคอน/ป้ายภายในให้กลืน */
 .orders-history [data-status="canceled"] .pill .label {
   color: #ffe5e5;

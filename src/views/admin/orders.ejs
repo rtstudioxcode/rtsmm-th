@@ -191,11 +191,11 @@ function decideDisplaySSR(o){
               </div>
 
               <div class="st-actions under">
-                <% if (canCancel && stLower === 'processing') { %>
+                <!-- <% if (canCancel && stLower === 'processing') { %>
                   <button type="button" class="xbtn xbtn-danger btn-cancel" data-id="<%= o._id %>" title="ยกเลิกและคืนเงิน" aria-label="ยกเลิกและคืนเงิน">
                     <img src="/static/assets/emoji/cancel.png" alt="" class="icon" />
                   </button>
-                <% } %>
+                <% } %> -->
 
                 <% if (!(dd.isDone || stLower === 'canceled' || stLower === 'partial')) { %>
                   <button type="button" class="xbtn xbtn-sync btn-refresh" data-id="<%= o._id %>" title="อัปเดตสถานะออเดอร์" aria-label="อัปเดตสถานะออเดอร์">
@@ -316,11 +316,11 @@ function decideDisplaySSR(o){
               </span>
 
               <div class="st-actions">
-                <% if (canCancel && stLower === 'processing') { %>
+                <!-- <% if (canCancel && stLower === 'processing') { %>
                   <button type="button" class="xbtn xbtn-sync btn-cancel" data-id="<%= o._id %>" title="ยกเลิกและคืนเงิน" aria-label="ยกเลิกและคืนเงิน">
                     <img src="/static/assets/emoji/cancel.png" alt="" class="icon" />
                   </button>
-                <% } %>
+                <% } %> -->
 
                 <% if (!(mdd.isDone || stLower === 'canceled' || stLower === 'partial')) { %>
                   <button type="button" class="xbtn xbtn-sync btn-refresh" data-id="<%= o._id %>" title="อัปเดตสถานะออเดอร์" aria-label="อัปเดตสถานะออเดอร์">
