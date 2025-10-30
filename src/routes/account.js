@@ -560,20 +560,6 @@ router.post("/account/points/redeem", async (req, res) => {
 });
 
 // routes/affiliate.js
-router.get('/aff', async (req, res) => {
-  const key = String(
-    req.query.ref ??
-    req.query[''] ??
-    req.query['='] ??
-    Object.values(req.query ?? {})[0] ?? ''
-  ).trim();
-
-  if (!key) return res.redirect('/register');
-  res.cookie('affiliate_ref', key, { httpOnly:true, maxAge:30*24*3600*1000, sameSite:'lax' });
-  return res.redirect('/register');
-});
-
-// routes/affiliate.js
 router.post('/account/affiliate/create-link', async (req, res) => {
   try {
     const uid = getAuthUserId(req);

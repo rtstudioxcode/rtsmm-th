@@ -1,7 +1,7 @@
 <!-- /account/index.ejs -->
 <section class="account-container">
-  <h1 class="page-title" style="align-items: center; text-align: center;" >ตั้งค่าข้อมูลส่วนตัว</h1>
-
+  <h1 class="page-title" id="acctPageTitle">ตั้งค่าข้อมูลส่วนตัว</h1>
+  
   <div class="acc-wrap">
     <!-- = LEFT: Summary = -->
     <aside class="acc-side">
@@ -744,6 +744,7 @@ img, video, canvas, table, pre, code, .static-input { max-width: 100%; }
 @media (max-width: 768px){
   .acc-wrap{ grid-template-columns: 1fr; gap: 14px; }
 }
+.page-title{ text-align:center; margin:8px 0 18px; }
 </style>
 
 <!-- 1) BRIDGE: map showMsg → notify และยึด alert ทั้งหน้าให้เป็น notify -->
@@ -1265,6 +1266,39 @@ img, video, canvas, table, pre, code, .static-input { max-width: 100%; }
   });
 
   loadStats();
+})();
+
+(() => {
+  const titleEl = document.getElementById('acctPageTitle');
+  const tabs    = document.querySelectorAll('.tabs .tab');
+
+  // อัปเดต H1 + document.title ตามแท็บที่ active
+  function updateTitle() {
+    const active = document.querySelector('.tabs .tab.active');
+    const label  = (active?.textContent || 'ตั้งค่าข้อมูลส่วนตัว').trim();
+    if (titleEl) titleEl.textContent = label;
+    // (ออปชัน) อัปเดต title ของแท็บเบราว์เซอร์ให้เข้ากัน
+    document.title = `${label} — RTSMM-TH`;
+  }
+
+  // ผูก event กับทุกแท็บ (ถ้าโค้ดเปลี่ยนแท็บของคุณมีอยู่แล้ว แทรกแค่ updateTitle() หลังจากสลับคลาส)
+  tabs.forEach(btn => {
+    btn.addEventListener('click', () => {
+      // ถ้ามีโค้ดสลับแท็บเดิมอยู่แล้ว ไม่ต้องทำส่วน remove/add นี้ซ้ำ
+      document.querySelectorAll('.tabs .tab').forEach(b => {
+        b.classList.toggle('active', b === btn);
+        b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
+        b.setAttribute('tabindex', b === btn ? '0' : '-1');
+      });
+      updateTitle();
+    });
+  });
+
+  // รองรับเปิดด้วยแฮช เช่น /account#tab-affiliate
+  window.addEventListener('hashchange', updateTitle);
+
+  // ตั้งค่าครั้งแรกเมื่อโหลดหน้า
+  updateTitle();
 })();
 
 // สลับโชว์ลิงก์ถ้ามีคีย์อยู่แล้ว + ใช้ https:
