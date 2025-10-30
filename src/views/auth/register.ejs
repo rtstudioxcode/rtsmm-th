@@ -14,11 +14,11 @@
   <form id="registerForm" class="auth-form stack" action="/register" method="post" novalidate>
     <input type="hidden" name="next" value="<%= next %>">
 
-    <% if (typeof affKey === 'string' && affKey) { %>
+    <% if (typeof aff === 'string' && aff) { %>
       <div class="alert info" style="margin-top:-4px;margin-bottom:12px">
-        สมัครผ่านลิงก์แนะนำ: <code><%= affKey %></code>
+        สมัครผ่านลิงก์แนะนำ: <code><%= aff %></code>
       </div>
-      <input type="hidden" name="affiliateKey" value="<%= affKey %>">
+      <input type="hidden" name="aff" value="<%= aff %>">
     <% } %>
 
     <!-- ชื่อผู้ใช้ -->

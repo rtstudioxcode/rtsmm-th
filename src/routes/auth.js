@@ -5,7 +5,6 @@ import { User } from '../models/User.js';
 import { OtpToken } from '../models/OtpToken.js';
 import { sendEmail } from '../lib/mailer.js';
 import crypto from 'crypto';
-import cookieParser from 'cookie-parser';
 
 const router = express.Router();
 const parseUrlencoded = express.urlencoded({ extended: false });
@@ -132,43 +131,45 @@ router.post('/login', parseUrlencoded, async (req, res) => {
  * 1) POST /register         -> ตรวจ/เก็บ regPending ใน session + ส่ง OTP อัตโนมัติ
  * 2) POST /register/finalize-> (หลัง verify สำเร็จ) ค่อยสร้าง user + login
  * ========================= */
-function setAffiliateCookie(req, res, key) {
-  if (!key) return;
-  res.cookie('affiliate_ref', String(key), {
-    httpOnly: true,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 วัน
-  });
-}
+const AFF_COOKIE = 'affiliate_ref';
+const AFF_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 วัน
 
 router.get(['/aff', '/aff/:key'], (req, res) => {
-  const key =
-    req.params.key ||
-    req.query.key ||
-    req.query.aff ||
-    req.query.ref ||
-    req.query.aff_key;
+  let key =
+    req.params?.key ||
+    req.query?.aff ||
+    req.query?.key ||
+    // กรณีใช้ /aff?=KEY แบบไม่มีชื่อพารามิเตอร์
+    (typeof req.url === 'string' && req.url.includes('?=') ? req.url.split('?=')[1] : '');
 
-  if (key) setAffiliateCookie(req, res, key);
+  key = (key || '').trim();
+  if (!key) return res.redirect('/register'); // ไม่มี key ก็ส่งไปสมัครเฉย ๆ
 
-  // ส่งต่อเข้า /register พร้อมพารามฯ เพื่อให้เห็นใน URL ด้วย (ไม่จำเป็นต่อการทำงาน แต่ดีต่อ analytics)
-  return res.redirect(`/register?aff=${encodeURIComponent(key || '')}`);
+  // ตั้งคุกกี้ให้เบราว์เซอร์ (ปลอดภัย และเห็นเฉพาะเว็บเรา)
+  res.cookie(AFF_COOKIE, key, {
+    maxAge: AFF_TTL_MS,
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: true,     // ใช้ https อยู่แล้ว
+    path: '/',
+  });
+
+  // เพื่อความชัดเจน แถมแนบ aff ใน URL ให้ด้วย
+  return res.redirect('/register?aff=' + encodeURIComponent(key));
 });
 
 /** GET /register */
-router.get('/register', async (req, res) => {
+router.get('/register', (req, res) => {
   if (req.session?.user) return res.redirect('/');
-
-  // รับได้หลายชื่อ เพื่อความยืดหยุ่น
-  const affKey =
-    (req.query.aff_key || req.query.aff || req.query.ref || req.query.key || '').trim();
-
-  if (affKey) setAffiliateCookie(req, res, affKey);
-
   const next = typeof req.query.next === 'string' ? req.query.next : '/';
-  // (ถ้าจะโชว์ “สมัครผ่านลิงก์ของ …” ค่อย query หา user จาก affKey แล้วส่งไปหน้า EJS ได้)
-  res.render('auth/register', { title: 'สมัครสมาชิก', next, flash: null });
+
+  // อ่าน aff จาก query หรือคุกกี้
+  const affKey =
+    (typeof req.query.aff === 'string' && req.query.aff.trim()) ||
+    (typeof req.query.key === 'string' && req.query.key.trim()) ||
+    (req.cookies?.affiliate_ref || '');
+
+  res.render('auth/register', { title: 'สมัครสมาชิก', next, aff: affKey });
 });
 
 /** POST /register  (init สมัคร + ส่งอีเมลปุ่มยืนยัน) */
@@ -201,7 +202,7 @@ router.post('/register', parseUrlencoded, async (req, res) => {
     // ---------- ผ่านทุกเงื่อนไข -> เก็บ pending + ส่งอีเมลยืนยัน ----------
     const passwordHash = await bcrypt.hash(password, 10);
 
-    const affiliateKey = String(req.body.affiliateKey || req.cookies?.affiliate_ref || '').trim();
+    const affKey = (req.body.aff || req.cookies?.affiliate_ref || '').trim();
 
     req.session.regPending = {
       username,
@@ -209,7 +210,7 @@ router.post('/register', parseUrlencoded, async (req, res) => {
       email,
       passwordHash,
       nextUrl,
-      affiliateKey,
+      affKey,
       createdAt: Date.now()
     };
     await req.session.save();
@@ -258,8 +259,10 @@ router.get('/register/verify', async (req, res) => {
       });
     }
 
-    const doc = await OtpToken.findOne({ email, purpose:'email-verify-link', usedAt:null })
-      .sort({ createdAt: -1 });
+    const doc = await OtpToken.findOne({
+      email, purpose:'email-verify-link', usedAt: null
+    }).sort({ createdAt: -1 });
+
     if (!doc) {
       return res.status(400).render('auth/register', {
         title:'สมัครสมาชิก', next:'/',
@@ -286,7 +289,9 @@ router.get('/register/verify', async (req, res) => {
     await doc.save();
 
     // กันโดนแย่งชื่อก่อนคลิกลิงก์
-    const dupe = await User.findOne({ $or: [{ username: pending.username }, { email: pending.email }] }).lean();
+    const dupe = await User.findOne({
+      $or: [{ username: pending.username }, { email: pending.email }]
+    }).lean();
     if (dupe) {
       req.session.regPending = null;
       await req.session.save();
@@ -296,7 +301,24 @@ router.get('/register/verify', async (req, res) => {
       });
     }
 
-    // สร้าง user
+    // ─────────────────────────────────────────
+    // หา refKey จาก session ก่อน ถ้าไม่มีค่อย fallback คุกกี้
+    // ─────────────────────────────────────────
+    const refKey = req.cookies?.affiliate_ref || pending.affKey;
+      (pending.affKey && String(pending.affKey).trim()) ||
+      (req.cookies?.affiliate_ref && String(req.cookies.affiliate_ref).trim()) ||
+      '';
+
+    if (refKey) {
+      const refUser = await User.findOne({ affiliateKey: refKey }).select('_id');
+      if (refUser?._id) {
+        user.referredBy = refUser._id;
+        await user.save();
+        res.clearCookie('affiliate_ref', { path: '/' });
+      }
+    }
+
+    // สร้าง user (+ แนบ referredBy ถ้ามี)
     const user = await User.create({
       username: pending.username,
       name: pending.name,
@@ -304,33 +326,21 @@ router.get('/register/verify', async (req, res) => {
       emailVerified: true,
       passwordHash: pending.passwordHash,
       role: 'user',
+      ...(referredById ? { referredBy: referredById } : {})
     });
 
-    // ✅ ผูกผู้แนะนำจากคุกกี้ (หรือ affKey ที่เก็บไว้ใน pending หากอยากเสริม)
-    try {
-      const refKey = req.cookies?.affiliate_ref;
-      if (refKey) {
-        const refUser = await User.findOne({ affiliateKey: refKey }).select('_id');
-        if (refUser?._id) {
-          user.referredBy = refUser._id;
-          await user.save();
-
-          // อัปเดตตัวนับของผู้แนะนำ (ไม่บล็อกรีเควสต์)
-          User.updateOne(
-            { _id: refUser._id },
-            { $inc: { 'affiliate.referredCount': 1 } }
-          ).catch(()=>{});
-
-          // เคลียร์คุกกี้แล้วจบสวย ๆ
-          res.clearCookie('affiliate_ref', { path: '/' });
-        }
-      }
-    } catch (e) {
-      console.warn('affiliate attach failed:', e);
+    // เพิ่มตัวนับให้ผู้แนะนำ + เคลียร์คุกกี้ (ไม่บล็อก response)
+    if (referredById) {
+      User.updateOne(
+        { _id: referredById },
+        { $inc: { 'affiliate.referredCount': 1 } }
+      ).catch(()=>{});
+      // เคลียร์ให้ตรงกับ option ที่ตั้งคุกกี้ไว้
+      try { res.clearCookie('affiliate_ref', { path:'/', sameSite:'lax', secure:true }); } catch {}
     }
 
     // login & redirect
-    req.session.user = { _id:String(user._id), username:user.username, role:user.role || 'user' };
+    req.session.user   = { _id:String(user._id), username:user.username, role:user.role || 'user' };
     req.session.userId = String(user._id);
     const redirect = pending.nextUrl || '/';
     req.session.regPending = null;

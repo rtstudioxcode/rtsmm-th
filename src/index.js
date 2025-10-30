@@ -172,7 +172,7 @@ app.use(expressLayouts);
 app.set("layout", "layout");
 
 app.set("trust proxy", 1);
-
+app.use(cookieParser());
 // Static & parsers
 app.set("etag", "strong");
 app.use("/static", express.static(path.join(__dirname, "public")));
@@ -283,13 +283,12 @@ app.use(async (req, res, next) => {
       )} ${user.currency || "THB"}`;
     }
   } catch (e) {
-    // เงียบ ๆ
   }
   next();
 });
 
 // Routes
-app.use(cookieParser(process.env.COOKIE_SECRET || 'rtsmm-th-06d85d6dsa8'));
+
 app.use(affiliateRouter);
 app.use(authRoutes);
 app.use(resetPasswordRoutes);
