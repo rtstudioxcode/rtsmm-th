@@ -139,22 +139,22 @@ router.get(['/aff', '/aff/:key'], (req, res) => {
     req.params?.key ||
     req.query?.aff ||
     req.query?.key ||
-    // กรณีใช้ /aff?=KEY แบบไม่มีชื่อพารามิเตอร์
+    // รองรับ /aff?=KEY (ไม่มีชื่อพารามิเตอร์)
     (typeof req.url === 'string' && req.url.includes('?=') ? req.url.split('?=')[1] : '');
 
   key = (key || '').trim();
-  if (!key) return res.redirect('/register'); // ไม่มี key ก็ส่งไปสมัครเฉย ๆ
+  if (!key) return res.redirect('/register');
 
-  // ตั้งคุกกี้ให้เบราว์เซอร์ (ปลอดภัย และเห็นเฉพาะเว็บเรา)
-  res.cookie(AFF_COOKIE, key, {
-    maxAge: AFF_TTL_MS,
+  // วางคุกกี้ให้ส่งไปทุกเพจ (สำคัญคือ path:'/')
+  res.cookie('affiliate_ref', key, {
+    maxAge: 30 * 24 * 3600 * 1000, // 30 วัน
     httpOnly: true,
     sameSite: 'lax',
-    secure: true,     // ใช้ https อยู่แล้ว
-    path: '/',
+    secure: true,     // โปรดใช้ https (คุณตั้ง trust proxy + https แล้ว)
+    path: '/',        // <- ตัวนี้แหละที่หาย ทำให้ /register มองไม่เห็นคุกกี้
   });
 
-  // เพื่อความชัดเจน แถมแนบ aff ใน URL ให้ด้วย
+  // เพิ่ม aff ใน query เพื่อให้เห็นชัด ๆ ด้วย
   return res.redirect('/register?aff=' + encodeURIComponent(key));
 });
 
@@ -163,7 +163,6 @@ router.get('/register', (req, res) => {
   if (req.session?.user) return res.redirect('/');
   const next = typeof req.query.next === 'string' ? req.query.next : '/';
 
-  // อ่าน aff จาก query หรือคุกกี้
   const affKey =
     (typeof req.query.aff === 'string' && req.query.aff.trim()) ||
     (typeof req.query.key === 'string' && req.query.key.trim()) ||
@@ -253,16 +252,12 @@ router.get('/register/verify', async (req, res) => {
     const pending = req.session?.regPending;
     if (!pending || pending.email !== email) {
       return res.status(400).render('auth/register', {
-        title: 'สมัครสมาชิก',
-        next: '/',
-        flash: { variant:'error', title:'ลิงก์หมดอายุ', text:'⛔️ลิงก์หมดอายุหรือเซสชันหมดอายุ กรุณาสมัครใหม่' }
+        title:'สมัครสมาชิก', next:'/',
+        flash:{ variant:'error', title:'ลิงก์หมดอายุ', text:'⛔️ลิงก์หมดอายุหรือเซสชันหมดอายุ กรุณาสมัครใหม่' }
       });
     }
 
-    const doc = await OtpToken.findOne({
-      email, purpose:'email-verify-link', usedAt: null
-    }).sort({ createdAt: -1 });
-
+    const doc = await OtpToken.findOne({ email, purpose:'email-verify-link', usedAt:null }).sort({ createdAt:-1 });
     if (!doc) {
       return res.status(400).render('auth/register', {
         title:'สมัครสมาชิก', next:'/',
@@ -275,7 +270,6 @@ router.get('/register/verify', async (req, res) => {
         flash:{ variant:'error', title:'ลิงก์หมดอายุ', text:'⛔️ลิงก์นี้หมดอายุแล้ว กรุณาสมัครใหม่' }
       });
     }
-
     const ok = await bcrypt.compare(token, doc.codeHash);
     if (!ok) {
       return res.status(400).render('auth/register', {
@@ -289,9 +283,7 @@ router.get('/register/verify', async (req, res) => {
     await doc.save();
 
     // กันโดนแย่งชื่อก่อนคลิกลิงก์
-    const dupe = await User.findOne({
-      $or: [{ username: pending.username }, { email: pending.email }]
-    }).lean();
+    const dupe = await User.findOne({ $or: [{ username: pending.username }, { email: pending.email }] }).lean();
     if (dupe) {
       req.session.regPending = null;
       await req.session.save();
@@ -301,24 +293,19 @@ router.get('/register/verify', async (req, res) => {
       });
     }
 
-    // ─────────────────────────────────────────
-    // หา refKey จาก session ก่อน ถ้าไม่มีค่อย fallback คุกกี้
-    // ─────────────────────────────────────────
-    const refKey = req.cookies?.affiliate_ref || pending.affKey;
+    // --- หา refKey: ให้ session ก่อน ถ้าไม่มีค่อยคุกกี้ ---
+    const refKey =
       (pending.affKey && String(pending.affKey).trim()) ||
       (req.cookies?.affiliate_ref && String(req.cookies.affiliate_ref).trim()) ||
       '';
 
+    let referredById = null;
     if (refKey) {
       const refUser = await User.findOne({ affiliateKey: refKey }).select('_id');
-      if (refUser?._id) {
-        user.referredBy = refUser._id;
-        await user.save();
-        res.clearCookie('affiliate_ref', { path: '/' });
-      }
+      if (refUser?._id) referredById = refUser._id;
     }
 
-    // สร้าง user (+ แนบ referredBy ถ้ามี)
+    // สร้าง user (แนบ referredBy ถ้ามี)
     const user = await User.create({
       username: pending.username,
       name: pending.name,
@@ -329,13 +316,9 @@ router.get('/register/verify', async (req, res) => {
       ...(referredById ? { referredBy: referredById } : {})
     });
 
-    // เพิ่มตัวนับให้ผู้แนะนำ + เคลียร์คุกกี้ (ไม่บล็อก response)
+    // เพิ่มตัวนับให้ผู้แนะนำ + ล้างคุกกี้ (path ต้อง '/')
     if (referredById) {
-      User.updateOne(
-        { _id: referredById },
-        { $inc: { 'affiliate.referredCount': 1 } }
-      ).catch(()=>{});
-      // เคลียร์ให้ตรงกับ option ที่ตั้งคุกกี้ไว้
+      User.updateOne({ _id: referredById }, { $inc: { 'affiliate.referredCount': 1 } }).catch(()=>{});
       try { res.clearCookie('affiliate_ref', { path:'/', sameSite:'lax', secure:true }); } catch {}
     }
 
