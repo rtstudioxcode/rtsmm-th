@@ -2799,3 +2799,174 @@ html[data-theme="dark"] .tabs.chips .chip[data-st="canceled"] {
 
 /* กันเพจทั้งหน้าพลอยเลื่อนแกน X โดยไม่ตั้งใจ */
 html, body{ overflow-x: hidden; }
+
+/* ===== Global Confirm (uicf) — Responsive ===== */
+.uicf.hidden{ display:none; }
+.uicf{
+  position:fixed; inset:0; z-index:1200;
+  font-family: inherit;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+           env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.uicf__overlay{
+  position:absolute; inset:0; background:rgba(0,0,0,.45);
+  -webkit-tap-highlight-color: transparent;
+}
+.uicf__card{
+  position:relative;
+  width: min(92vw, 400px);
+  margin: clamp(48px, 8vh, 96px) auto 0;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.15);
+  overflow: hidden;
+}
+html[data-theme="dark"] .uicf__card{
+  background: #1f2329;
+  color: #e8eef6;
+}
+
+/* Badge: ปรับขนาดตามจอ */
+.uicf__badge{
+  position:absolute; left:50%; transform: translate(-50%, -50%);
+  width: clamp(68px, 14vw, 96px);
+  height: clamp(68px, 14vw, 96px);
+  border-radius: 999px;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow: 0 6px 22px rgba(0,0,0,.18);
+  background: var(--uicf-badge, #22c55e);
+  border: clamp(4px, .9vw, 6px) solid #dde6f0;
+}
+html[data-theme="dark"] .uicf__badge{ border-color:#2c3138; }
+
+.uicf__icon{
+  width: clamp(28px, 5vw, 44px);
+  height: clamp(28px, 5vw, 44px);
+  fill:#fff; display:none;
+}
+.uicf--success .uicf__icon--ok{ display:block; }
+.uicf--danger  .uicf__icon--x { display:block; }
+
+/* เนื้อในการ์ด */
+.uicf__body{
+  padding: clamp(56px, 12vw, 86px) clamp(14px, 4vw, 22px) 16px;
+  text-align:center;
+}
+.uicf__title{
+  margin: 0 0 6px 0;
+  font-size: clamp(18px, 2.6vw, 22px);
+  font-weight: 700;
+  color: #2b3340;
+}
+html[data-theme="dark"] .uicf__title{ color:#e8eef6; }
+.uicf__sub{
+  margin: 0;
+  color: #8fa1b3;
+  font-size: clamp(12px, 2.2vw, 13px);
+}
+html[data-theme="dark"] .uicf__sub{ color:#aab6c5; }
+
+/* Action bar */
+.uicf__actions{
+  display:grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  background: #e8eff6; padding: 12px; border-top: 1px solid #d9e3ed;
+}
+html[data-theme="dark"] .uicf__actions{
+  background:#27303a; border-top-color:#2f3944;
+}
+.uicf__btn{
+  height: clamp(40px, 6.2vw, 44px);
+  border-radius: 8px; border: 0;
+  font-weight: 700; cursor:pointer;
+  font-size: clamp(13px, 2.4vw, 14px);
+  -webkit-tap-highlight-color: transparent;
+}
+.uicf__btn--ghost{
+  background:#dbe3ea; color:#617284;
+}
+html[data-theme="dark"] .uicf__btn--ghost{
+  background:#36414d; color:#aab6c5;
+}
+.uicf__btn--primary{
+  background:#10b981; color:#fff; /* เขียว (Success) */
+}
+.uicf--danger .uicf__btn--primary{
+  background:#ef4444; /* แดง (Try Again) */
+}
+
+/* Variant color for badge */
+.uicf--success { --uicf-badge:#10b981; }
+.uicf--danger  { --uicf-badge:#ef4444; }
+
+/* ===== Breakpoints ===== */
+/* จอเล็กมาก: ปุ่มเรียง 1 คอลัมน์, เพิ่มพื้นที่แตะ */
+@media (max-width: 420px){
+  .uicf__actions{ grid-template-columns: 1fr; }
+  .uicf__card{ width: min(94vw, 380px); }
+}
+
+/* จอใหญ่: การ์ดกว้างขึ้นเล็กน้อย */
+@media (min-width: 960px){
+  .uicf__card{ width: 420px; }
+}
+
+/* Accessibility: ผู้ใช้ไม่ชอบ animation */
+@media (prefers-reduced-motion: reduce){
+  .uicf__overlay, .uicf__card, .uicf__badge{ transition: none !important; }
+}
+/* ==== Center the confirm card (PC + Mobile) ==== */
+.uicf{
+  display: grid;                 /* ใช้กริดวางกลางจอ */
+  place-items: center;           /* จัดกึ่งกลางทั้งแนวแกน X/Y */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+           env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.uicf__overlay{
+  grid-area: 1 / 1;              /* ซ้อนทับทั้งพื้นที่ */
+  position: absolute;            /* คง overlay แบบเดิม */
+  inset: 0;
+}
+.uicf__card{
+  grid-area: 1 / 1;              /* อยู่เลเยอร์เดียวกับ overlay */
+  margin: 0;                     /* ไม่ใช้ margin-top แล้ว */
+  width: min(92vw, 400px);
+  max-height: min(88vh, 560px);  /* กันล้นจอแนวตั้ง */
+  overflow: hidden;
+}
+
+/* เผื่อข้อความยาว: ให้ส่วนเนื้อหาเลื่อนในกล่องได้ */
+.uicf__body{
+  padding: clamp(56px, 12vw, 86px) clamp(14px, 4vw, 22px) 16px;
+  max-height: calc(100% - 70px); /* ลบพื้นที่ action bar คร่าว ๆ */
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* จอเล็กมาก: ปุ่มลงเป็นคอลัมน์และเผื่อความสูง */
+@media (max-width: 420px){
+  .uicf__actions{ grid-template-columns: 1fr; }
+  .uicf__card{ width: min(94vw, 380px); max-height: min(90vh, 520px); }
+}
+
+/* จอใหญ่: กว้างขึ้นนิดหน่อยแต่ยังอยู่กึ่งกลาง */
+@media (min-width: 960px){
+  .uicf__card{ width: 420px; }
+}
+
+/* badge ไม่ให้โดนตัด และลอยเหนือการ์ด */
+.uicf__card{
+  overflow: visible !important;   /* เดิม hidden ทำให้โดนตัด */
+  position: relative;
+}
+
+.uicf__badge{
+  z-index: 2;                     /* ให้อยู่เหนือการ์ด */
+}
+
+/* กัน overlay บัง: ใช้ grid วางซ้อนแล้ว */
+.uicf{
+  display: grid;
+  place-items: center;
+}
+.uicf__overlay{ grid-area: 1 / 1; }
+.uicf__card   { grid-area: 1 / 1; }

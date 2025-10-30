@@ -1,6 +1,7 @@
 import { Router } from "express";
+import mongoose from 'mongoose'; 
 import { User } from "../models/User.js";
-import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { requireAuth } from '../middleware/auth.js';
 import { getBalance } from "../lib/iplusviewAdapter.js";
 import { syncServicesFromProvider } from "../lib/syncServices.js";
 import { ProviderSettings } from "../models/ProviderSettings.js";
@@ -11,7 +12,11 @@ import { ulid } from "ulid";
 import { Service } from '../models/Service.js';
 
 const router = Router();
-router.use(requireAuth, requireAdmin);
+router.use(requireAuth);
+
+const isObjectId = (v) => mongoose.Types.ObjectId.isValid(v);
+
+const USER_FIELDS = 'username email avatarUrl avatarVer';
 
 // กันซิงก์ซ้อน
 let SYNC_LOCK = false;
@@ -173,9 +178,6 @@ router.post('/sync-services', requireAuth, async (req, res) => {
     SYNC_STARTED_AT = 0;
   }
 });
-
-// ป้องกันสิทธิ์: ต้องเป็นแอดมิน
-router.use(requireAuth, requireAdmin);
 
 const ALLOWED_ROLES = ["admin", "user"];
 /**
@@ -376,6 +378,43 @@ router.post("/manual-topup", async (req, res) => {
   }
 });
 
+// ปฏิเสธรายการเติมเงิน
+router.post('/topup/:id/reject', async (req, res) => {
+  try {
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({ ok:false, error:'⛔️ ไม่มีสิทธิ์' });
+    }
+
+    const { id } = req.params;
+
+    // หาได้ทั้งจาก _id และ transactionId
+    const tx = isObjectId(id)
+      ? await Transaction.findById(id)
+      : await Transaction.findOne({ transactionId: id });
+
+    if (!tx) return res.status(404).json({ ok:false, error:'ไม่พบรายการ' });
+
+    if (tx.status !== 'pending') {
+      return res.status(400).json({
+        ok:false,
+        error:`สถานะปัจจุบันคือ "${tx.status}" ไม่สามารถปฏิเสธได้`
+      });
+    }
+
+    tx.status = 'reject';          // ✅ ตรงกับ enum ใหม่นายแล้ว
+    tx.rejectedAt = new Date();
+    tx.rejectedBy = req.user?._id ?? null;
+
+    // ไม่แตะ balance ผู้ใช้ เพราะยังไม่ได้เติม
+    await tx.save();
+    return res.json({ ok:true });
+  } catch (err) {
+    console.error('reject tx error:', err);
+    return res.status(500).json({ ok:false, error:'เซิร์ฟเวอร์มีปัญหา' });
+  }
+});
+
+
 // ✅ GET /orders — รายการออเดอร์ทั้งหมด
 router.get("/orders", async (req, res, next) => {
   try {
@@ -463,6 +502,61 @@ router.get('/api/users/search', requireAuth, async (req, res) => {
     res.json({ ok: true, items });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message || 'internal error' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// TOPUP REPORT (Admin)
+// ─────────────────────────────────────────────────────────────
+router.get('/topup-report', async (req, res) => {
+  try {
+    if (req.user?.role !== 'admin') {
+      return res.status(403).send('Forbidden');
+    }
+
+    const pageRaw = parseInt(req.query.page, 10);
+    const perRaw  = parseInt(req.query.perpage, 10);
+
+    const page    = Math.max(1, Number.isFinite(pageRaw) ? pageRaw : 1);
+    let   perpage = Number.isFinite(perRaw) ? perRaw : 100;
+    perpage       = Math.max(10, Math.min(100, perpage)); // 10–100
+
+    const q = {}; // โชว์ทุกรายการ
+
+    const [total, items, aggCompleted] = await Promise.all([
+      Transaction.countDocuments(q),
+
+      // ✅ populate userId ให้มี avatarUrl/avatarVer ติดมาด้วย
+      Transaction.find(q)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * perpage)
+        .limit(perpage)
+        .populate({ path: 'userId', select: 'username email avatarUrl avatarVer' })
+        .lean(),
+
+      // ✅ สรุปรายการที่สำเร็จ
+      Transaction.aggregate([
+        { $match: { status: 'completed' } },
+        { $group: { _id: null, sum: { $sum: '$amount' }, count: { $sum: 1 } } }
+      ])
+    ]);
+
+    const totalPages     = Math.max(1, Math.ceil(total / perpage));
+    const sumCompleted   = aggCompleted?.[0]?.sum   || 0;
+    const countCompleted = aggCompleted?.[0]?.count || 0;
+
+    // กระเป๋ารับเงิน (มีหรือไม่มีได้)
+    const webWallets = res.locals.webWallets || [];
+
+    res.render('admin/topup-report', {
+      transactions: items,
+      page, perpage, total, totalPages,
+      sumCompleted, countCompleted,
+      webWallets
+    });
+  } catch (err) {
+    console.error('GET /admin/topup-report error:', err);
+    res.status(500).send('Server error');
   }
 });
 

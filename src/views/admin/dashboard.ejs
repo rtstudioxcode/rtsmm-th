@@ -1,5 +1,5 @@
 <!-- //admin/dashboard.ejs -->
-<h2>หลังบ้าน</h2>
+<h2 style="text-align: center;">Admin Panel | หลังบ้าน</h2>
 <div class="grid cards">
   <section class="card2">
     <div class="card-head row-head">
@@ -19,6 +19,15 @@
           <%= (stats?.userCount || 0).toLocaleString() %> คน
         </span>
       </div>
+    </div>
+  </section>
+  <section class="card2">
+    <div class="card-head row-head">
+      <h3>รายงานการเติมเงิน</h3>
+      <a class="btn" href="/admin/topup-report">รายงานการเติมเงิน</a>
+      <p class="muted mt">
+        ไปหน้ารายงานการเติมเงิน
+      </p>
     </div>
   </section>
 </div>
@@ -110,6 +119,7 @@
              const statusLabel =
                tx.status === "completed" ? "สำเร็จ" :
                tx.status === "pending"   ? "รอดำเนินการ" :
+               (tx.status === "reject" || tx.status === "rejected") ? "ถูกปฏิเสธ" :
                tx.status === "failed"    ? "ล้มเหลว" : "ยกเลิก";
         %>
         <tr>
@@ -159,6 +169,11 @@
               onclick="openManualTopupModal('<%= tx.transactionId %>', <%= tx.amount %>, '<%= (tx.user?.username||'').replace(/'/g, "\\'") %>')">
               เติมให้ผู้ใช้
             </button>
+            <button
+              class="btn small danger"
+              onclick="rejectTx('<%= (tx._id || tx.transactionId) %>')">
+              ปฏิเสธ
+            </button>
           </td>
         </tr>
         <% }) %>
@@ -174,6 +189,7 @@
          const statusLabel =
            tx.status === "completed" ? "สำเร็จ" :
            tx.status === "pending"   ? "รอดำเนินการ" :
+           (tx.status === "reject" || tx.status === "rejected") ? "ถูกปฏิเสธ" :
            tx.status === "failed"    ? "ล้มเหลว" : "ยกเลิก";
     %>
     <div class="tx-accordion" data-open="0">
@@ -243,6 +259,10 @@
           <button class="btn small success" style="width: 100%;"
             onclick="openManualTopupModal('<%= tx.transactionId %>', <%= tx.amount %>, '<%= (tx.user?.username||'').replace(/'/g, "\\'") %>')">
             เติมให้ผู้ใช้
+          </button>
+          <button class="btn small danger" style="width: 100%; margin-top: 8px;"
+            onclick="rejectTx('<%= (tx._id || tx.transactionId) %>')">
+            ปฏิเสธ
           </button>
         </div>
       </div>
@@ -360,6 +380,50 @@ async function syncServices() {
     console.error('[syncServices] failed:', err);
   }
 }
+</script>
+
+<script>
+  async function rejectTx(id){
+    if (!id) return alert('ไม่พบรหัสรายการ');
+
+    // 🔔 ใช้การ์ดยืนยันแบบภาพตัวอย่าง (โหมด danger)
+    const ok = await uiConfirm({
+      variant: 'danger',
+      title: 'ยืนยันปฏิเสธรายการ?',
+      sub: 'การปฏิเสธจะเปลี่ยนสถานะเป็น Reject และไม่เพิ่มยอดผู้ใช้',
+      okText: 'ปฏิเสธ',
+      cancelText: 'ยกเลิก',
+      focus: 'cancel'
+    });
+    if (!ok) return;
+
+    try {
+      const r = await fetch(`/admin/topup/${encodeURIComponent(id)}/reject`, {
+        method:'POST', headers:{'Content-Type':'application/json'}
+      });
+      const j = await r.json().catch(()=> ({}));
+      if (!r.ok || !j.ok) throw new Error(j?.error || 'ปฏิเสธไม่สำเร็จ');
+
+      // โชว์การ์ด Success
+      await uiConfirm({
+        variant:'success',
+        title:'สำเร็จ',
+        sub:'ปฏิเสธรายการเรียบร้อย',
+        okText:'ปิด',
+        cancelText:'Cancel'
+      });
+
+      location.reload();
+    } catch(err){
+      await uiConfirm({
+        variant:'danger',
+        title:'ล้มเหลว',
+        sub:String(err?.message || err),
+        okText:'ลองอีกครั้ง',
+        cancelText:'ปิด'
+      });
+    }
+  }
 </script>
 
 <script>
@@ -855,5 +919,10 @@ async function syncServices() {
   }
   html[data-theme="light"] .metric-badge{
     background:#f3f4f6; border-color:#e5e7eb; color:#111827;
+  }
+  .pill--reject, .status.reject {
+    background: rgba(239, 68, 68, .15);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, .35);
   }
 </style>

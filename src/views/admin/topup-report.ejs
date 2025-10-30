@@ -1,0 +1,918 @@
+<% const BANK_LABELS = {
+  bbl:'ธนาคารกรุงเทพ', kbank:'ธนาคารกสิกรไทย', ktb:'ธนาคารกรุงไทย',
+  bay:'ธนาคารกรุงศรีอยุธยา', scb:'ธนาคารไทยพาณิชย์', tmb:'ทหารไทยธนชาต (TTB)',
+  cimb:'ธนาคารซีไอเอ็มบีไทย', uob:'ธนาคารยูโอบี', gsb:'ธนาคารออมสิน',
+  baac:'ธ.เพื่อการเกษตรและสหกรณ์การเกษตร', kkb:'ธนาคารเกียรตินาคินภัทร',
+  lhfg:'ธนาคารแลนด์ แอนด์ เฮ้าส์', icbc:'ธนาคารไอซีบีซี (ไทย)', tisco:'ธนาคารทิสโก้',
+  tw:'TrueMoney Wallet'
+}; %>
+
+<section class="page-head">
+  <div class="page-title">
+    <h1>ประวัติการเติมเงินทั้งหมด</h1>
+    <small class="muted">หลังบ้าน → รายการเติมเงินทั้งหมด</small>
+  </div>
+</section>
+
+<!-- สรุปยอดเติมเงินที่สำเร็จทั้งเว็บ -->
+<div class="grid cards">
+  <section class="card2">
+    <div class="card-head row-head">
+      <h3>ยอดเติมเงินสำเร็จสะสม</h3>
+      <div class="head-right">
+        <span class="metric-badge" style="color: #cc8110; padding:2px 18px;">
+          <%= (countCompleted || 0).toLocaleString() %> รายการ
+        </span>
+      </div>
+    </div>
+    <div class="big" style="color: #35cc10; padding:6px 2px;">
+      ฿<%= Number(sumCompleted || 0).toLocaleString(undefined, {minimumFractionDigits:2}) %>
+    </div>
+  </section>
+</div>
+
+<div class="history-wrapper card soft">
+  <div class="title flex-between" style="align-items:center; gap:10px;">
+    <h3 style="margin:0;">ทุกรายการเติมเงิน</h3>
+    <!-- Pagination -->
+    <div class="pager row pager-wrap">
+        <div class="pager-right">
+            <div class="pager-left muted">
+                แสดง <%= ((page-1)*perpage+1).toLocaleString() %>–
+                <%= Math.min(page*perpage, total).toLocaleString() %> จาก
+                <%= total.toLocaleString() %> รายการ
+            </div>
+            <div class="pages">
+                <button class="btn small" <%= page<=1?'disabled':'' %> onclick="gotoPage(<%= page-1 %>)">«</button>
+                <% const maxLinks = 7;
+                    const start = Math.max(1, page - 3);
+                    const end   = Math.min(totalPages, Math.max(page + 3, Math.min(totalPages, start + maxLinks - 1)));
+                    for (let p = start; p <= end; p++) { %>
+                    <button class="btn small <%= p===page?'primary':'' %>" onclick="gotoPage(<%= p %>)"><%= p %></button>
+                <% } %>
+                <button class="btn small" <%= page>=totalPages?'disabled':'' %> onclick="gotoPage(<%= page+1 %>)">»</button>
+            </div>
+
+            <!-- perpage (ติดท้ายปุ่มถัดไป) -->
+            <div class="perpage-control">
+                <button id="ppBtn" class="pp-chip" type="button">
+                    <span id="ppVal"><%= perpage %></span>หน้า▾
+                </button>
+                <div id="ppMenu" class="pp-menu" hidden>
+                    <% [10,20,50,100].forEach(n=>{ %>
+                    <button type="button" class="pp-item <%= perpage===n?'active':'' %>" data-val="<%= n %>"><%= n %></button>
+                    <% }) %>
+                </div>
+            </div>
+        </div>
+    </div>
+  </div>
+
+  <% if (transactions && transactions.length) { %>
+
+  <!-- ===== Desktop/Table view ===== -->
+  <div class="table-wrap desktop-only">
+    <table class="history-table">
+      <thead>
+        <tr>
+          <th>วันที่ / เวลา</th>
+          <th>รหัสรายการ</th>
+          <th>ผู้ใช้</th>
+          <th>ข้อมูลผู้โอน</th>
+          <th>ข้อมูลผู้รับ</th>
+          <th style="text-align:right;">จำนวนเงิน</th>
+          <th style="text-align:center;">สถานะ</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% transactions.forEach(tx => {
+             const method = (tx.method||'').toLowerCase();
+             const wallet = (webWallets||[]).find(w => w.accountCode === method);
+             const statusLabel =
+                (tx.status === "completed" || tx.status === "completed") ? "สำเร็จ" :
+                (tx.status === "pending" || tx.status === "pending") ? "รอดำเนินการ" :
+                (tx.status === "reject" || tx.status === "rejected") ? "ถูกปฏิเสธ" :
+                tx.status === "failed"    ? "ล้มเหลว" : "ยกเลิก";
+        %>
+        <tr>
+          <td class="muted">
+            <%= new Date(tx.createdAt).toLocaleString('th-TH', {
+              year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit'
+            }) %>
+          </td>
+          <td title="<%= tx.transactionId || '' %>"><%= tx.transactionId || '—' %></td>
+          <td>
+            <div class="user-cell">
+                <img
+                class="avatar-sm"
+                src="<%= (tx.userId?.avatarUrl || '/static/assets/img/user-blue.png') %>?v=<%= tx.userId?.avatarVer || 0 %>"
+                alt="<%= tx.userId?.username || tx.username || 'user' %>" width="28" height="28" loading="lazy"/>
+                <div class="user-meta">
+                    <b class="user-name"><%= (tx.userId?.username || tx.username || '-') %></b>
+                    <% if (tx.userId?.email) { %>
+                    <span class="user-email muted"><%= tx.userId.email %></span>
+                    <% } %>
+                </div>
+            </div>
+            </td>
+          <td>
+            <% if (method === 'truewallet' || method === 'tw') { %>
+              <img src="/static/assets/payment/tw.webp" class="bank-logo" />
+              <b>TrueWallet</b>
+              <div class="muted">เบอร์ผู้โอน: <%= tx.senderNumber || '-' %></div>
+            <% } else { %>
+              <img src="/static/assets/payment/mobilebanking.png" class="bank-logo" />
+              <b><%= BANK_LABELS[tx.senderBank] || 'ไม่ระบุธนาคาร' %></b>
+              <div class="muted">เลขท้ายบัญชีผู้โอน: <%= tx.senderLast6 || '-' %></div>
+            <% } %>
+          </td>
+          <td>
+            <% if (wallet) { %>
+              <img src="/static/assets/payment/<%= wallet.accountCode %>.webp" class="bank-logo" />
+              <b><%= wallet.accountName %></b>
+              <div class="muted">เลขบัญชี: <%= wallet.accountNumber %></div>
+            <% } else { %>
+              <span class="muted">ไม่พบข้อมูลผู้รับ</span>
+            <% } %>
+          </td>
+          <td class="amount">฿<%= Number(tx.amount).toLocaleString(undefined,{ minimumFractionDigits: 2 }) %></td>
+          <td class="status <%= (tx.status||'').toLowerCase() %>"><%= statusLabel %></td>
+          <td>
+            <% if ((tx.status||'') === 'pending') { %>
+            <button class="btn small success"
+              onclick="openManualTopupModal('<%= tx.transactionId %>', <%= tx.amount %>, '<%= (tx.userId?.username || tx.username || '').replace(/'/g, '\\\\' ) %>')">
+              เติมให้ผู้ใช้
+            </button>
+            <button class="btn small danger" onclick="rejectTx('<%= (tx._id || tx.transactionId) %>')">
+              ปฏิเสธ
+            </button>
+            <% } %>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===== Mobile/Card accordion ===== -->
+  <div class="mobile-only tx-accordion-list" style="margin-top:10px;">
+    <% transactions.forEach(tx => {
+         const method = (tx.method||'').toLowerCase();
+         const wallet = (webWallets||[]).find(w => w.accountCode === method);
+         const statusLabel =
+           (tx.status === "completed" || tx.status === "completed") ? "สำเร็จ" :
+           (tx.status === "pending" || tx.status === "pending") ? "รอดำเนินการ" :
+           (tx.status === "reject" || tx.status === "rejected") ? "ถูกปฏิเสธ" :
+           tx.status === "failed"    ? "ล้มเหลว" : "ยกเลิก";
+    %>
+    <div class="tx-accordion" data-open="0">
+      <button class="tx-accordion__head" type="button">
+        <div class="tx-accordion__title">
+          <span class="tx-id" title="<%= tx.transactionId || '' %>"><%= tx.transactionId || '—' %></span>
+        </div>
+        <div class="tx-accordion__meta">
+          <span class="tx-date">
+            <%= new Date(tx.createdAt).toLocaleString('th-TH', {
+              year:'numeric', month:'2-digit', day:'2-digit',
+              hour:'2-digit', minute:'2-digit', second:'2-digit'
+            }) %>
+          </span>
+          <span class="tx-toggle"></span>
+        </div>
+      </button>
+      <div class="tx-accordion__body">
+        <div class="tx-row">
+            <div class="tx-label">ผู้ใช้</div>
+            <div class="tx-value">
+                <div class="user-cell">
+                <img
+                    class="avatar-sm"
+                    src="<%= (tx.userId?.avatarUrl || '/static/assets/img/user-blue.png') %>?v=<%= tx.userId?.avatarVer || 0 %>"
+                    alt="<%= tx.userId?.username || tx.username || 'user' %>" width="28" height="28" loading="lazy"/>
+                    <div class="user-meta">
+                        <b class="user-name"><%= (tx.userId?.username || tx.username || '-') %></b>
+                        <% if (tx.userId?.email) { %>
+                        <span class="user-email muted"><%= tx.userId.email %></span>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tx-row">
+          <div class="tx-label">ผู้โอน</div>
+          <div class="tx-value">
+            <% if (method === 'truewallet' || method === 'tw') { %>
+              <img src="/static/assets/payment/tw.webp" class="bank-logo" alt="">
+              <b>TrueWallet</b><br>
+              <span class="muted">เบอร์ผู้โอน: <%= tx.senderNumber || '-' %></span>
+            <% } else { %>
+              <img src="/static/assets/payment/mobilebanking.png" class="bank-logo" alt="">
+              <b><%= BANK_LABELS[tx.senderBank] || 'ไม่ระบุธนาคาร' %></b><br>
+              <span class="muted">เลขท้ายบัญชีผู้โอน: <%= tx.senderLast6 || '-' %></span>
+            <% } %>
+          </div>
+        </div>
+
+        <div class="tx-row">
+          <div class="tx-label">ผู้รับ</div>
+          <div class="tx-value">
+            <% if (wallet) { %>
+              <img src="/static/assets/payment/<%= wallet.accountCode %>.webp" class="bank-logo" alt="">
+              <b><%= wallet.accountName %></b><br>
+              <span class="muted">เลขบัญชี: <%= wallet.accountNumber %></span>
+            <% } else { %>
+              <span class="muted">ไม่พบข้อมูลผู้รับ</span>
+            <% } %>
+          </div>
+        </div>
+
+        <div class="tx-row">
+          <div class="tx-label">จำนวนเงิน</div>
+          <div class="tx-value"><b>฿<%= Number(tx.amount).toLocaleString(undefined,{minimumFractionDigits:2}) %></b></div>
+        </div>
+
+        <div class="tx-row">
+          <div class="tx-label">สถานะ</div>
+          <div class="tx-value">
+            <span class="pill pill--<%= (tx.status||'').toLowerCase() %>"><%= statusLabel %></span>
+          </div>
+        </div>
+
+        <div class="tx-actions">
+          <% if ((tx.status||'') === 'pending') { %>
+          <button class="btn small success" style="width: 100%;"
+            onclick="openManualTopupModal('<%= tx.transactionId %>', <%= tx.amount %>, '<%= (tx.userId?.username || tx.username || '').replace(/'/g, '\\\\') %>')">
+            เติมให้ผู้ใช้
+          </button>
+          <button class="btn small danger" style="width: 100%; margin-top: 8px;"
+            onclick="rejectTx('<%= (tx._id || tx.transactionId) %>')">
+            ปฏิเสธ
+          </button>
+          <% } %>
+        </div>
+      </div>
+    </div>
+    <% }) %>
+  </div>
+
+  
+
+  <% } else { %>
+    <div class="empty-history">
+      <img src="/static/assets/emoji/empty.png" alt="">
+      <p class="muted">ยังไม่มีรายการเติมเงิน</p>
+    </div>
+  <% } %>
+</div>
+
+<!-- Manual Topup Modal -->
+<div id="manualTopupModal" class="hidden modal">
+  <div class="overlay" data-close="1"></div>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="manualTitle">
+    <div class="hdr">
+      <div class="title" id="manualTitle">เติมเงินให้ผู้ใช้</div>
+      <button class="icon close" id="manualTopupClose" aria-label="ปิด">×</button>
+    </div>
+    <hr class="sep" />
+    <div class="body">
+      <form id="manualTopupForm" onsubmit="return submitManualTopup(event)">
+        <label>
+          ชื่อผู้ใช้ (Username)
+          <input type="text" id="manualUsername" list="userList" autocomplete="off" required
+                 placeholder="พิมพ์ค้นหา เช่น: ad" class="block input mt-sm"/>
+          <datalist id="userList"></datalist>
+        </label>
+
+        <label>
+          จำนวนเงิน
+          <input type="number" id="manualAmount" required class="block input mt-sm"/>
+        </label>
+
+        <div class="card soft mt">💡 ระบบจะเพิ่มยอดเงินเข้าบัญชีของผู้ใช้ทันที และบันทึกในระบบ</div>
+
+        <div class="footer d-flex justify-content-center mt">
+          <button class="block btn primary" type="submit">ยืนยันเติมเงิน</button>
+        </div>
+      </form>
+      <div id="manualTopupStatus" class="mt"></div>
+    </div>
+  </div>
+</div>
+
+<style>
+    /* =========================
+   Table Colors (Dark/Light)
+   ========================= */
+    :root {
+    /* dark */
+    --tbl-head-bg:        rgba(255,255,255,.08);
+    --tbl-head-text:      var(--text-primary,#f2f4f8);
+    --tbl-row-bg:         rgba(255,255,255,.02);
+    --tbl-row-alt:        rgba(255,255,255,.06);
+    --tbl-border:         #2a2f36;
+    --tbl-hover:          rgba(255,255,255,.10);
+    }
+    html[data-theme="light"] {
+    /* light */
+    --tbl-head-bg:   #eef2f6;        /* เข้มขึ้น 1 เชด */
+    --tbl-head-text: #0f172a;        /* เทาเข้มอ่านง่าย */
+    --tbl-row-bg:    #ffffff;        /* แถวพื้น */
+    --tbl-row-alt:   #f7fafc;        /* แถวสลับอ่อนกว่า 1 เชด */
+    --tbl-border:    #e5e7eb;        /* เส้นคั่นอ่อน */
+    --tbl-hover:     #e9eef5;        /* hover อ่อน */
+    }
+
+    /* โครงตาราง */
+    .table-wrap{ overflow:auto; -webkit-overflow-scrolling:touch; }
+    .history-table{
+    width:100%;
+    border-collapse:separate;         /* ใช้ separate เพื่อให้เส้นคั่นเนียน */
+    border-spacing:0;
+    margin-top:10px;
+    font-size:14px;
+    min-width:720px;
+    white-space:nowrap;
+    background:transparent;
+    box-shadow: inset 0 1px 0 var(--tbl-border);
+    }
+
+    .history-table thead th,
+    .history-table tbody td{
+    padding:12px 14px;
+    vertical-align:middle;
+    border-bottom:1px solid var(--tbl-border);
+    }
+
+    /* หัวตารางเข้ม + sticky */
+    .history-table thead th{
+    position:sticky; top:0; z-index:5;
+    text-align:left;
+    font-weight:500;
+    color:var(--tbl-head-text);
+    background:var(--tbl-head-bg);
+    backdrop-filter: blur(2px);
+    }
+
+    /* แถวสลับเฉด + hover */
+    .history-table tbody tr{ background:var(--tbl-row-bg); }
+    .history-table tbody tr:nth-child(even){ background:var(--tbl-row-alt); }
+    .history-table tbody tr:hover{ background:var(--tbl-hover); }
+
+    /* คอลัมน์พิเศษ */
+    .history-table .amount{ text-align:right; font-weight:600; }
+    .history-table .status{ text-align:center; font-weight:500; }
+
+    /* โลโก้ธนาคารคมชัด */
+    .bank-logo{
+    width:28px; height:28px; object-fit:contain; vertical-align:middle; margin-right:6px;
+    filter: none;
+    }
+
+    /* ปรับเส้นขอบรอบแรก/สุดท้ายให้เนียน */
+    .history-table thead th:first-child,
+    .history-table tbody td:first-child { padding-left:16px; }
+    .history-table thead th:last-child,
+    .history-table tbody td:last-child  { padding-right:16px; }
+
+    /* เสริมมิติแก่กรอบการ์ดตาราง (เบา ๆ) */
+    .history-wrapper.card.soft{
+    border-color: var(--tbl-border);
+    box-shadow: var(--elevated-shadow,0 10px 24px rgba(0,0,0,.12));
+    }
+    html[data-theme="light"] .history-wrapper.card.soft{
+    box-shadow: 0 8px 22px rgba(15, 23, 42, .06);
+    }
+
+    /* Desktop/Mobile switch */
+    .mobile-only{ display:none !important; }
+    .desktop-only{ display:block !important; }
+    @media (max-width:768px){
+        .desktop-only{ display:none !important; }
+        .mobile-only{ display:block !important; }
+    }
+
+    /* Accordion (มือถือ) */
+    .tx-accordion-list{ display:grid; gap:10px; }
+    .tx-accordion{ background:var(--card,#1a1d22); border:1px solid var(--border,#2a2f36); border-radius:12px; overflow:hidden; box-shadow:var(--elevated-shadow,0 10px 24px rgba(0,0,0,.25)); }
+    .tx-accordion__head{ width:100%; display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px; padding:12px 14px; background:#0f1013; color:var(--text-primary,#f2f4f8); border:0; cursor:pointer; }
+    .tx-accordion__title{ min-width:0; }
+    .tx-accordion__title .tx-id{ display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-weight:400; letter-spacing:.3px; }
+    .tx-accordion__meta{ display:inline-grid; grid-auto-flow:column; gap:10px; align-items:center; color:var(--title,#eadfb8); font-weight:400; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .tx-accordion__meta .tx-toggle{ width:28px; height:28px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--border,#2a2f36); background:#17191d; }
+    .tx-accordion__body{ display:none; padding:12px 14px 14px; background:var(--elevated-bg,#141518); }
+    .tx-accordion[data-open="1"] .tx-accordion__body{ display:block; }
+    .tx-accordion[data-open="1"] .tx-accordion__meta .tx-toggle::before{ content:'–'; }
+    .tx-accordion[data-open="0"] .tx-accordion__meta .tx-toggle::before{ content:'+'; }
+    .tx-row{ display:grid; grid-template-columns:110px 1fr; gap:10px; padding:8px 0; border-bottom:1px dashed var(--border,#2a2f36); }
+    .tx-row:last-child{ border-bottom:0; }
+    .tx-label{ color:var(--muted,#a7b0bb); }
+    .tx-value{ color:var(--text-primary,#f2f4f8); }
+    .pill{ display:inline-block; padding:4px 10px; border-radius:999px; font-weight:400; font-size:12px; background:#22262d; border:1px solid #313641; }
+    .pill--pending{ color:#ffc107; }
+    .pill--completed{ color:#10b981; }
+    .pill--failed{ color:#f87171; }
+    .pill--canceled{ color:#94a3b8; }
+    .tx-actions{ width:100%; margin-top:12px; display:flex; justify-content:flex-start; }
+
+    /* Modal */
+    .modal.hidden{ display:none; }
+    .modal{ position:fixed; inset:0; z-index:100; }
+    .modal .overlay{ position:absolute; inset:0; background:rgba(0,0,0,.55); cursor:pointer; }
+    .modal .dialog{ position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); max-width:420px; width:calc(100% - 24px); background:var(--card,#1c1f24); border:1px solid var(--border,#2a2f36); border-radius:14px; box-shadow:0 18px 60px rgba(0,0,0,.4); padding:16px 18px 18px; animation:modalFadeIn .25s ease-out; z-index:200; }
+    .modal .hdr{ display:flex; justify-content:space-between; align-items:center; }
+    .modal .title{ font-weight:400; font-size:16px; }
+    .modal .icon.close{ border:0; background:transparent; font-size:22px; color:var(--text,#fff); cursor:pointer; }
+    .modal .sep{ border:0; border-top:1px solid var(--border,#2a2f36); margin:12px 0; }
+    .modal .body{ font-size:14px; line-height:1.6; max-height:60vh; overflow-y:auto; }
+
+    /* Card v2, badges (reuse) */
+    .row-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; }
+    .head-right{ display:flex; align-items:center; gap:8px; margin-left:auto; }
+    .metric-badge{ display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; font-weight:400; letter-spacing:.2px; background:var(--pick-chip-bg,rgba(255,255,255,.06)); border:1px solid var(--pick-chip-border,#24262b); color:var(--text-primary,#f2f4f8); }
+    html[data-theme="light"] .metric-badge{ background:#f3f4f6; border-color:#e5e7eb; color:#111827; }
+
+    .card2{ position:relative; border-radius:5px; background:var(--elevated-bg,#141518); border:1px solid var(--elevated-border,#24262b); box-shadow:var(--elevated-shadow,0 10px 24px rgba(0,0,0,.35)); padding:14px 16px; transition:transform .12s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease; will-change:transform,box-shadow; }
+    .card2::before{ content:""; position:absolute; inset:0 auto 0 0; width:0; background:var(--accent,#2a84ff); border-radius:16px 0 0 16px; transition:width .15s ease; }
+    .card2:hover{ transform:translateY(-1px); box-shadow:0 14px 30px rgba(0,0,0,.4); border-color:color-mix(in oklab, var(--accent,#2a84ff) 28%, var(--elevated-border,#24262b)); }
+    .card2:hover::before{ width:3px; }
+    html[data-theme="light"] .card2{ background:#fff; border-color:#e5e7eb; box-shadow:0 10px 24px rgba(0,0,0,.12); }
+    html[data-theme="light"] .card2:hover{ border-color:color-mix(in oklab, var(--accent,#2a84ff) 35%, #e5e7eb); box-shadow:0 16px 36px rgba(0,0,0,.16); }
+
+    .pill--reject, .status.reject{ color:#ef4444; }
+    .status{ text-align:center; font-weight:400; }
+    .status.pending   { color:#ffc107; }
+    .status.completed,
+    .status.success   { color:#10b981; }   /* สำเร็จ */
+    .status.rejected,
+    .status.reject    { color:#ef4444; }   /* ถูกปฏิเสธ */
+    .status.failed,
+    .status.error     { color:#f87171; }   /* ล้มเหลว */
+    .status.canceled,
+    .status.cancelled { color:#94a3b8; }   /* ยกเลิก */
+    .perpage-control{ position:relative; display:inline-block; }
+    .pp-chip{
+        height:28px; padding:0 10px; border-radius:999px; cursor:pointer;
+        background:var(--pick-chip-bg, rgba(255,255,255,.06));
+        border:1px solid var(--pick-chip-border, #24262b);
+        color:var(--text-primary,#f2f4f8);
+        font-size:12px; line-height:26px;
+        align-items: center;
+        font-family: Prompt;
+    }
+    .pp-menu{
+        position:absolute; right:0; margin-top:6px; min-width:120px; padding:6px;
+        background:var(--card,#1c1f24); border:1px solid var(--border,#2a2f36);
+        border-radius:10px; box-shadow:0 14px 30px rgba(0,0,0,.35); z-index:30;
+        font-family: Prompt;
+    }
+    .pp-item{
+        display:block; width:100%; text-align:left; border:0; background:transparent;
+        color:var(--text-primary,#f2f4f8); padding:8px 10px; border-radius:8px; font-size:13px; cursor:pointer;
+        font-family: Prompt;
+    }
+    .pp-item:hover{ background:rgba(255,255,255,.06); }
+    .pp-item.active{ outline:1px solid var(--accent,#2a84ff); }
+    html[data-theme="light"] .pp-chip{
+        background:#f3f4f6; border-color:#e5e7eb; color:#111827;
+    }
+    html[data-theme="light"] .pp-menu{
+        background:#fff; border-color:#e5e7eb; box-shadow:0 16px 36px rgba(0,0,0,.16);
+    }
+    html[data-theme="light"] .pp-item:hover{ background:#f3f4f6; }
+    /* ===== Pager layout ===== */
+    .pager-wrap{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:12px; margin-top:14px; flex-wrap:wrap;
+    }
+    .pager-left{ text-align: end; font-size:13px; }
+    .pager-right{
+    display:flex; align-items:center; gap:10px; margin-left:auto;
+    }
+
+    /* ปุ่มเพจให้พอดี ไม่เทอะทะ */
+    .pages{ display:flex; gap:6px; align-items:center; }
+    .pages .btn.small{
+    height:32px; min-width:36px; padding:0 12px; border-radius:12px;
+    }
+
+    /* ===== Per-page chip + menu (รองรับธีม + ลอยหน้าสุด) ===== */
+    .perpage-control{
+    position:relative; display:inline-block; z-index:50; /* เหนือหัวตาราง (z:5) */
+    }
+    .pp-chip{
+    height:32px; padding:0 12px; border-radius:999px; cursor:pointer;
+    background:var(--pick-chip-bg, rgba(255,255,255,.06));
+    border:1px solid var(--pick-chip-border, #24262b);
+    color:var(--text-primary,#f2f4f8);
+    font-size:13px; line-height:30px;
+    display:inline-flex; align-items:center; gap:6px;
+    }
+    .pp-menu{
+    position:absolute; right:0; top:calc(100% + 6px);
+    min-width:120px; padding:6px;
+    background:var(--card,#1c1f24); border:1px solid var(--border,#2a2f36);
+    border-radius:10px; box-shadow:0 18px 48px rgba(0,0,0,.45);
+    z-index:1000; /* ลอยสุดไม่โดนตารางบัง */
+    }
+    .pp-item{
+    display:block; width:100%; text-align:left; border:0; background:transparent;
+    color:var(--text-primary,#f2f4f8); padding:8px 10px; border-radius:8px; font-size:13px; cursor:pointer;
+    }
+    .pp-item:hover{ background:rgba(255,255,255,.06); }
+    .pp-item.active{ outline:1px solid var(--accent,#2a84ff); }
+
+    /* Light theme */
+    html[data-theme="light"] .pp-chip{
+    background:#f3f4f6; border-color:#e5e7eb; color:#111827;
+    }
+    html[data-theme="light"] .pp-menu{
+    background:#fff; border-color:#e5e7eb; box-shadow:0 18px 48px rgba(0,0,0,.16);
+    }
+    html[data-theme="light"] .pp-item:hover{ background:#f3f4f6; }
+
+    /* ===== Mobile tuning (ไม่ใหญ่ไป + เรียงบรรทัดเดียวติดกัน) ===== */
+    @media (max-width:768px){
+    .pager-wrap{ gap:8px; }
+    .pager-left{ text-align: start; font-size:12px; order:1; width:100%; }
+    .pager-right{ justify-content:flex-end; order:2; width:100%; justify-content:flex-end; gap:8px; }
+    .pages{ gap:6px; }
+    .pages .btn.small{ height:30px; padding:0 10px; font-size:12px; border-radius:10px; }
+    .pp-chip{ height:30px; line-height:28px; font-size:12px; padding:0 10px; }
+    .pp-menu{ top:calc(100% + 4px); } /* เมนูยังลอยหน้าสุด */
+    }
+    /* User cell with avatar */
+    .user-cell{
+    display:inline-flex; align-items:center; gap:10px; min-width:0;
+    }
+    .avatar-sm{
+    width:28px; height:28px; border-radius:50%;
+    object-fit:cover; flex:0 0 28px;
+    border:1px solid var(--border,#2a2f36);
+    background:var(--card,#1a1d22);
+    }
+    .user-meta{ display:flex; align-items:center; gap:6px; min-width:0; }
+    .user-name{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+    /* light theme tune */
+    html[data-theme="light"] .avatar-sm{
+    border-color:#e5e7eb; background:#fff;
+    }
+    /* desktop: แสดงชื่อกับอีเมลต่อบรรทัดเดียวคั่นด้วยจุด */
+    .user-meta{ display:inline-flex; align-items:center; gap:6px; max-width:100%; }
+    .user-meta .user-name{
+    max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    }
+    .user-meta .user-email{ white-space:nowrap; }
+    .user-meta .user-email::before{ content:' · '; }
+    /* mobile: อีเมลย้ายลงบรรทัดใหม่ และตัด prefix จุดออก */
+    @media (max-width:768px){
+    .user-meta{ display:block; }
+    .user-meta .user-email{
+        display:block; margin-top:2px; white-space:normal;
+        overflow:hidden; text-overflow:ellipsis;
+    }
+    .user-meta .user-email::before{ content:''; }
+    }
+    /* ─────────────────────────────────────────
+   Per-page dropdown (เล็ก กระทัดรัด รองรับธีม)
+   ───────────────────────────────────────── */
+    .perpage-control{
+    position:relative;
+    display:inline-block;
+    z-index:60;                 /* สูงกว่าหัวตาราง (th:z-index:5) */
+    font-family: Prompt, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+
+    /* ปุ่มชิปขนาดกะทัดรัด */
+    .pp-chip{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    height:32px;
+    padding:0 12px;
+    line-height:30px;
+    font-size:13px;
+    font-weight:500;
+    border-radius:999px;
+    cursor:pointer;
+
+    /* ธีมมืด (อิง token เดิม) */
+    background:var(--pick-chip-bg, rgba(255,255,255,.06));
+    border:1px solid var(--pick-chip-border, #24262b);
+    color:var(--text-primary,#f2f4f8);
+
+    transition:background .15s ease, border-color .15s ease, box-shadow .15s ease, color .15s ease;
+    }
+    .pp-chip:hover{
+    background:color-mix(in oklab, var(--pick-chip-bg, rgba(255,255,255,.06)) 60%, #ffffff 10%);
+    }
+    .pp-chip:active{ transform:translateY(0.5px); }
+    .pp-chip:focus-visible{
+    outline:0;
+    box-shadow:0 0 0 3px color-mix(in oklab, var(--accent,#2a84ff) 35%, transparent);
+    }
+
+    /* เมนูดรอปดาวน์ */
+    .pp-menu{
+    position:absolute;
+    right:0;
+    top:calc(100% + 6px);
+    min-width:140px;
+    padding:6px;
+    border-radius:12px;
+
+    /* ธีมมืด */
+    background:var(--card,#1c1f24);
+    border:1px solid var(--border,#2a2f36);
+    box-shadow:0 18px 48px rgba(0,0,0,.45);
+
+    z-index:2000;               /* ลอยหน้าสุด ไม่โดนตารางบัง */
+    }
+    .pp-menu[hidden]{ display:none !important; }
+
+    /* ลูกศรเล็ก ๆ ชี้จากปุ่ม */
+    .pp-menu::before{
+    content:"";
+    position:absolute;
+    right:18px;
+    top:-6px;
+    width:10px; height:10px;
+    background:inherit;
+    border-left:inherit; border-top:inherit;
+    transform:rotate(45deg);
+    }
+
+    /* รายการตัวเลือก */
+    .pp-item{
+    display:block;
+    width:100%;
+    text-align:left;
+    border:0;
+    background:transparent;
+    color:var(--text-primary,#f2f4f8);
+    padding:8px 10px;
+    border-radius:8px;
+    font-size:13px;
+    cursor:pointer;
+    transition:background .12s ease, color .12s ease;
+    }
+    .pp-item:hover{ background:rgba(255,255,255,.06); }
+    .pp-item.active,
+    .pp-item[aria-current="true"]{
+    outline:1.5px solid var(--accent,#2a84ff);
+    background:color-mix(in oklab, var(--accent,#2a84ff) 10%, transparent);
+    }
+
+    /* ───────── Light theme (ใช้โทนเทาอย่างเดียว) ───────── */
+    html[data-theme="light"] .pp-chip{
+    background:#f5f7fb;          /* เทาอ่อน */
+    border-color:#e5e7eb;        /* เทาเส้นขอบ */
+    color:#111827;               /* ตัวอักษรเข้ม */
+    box-shadow:0 2px 0 rgba(17,24,39,.06) inset;
+    }
+    html[data-theme="light"] .pp-chip:hover{
+    background:#eef2f7;          /* hover เทาอ่อนขึ้นเล็กน้อย */
+    border-color:#d9dde5;
+    }
+    html[data-theme="light"] .pp-chip:focus-visible{
+    box-shadow:0 0 0 3px rgba(59,130,246,.25); /* วงแหวนฟ้าอ่อน */
+    }
+
+    html[data-theme="light"] .pp-menu{
+    background:#ffffff;          /* กล่องขาว */
+    border-color:#e5e7eb;
+    box-shadow:0 22px 46px rgba(15,23,42,.14);
+    }
+    html[data-theme="light"] .pp-item{ color:#111827; }
+    html[data-theme="light"] .pp-item:hover{ background:#f3f4f6; }
+    html[data-theme="light"] .pp-item.active,
+    html[data-theme="light"] .pp-item[aria-current="true"]{
+    outline:1.5px solid #9aa5b1; /* เทาไฮไลต์ */
+    background:#f1f5f9;
+    }
+
+    /* ───────── มือถือ: ขนาดคงที่ อ่านง่าย ไม่เทอะทะ ───────── */
+    @media (max-width:768px){
+    .pp-chip{
+        height:30px;
+        line-height:28px;
+        font-size:12px;
+        padding:0 10px;
+    }
+    .pp-menu{
+        top:calc(100% + 4px);
+        min-width:130px;
+        border-radius:10px;
+    }
+    }
+</style>
+
+<script>
+  // dropdown perpage
+  (function(){
+    const btn  = document.getElementById('ppBtn');
+    const menu = document.getElementById('ppMenu');
+    const valEl= document.getElementById('ppVal');
+    if (!btn || !menu) return;
+
+    const toggle = ()=>{ menu.hidden = !menu.hidden; };
+    const close  = (e)=>{ if (!menu.hidden && !e.target.closest('.perpage-control')) menu.hidden = true; };
+
+    btn.addEventListener('click', toggle);
+    document.addEventListener('click', close);
+    document.addEventListener('keydown', e=>{ if (e.key==='Escape') menu.hidden = true; });
+
+    menu.querySelectorAll('.pp-item').forEach(it=>{
+      it.addEventListener('click', ()=>{
+        const v = it.dataset.val;
+        valEl.textContent = v;
+        menu.hidden = true;
+        // ไปหน้าแรกของเพจใหม่
+        const url = new URL(location.href);
+        url.searchParams.set('perpage', v);
+        url.searchParams.set('page', '1');
+        location.href = url.toString();
+      });
+    });
+  })();
+</script>
+
+<script>
+  // ====== Utils ======
+  function debounce(fn, ms=250){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+
+  function renderUserDatalist(items){
+    const dl = document.getElementById('userList');
+    if (!dl) return;
+    dl.innerHTML = '';
+    (items||[]).forEach(u=>{
+      const opt = document.createElement('option');
+      opt.value = u.username;
+      opt.label = `${u.username}${u.email?' · '+u.email:''}`;
+      dl.appendChild(opt);
+    });
+  }
+
+  const doUserSearch = debounce(async function(q){
+    try{
+      const url = q && q.length
+        ? `/admin/api/users/search?q=${encodeURIComponent(q)}&limit=20`
+        : `/admin/api/users/search?limit=20`;
+      const r = await fetch(url);
+      const j = await r.json();
+      if (j?.ok) renderUserDatalist(j.items);
+    }catch{}
+  }, 250);
+
+  // ====== Mobile accordion toggle ======
+  (function initTxAccordion(){
+    document.querySelectorAll('.tx-accordion')?.forEach(card=>{
+      card.querySelector('.tx-accordion__head')?.addEventListener('click', ()=>{
+        card.dataset.open = (card.dataset.open === '1' ? '0' : '1');
+      });
+    });
+  })();
+
+  // ====== Modal controls ======
+  function openManualTopupModal(txId = null, amount = null, suggestedUsername = ''){
+    const modal = document.getElementById("manualTopupModal");
+    modal.classList.remove("hidden");
+
+    const form = document.getElementById("manualTopupForm");
+    form.reset();
+    document.getElementById("manualTopupStatus").innerHTML = "";
+
+    window.currentTxId = txId;
+
+    const amtInput = document.getElementById("manualAmount");
+    if (amount){
+      amtInput.value = Number(amount).toFixed(2);
+      amtInput.readOnly = true;
+      amtInput.style.opacity = "0.7";
+    } else {
+      amtInput.value = "";
+      amtInput.readOnly = false;
+      amtInput.style.opacity = "1";
+    }
+
+    const userInput = document.getElementById('manualUsername');
+    if (suggestedUsername && suggestedUsername !== 'null'){
+      userInput.value = suggestedUsername;
+      doUserSearch(suggestedUsername); // preload
+    } else {
+      userInput.value = '';
+      doUserSearch('');                 // preload 20 รายการแรก
+    }
+
+    setTimeout(()=>{ userInput.dispatchEvent(new Event('input')); }, 50);
+  }
+
+  function closeManualTopupModal(){
+    document.getElementById("manualTopupModal").classList.add("hidden");
+    document.getElementById("manualTopupStatus").innerHTML = "";
+  }
+
+  document.getElementById("manualTopupClose")?.addEventListener('click', closeManualTopupModal);
+  document.getElementById("manualTopupModal")?.addEventListener("click",(e)=>{ if(e.target.dataset.close==="1") closeManualTopupModal(); });
+  document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") closeManualTopupModal(); });
+
+  // ====== Submit manual topup ======
+  async function submitManualTopup(ev) {
+    ev.preventDefault();
+    const username = document.getElementById("manualUsername").value.trim();
+    const amount   = parseFloat(document.getElementById("manualAmount").value || 0);
+    const txId     = window.currentTxId || null;
+
+    if (!username || !(amount > 0)) {
+      document.getElementById("manualTopupStatus").innerHTML =
+        '<div class="card soft">❌ กรุณากรอกข้อมูลให้ครบถ้วน</div>';
+      return false;
+    }
+
+    document.getElementById("manualTopupStatus").innerHTML =
+      '<div class="muted">⏳ กำลังทำรายการ...</div>';
+
+    try {
+      const res = await fetch("/admin/manual-topup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, amount, txId }),
+      });
+
+      const data = await res.json();
+      if (data.ok) {
+        document.getElementById("manualTopupStatus").innerHTML = `
+          <div class="card soft">
+            ✅ เติมเงินสำเร็จให้ผู้ใช้ <b>${username}</b><br>
+            <b>จำนวน:</b> ${amount.toLocaleString()} บาท
+          </div>`;
+        setTimeout(() => closeManualTopupModal(), 1200);
+        setTimeout(() => window.location.reload(), 1400);
+      } else {
+        document.getElementById("manualTopupStatus").innerHTML =
+          '<div class="card soft">❌ ' + (data.error || "เกิดข้อผิดพลาด") + "</div>";
+      }
+    } catch (err) {
+      document.getElementById("manualTopupStatus").innerHTML =
+        '<div class="card soft">❌ ขัดข้อง: ' + err.message + "</div>";
+    }
+  }
+
+  // ====== Reject Tx (ใช้ uiConfirm จาก layout.ejs) ======
+  async function rejectTx(id){
+    if (!id) return alert('ไม่พบรหัสรายการ');
+
+    const ok = await (window.uiConfirm?.({
+      variant: 'danger',
+      title: 'ยืนยันปฏิเสธรายการ?',
+      sub: 'การปฏิเสธจะเปลี่ยนสถานะเป็น Reject และไม่เพิ่มยอดผู้ใช้',
+      okText: 'ปฏิเสธ',
+      cancelText: 'ยกเลิก',
+      focus: 'cancel'
+    }) || Promise.resolve(confirm('ยืนยันปฏิเสธรายการนี้?')));
+
+    if (!ok) return;
+
+    try {
+      const r = await fetch(`/admin/topup/${encodeURIComponent(id)}/reject`, {
+        method:'POST', headers:{'Content-Type':'application/json'}
+      });
+      const j = await r.json().catch(()=> ({}));
+      if (!r.ok || !j.ok) throw new Error(j?.error || 'ปฏิเสธไม่สำเร็จ');
+
+      await window.uiConfirm?.({
+        variant:'success',
+        title:'สำเร็จ',
+        sub:'ปฏิเสธรายการเรียบร้อย',
+        okText:'ปิด',
+        cancelText:'Cancel'
+      });
+
+      location.reload();
+    } catch(err){
+      await window.uiConfirm?.({
+        variant:'danger',
+        title:'ล้มเหลว',
+        sub:String(err?.message || err),
+        okText:'ลองอีกครั้ง',
+        cancelText:'ปิด'
+      });
+    }
+  }
+
+  // ====== Pagination helpers ======
+  function updateQuery(params){
+    const url = new URL(location.href);
+    Object.entries(params).forEach(([k,v])=>{
+      if (v==null || v==='') url.searchParams.delete(k);
+      else url.searchParams.set(k, String(v));
+    });
+    location.href = url.toString();
+  }
+  function gotoPage(p){ updateQuery({ page: p, perpage: document.getElementById('perpage')?.value || <%= perpage %> }); }
+  document.getElementById('perpage')?.addEventListener('change', (e)=>{
+    updateQuery({ page: 1, perpage: e.target.value });
+  });
+</script>
