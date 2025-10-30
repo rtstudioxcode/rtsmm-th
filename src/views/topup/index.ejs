@@ -133,7 +133,9 @@
                   <small>QR Code - Scan</small>
                 </div>
               </div>
-              <div class="muted mt" style="text-align:center;">⚠️ กรุณาโอนจากบัญชีที่เพิ่มไว้ในยูสโอนมายังบัญชีนี้เท่านั้น ไม่งั้นระบบจะไม่เติมเครดิตให้</div>
+              <div class="muted mt" style="text-align:center;">
+                ใช้แอป TrueMoney Wallet สแกน QR เท่านั้น แล้วชำระตามยอดที่แสดงระบบจะตรวจสอบและเติมเครดิตให้อัตโนมัติ
+              </div>
             </section>
             <form
               id="topupForm-<%= i %>"
@@ -313,15 +315,12 @@
 
     <div class="toast-body">
       <ul style="margin:0 0 0 18px; padding:10px 0; color:var(--t-muted); line-height:1.5">
-        <li>ข้อมูลที่ใช้ต้องเป็นข้อมูลจริงตามกฏหมาย(มีผลทางกฏหมาย)</li>
-        <li>ชื่อ-นามสกุลต้องใช้ตามบัตรประชาชน</li>
-        <li>บัญชีธนาคาร / TrueMoney Wallet ต้องเพิ่มอย่างน้อย 1 บัญชี (แนะนำ Wallet จะเร็วกว่า)</li>
-        <li>ข้อมูลบัญชีต้องตรงกับชื่อนามสกุลเท่านั้น</li>
+        <li>ในส่วนการเติมเงินแบบแสกน QR Code ของธนาคาร</li>
+        <li>ผู้ใช้งานต้องกรอกจำนวนให้ตรงกับหน้าเว็บ</li>
+        <li>หากกรอกจำนวนไม่ตรงระบบจะไม่สามารถเติมเครดิตให้อัตโนมัติ</li>
+        <li>หลีกเลี่ยงการโอนเงินช่วง 23:30 - 01:30 น. เพราะระบบธนาคารอัปเดตข้อมูลช้า</li>
+        <li>หากเติมเงินไม่เข้าเกิน 1 ชั่วโมงให้ติดต่อไลน์แจ้งแอดมินทันที</li>
       </ul>
-
-      <p style="margin-top:8px;color:var(--t-red-1);font-weight:700">
-        คำเตือน: โปรดใช้บัญชีที่เพิ่มไว้ในยูสโอนมาเท่านั้น ไม่งั้นระบบจะไม่เติมเครดิตให้
-      </p>
 
       <label style="display:flex; gap:10px; align-items:center; margin-top:12px; color:var(--t-muted)">
         <input id="topupNoticeDontShow" type="checkbox" style="width:18px; height:18px;"/>
@@ -403,17 +402,26 @@
         const r = await fetch(`/topup/tx/${txId}`);
         const j = await r.json();
         if (j?.ok) {
-          // ปิดเมื่อจบในทุกกรณี
           if (['completed','failed','cancelled'].includes(j.status)) {
             stopTxWatcher();
             closeQrModal();
+
             if (j.status === 'completed') {
-              location.reload();
+              // ✅ โชว์ Notify มุมขวาบน พร้อมจำนวนเงิน (ถ้ามี)
+              const amt = j.amount ?? j.paidAmount ?? j.displayAmount ?? j.total ?? j.credit ?? null;
+              const fmt = n => Number(n).toLocaleString(undefined,{ minimumFractionDigits:2, maximumFractionDigits:2 });
+              if (typeof notify?.success === 'function') {
+                notify.success('เติมเงินสำเร็จ', amt != null ? `เพิ่มเครดิต ฿${fmt(amt)}` : '');
+              }
+
+              // หน่วงนิดเดียวให้ผู้ใช้เห็นแจ้งเตือน แล้วค่อยรีเฟรช
+              setTimeout(()=> location.reload(), 900);
             } else {
               const msg = (j.status === 'failed')
                 ? 'การชำระล้มเหลว กรุณาลองใหม่'
                 : 'รายการถูกยกเลิก';
-              window.showMsg ? window.showMsg({ variant:'error', title:'ไม่สำเร็จ', text: msg }) : alert(msg);
+              if (typeof notify?.error === 'function') notify.error('ไม่สำเร็จ', msg);
+              else alert(msg);
             }
           }
         }
@@ -767,13 +775,24 @@
       });
       const data = await res.json();
       if (data.verified) {
+        // ✅ แจ้งเตือนมุมขวาบน + จำนวนเงิน (ถ้ามี)
+        const amt = data.amount ?? data.paidAmount ?? data.displayAmount ?? data.total ?? null;
+        const fmt = n => Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        if (typeof window.notify?.success === 'function') {
+          window.notify.success('เติมเงินสำเร็จ', amt != null ? `เพิ่มเครดิต ฿${fmt(amt)}` : '');
+        }
+
+        // อัปเดตสถานะในโมดัลให้ผู้ใช้เห็นด้วย
         document.querySelector("#qrStatus").innerHTML = `
           <div class="card soft">
             ✅ ยืนยันการโอนสำเร็จแล้ว<br>
             <b>รหัสธุรกรรม:</b> ${data.transactionId || data._id || "-"}<br>
             <b>สถานะ:</b> ${data.status}
           </div>`;
-        setTimeout(() => window.location.reload(), 1500);
+
+        // ปิดโมดัลแล้วค่อยรีเฟรช (ให้ทันเห็น notify ก่อน)
+        setTimeout(() => { try { closeQrModal?.(); } catch {} ; window.location.reload(); }, 1200);
+
       } else {
         document.querySelector("#qrStatus").innerHTML = `
           <div class="card soft">
@@ -781,7 +800,11 @@
           </div>`;
       }
     } catch (err) {
-      document.querySelector("#qrStatus").innerHTML = `<div class="card soft">❌ ขัดข้อง: ${err.message}</div>`;
+      if (typeof window.notify?.error === 'function') {
+        window.notify.error('ขัดข้อง', err.message || 'โปรดลองใหม่');
+      }
+      document.querySelector("#qrStatus").innerHTML =
+        `<div class="card soft">❌ ขัดข้อง: ${err.message}</div>`;
     }
   });
 </script>

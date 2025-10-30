@@ -26,35 +26,13 @@ topupRouter.get("/", async (req, res) => {
     const user = await User.findById(userId).lean();
     if (!user) return res.redirect("/login");
 
-    // โค้ดบัญชีที่ผู้ใช้ผูกไว้ (เช่น ["tw"] หรือ ["kbank", "scb"] ฯลฯ)
-    const codes = (user.bankAccounts || []).map((acc) =>
-      (acc.accountCode || "").toLowerCase()
-    );
+    // ✅ แสดงทุกช่องทางที่ "เปิดใช้งาน" จริง โดยจำกัดเฉพาะโค้ดที่รองรับออโต้ตอนนี้
+    //    (tw, kbank, scb) — ถ้ามีเพิ่มค่อยขยายลิสต์ได้
+    const webWallets = await Topup.find({
+      isActive: true,
+      accountCode: { $in: ["tw", "kbank", "scb"] },
+    }).lean();
 
-    // ดึงสถานะ wallet ที่ระบบเปิดใช้อยู่จริง
-    const [twActive, scbActive] = await Promise.all([
-      Topup.findOne({ accountCode: "tw", isActive: true }).lean(),
-      Topup.findOne({ accountCode: { $in: ["kbank", "scb"] }, isActive: true }).lean(),
-    ]);
-
-    const webWallets = [];
-
-    // ถ้ามี TrueWallet ในโปรไฟล์ และระบบเปิดใช้งานอยู่ → แสดง
-    if (codes.includes("tw") && twActive) {
-      webWallets.push(twActive);
-    }
-
-    // ถ้ามี “บัญชีธนาคารใดๆ” ในโปรไฟล์ และ SCB เปิดใช้งาน → แสดง SCB
-    if (codes.some((c) => c && c !== "tw") && scbActive) {
-      webWallets.push(scbActive);
-    }
-
-    // ถ้าไม่มี TW ในโปรไฟล์เลย → fallback เป็น SCB (เฉพาะกรณี SCB เปิดใช้งาน)
-    if (!codes.includes("tw") && webWallets.length === 0 && scbActive) {
-      webWallets.push(scbActive);
-    }
-
-    // ประวัติ
     const transactions = await Transaction.find({ userId })
       .sort({ createdAt: -1 })
       .limit(20)
@@ -63,7 +41,7 @@ topupRouter.get("/", async (req, res) => {
     res.render("topup/index", {
       title: "เติมเงิน",
       user,
-      webWallets, // ✅ มีเฉพาะกระเป๋าที่ isActive จริง
+      webWallets,       // ← ส่งกระเป๋าที่ active ทั้งหมดให้หน้าบ้าน
       transactions,
     });
   } catch (err) {
@@ -72,6 +50,59 @@ topupRouter.get("/", async (req, res) => {
   }
 });
 
+// topupRouter.get("/", async (req, res) => {
+//   try {
+//     const userId = req?.session?.userId;
+//     if (!userId) return res.redirect("/login");
+
+//     const user = await User.findById(userId).lean();
+//     if (!user) return res.redirect("/login");
+
+//     // โค้ดบัญชีที่ผู้ใช้ผูกไว้ (เช่น ["tw"] หรือ ["kbank", "scb"] ฯลฯ)
+//     const codes = (user.bankAccounts || []).map((acc) =>
+//       (acc.accountCode || "").toLowerCase()
+//     );
+
+//     // ดึงสถานะ wallet ที่ระบบเปิดใช้อยู่จริง
+//     const [twActive, scbActive] = await Promise.all([
+//       Topup.findOne({ accountCode: "tw", isActive: true }).lean(),
+//       Topup.findOne({ accountCode: { $in: ["kbank", "scb"] }, isActive: true }).lean(),
+//     ]);
+
+//     const webWallets = [];
+
+//     // ถ้ามี TrueWallet ในโปรไฟล์ และระบบเปิดใช้งานอยู่ → แสดง
+//     if (codes.includes("tw") && twActive) {
+//       webWallets.push(twActive);
+//     }
+
+//     // ถ้ามี “บัญชีธนาคารใดๆ” ในโปรไฟล์ และ SCB เปิดใช้งาน → แสดง SCB
+//     if (codes.some((c) => c && c !== "tw") && scbActive) {
+//       webWallets.push(scbActive);
+//     }
+
+//     // ถ้าไม่มี TW ในโปรไฟล์เลย → fallback เป็น SCB (เฉพาะกรณี SCB เปิดใช้งาน)
+//     if (!codes.includes("tw") && webWallets.length === 0 && scbActive) {
+//       webWallets.push(scbActive);
+//     }
+
+//     // ประวัติ
+//     const transactions = await Transaction.find({ userId })
+//       .sort({ createdAt: -1 })
+//       .limit(20)
+//       .lean();
+
+//     res.render("topup/index", {
+//       title: "เติมเงิน",
+//       user,
+//       webWallets,
+//       transactions,
+//     });
+//   } catch (err) {
+//     console.error("Topup page error:", err);
+//     res.status(500).send("เกิดข้อผิดพลาดในระบบ");
+//   }
+// });
 
 /* ───────────────────────────────
    POST /truewallet/gen/link
