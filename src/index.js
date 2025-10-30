@@ -156,6 +156,7 @@ try {
   console.warn("⚠️ syncIndexes failed:", e?.message || e);
 }
 
+
 /* ------------------------------------------------------------------ */
 /* 4) Express App                                                      */
 /* ------------------------------------------------------------------ */
@@ -179,6 +180,7 @@ app.use(
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(compression());
+
 
 // Session — ใช้ secret จาก DB ก่อน
 app.use(
@@ -384,10 +386,9 @@ app.get("/page/terms-of-use", (req, res) => {
   });
 });
 
-// 404
-app.use((req, res) => res.status(404).send("Not found"));
 // 404 (optional)
 app.use((req, res) => res.status(404).send("Not found"));
+
 
 // 🔁 Auto-sync services เมื่อ DB ยังว่าง (ทำครั้งเดียวตอนบูต)
 (async () => {

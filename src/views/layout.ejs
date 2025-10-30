@@ -583,5 +583,47 @@
     });
   })();
   </script>
+  <% if (!me || me.role !== 'admin') { %>
+  <script>
+  (function () {
+    const isMac = navigator.platform.toUpperCase().includes('MAC');
+
+    function isDevHotkey(e) {
+      const k = (e.key || '').toLowerCase();
+      if (e.key === 'F12' || e.keyCode === 123) return true;
+      if (e.ctrlKey && e.shiftKey && ['i','j','c'].includes(k)) return true;   // DevTools, console
+      if ((isMac ? e.metaKey : e.ctrlKey) && k === 'u') return true;           // View Source
+      return false;
+    }
+
+    // บล็อกคีย์ลัด DevTools
+    addEventListener('keydown', function(e){
+      if (isDevHotkey(e)) { e.preventDefault(); e.stopPropagation(); }
+    }, { capture:true });
+
+    // บล็อกคลิกขวา (ยกเว้น input/textarea/contenteditable)
+    addEventListener('contextmenu', function(e){
+      if (e.target.closest('input, textarea, [contenteditable="true"]')) return;
+      e.preventDefault();
+    }, { capture:true });
+
+    // ตัวตรวจจับ DevTools แบบคร่าว ๆ (หลบเลี่ยงง่าย)
+    let flagged = false;
+    function checkDevtools() {
+      const t = 160;
+      const w = (outerWidth - innerWidth)  > t;
+      const h = (outerHeight - innerHeight) > t;
+      if ((w || h) && !flagged) {
+        flagged = true;
+        // ตัวอย่าง: ซ่อนคอนเทนต์/รีไดเรกต์ (ถ้าต้องการ)
+        // document.body.innerHTML = '';
+        // location.href = '/';
+      }
+    }
+    checkDevtools();
+    addEventListener('resize', checkDevtools);
+  })();
+  </script>
+  <% } %>
 </body>
 </html>
