@@ -90,7 +90,11 @@ const TransactionSchema = new mongoose.Schema({
   note: String,
 }, { timestamps: true });
 
-TransactionSchema.index({ method: 1, amountCents: 1, status: 1 });
+TransactionSchema.index({ method: 1, status: 1, amountCents: 1, createdAt: -1 });
+TransactionSchema.index(
+  { expiresAt: 1 },
+  { expireAfterSeconds: 0, partialFilterExpression: { status: 'pending' } }
+);
 
 export const Transaction =
   mongoose.models.Transaction || mongoose.model("Transaction", TransactionSchema);

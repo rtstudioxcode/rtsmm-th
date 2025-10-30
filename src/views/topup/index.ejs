@@ -263,16 +263,19 @@
         "ยกเลิก"; %>
         <tr>
           <td class="muted">
-            <%= new Date(tx.createdAt).toLocaleString('th-TH', { year:
-            'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute:
-            '2-digit' }) %>
+            <% const ts = tx.paidAt || tx.updatedAt || tx.createdAt; %>
+            <%= new Date(ts).toLocaleString('th-TH', {
+              timeZone: 'Asia/Bangkok',
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            }) %>
           </td>
 
           <td class="method">
-            <img
-              src="/static/assets/payment/<%= tx.method === 'truewallet' ? 'tw' : tx.method %>.webp"
-              alt="<%= methodName %>"
-            />
+            <img src="/static/assets/payment/<%= tx.method %>.webp" alt="<%= methodName %>" />
             <%= methodName %>
           </td>
 
@@ -390,9 +393,8 @@
     stopTxWatcher();
     const started = Date.now();
 
-    txWatcher = setInterval(async ()=>{
+    txWatcher = setInterval(async ()=> {
       try{
-        // หมดอายุ safety เผื่อ webhook ไม่มา
         if (Date.now() - started > timeoutSec*1000) {
           stopTxWatcher();
           closeQrModal();
@@ -400,16 +402,23 @@
         }
         const r = await fetch(`/topup/tx/${txId}`);
         const j = await r.json();
-        if (j?.ok && j.status === 'completed'){
-          stopTxWatcher();
-          closeQrModal();
-          // รีเฟรชเพื่ออัปเดตยอด/ประวัติ
-          location.reload();
+        if (j?.ok) {
+          // ปิดเมื่อจบในทุกกรณี
+          if (['completed','failed','cancelled'].includes(j.status)) {
+            stopTxWatcher();
+            closeQrModal();
+            if (j.status === 'completed') {
+              location.reload();
+            } else {
+              const msg = (j.status === 'failed')
+                ? 'การชำระล้มเหลว กรุณาลองใหม่'
+                : 'รายการถูกยกเลิก';
+              window.showMsg ? window.showMsg({ variant:'error', title:'ไม่สำเร็จ', text: msg }) : alert(msg);
+            }
+          }
         }
-      }catch(e){
-        // เงียบ ๆ ไว้ แล้วค่อยเช็คใหม่รอบถัดไป
-      }
-    }, 2500); // เช็คทุก 2.5 วิ
+      }catch(e){ /* เงียบ ๆ แล้ววนต่อ */ }
+    }, 2500);
   }
 
   function stopTxWatcher(){
@@ -645,96 +654,101 @@
     if (e.target.dataset.close === '1') closeQrModal();
   });
 
-  window.__topupBusy = false;
+  let TW_LOCK = false;
 
   /* 💸 Submit TrueWallet topup */
   async function submitTopup(ev){
     ev.preventDefault();
-    if (window.__topupBusy) return false;
-    window.__topupBusy = true;
-
-    const form        = ev.currentTarget || ev.target;
-    const walletCode  = form.dataset.walletCode; // ควรเป็น 'tw'
-    const amountInput = form.querySelector('input[name="amount"]');
-    const submitBtn   = form.querySelector('button[type="submit"]');
-
-    // ช่วย UX: ปิดปุ่มระหว่างทำงาน
-    submitBtn?.setAttribute('disabled','');
-    submitBtn?.setAttribute('aria-busy','true');
-
-    // helper แสดงข้อความ
-    const showErr = (msg) => {
-      window.showMsg
-        ? window.showMsg({ variant:'error', title:'ไม่สำเร็จ', text: msg })
-        : (document.querySelector("#resp").innerHTML = `<div class="card soft">❌ ${msg}</div>`);
-    };
+    if (TW_LOCK) return false;                 // กันกดรัว
+    TW_LOCK = true;
 
     try{
-      const raw = String(amountInput?.value || '').trim();
-      const base = Number(raw);
+      const form       = ev.currentTarget || ev.target;
+      const walletCode = form.dataset.walletCode; // ควรเป็น 'tw'
+      const amountEl   = form.querySelector('input[name="amount"]');
+      const base       = Number(amountEl?.value || 0);
 
-      if (walletCode !== 'tw') {
-        throw new Error('วิธีนี้รองรับเฉพาะ TrueMoney Wallet เท่านั้น');
+      if (walletCode !== 'tw'){
+        document.querySelector("#resp").innerHTML =
+          `<div class="card soft">❌ วิธีนี้รองรับเฉพาะ TrueWallet</div>`;
+        return false;
       }
-      if (!Number.isFinite(base) || base < 10) {
-        throw new Error('กรุณากรอกจำนวนเงินให้ถูกต้อง (ขั้นต่ำ 10 บาท)');
+      if (!Number.isFinite(base) || base < 10){
+        document.querySelector("#resp").innerHTML =
+          `<div class="card soft">❌ จำนวนเงินขั้นต่ำ 10 บาท</div>`;
+        return false;
       }
 
-      // 1) คิดค่าธรรมเนียม 3% และปัดทศนิยม 2 ตำแหน่ง
-      const subtotal = Number((base * 1.03).toFixed(2)); // รวม fee, ยังไม่ใส่เศษ
+      // 1) รวมค่าธรรมเนียม 3% (ปัดทศนิยม 2 ตำแหน่งให้แน่นอน)
+      const subtotal = Math.round((base * 1.03 + Number.EPSILON) * 100) / 100;
 
-      // 2) ให้ backend “สุ่มเศษ” + สร้าง tx (สำคัญ: walletCode='tw')
+      // 2) ให้ backend สุ่มเศษ + สร้าง tx (สำคัญ: walletCode='tw')
+      //    หมายเหตุ: ถ้าแบ็กเอนด์คืน pendingTxId มา → reuse ไม่สร้างซ้ำ
       const cRes = await fetch('/topup/create', {
         method: 'POST',
         headers: { 'Content-Type':'application/json' },
         body: JSON.stringify({ amount: subtotal, walletCode: 'tw' })
       });
-      const c = await cRes.json().catch(()=> ({}));
-      if (!cRes.ok || !c?.ok || !c?.txId || !c?.displayAmount) {
-        throw new Error(c?.error || 'สร้างคำสั่งเติมเงินไม่สำเร็จ');
+      const c = await cRes.json();
+
+      if (!cRes.ok || !c?.ok){
+        // ถ้ามี tx ค้างคืนมาให้ ก็ใช้ตัวนั้นต่อ (หลีกเลี่ยง Pending ซ้ำ)
+        if (c?.pendingTxId) {
+          window.currentTxId = c.pendingTxId;
+        } else {
+          const err = c?.error || 'สร้างคำสั่งเติมเงินไม่สำเร็จ';
+          window.showMsg ? window.showMsg({ variant:'error', title:'ไม่สำเร็จ', text: err }) : alert(err);
+          return false;
+        }
+      } else {
+        // ปกติได้ tx ใหม่
+        window.currentTxId = c.txId || c.id || c.pendingTxId;
       }
 
-      // 3) ใช้ยอดสุทธิที่ “สุ่มเศษแล้ว” ไปขอลิงก์จาก TrueMoney
-      const payAmount = Number(c.displayAmount);
+      // จำนวนที่ต้องจ่ายจริง (สุ่มเศษแล้ว)
+      const payAmount = Number((c?.displayAmount ?? subtotal));
+
+      // 3) ขอลิงก์จ่ายจาก TrueMoney
       const gRes = await fetch('/topup/truewallet/gen/link', {
         method: 'POST',
-        headers: { 'Content-Type':'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: payAmount })
       });
-      const g = await gRes.json().catch(()=> ({}));
-      if (!gRes.ok || !g?.url) {
-        throw new Error(g?.message || 'ไม่สามารถสร้างลิงก์ TrueWallet ได้');
+      const g = await gRes.json();
+      if (!gRes.ok || !g?.url){
+        const err = g?.message || 'ไม่สามารถสร้างลิงก์ TrueWallet ได้';
+        window.showMsg ? window.showMsg({ variant:'error', title:'ไม่สำเร็จ', text: err }) : alert(err);
+        return false;
       }
 
-      // 4) เติมข้อมูลลงโมดัล + เปิดโหมด TW + เริ่ม watcher
-      window.currentTxId = c.txId;
+      // 4) เคลียร์ watcher เก่า (ถ้ามี) ก่อนเริ่มรอบใหม่
+      try { stopTxWatcher(); } catch {}
 
+      // 5) ใส่ข้อมูลลงโมดัล + เปิดโหมด TW
       const img = document.getElementById('qrImage');
-      if (img) {
-        img.alt = 'QR สำหรับชำระเงิน TrueMoney Wallet';
-        img.src = `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(g.url)}`;
-      }
+      if (img) img.src = `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(g.url)}`;
 
-      document.getElementById('qrMethod') ?.replaceChildren(document.createTextNode('TrueMoney Wallet'));
-      document.getElementById('qrName')   ?.replaceChildren(document.createTextNode(g.accountName  || 'RTSMM'));
-      document.getElementById('qrNumber') ?.replaceChildren(document.createTextNode(g.accountNumber || '-'));
+      document.getElementById('qrMethod')?.replaceChildren(document.createTextNode('TrueMoney Wallet'));
+      document.getElementById('qrName')?.replaceChildren(document.createTextNode(g.accountName || 'RTSMM'));
+      document.getElementById('qrNumber')?.replaceChildren(document.createTextNode(g.accountNumber || '-'));
       document.getElementById('qrAmountTw')?.replaceChildren(document.createTextNode(
-        payAmount.toLocaleString(undefined,{ minimumFractionDigits:2, maximumFractionDigits:2 })
+        payAmount.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2})
       ));
 
-      // เปิดโมดัล (TW) + เริ่มจับเวลา และ watcher อัตโนมัติ
-      openQrModal('tw', c.expiresIn || 300);
-      startTxWatcher(window.currentTxId, c.expiresIn || 300);
+      // เปิด modal โหมด TW + เริ่มจับเวลา
+      openQrModal('tw', c?.expiresIn || 300);
 
+      // 6) เริ่มเฝ้าสถานะ (webhook สำเร็จ → watcher ปิด modal + reload)
+      startTxWatcher(window.currentTxId, c?.expiresIn || 300);
+
+      return false;
     } catch(err){
-      const msg = err?.message || 'ขัดข้อง ไม่สามารถทำรายการได้';
-      showErr(msg);
+      const msg = `ขัดข้อง: ${err.message}`;
+      window.showMsg ? window.showMsg({ variant:'error', title:'ไม่สำเร็จ', text: msg }) : alert(msg);
+      return false;
     } finally {
-      submitBtn?.removeAttribute('aria-busy');
-      submitBtn?.removeAttribute('disabled');
-      window.__topupBusy = false;
+      TW_LOCK = false; // ปลดล็อคไม่ว่าผลจะสำเร็จ/ล้มเหลว
     }
-    return false;
   }
 
   /* 🧾 Confirm topup */
