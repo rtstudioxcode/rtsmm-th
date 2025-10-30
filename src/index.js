@@ -39,6 +39,8 @@ import { topupRouter } from "./routes/topup.js";
 import adminReport from './routes/admin-report.js';
 import affiliateRouter from './routes/affiliate.js';
 
+import cookieParser from 'cookie-parser';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -287,6 +289,7 @@ app.use(async (req, res, next) => {
 });
 
 // Routes
+app.use(cookieParser(process.env.COOKIE_SECRET || 'rtsmm-th-06d85d6dsa8'));
 app.use(affiliateRouter);
 app.use(authRoutes);
 app.use(resetPasswordRoutes);

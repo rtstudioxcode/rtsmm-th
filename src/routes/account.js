@@ -592,7 +592,7 @@ router.post('/account/affiliate/create-link', async (req, res) => {
       await u.save();
     }
 
-    const link = `https://rtsmm-th.com/register?=${u.affiliateKey}`;
+    const link = `https://rtsmm-th.com/aff?=${u.affiliateKey}`;
     return res.json({
       ok:true,
       key: u.affiliateKey,
