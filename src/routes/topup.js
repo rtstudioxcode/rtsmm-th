@@ -281,63 +281,57 @@ topupRouter.post("/create", async (req, res) => {
     if (!uid) return res.status(401).json({ ok: false, error: "unauthorized" });
 
     const base = Number(req.body.amount);
-    const walletCode = String(req.body.walletCode || "tw").toLowerCase(); // ค่าเริ่มต้น = 'tw'
+    const walletCode = String(req.body.walletCode || "tw").toLowerCase(); // 'tw' | 'kbank' | ...
     if (!Number.isFinite(base) || base < 10) {
       return res.status(400).json({ ok: false, error: "invalid_amount_min_10" });
     }
 
-    // ⛔ กัน pending ซ้ำของผู้ใช้เดียวกัน-วิธีเดียวกัน (ยังไม่หมดอายุ)
+    // ⛔ กันใบ pending ซ้ำของผู้ใช้เดียวกัน-วิธีเดียวกัน (ยังไม่หมดอายุ)
     const now = Date.now();
     const existing = await Transaction.findOne({
       userId: uid,
-      method: walletCode,                 // 'tw' | 'kbank' | ...
+      method: walletCode,
       status: "pending",
       expiresAt: { $gt: new Date(now) }
     }).sort({ createdAt: -1 });
 
     if (existing) {
-      // สำหรับ TW: front จะไป gen ลิงก์เอง, ธนาคาร: ส่ง qrUrl กลับ
+      // TW ให้ไป gen link เอง /truewallet/gen/link, ธนาคารส่ง QR KBANK อย่างเดียว
       const qrUrl = walletCode === "tw" ? null : "/static/assets/payment/qr-kbank.jpg";
-
       const expiresIn = Math.max(30, Math.floor((existing.expiresAt.getTime() - now) / 1000));
       return res.json({
         ok: true,
         pendingTxId: String(existing._id),
         txId: String(existing._id),
-        displayAmount: existing.amount,    // ใช้ยอดสุ่มเศษเดิม
+        displayAmount: existing.amount,
         expiresIn,
         qrUrl
       });
     }
 
-    // ✅ สร้าง pending ใหม่ (สุ่มเศษแบบลดโอกาสชนกับคิวอื่นๆ)
-    //      - เลือกเศษ 0.01..0.60 บาท
-    //      - รีทรายเล็กน้อยถ้าไปชน amountCents ที่มี pending 'tw' อยู่แล้ว
-    const centsCandidate = async () => {
+    // ✅ สร้าง pending ใหม่: สุ่มเศษ 0.01..0.60 และเช็ค "global clash" สำหรับ method นั้น ๆ
+    const pickUniqueCents = async () => {
       for (let t = 0; t < 6; t++) {
         const decimalCents = Math.floor(Math.random() * 60) + 1; // 1..60
         const uniqueAmt = (Math.round(base * 100) + decimalCents) / 100;
         const uniqueCents = Math.round(uniqueAmt * 100);
 
-        // ถ้าเป็น TW ให้เช็คไม่ให้ชนกับ pending TW อื่น ลด false match ตอน webhook
-        if (walletCode === "tw") {
-          const clash = await Transaction.exists({
-            method: "tw",
-            status: "pending",
-            amountCents: uniqueCents,
-            expiresAt: { $gt: new Date(now - 60 * 60 * 1000) }
-          });
-          if (clash) continue; // ลองสุ่มใหม่
-        }
-        return { uniqueAmt, uniqueCents };
+        // กันชนกับ pending method เดียวกันที่ยังไม่หมดอายุ (ภายใน 60 นาทีล่าสุด)
+        const clash = await Transaction.exists({
+          method: walletCode,
+          status: "pending",
+          amountCents: uniqueCents,
+          expiresAt: { $gt: new Date(now - 60 * 60 * 1000) }
+        });
+        if (!clash) return { uniqueAmt, uniqueCents };
       }
-      // ถ้าสุ่มแล้วชนตลอด ก็ยอมใช้ตัวสุดท้ายไป
+      // ถ้าชนทุกครั้ง ก็ใช้ตัวสุดท้ายไป (โอกาสน้อยมาก)
       const decimalCents = Math.floor(Math.random() * 60) + 1;
       const uniqueAmt = (Math.round(base * 100) + decimalCents) / 100;
       return { uniqueAmt, uniqueCents: Math.round(uniqueAmt * 100) };
     };
 
-    const { uniqueAmt, uniqueCents } = await centsCandidate();
+    const { uniqueAmt, uniqueCents } = await pickUniqueCents();
 
     const tx = await Transaction.create({
       userId: uid,
@@ -349,15 +343,8 @@ topupRouter.post("/create", async (req, res) => {
       expiresAt: new Date(now + 5 * 60 * 1000), // 5 นาที
     });
 
-    // ธนาคารเท่านั้นที่ต้องมี QR ภายใน; TW ใช้ลิงก์จาก /truewallet/gen/link
-    const qrUrl =
-      walletCode === "tw"
-        ? null
-        : walletCode === "kbank"
-          ? "/static/assets/payment/qr-kbank.jpg"
-          : walletCode === "scb"
-            ? "/static/assets/payment/qr-scb.jpg"
-            : `/static/assets/payment/qr-${walletCode}.jpg`;
+    // ธนาคาร: ใช้ QR KBANK อย่างเดียว / TW: null (ไป gen link เอง)
+    const qrUrl = walletCode === "tw" ? null : "/static/assets/payment/qr-kbank.jpg";
 
     return res.json({
       ok: true,
@@ -391,14 +378,14 @@ topupRouter.get("/tx/:id", async (req, res) => {
   }
 });
 
-// เติมเครดิต KBANK แบบจับคู่ด้วยยอดเงิน + เศษ
+// เติมเครดิต KBANK แบบจับคู่ด้วยยอดเงิน + เศษ (อัปเดต)
 topupRouter.post("/kbank", async (req, res) => {
   try {
     const { message, secret, timestamp } = req.body;
     if (!message || !secret || !timestamp)
       return res.status(400).json({ success:false, message:"missing_parameters" });
 
-    // ดึงจาก SMS
+    // SMS: 24/10 12:34 บช X-123456 รับโอนจาก X-654321 1,234.56 คงเหลือ
     const regex = /(\d{2})\/(\d{2})(?:\/\d{2})?\s+(\d{2}):(\d{2})\s+บช\s+X-(\d+)\s+รับโอนจาก\s+X-(\d+)\s+([\d,]+\.\d{2})\s+คงเหลือ/i;
     const match = String(message).match(regex);
     if (!match) return res.status(400).json({ success:false, message:"invalid_message_format" });
@@ -408,8 +395,8 @@ topupRouter.post("/kbank", async (req, res) => {
     const seconds = new Date(timestamp * 1000).getSeconds();
     const parsedDate = new Date(Date.UTC(year, month - 1, day, hour, minute, seconds));
 
-    const amt = Number(String(amountStr).replace(/,/g, "")) || 0;   // 10.31
-    const amtCents = Math.round(amt * 100);                         // 1031
+    const amt = Number(String(amountStr).replace(/,/g, "")) || 0;
+    const amtCents = Math.round(amt * 100);
     const senderDigits = String(senderLast6||"").trim();
     const receiverDigits = String(receiverLast6||"").trim();
 
@@ -437,15 +424,16 @@ topupRouter.post("/kbank", async (req, res) => {
       return res.json({ success:true, method:"kbank", deduped:true, amount:amt, timestamp });
     }
 
-    // จับคู่กับ pending ที่สร้างจาก /topup/create
+    // จับคู่กับ pending จาก /topup/create (ยังไม่หมดอายุ) → เลือกใบล่าสุด
     const pendingTx = await Transaction.findOne({
       method: "kbank",
       amountCents: amtCents,
       status: "pending",
-    });
+      $or: [{ expiresAt: { $exists: false } }, { expiresAt: { $gt: new Date() } }],
+    }).sort({ createdAt: -1 });
 
     if (!pendingTx) {
-      // เก็บไว้ให้แอดมินตรวจ (ยังไม่มีเจ้าของ)
+      // เก็บ unmatched (ยังไม่มีเจ้าของ)
       await Transaction.create({
         method: "kbank",
         amount: amt,
@@ -461,7 +449,7 @@ topupRouter.post("/kbank", async (req, res) => {
       return res.json({ success:true, method:"kbank", amount:amt, timestamp, unmatched:true });
     }
 
-    // มีเจ้าของ → เติมเครดิต
+    // มีเจ้าของ → เติมเครดิต + อัปเดตใบเดิม
     const user = await User.findById(pendingTx.userId);
     if (!user) {
       pendingTx.note = "User not found at webhook";
@@ -472,13 +460,13 @@ topupRouter.post("/kbank", async (req, res) => {
     const newBalance = await user.addBalance(amt);
     pendingTx.set({
       status: "completed",
-      matchedBy: "amount",
+      matchedBy: "amountCents",
       matchedTxId: pendingTx._id,
       senderLast6: senderDigits,
       receiverLast6: receiverDigits,
-      createdAt: parsedDate,
-      paidAt: new Date(),
-      username: user.username 
+      createdAt: parsedDate,  // เก็บเวลาอิง SMS
+      paidAt: new Date(),     // เวลาบันทึกสำเร็จในระบบ
+      username: user.username
     });
     await pendingTx.save();
 
@@ -490,7 +478,7 @@ topupRouter.post("/kbank", async (req, res) => {
   }
 });
 
-// เติมเครดิต SCB แบบจับคู่ด้วยยอดเงิน + เศษ
+// เติมเครดิต SCB แบบจับคู่ด้วยยอดเงิน + เศษ (อัปเดตให้ logic = KBANK)
 topupRouter.post("/scb", async (req, res) => {
   try {
     const { message, secret, timestamp } = req.body;
@@ -498,8 +486,7 @@ topupRouter.post("/scb", async (req, res) => {
       return res.status(400).json({ success: false, message: "missing_parameters" });
     }
 
-    // ── ดึงค่าจาก SMS (ใช้ regex เดิมของคุณ) ─────────────────────────────
-    // ตัวอย่าง SCB: "26/10@18:54 1,234.00 จากKBANK/x123456 เข้าบัญชี xxx เข้าx987654"
+    // ตัวอย่าง: "26/10@18:54 1,234.00 จากKBANK/x123456 เข้าบัญชี xxx เข้าx987654"
     const regex = /(\d{2})\/(\d{2})@(\d{2}):(\d{2})\s+([\d,]+\.\d{2})\s+จาก([A-Z]+)\/x(\d+).*?เข้าx(\d+)/i;
     const match = String(message).match(regex);
     if (!match) {
@@ -508,23 +495,23 @@ topupRouter.post("/scb", async (req, res) => {
 
     let [, day, month, hour, minute, amountStr, bankLogoRaw, senderLast6, receiverLast6] = match;
 
-    // นอร์มัลไลซ์ bank code (เก็บไว้ประกอบข้อมูล)
+    // normalize bank code (เก็บประกอบข้อมูล)
     let bankLogo = String(bankLogoRaw || "").trim().toUpperCase();
     const bankMap = { KBNK: "KBANK", KTBK: "KTB", SCBA: "SCB", BAYK: "BAY" };
     if (bankMap[bankLogo]) bankLogo = bankMap[bankLogo];
 
-    // ── ทำเวลาแบบ UTC ให้เสถียร (เหมือน KBANK) ────────────────────────────
+    // เวลาแบบ UTC ให้เสถียร (เหมือน KBANK)
     const year = new Date().getFullYear();
     const seconds = new Date(timestamp * 1000).getSeconds();
     const parsedDate = new Date(Date.UTC(year, Number(month) - 1, Number(day), Number(hour), Number(minute), seconds));
 
-    // ── จำนวนเงิน ───────────────────────────────────────────────────────────
+    // จำนวนเงิน
     const amt = Number(String(amountStr).replace(/,/g, "")) || 0;
     const amtCents = Math.round(amt * 100);
     const senderDigits = String(senderLast6 || "").trim();
     const receiverDigits = String(receiverLast6 || "").trim();
 
-    // ── ตรวจบัญชีที่ตั้งไว้ + secret ───────────────────────────────────────
+    // ตรวจบัญชี + secret
     const topup = await Topup.findOne({
       type: "DEPOSIT",
       accountCode: "scb",
@@ -540,7 +527,7 @@ topupRouter.post("/scb", async (req, res) => {
       return res.status(401).json({ success: false, message: "unauthorized" });
     }
 
-    // ── กันยิงซ้ำ: หากมี completed ด้วย amountCents เดียวกันในช่วง ±2 นาที ──
+    // กันยิงซ้ำ: completed เดิมในช่วง ±2 นาที ด้วย amountCents
     const twoMinBefore = new Date(parsedDate.getTime() - 2 * 60 * 1000);
     const twoMinAfter  = new Date(parsedDate.getTime() + 2 * 60 * 1000);
     const dup = await Transaction.findOne({
@@ -554,15 +541,15 @@ topupRouter.post("/scb", async (req, res) => {
       return res.json({ success: true, method: "scb", deduped: true, amount: amt, timestamp });
     }
 
-    // ── พยายาม “อัปเดตใบ pending เดิม” (match ด้วย amountCents) ─────────────
+    // จับคู่ใบ pending ที่ยังไม่หมดอายุ → เอาใบล่าสุด
     const pendingTx = await Transaction.findOne({
       method: "scb",
       amountCents: amtCents,
       status: "pending",
-    });
+      $or: [{ expiresAt: { $exists: false } }, { expiresAt: { $gt: new Date() } }],
+    }).sort({ createdAt: -1 });
 
     if (!pendingTx) {
-      // ไม่มีใบเดิม → เก็บ unmatched pending ไว้ให้แอดมินตรวจ (ไม่เติมเครดิตทันที)
       await Transaction.create({
         method: "scb",
         senderBank: bankLogo.toLowerCase(),
@@ -579,7 +566,7 @@ topupRouter.post("/scb", async (req, res) => {
       return res.json({ success: true, method: "scb", amount: amt, timestamp, unmatched: true });
     }
 
-    // ── มีใบเดิมและมีเจ้าของ → เติมเครดิต + อัปเดตใบเดิม (ไม่สร้างใหม่) ────────
+    // มีเจ้าของ → เติมเครดิต + อัปเดตใบเดิม
     const user = await User.findById(pendingTx.userId);
     if (!user) {
       pendingTx.note = "User not found at webhook";
@@ -590,12 +577,12 @@ topupRouter.post("/scb", async (req, res) => {
     const newBalance = await user.addBalance(amt);
     pendingTx.set({
       status: "completed",
-      matchedBy: "amount",
+      matchedBy: "amountCents",
       matchedTxId: pendingTx._id,
       senderLast6: senderDigits,
       receiverLast6: receiverDigits,
-      createdAt: parsedDate,
-      paidAt: new Date(),
+      createdAt: parsedDate,  // เวลาอิง SMS
+      paidAt: new Date(),     // เวลาบันทึกสำเร็จในระบบ
       username: user.username,
     });
     await pendingTx.save();
@@ -630,12 +617,11 @@ topupRouter.post("/truewallet/check", async (req, res) => {
     }
 
     // ยอดที่บันทึกใน Transaction คือ "added" = amount (ไม่ +3%)
-    // const target = Math.round(Number(amount) * 100) / 100;
     const targetCents = Math.round(Number(amount) * 100);
     const tx = await Transaction.findOne({
       userId,
       method: "tw",
-      amount: targetCents, // ✅ เทียบยอดสุทธิ
+      amount: targetCents,
       status: "completed",
       createdAt: { $gte: new Date(Date.now() - 10 * 60 * 1000) },
     }).sort({ createdAt: -1 });
