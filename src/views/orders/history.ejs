@@ -868,10 +868,10 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
   const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
 
   /* ===========================
- * Auto Refresh-All (Smart Poller)
- * - ปกติ: adaptive 1–2 นาที
- * - ถ้ามีแต่ canceling หรือมี long-poll ยกเลิก: "เป๊ะ" ทุก 7 นาที
- * =========================== */
+  * Auto Refresh-All (Smart Poller)
+  * - ปกติ: adaptive 1–2 นาที
+  * - ถ้ามีแต่ canceling หรือมี long-poll ยกเลิก: "เป๊ะ" ทุก 7 นาที
+  * =========================== */
   const AutoRefresh = (() => {
     const MIN_INTERVAL       = 60_000;     // 1 นาที
     const MAX_INTERVAL       = 120_000;    // 2 นาที
