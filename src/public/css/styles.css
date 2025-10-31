@@ -2970,3 +2970,58 @@ html[data-theme="dark"] .uicf__btn--ghost{
 }
 .uicf__overlay{ grid-area: 1 / 1; }
 .uicf__card   { grid-area: 1 / 1; }
+
+/* ===== Pager & Buttons (Desktop + Mobile) ===== */
+.pager-wrap{display:flex;align-items:center;gap:16px;justify-content:space-between;padding:12px 14px;border-top:1px solid var(--elevated-border,#24262b)}
+.pager-left,.pager-center,.pager-right{display:flex;align-items:center;gap:8px}
+.pager-center{justify-content:center;flex:1;text-align:center}
+.pp-select{appearance:none;-webkit-appearance:none;background:#0f1114;color:#e9eef5;border:1px solid #2a2e36;border-radius:8px;padding:8px 28px 8px 10px;min-width:84px;font:inherit}
+.pp-select:focus{outline:none;box-shadow:var(--focus-ring,0 0 0 3px rgba(42,132,255,.35))}
+.pager-right .page-btn{display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:32px;padding:0 10px;margin-left:6px;border-radius:8px;text-decoration:none;background:#181b20;color:#cfd6e4;border:1px solid #2a2e36;font-size:14px}
+.pager-right .page-btn.active{background:#0b6dff;color:#fff;border-color:#0b6dff;box-shadow:0 3px 10px rgba(11,109,255,.35)}
+.pager-right .page-btn.disabled{opacity:.45;pointer-events:none}
+.pager-right .page-ellipsis{margin:0 6px;color:#667085}
+
+@media (max-width:720px){
+  .pager-wrap{flex-direction:column;gap:10px;align-items:stretch}
+  .pager-center{order:3}
+  .pager-right{justify-content:center;flex-wrap:wrap}
+  .pager-left{justify-content:center}
+}
+
+/* ========== Mobile-only custom perPage dropdown (Drop-up) ========== */
+@media (max-width:640px){
+  .perpage{ position:relative; }
+
+  /* ซ่อน select เดิมบนมือถือ */
+  .perpage select.pp-select{
+    position:absolute; opacity:0; pointer-events:none;
+  }
+
+  .ppc-wrap{ position:relative; display:inline-block; width:100%; }
+  .ppc-btn{
+    display:inline-flex; align-items:center; justify-content:space-between;
+    min-width:120px; height:36px; padding:0 12px; width:100%;
+    border:1px solid var(--elevated-border,#24262b); border-radius:8px;
+    background:var(--elevated-bg,#141518); color:var(--text-primary,#f2f4f8);
+    font:inherit; cursor:pointer;
+  }
+  .ppc-btn:after{ content:"▴"; margin-left:8px; font-size:12px; opacity:.75; transition:transform .15s ease; }
+  .ppc-wrap.open .ppc-btn:after{ transform:rotate(180deg); }
+
+  /* เมนูแบบ drop-up (ขึ้นด้านบน) */
+  .ppc-menu{
+    position:absolute; left:0; bottom:100%;
+    border:1px solid var(--elevated-border,#24262b); border-radius:10px;
+    background:var(--elevated-bg,#141518); color:var(--text-primary,#f2f4f8);
+    box-shadow:var(--elevated-shadow,0 10px 24px rgba(0,0,0,.35));
+    margin-bottom:8px; padding:6px 0; list-style:none;
+    max-height:220px; overflow:auto; z-index:9999; display:none;
+    width:100%; /* ให้กว้างเท่ากล่อง */
+    -webkit-overflow-scrolling:touch;
+  }
+  .ppc-wrap.open .ppc-menu{ display:block; }
+
+  .ppc-item{ padding:10px 12px; cursor:pointer; white-space:nowrap; }
+  .ppc-item:hover,.ppc-item.active{ background:rgba(255,255,255,.06); }
+}

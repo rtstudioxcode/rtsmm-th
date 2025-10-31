@@ -29,13 +29,11 @@ const REFRESH_COOLDOWN_MS = 45_000;
 // ─────────────────────────────────────────────────────────────
 // helpers
 // ─────────────────────────────────────────────────────────────
-const toNum = v => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-};
+const toNum = v => { const n = Number(v); return Number.isFinite(n) ? n : null; };
 const nz = v => (Number.isFinite(Number(v)) ? Number(v) : 0);
-const calcCost = (q, rate) => Math.max(0, (nz(q) / 1000) * nz(rate));
+const calcCost = (q, rate) => Math.max(0, (nz(q)/1000) * nz(rate));
 const round2 = n => Math.round((Number(n) || 0) * 100) / 100;
+const moneyRound = n => Math.round((Number(n) || 0) * 100) / 100;
 
 // ใช้ map สถานะไทย (ใช้ซ้ำ)
 const mapTH = (x='') => ({
@@ -217,6 +215,14 @@ async function forceCheckProviderAndUpdate(order) {
 }
 
 
+const PERPAGE_DEFAULT = 20;
+const PERPAGE_ALLOWED = [10, 20, 50, 100, 250, 500, 1000];
+
+function clampPerPage(n) {
+  const maxAllowed = Math.max(...PERPAGE_ALLOWED);
+  return Math.min(n, maxAllowed);
+}
+
 // ─────────────────────────────────────────────────────────────
 // redirects
 // ─────────────────────────────────────────────────────────────
@@ -229,18 +235,18 @@ router.get('/orders/history', (req, res) => res.redirect(302, '/my/orders'));
 router.post('/orders', async (req, res) => {
   try {
     const { serviceId, groupId, providerServiceId, link } = req.body;
-    const quantity = nz(req.body.quantity);
+    let quantity = nz(req.body.quantity);
 
     if (!link || !quantity) {
       return res.status(400).json({ error: 'missing fields' });
     }
 
-    // 0) ผู้ใช้ (ใช้คำนวณ per-user pricing + หักเงิน)
+    // 0) auth
     const me = req.session?.user || req.user;
     const userId = String(me?._id || '');
     if (!userId) return res.status(401).json({ error: 'unauthorized' });
 
-    // 1) เลือกบริการ
+    // 1) ระบุบริการ (เดี่ยว หรือ กลุ่ม+child)
     let baseDoc = null;
     let chosen = null;
     let providerIdForApi = null;
@@ -249,7 +255,8 @@ router.post('/orders', async (req, res) => {
       baseDoc = await Service.findById(serviceId).lean();
       if (!baseDoc) return res.status(404).json({ error: 'service not found' });
       chosen = { ...baseDoc };
-      providerIdForApi = baseDoc.providerServiceId || baseDoc.providerServiceID || baseDoc.id;
+      providerIdForApi =
+        baseDoc.providerServiceId || baseDoc.providerServiceID || baseDoc.id || baseDoc.provider_id;
     } else if (groupId && providerServiceId) {
       baseDoc = await Service.findById(groupId).lean();
       if (!baseDoc) return res.status(404).json({ error: 'service group not found' });
@@ -268,20 +275,30 @@ router.post('/orders', async (req, res) => {
         min:  nz(child.min  ?? baseDoc.min),
         max:  nz(child.max  ?? baseDoc.max),
         step: nz(child.step ?? baseDoc.step ?? 1),
+        name: child.name || baseDoc.name
       };
       providerIdForApi = child.id;
     } else {
       return res.status(400).json({ error: 'missing fields' });
     }
 
-    // 2) ตรวจ min/max
+    // 2) ตรวจ min/max + บังคับ step (ใช้ nz/round2 ของคุณ)
     if (!(quantity > 0)) return res.status(400).json({ error: 'จำนวนต้องมากกว่า 0' });
     if (chosen.min && quantity < chosen.min) return res.status(400).json({ error: `ขั้นต่ำ ${chosen.min}` });
     if (chosen.max && quantity > chosen.max) return res.status(400).json({ error: `สูงสุด ${chosen.max}` });
 
-    // 3) คิดราคา (per-user effective rate)
+    const step = Math.max(1, nz(chosen.step));
+    if (quantity % step !== 0) {
+      const fixed = Math.floor(quantity / step) * step; // ปัดลงให้เป็นทวีคูณ
+      if (fixed < Math.max(1, nz(chosen.min))) {
+        return res.status(400).json({ error: `ปริมาณต้องเป็นทวีคูณของ ${step}` });
+      }
+      quantity = fixed;
+    }
+
+    // 3) คิดราคา (ยึด calcCost + moneyRound ของคุณ)
     let rate = nz(chosen.rate);
-    let cost = calcCost(quantity, rate);
+    let cost = moneyRound(calcCost(quantity, rate));
     try {
       const ex = await computeEffectiveRateEx({
         serviceId: baseDoc._id,
@@ -290,21 +307,21 @@ router.post('/orders', async (req, res) => {
         baseRate: rate,
         quantity
       });
-      rate = ex.finalRate;        // เรตสุดท้ายต่อ 1k ที่ใช้จริง
-      cost = ex.lineCost ?? cost; // ยอดที่ปัดแบบเงินไว้แล้ว
+      rate = nz(ex.finalRate ?? rate);
+      cost = moneyRound(ex.lineCost ?? calcCost(quantity, rate));
     } catch {}
 
     const currency = chosen.currency || 'THB';
 
-    // 4) ตัดเงิน
+    // 4) เดบิต
     const debited = await User.findOneAndUpdate(
       { _id: userId, balance: { $gte: cost } },
       { $inc: { balance: -cost } },
       { new: true, projection: { balance: 1 } }
     );
-    if (!debited) return res.status(400).json({ error: 'ยอดเงินไม่พอ', need: cost });
+    if (!debited) return res.status(400).json({ error: 'ยอดเงินไม่พอ', need: cost, currency });
 
-    // 5) call provider
+    // 5) ยิงผู้ให้บริการ
     const providerPayload = {
       service_id: Number(providerIdForApi),
       link,
@@ -320,14 +337,11 @@ router.post('/orders', async (req, res) => {
       providerResp = await providerCreateOrder(providerPayload);
     } catch (e) {
       console.error('Provider order failed:', e?.response?.data || e.message);
-      await User.updateOne({ _id: userId }, { $inc: { balance: cost } });
-      return res.status(502).json({
-        error: 'สั่งงานผู้ให้บริการไม่สำเร็จ',
-        detail: e?.response?.data || e.message,
-      });
+      await User.updateOne({ _id: userId }, { $inc: { balance: cost } }); // คืนเงิน
+      return res.status(502).json({ error: 'สั่งงานผู้ให้บริการไม่สำเร็จ', detail: e?.response?.data || e.message });
     }
 
-    // 6) save order
+    // 6) บันทึก (normalize ผลลัพธ์, ใช้ snapshot ราคา/บริการ)
     const np = normalizeProviderFields(providerResp);
     const fields = {
       user: userId,
@@ -337,29 +351,30 @@ router.post('/orders', async (req, res) => {
       providerOrderId: np.providerOrderId,
       link,
       quantity,
-      cost,
-      estCost: cost,
-      currency,
+      cost, estCost: cost, currency,
       rateAtOrder: rate,
       baseRateAtOrder: nz(chosen.rate),
+      serviceName: chosen.name || baseDoc.name,
       status: 'processing',
       providerResponse: np.raw || providerResp || null,
-      startCount:   np.startCount,
-      currentCount: np.currentCount,
-      remains:      np.remains,
-      progress:     np.progress,
-      acceptedAt:   np.acceptedAt,
+      startCount:   (np.startCount   != null ? np.startCount   : undefined),
+      currentCount: (np.currentCount != null ? np.currentCount : undefined),
+      remains:      (np.remains      != null ? np.remains      : undefined),
+      progress:     (np.progress     != null ? np.progress     : undefined),
+      acceptedAt:   (np.acceptedAt || undefined),
+      category:     baseDoc.category,
+      subcategory:  baseDoc.subcategory
     };
 
     if (fields.progress == null && fields.startCount != null && fields.currentCount != null && quantity > 0) {
       fields.progress = Math.max(0, Math.min(100, ((fields.currentCount - fields.startCount) / quantity) * 100));
+      fields.progress = round2(fields.progress);
     }
 
     try {
       const order = await Order.create(fields);
-
       await User.updateOne({ _id: userId }, { $inc: { totalOrders: 1 } });
-      // อัปเดตเครดิตผู้ให้บริการอัตโนมัติหลังสั่งออเดอร์ (ไม่บล็อก response)
+
       setTimeout(() => {
         refreshProviderBalanceNow().catch(() => {});
         reconcileUserByOrderEvent(order._id).catch(() => {});
@@ -373,7 +388,7 @@ router.post('/orders', async (req, res) => {
         balance: debited.balance,
       });
     } catch (e) {
-      await User.updateOne({ _id: userId }, { $inc: { balance: cost } });
+      await User.updateOne({ _id: userId }, { $inc: { balance: cost } }); // rollback
       console.error('Order create failed, refunded:', e);
       return res.status(500).json({ error: 'save order failed' });
     }
@@ -394,17 +409,53 @@ router.get('/my/orders', requireAuth, async (req, res, next) => {
     const userId = String(me._id);
     const { from, to, q } = req.query;
 
+    // ---------- ค้นหา ----------
     const find = { user: userId };
     if (from) find.createdAt = { ...(find.createdAt || {}), $gte: new Date(from + 'T00:00:00Z') };
     if (to)   find.createdAt = { ...(find.createdAt || {}), $lte: new Date(to   + 'T23:59:59Z') };
-    if (q) {
+
+    if (q && q.trim()) {
       const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const rgx  = new RegExp(safe, 'i');
-      find.$or = [{ _id: q }, { link: rgx }, { providerOrderId: q }];
+      // ค้นหา _id ตรง, providerOrderId ตรง, หรือฟิลด์อื่นแบบ regex
+      find.$or = [
+        { _id: q },
+        { providerOrderId: q },
+        { link: rgx },
+        { serviceName: rgx }
+      ];
     }
 
-    const list = await Order.find(find).sort({ createdAt: -1 }).limit(500).lean();
+    // ---------- นับรวมทั้งหมด (สำหรับ paginator) ----------
+    const total = await Order.countDocuments(find);
 
+    // ---------- perPage/page ----------
+    const PERPAGE_OPTIONS = [10, 20, 50, 100, 250, 500, 1000];
+    const perPageRaw = String(req.query.perPage ?? '20').toLowerCase();
+
+    let perPage;
+    if (perPageRaw === 'all') {
+      // แสดงทั้งหมด
+      perPage = total || 1_000_000; // กัน division by zero
+    } else {
+      const n = Math.max(1, parseInt(perPageRaw, 10) || 20);
+      perPage = PERPAGE_OPTIONS.includes(n) ? n : 20;
+    }
+
+    const pages = Math.max(1, Math.ceil(total / Math.max(1, perPage)));
+    let page = Math.max(1, parseInt(req.query.page || '1', 10));
+    if (page > pages) page = pages;
+
+    const skip = (page - 1) * perPage;
+
+    // ---------- ดึงรายการตามหน้า ----------
+    const list = await Order.find(find)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(perPage)
+      .lean();
+
+    // ---------- เติมข้อมูล service/flags ----------
     const serviceIds = [...new Set(list.map(o => o?.service).filter(Boolean).map(String))];
     const services = serviceIds.length
       ? await Service.find({ _id: { $in: serviceIds } })
@@ -424,7 +475,7 @@ router.get('/my/orders', requireAuth, async (req, res, next) => {
           currency: svc.currency, providerServiceId: svc.providerServiceId
         } : null,
         uiFlags: {
-          canCancel: (flags.cancel === true) && !isDone(o) && !!o.providerOrderId,
+          canCancel: (flags.cancel === true) && !_isDone && !!o.providerOrderId,
           canRefill: (flags.refill === true) && _isDone && !!o.providerOrderId,
           isDone: _isDone
         }
@@ -443,6 +494,7 @@ router.get('/my/orders', requireAuth, async (req, res, next) => {
     const thStatus = (s = '') =>
       ({ processing:'รอดำเนินการ', inprogress:'กำลังทำ', completed:'เสร็จสิ้น', partial:'ส่วนบางส่วน', canceled:'ยกเลิก' }[String(s).toLowerCase()] || s);
 
+    // ---------- ส่งตัวแปรที่ history.ejs ใช้ ----------
     res.render('orders/history', {
       list: listWithSvc,
       from, to, q,
@@ -450,6 +502,11 @@ router.get('/my/orders', requireAuth, async (req, res, next) => {
       title: 'ประวัติ ออเดอร์',
       bodyClass: 'orders-wide',
       syncError: req.flash?.('syncError')?.[0] || '',
+
+      // สำหรับ pager ใน EJS:
+      page,                // เลขหน้าปัจจุบัน
+      perPage,             // จำนวนต่อหน้า (ตัวเลขจริง; ถ้า user เลือก "all" = total)
+      total                // จำนวนรายการทั้งหมด
     });
   } catch (err) { next(err); }
 });

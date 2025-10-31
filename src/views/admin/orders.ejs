@@ -57,7 +57,7 @@ function decideDisplaySSR(o){
   <div class="orders-history alert error">⚠️ <%= syncError %></div>
 <% } else { %>
   <div class="orders-history alert info">
-    ℹ️ ระบบจะอัปเดตสถานะอัตโนมัติทุก ~1–2 นาที (ถ้าเหลือแต่คำสั่ง “กำลังยกเลิก…” ระบบจะเช็คทุก 5 นาที)
+    ℹ️ ระบบจะอัปเดตสถานะอัตโนมัติทุก ~ 1–2 นาที 
   </div>
 <% } %>
 
@@ -392,6 +392,88 @@ function decideDisplaySSR(o){
     <div class="empty muted">ยังไม่มีออเดอร์ในช่วงนี้</div>
   <% } %>
 </div>
+
+<!-- ───── Page Controls (ใต้รายการ) ───── -->
+<%
+  const pageNum    = Number(typeof page    !== 'undefined' ? page    : 1)  || 1;
+  const perPageNum = Number(typeof perPage !== 'undefined' ? perPage : 20) || 20;
+  const totalCount = Number(typeof total   !== 'undefined' ? total   : 0)  || 0;
+
+  const pages   = Math.max(1, Math.ceil(totalCount / Math.max(1, perPageNum)));
+  const fromIdx = totalCount ? Math.min(totalCount, (pageNum - 1) * perPageNum + 1) : 0;
+  const toIdx   = totalCount ? Math.min(totalCount, pageNum * perPageNum) : 0;
+
+  const keep = {
+    from: (typeof from   !== 'undefined' ? from   : ''),
+    to:   (typeof to     !== 'undefined' ? to     : ''),
+    q:    (typeof q      !== 'undefined' ? q      : ''),
+    st:   (typeof status !== 'undefined' ? status : '')
+  };
+
+  function linkTo(p, pp) {
+    const sp = new URLSearchParams();
+    if (keep.from) sp.set('from', keep.from);
+    if (keep.to)   sp.set('to',   keep.to);
+    if (keep.q)    sp.set('q',    keep.q);
+    if (keep.st)   sp.set('status', keep.st);
+    sp.set('page', p);
+    sp.set('perPage', pp);
+    return '/admin/orders?' + sp.toString();
+  }
+
+  const PERPAGE_OPTIONS = [10, 20, 50, 100, 250, 500, 1000];
+%>
+
+<div class="pager-wrap">
+  <div class="pager-left">
+    <label class="muted" style="margin-right:8px;">แสดง</label>
+    <div class="perpage">
+      <select id="ppSelect" class="pp-select">
+        <% PERPAGE_OPTIONS.forEach(n => { %>
+          <option value="<%= n %>" <%= perPageNum===n ? 'selected' : '' %>><%= n %></option>
+        <% }) %>
+        <option value="all" <%= (perPageNum>=totalCount && totalCount>0) ? 'selected' : '' %>>All records</option>
+      </select>
+    </div>
+    <span class="muted" style="margin-left:8px;">แถว</span>
+  </div>
+
+  <div class="pager-center muted">
+    <% if (totalCount > 0) { %>
+      แสดง <%= fromIdx %> ถึง <%= toIdx %> จาก <%= totalCount %> แถว
+    <% } else { %>ไม่มีข้อมูล<% } %>
+  </div>
+
+  <nav class="pager-right" aria-label="pagination">
+    <a class="page-btn <%= pageNum<=1 ? 'disabled' : '' %>" href="<%= pageNum<=1 ? '#' : linkTo(pageNum-1, perPageNum) %>">ก่อนหน้า</a>
+
+    <%
+      const span = 2;
+      const start = Math.max(1, pageNum - span);
+      const end   = Math.min(pages, pageNum + span);
+      const showFirst = start > 1;
+      const showLast  = end < pages;
+    %>
+
+    <% if (showFirst) { %>
+      <a class="page-btn" href="<%= linkTo(1, perPageNum) %>">1</a>
+      <% if (start > 2) { %><span class="page-ellipsis">…</span><% } %>
+    <% } %>
+
+    <% for (let p=start; p<=end; p++) { %>
+      <a class="page-btn <%= p===pageNum ? 'active' : '' %>" href="<%= linkTo(p, perPageNum) %>"><%= p %></a>
+    <% } %>
+
+    <% if (showLast) { %>
+      <% if (end < pages-1) { %><span class="page-ellipsis">…</span><% } %>
+      <a class="page-btn" href="<%= linkTo(pages, perPageNum) %>"><%= pages %></a>
+    <% } %>
+
+    <a class="page-btn <%= pageNum>=pages ? 'disabled' : '' %>" href="<%= pageNum>=pages ? '#' : linkTo(pageNum+1, perPageNum) %>">ถัดไป</a>
+  </nav>
+</div>
+
+<div id="page-bottom"></div>
 
 <!-- ===== Modal: รายละเอียดคำสั่งซื้อ (คัดมาจาก history.ejs) ===== -->
 <div id="orderModal" class="omodal" role="dialog" aria-modal="true" aria-hidden="true">
@@ -1369,4 +1451,85 @@ async function startCancel(orderId) {
     if (btn) btn.disabled = false;
   }
 }
+</script>
+
+
+<script>
+(function(){
+  const sel = document.getElementById('ppSelect');
+  if (!sel) return;
+
+  /* ── ใช้ร่วมกัน: เปลี่ยนค่า perPage + กระโดดไปล่างหน้า ── */
+  function applySelection(v){
+    const params = new URLSearchParams(window.location.search);
+    if (v === 'all'){
+      params.set('perPage', 'all');   // ให้ backend แปลงต่อ
+      params.set('page', '1');
+    } else {
+      params.set('perPage', String(v));
+      params.set('page', '1');
+    }
+    const url = window.location.pathname + '?' + params.toString() + '#page-bottom';
+    window.location.href = url;
+  }
+
+  /* ── เดสก์ท็อป: ใช้ select ปกติ ── */
+  sel.addEventListener('change', () => applySelection(sel.value));
+
+  /* ── มือถือ: สร้างเมนูแบบ drop-up ── */
+  const isMobile = matchMedia('(max-width:640px)').matches;
+  if (!isMobile) return;
+
+  // โครงสร้างปุ่ม + เมนู
+  const wrap = document.createElement('div');
+  wrap.className = 'ppc-wrap';
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'ppc-btn';
+  btn.textContent = (sel.value === 'all') ? 'All records' : sel.value;
+
+  const menu = document.createElement('ul');
+  menu.className = 'ppc-menu';
+  menu.setAttribute('role','listbox');
+
+  // รายการจาก option เดิม (1:1)
+  Array.from(sel.options).forEach(op => {
+    const li = document.createElement('li');
+    li.className = 'ppc-item' + (op.selected ? ' active' : '');
+    li.dataset.value = op.value;
+    li.setAttribute('role','option');
+    li.textContent = (op.value === 'all') ? 'All records' : op.value;
+    li.addEventListener('click', () => {
+      sel.value = op.value;                 // sync ค่า select
+      btn.textContent = li.textContent;     // อัปเดตปุ่ม
+      applySelection(op.value);             // ไปหน้าใหม่
+    });
+    menu.appendChild(li);
+  });
+
+  wrap.appendChild(btn);
+  wrap.appendChild(menu);
+
+  // ใส่ wrap ข้าง select (ให้ CSS ซ่อน select บนมือถือ)
+  sel.parentElement.style.position = 'relative';
+  sel.parentElement.appendChild(wrap);
+
+  // เปิด/ปิดเมนู (กำหนดกว้างเท่ากล่องทุกครั้ง)
+  btn.addEventListener('click', () => {
+    const rect = wrap.getBoundingClientRect();
+    menu.style.width = rect.width + 'px';
+    wrap.classList.toggle('open');
+  });
+
+  // ปิดเมื่อคลิกรอบนอก
+  document.addEventListener('click', (e) => {
+    if (!wrap.contains(e.target)) wrap.classList.remove('open');
+  });
+
+  // ถ้าหน้าจอขยายกลับเป็นเดสก์ท็อป → ปิดเมนู
+  window.addEventListener('resize', () => {
+    if (!matchMedia('(max-width:640px)').matches) wrap.classList.remove('open');
+  });
+})();
 </script>

@@ -416,68 +416,93 @@ router.post('/topup/:id/reject', async (req, res) => {
 
 
 // ✅ GET /orders — รายการออเดอร์ทั้งหมด
-router.get("/orders", async (req, res, next) => {
+router.get('/orders', async (req, res, next) => {
   try {
-    const { from, to, q = "", status = "all" } = req.query || {};
+    const { from, to, q = '', status = 'all' } = req.query || {};
     const filter = {};
 
     // วันที่ (inclusive)
     if (from || to) {
       filter.createdAt = {};
-      if (from) filter.createdAt.$gte = new Date(from + "T00:00:00.000Z");
-      if (to) filter.createdAt.$lte = new Date(to + "T23:59:59.999Z");
+      if (from) filter.createdAt.$gte = new Date(from + 'T00:00:00.000Z');
+      if (to)   filter.createdAt.$lte = new Date(to   + 'T23:59:59.999Z');
     }
 
     // สถานะ
-    if (status && status !== "all") {
+    if (status && status !== 'all') {
       filter.status = String(status).toLowerCase();
     }
 
     // คำค้น
     if (q && q.trim()) {
-      const rx = new RegExp(q.trim(), "i");
+      const rx = new RegExp(q.trim(), 'i');
       filter.$or = [
         { providerOrderId: rx },
         { link: rx },
         { serviceName: rx },
-        { "service.name": rx },
-        { "service.providerServiceId": rx },
+        { 'service.name': rx },
+        { 'service.providerServiceId': rx },
         { providerServiceId: rx },
-        { "user.username": rx },
-        { "user.email": rx },
-        { "user.name": rx },
+        { 'user.username': rx },
+        { 'user.email': rx },
+        { 'user.name': rx },
       ];
     }
 
-    // ✅ ใช้ Order model โดยตรง
+    // ── เพจจิเนชัน ─────────────────────────────────────────────
+    const MAX_PER_PAGE = 1000;
+    const pageParam    = parseInt(req.query.page, 10);
+    const perPageParam = (req.query.perPage ?? '').toString().toLowerCase();
+
+    const total = await Order.countDocuments(filter);
+
+    let perPage;
+    if (perPageParam === 'all') {
+      perPage = Math.max(1, total);       // แสดงทั้งหมด
+    } else {
+      const n = Number.isFinite(pageParam) ? (parseInt(req.query.perPage, 10) || 20)
+                                           : (parseInt(req.query.perPage, 10) || 20);
+      perPage = Math.min(Math.max(1, n), MAX_PER_PAGE);
+    }
+
+    const pages    = Math.max(1, Math.ceil(total / Math.max(1, perPage)));
+    const page     = Math.min(Math.max(1, Number.isFinite(pageParam) ? pageParam : 1), pages);
+    const skip     = Math.max(0, (page - 1) * perPage);
+    const limit    = perPage;
+
+    // ── ดึงรายการ ─────────────────────────────────────────────
     const listRaw = await Order.find(filter)
       .sort({ createdAt: -1 })
-      .limit(1000)
+      .skip(skip)
+      .limit(limit)
       .populate([
-        { path: "user", select: "username email name avatarUrl role" },
-        { path: "service", select: "name rate currency providerServiceId" },
+        { path: 'user',    select: 'username email name avatarUrl role' },
+        { path: 'service', select: 'name rate currency providerServiceId' },
       ])
       .lean();
 
-    const list = (listRaw || []).map((o) => {
-      const st = String(o.status || "").toLowerCase();
+    const list = (listRaw || []).map(o => {
+      const st = String(o.status || '').toLowerCase();
       const isDone =
-        st === "completed" ||
-        (typeof o.progress === "number" && o.progress >= 99.995);
-      const canCancel = st === "processing";
+        st === 'completed' ||
+        (typeof o.progress === 'number' && o.progress >= 99.995);
+      const canCancel = st === 'processing';
       return { ...o, uiFlags: { isDone, canCancel } };
     });
 
-    // ✅ ชื่อวิวตรงกับไฟล์: views/orders.ejs
-    res.render("admin/orders", {
-      title: "ออเดอร์ทั้งหมด (แอดมิน)",
+    // ── ส่งให้วิว (admin/orders.ejs) ──────────────────────────
+    res.render('admin/orders', {
+      title: 'ออเดอร์ทั้งหมด (แอดมิน)',
       list,
       from,
       to,
       q,
       status,
+      page,               // number
+      perPage,            // number (ถ้าเลือก all จะเท่ากับ total)
+      total,              // number
       syncError: null,
-      bodyClass: "orders-wide",
+      bodyClass: 'orders-wide',
     });
   } catch (err) {
     next(err);
