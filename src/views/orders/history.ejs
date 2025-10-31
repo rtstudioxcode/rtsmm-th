@@ -66,7 +66,7 @@ function decideDisplaySSR(o){
   <button class="chip" data-st="processing">รอดำเนินการ</button>
   <button class="chip" data-st="inprogress">กำลังทำ</button>
   <button class="chip" data-st="completed">เสร็จสิ้น</button>
-  <button class="chip" data-st="partial">ส่วนบางส่วน</button>
+  <button class="chip" data-st="partial">คืนบางส่วน</button>
   <button class="chip" data-st="canceled">ยกเลิก</button>
 </div>
 
@@ -163,7 +163,11 @@ function decideDisplaySSR(o){
                   : (stLower==='canceling' ? 'warn'
                     : (stLower==='partial' ? 'warn' : ''))) %>"
               data-pct="<%= dd.donePct %>">
-              <i class="bar" style="width:<%= dd.isDone ? '100' : dd.donePct %>%"></i>
+
+              <i class="bar" style="width:<%= (stLower==='canceling')
+                ? '0'
+                : (dd.isDone ? '100' : dd.donePct) %>%"></i>
+
               <span class="label">
                 <% const isPartialRefund =
                     (stLower==='canceled' && Number(o.refundAmount||0)>0 && o.refundType==='partial'); %>
@@ -171,7 +175,10 @@ function decideDisplaySSR(o){
                   <span class="badge warn" style="margin-right:8px">คืนบางส่วน</span>
                 <% } %>
 
-                <% if (dd.showPct) { %>
+                <% if (stLower === 'canceling') { %>
+                  <!-- ⬅️ กำลังสั่งยกเลิก -->
+                  กำลังสั่งยกเลิก…
+                <% } else if (dd.showPct) { %>
                   ดำเนินการ ~ <span class="pct"><%= dd.donePct.toFixed(2) %>%</span>
                 <% } else { %>
                   <%= dd.label %>
@@ -181,14 +188,17 @@ function decideDisplaySSR(o){
 
             <!-- ปุ่มใต้สถานะ -->
             <div class="st-actions under">
-              <!-- <% if (canCancel && stLower === 'processing') { %>
-                <button type="button" class="xbtn xbtn-danger btn-cancel" data-id="<%= o._id %>"
-                        title="ยกเลิกและคืนเงิน" aria-label="ยกเลิกและคืนเงิน">
+              <% if (o.uiFlags?.canCancel) { %>
+                <button
+                  type="button"
+                  class="xbtn xbtn-sync btn-cancel"
+                  title="ยกเลิกออเดอร์นี้"
+                  onclick="startCancel('<%= o._id %>')">
                   <img src="/static/assets/emoji/cancel.png" alt="" class="icon" />
                 </button>
-              <% } %> -->
+              <% } %>
 
-              <% if (!(dd.isDone || stLower === 'canceled' || stLower === 'partial')) { %>
+              <% if (!(dd.isDone || stLower === 'canceled' || stLower === 'partial' || stLower === 'canceling')) { %>
                 <button type="button" class="xbtn xbtn-sync btn-refresh" data-id="<%= o._id %>"
                         title="อัปเดตสถานะออเดอร์" aria-label="อัปเดตสถานะออเดอร์">
                   <img src="/static/assets/emoji/updatestatus.png" alt="" class="icon" />
@@ -285,18 +295,29 @@ function decideDisplaySSR(o){
               const canRepeat = isDone && !!(o.service && o.service._id);
             %>
             <% const stLower = String(o.status||'').toLowerCase(); %>
+
             <div class="st-stack">
-              <span class="pill progress <%= mdd.isDone
-                ? 'ok'
-                : (stLower==='canceled' ? 'danger' : (stLower==='partial' ? 'warn' : '')) %>">
-                <% const isPartialRefund = (String(o.status||'').toLowerCase()==='canceled'
-                    && Number(o.refundAmount||0) > 0 && o.refundType === 'partial'); %>
+              <span
+                class="pill progress <%= mdd.isDone
+                  ? 'ok'
+                  : (stLower==='canceled' ? 'danger'
+                    : (stLower==='canceling' ? 'warn'
+                      : (stLower==='partial' ? 'warn' : ''))) %>"
+                data-pct="<%= (stLower==='canceling') ? 0 : mdd.donePct %>">
+
+                <% const isPartialRefund = (
+                    stLower === 'canceled' &&
+                    Number(o.refundAmount || 0) > 0 &&
+                    o.refundType === 'partial'
+                  ); %>
 
                 <% if (isPartialRefund) { %>
                   <span class="badge warn" style="margin-right:8px">คืนบางส่วน</span>
                 <% } %>
 
-                <% if (mdd.showPct) { %>
+                <% if (stLower === 'canceling') { %>
+                  กำลังสั่งยกเลิก…
+                <% } else if (mdd.showPct) { %>
                   ดำเนินการ ~ <span class="pct" data-pct="<%= mdd.donePct %>"><%= mdd.donePct.toFixed(2) %>%</span>
                 <% } else { %>
                   <%= mdd.label %>
@@ -304,19 +325,19 @@ function decideDisplaySSR(o){
               </span>
               <div class="st-actions">
                 <!-- ยกเลิก: เฉพาะ "processing" -->
-                <!-- <% if (canCancel && stLower === 'processing') { %>
+                <% if (o.uiFlags?.canCancel) { %>
                   <button
                     type="button"
                     class="xbtn xbtn-sync btn-cancel"
-                    data-id="<%= o._id %>"
-                    title="ยกเลิกและคืนเงิน"
-                    aria-label="ยกเลิกและคืนเงิน">
+                    style="width:100%;"
+                    title="ยกเลิกออเดอร์นี้"
+                    onclick="startCancel('<%= o._id %>')">
                     <img src="/static/assets/emoji/cancel.png" alt="" class="icon" />
                   </button>
-                <% } %> -->
+                <% } %>
 
                 <!-- รีเฟรช: ไม่แสดงเมื่อ completed หรือ canceled -->
-                <% if (!(mdd.isDone || stLower === 'canceled' || stLower === 'partial')) { %>
+                <% if (!(mdd.isDone || stLower === 'canceled' || stLower === 'partial' || stLower === 'canceling')) { %>
                   <button
                     type="button"
                     class="xbtn xbtn-sync btn-refresh"
@@ -573,47 +594,72 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
       refVal.style.display = 'none';
     }
 
-    // ==== ไทม์ไลน์: จุดสุดท้ายตามตัวอย่าง ====
-    const st = String(o.status||'').toLowerCase();
+    // ==== ไทม์ไลน์: จุดสุดท้าย (แข็งแรง + ครอบคลุมสถานะ) ====
+    const stRaw = String(o.status || '').toLowerCase();
+    const isPartialRefundCanceled =
+      stRaw === 'canceled' && o.refundType === 'partial' && Number(o.refundAmount || 0) > 0;
+
+    // เลือก label + class ตามสถานะ
+    function decideFinalTimeline(status) {
+      switch (status) {
+        case 'completed':
+          return { label: 'เวลาที่คำสั่งซื้อเสร็จสิ้น', cls: 'ot-final--success' };
+        case 'partial':
+          return { label: 'เวลาที่เซิร์ฟเวอร์ยืนยัน (คืนบางส่วน)', cls: 'ot-final--partial' };
+        case 'canceled':
+          if (isPartialRefundCanceled) {
+            return { label: 'เวลาที่คำสั่งซื้อยกเลิก (คืนเงินบางส่วน)', cls: 'ot-final--partial' };
+          }
+          return { label: 'เวลาที่เซิร์ฟเวอร์ยกเลิก / คำสั่งซื้อผิดพลาด', cls: 'ot-final--canceled' };
+        case 'canceling':
+          return { label: 'สถานะล่าสุด (กำลังสั่งยกเลิก...)', cls: 'ot-final--progress' };
+        case 'processing':
+        case 'inprogress':
+        default:
+          return { label: 'สถานะล่าสุด (กำลังดำเนินการ)', cls: 'ot-final--progress' };
+      }
+    }
+
     const finalWrap  = document.querySelector('.ot-item--final');
     const finalLabel = document.getElementById('om-final-label');
     const finalTime  = document.getElementById('om-final-time');
 
-    // เคลียร์คลาสก่อน
-    finalWrap.classList.remove('ot-final--success','ot-final--canceled','ot-final--partial','ot-final--progress');
+    // อัปเดตเฉพาะเมื่อ element มีจริง (กัน null)
+    if (finalWrap && finalLabel && finalTime) {
+      // เคลียร์คลาสเก่า
+      finalWrap.classList.remove(
+        'ot-final--success',
+        'ot-final--canceled',
+        'ot-final--partial',
+        'ot-final--progress'
+      );
 
-    // ตัดสินข้อความ+สี
-    if (st === 'completed') {
-      finalLabel.textContent = 'เวลาที่คำสั่งซื้อเสร็จสิ้น';
+      // คำนวณค่าที่จะแสดง
+      const { label, cls } = decideFinalTimeline(stRaw);
+      finalLabel.textContent = label;
       finalTime.textContent  = fmtDate(o.updatedAt || o.createdAt);
-      finalWrap.classList.add('ot-final--success');
-    } else if (st === 'partial') {
-      finalLabel.textContent = 'เวลาที่เซิร์ฟเวอร์ยืนยัน (คืนบางส่วน)';
-      finalTime.textContent  = fmtDate(o.updatedAt || o.createdAt);
-      finalWrap.classList.add('ot-final--partial');
-    } else if (st === 'canceled' && o.refundType === 'partial' && Number(o.refundAmount||0) > 0) {
-      finalLabel.textContent = 'เวลาที่คำสั่งซื้อยกเลิก (คืนเงินบางส่วน)';
-      finalTime.textContent  = fmtDate(o.updatedAt || o.createdAt);
-      finalWrap.classList.add('ot-final--partial');
-    } else if (st === 'canceled') {
-      finalLabel.textContent = 'เวลาที่เซิร์ฟเวอร์ยกเลิก / คำสั่งซื้อผิดพลาด';
-      finalTime.textContent  = fmtDate(o.updatedAt || o.createdAt);
-      finalWrap.classList.add('ot-final--canceled');
-    } else if (st === 'canceling') {
-      finalLabel.textContent = 'สถานะล่าสุด (กำลังยกเลิก)';
-      finalTime.textContent  = fmtDate(o.updatedAt || o.createdAt);
-      finalWrap.classList.add('ot-final--progress');
-    } else {
-      // processing / inprogress / partial (ยังไม่จบ)
-      finalLabel.textContent = 'สถานะล่าสุด (กำลังดำเนินการ)';
-      finalTime.textContent  = fmtDate(o.updatedAt || o.createdAt);
-      finalWrap.classList.add('ot-final--progress');
+      if (cls) finalWrap.classList.add(cls);
+    }
+
+    // ===== ควบคุมปุ่มรีเฟรชในโมดัล ตามสถานะ =====
+    const showRefresh = shouldShowModalRefresh(o);
+    if (btnRefresh) {
+      btnRefresh.style.display = showRefresh ? '' : 'none';
+      btnRefresh.disabled = !showRefresh;
     }
   }
   // ===== END =====
 
   function openModal(o){
     render(o);
+    // ย้ำอีกชั้นเผื่ออนาคตมีการเปลี่ยนแปลงลำดับ render
+    const showRefresh = shouldShowModalRefresh(o);
+    if (btnRefresh) {
+      btnRefresh.style.display = showRefresh ? '' : 'none';
+      btnRefresh.disabled = !showRefresh;
+    }
+
+
     wrap.classList.add('show');
     wrap.setAttribute('aria-hidden','false');
     document.documentElement.style.overflow = 'hidden';
@@ -634,11 +680,23 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
     if (o) openModal(o);
   });
 
-  btnRefresh.addEventListener('click', async ()=>{
-    if(!currentId) return;
-    btnRefresh.disabled = true; const keep = btnRefresh.textContent; btnRefresh.textContent='กำลังรีเฟรช…';
-    try{
-      const res = await fetch(`/api/orders/${currentId}/refresh`, {method:'POST'});
+  function shouldShowModalRefresh(o){
+    const st = String(o?.status || '').toLowerCase();
+    // ไม่ให้รีเฟรชเมื่อกำลังยกเลิก / เสร็จแล้ว / คืนบางส่วน / ยกเลิกแล้ว
+    return !(st === 'canceling' || st === 'completed' || st === 'partial' || st === 'canceled');
+  }
+
+  if (btnRefresh) btnRefresh.addEventListener('click', async ()=>{
+    if (btnRefresh.disabled || btnRefresh.style.display === 'none') return;
+    if (!currentId) return;
+
+    btnRefresh.disabled = true;
+    btnRefresh.setAttribute('aria-busy','true');
+    const keep = btnRefresh.textContent;
+    btnRefresh.textContent = 'กำลังรีเฟรช…';
+
+    try {
+      const res = await fetch(`/api/orders/${currentId}/refresh`, { method:'POST' });
       const data = await res.json();
 
       const arr = window.__ORDERS__||[];
@@ -653,10 +711,22 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
         if (typeof data.refundAmount === 'number')  o.refundAmount = data.refundAmount;
         if (typeof data.refundType === 'string')    o.refundType   = data.refundType;
         o.updatedAt = data.updatedAt ?? new Date().toISOString();
-        render(o);
+
+        render(o); // จะจัดการโชว์/ซ่อนปุ่มให้เอง
       }
-    }catch{}
-    btnRefresh.disabled = false; btnRefresh.textContent = keep;
+    } catch {
+      // เงียบไว้หรือจะแจ้งเตือนก็ได้
+    } finally {
+      btnRefresh.textContent = keep;
+      btnRefresh.removeAttribute('aria-busy');
+
+      const arr = window.__ORDERS__||[];
+      const idx = arr.findIndex(x=>x._id===currentId);
+      const o = idx>-1 ? arr[idx] : null;
+      const showRefresh = shouldShowModalRefresh(o);
+      btnRefresh.style.display = showRefresh ? '' : 'none';
+      btnRefresh.disabled = !showRefresh;
+    }
   });
 
   wrap.addEventListener('click', e=>{
@@ -712,9 +782,10 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
       // toggle buttons
       tr.querySelectorAll('.btn-cancel').forEach(b => {
         b.style.display = (newSt === 'processing') ? '' : 'none';
+        if (newSt === 'canceling') b.style.display = 'none'; // ⬅️ ซ่อนทันที
       });
       tr.querySelectorAll('.btn-refresh').forEach(b => {
-        b.style.display = (newSt === 'completed' || newSt === 'canceled' || newSt === 'partial') ? 'none' : '';
+        b.style.display = (newSt === 'completed' || newSt === 'canceled' || newSt === 'partial' || newSt === 'canceling') ? 'none' : '';
       });
       tr.querySelectorAll('.btn-repeat').forEach(b => {
         b.style.display = ((newSt === 'completed') || (newSt === 'partial') || isPartialRefundCanceled) ? '' : 'none';
@@ -729,9 +800,10 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
 
       card.querySelectorAll('.btn-cancel').forEach(b => {
         b.style.display = (newSt === 'processing') ? '' : 'none';
+        if (newSt === 'canceling') b.style.display = 'none'; // ⬅️ ซ่อนทันที
       });
       card.querySelectorAll('.btn-refresh').forEach(b => {
-        b.style.display = (newSt === 'completed' || newSt === 'canceled' || newSt === 'partial') ? 'none' : '';
+        b.style.display = (newSt === 'completed' || newSt === 'canceled' || newSt === 'partial' || newSt === 'canceling') ? 'none' : '';
       });
       card.querySelectorAll('.btn-repeat').forEach(b => {
         b.style.display = ((newSt === 'completed') || (newSt === 'partial') || isPartialRefundCanceled) ? '' : 'none';
@@ -745,40 +817,45 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
     if (!pillLong) return;
 
     const dd = (window.decideDisplay ? window.decideDisplay(payload) : null) ||
-               { label:'รอดำเนินการ', donePct:0, showPct:false, isDone:false };
+              { label:'รอดำเนินการ', donePct:0, showPct:false, isDone:false };
+
+    const stLower       = String(payload.status||'').toLowerCase();
+    const isCanceled    = stLower === 'canceled';
+    const isPartial     = stLower === 'partial';
+    const isCanceling   = stLower === 'canceling';
+    const isPartialRefund = (isCanceled && Number(payload.refundAmount||0) > 0 && payload.refundType === 'partial');
 
     pillLong.classList.toggle('ok', !!dd.isDone);
+    pillLong.classList.toggle('danger', isCanceled);
+    pillLong.classList.toggle('warn', isPartial || isCanceling);
 
     // โครงสร้างใหม่: มี .bar + .label
     const barEl = pillLong.querySelector('.bar');
     const lblEl = pillLong.querySelector('.label');
     if (barEl && lblEl) {
-      barEl.style.width = (dd.isDone ? 100 : Math.max(0, Math.min(100, dd.donePct))) + '%';
+      // ถ้า canceling แถบความคืบหน้าให้ 0%
+      const widthPct = isCanceling ? 0 : (dd.isDone ? 100 : Math.max(0, Math.min(100, dd.donePct)));
+      barEl.style.width = widthPct + '%';
 
-      const isPartialRefund = String(payload.status||'').toLowerCase()==='canceled'
-        && Number(payload.refundAmount||0) > 0
-        && payload.refundType === 'partial';
+      // ถ้า canceling แสดงข้อความเฉพาะ
+      const mainLabel = isCanceling
+        ? 'กำลังสั่งยกเลิก…'
+        : (dd.showPct ? `ดำเนินการ ~ <span class="pct">${Number(dd.donePct||0).toFixed(2)}%</span>` : dd.label);
 
-      const isCanceled = String(payload.status||'').toLowerCase()==='canceled';
-      const isPartial  = String(payload.status||'').toLowerCase()==='partial';
-        pillLong.classList.toggle('ok', !!dd.isDone);
-        pillLong.classList.toggle('danger', isCanceled);
-        pillLong.classList.toggle('warn', isPartial);
-
-      const mainLabel = dd.showPct
-        ? `ดำเนินการ ~ <span class="pct">${Number(dd.donePct||0).toFixed(2)}%</span>`
-        : dd.label;
-
-      lblEl.innerHTML = (isPartialRefund
+      lblEl.innerHTML = isPartialRefund
         ? `<span class="badge warn" style="margin-right:8px">คืนบางส่วน</span>${mainLabel}`
-        : mainLabel);
+        : mainLabel;
       return;
     }
 
-    // fallback: pill เดิม
-    pillLong.innerHTML = dd.showPct
-      ? `ดำเนินการ ~ <span class="pct" data-pct="${dd.donePct}">${Number(dd.donePct||0).toFixed(2)}%</span>`
-      : dd.label;
+    // fallback: pill เดิม (ไม่มี .bar/.label)
+    if (isCanceling) {
+      pillLong.textContent = 'กำลังสั่งยกเลิก…';
+    } else {
+      pillLong.innerHTML = dd.showPct
+        ? `ดำเนินการ ~ <span class="pct" data-pct="${dd.donePct}">${Number(dd.donePct||0).toFixed(2)}%</span>`
+        : dd.label;
+    }
   };
 })();
 </script>
@@ -789,57 +866,55 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
   const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
 
   /* ===========================
-  * Auto Refresh-All (Smart Poller)
-  * =========================== */
+ * Auto Refresh-All (Smart Poller) — skip canceling
+ * =========================== */
   const AutoRefresh = (() => {
-    // คอนฟิก
     const MIN_INTERVAL = 60_000;   // 1 นาที
     const MAX_INTERVAL = 120_000;  // 2 นาที
-    const ERR_BACKOFF  = 2.0;      // คูณเมื่อ error
+    const ERR_BACKOFF  = 2.0;
     let interval = MIN_INTERVAL;
 
-    let timer   = null;
-    let running = false; // กันซ้อน
+    let timer = null;
+    let running = false;
 
-    const hasActiveOrders = () => {
-      // เช็คจาก DOM (ไวสุด ไม่ต้อง loop array ใหญ่)
-      return !!document.querySelector(
-        '#orderTable tbody tr[data-status="processing"], '+
-        '#orderTable tbody tr[data-status="inprogress"], '+
-        '#orderTable tbody tr[data-status="canceling"], '+
-        '.o-card[data-status="processing"], '+
-        '.o-card[data-status="inprogress"], '+
+    // มีงานที่ "ยังดำเนินการจริง" ไหม (ไม่นับ canceling)
+    const hasActiveNonCanceling = () => !!document.querySelector(
+      '#orderTable tbody tr[data-status="processing"], ' +
+      '#orderTable tbody tr[data-status="inprogress"], ' +
+      '.o-card[data-status="processing"], ' +
+      '.o-card[data-status="inprogress"]'
+    );
+
+    // มีแต่ canceling ล้วน ๆ หรือไม่
+    const hasOnlyCanceling = () => {
+      const hasCanceling = !!document.querySelector(
+        '#orderTable tbody tr[data-status="canceling"], ' +
         '.o-card[data-status="canceling"]'
       );
+      return hasCanceling && !hasActiveNonCanceling();
     };
 
     const schedule = (ms = interval) => {
-     clearTimeout(timer);
+      clearTimeout(timer);
       timer = setTimeout(tick, ms);
     };
 
     const tick = async () => {
-      // พักถ้าไม่มีงาน active หรือแท็บไม่โฟกัส
-      if (!hasActiveOrders() || document.hidden) { 
+      // ถ้าไม่มีงาน active จริง, หรือมีแต่ canceling, หรือแท็บไม่โฟกัส → ไม่ต้อง refresh
+      if (document.hidden || !hasActiveNonCanceling() || hasOnlyCanceling()) {
         schedule(MIN_INTERVAL);
         return;
       }
-      if (running) { 
-        // มีรอบค้าง ก็เลื่อนไปอีกหน่อย
-        schedule(5_000);
-        return;
-      }
+      if (running) { schedule(5_000); return; }
       running = true;
+
       try {
-        // ใช้ปุ่มบนหน้าเป็น trigger เพื่อให้ UX เหมือนกดเอง (จะโชว์สถานะ busy เล็กน้อย)
-        const btnSync = $('#btnSync');
+        const btnSync = document.querySelector('#btnSync');
         await refreshAll(btnSync || undefined);
-        // สำเร็จ: ลด backoff ลงทีละน้อยจนถึง MIN
         interval = Math.max(MIN_INTERVAL, Math.floor(interval * 0.9));
         schedule(interval);
       } catch (e) {
         console.error('auto refresh failed:', e);
-        // ล้มเหลว: เพิ่ม backoff แต่ไม่เกิน MAX
         interval = Math.min(MAX_INTERVAL, Math.floor(interval * ERR_BACKOFF));
         schedule(interval);
       } finally {
@@ -847,22 +922,20 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
       }
     };
 
-    // เมื่อแท็บกลับมาโฟกัส → ยิงทันที (ไม่ต้องรอรอบ)
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && hasActiveOrders()) {
+      if (!document.hidden && hasActiveNonCanceling()) {
         interval = MIN_INTERVAL;
         clearTimeout(timer);
-        tick(); // ยิงทันที
+        tick(); // ยิงทันทีเมื่อกลับมาโฟกัส
       }
     });
 
-    // สตาร์ทเมื่อ load ถ้ามีงาน active
     window.addEventListener('load', () => {
-      if (hasActiveOrders()) schedule(3_000); // เริ่มเร็วหน่อยใน 3s แรก
+      if (hasActiveNonCanceling()) schedule(3_000);
     });
 
-    // ให้ปุ่ม “อัปเดตสถานะล่าสุด” รีเซ็ตนาฬิกา (ผู้ใช้กดเอง)
-    const manual = $('#btnSync');
+    // ผู้ใช้กดเองยังทำงานได้ตามปกติ
+    const manual = document.querySelector('#btnSync');
     manual?.addEventListener('click', () => {
       interval = MIN_INTERVAL;
       schedule(interval);
@@ -910,84 +983,6 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
       ? { label: 'เสร็จสิ้น', donePct: 100, showPct: false, isDone: true }
       : { label: `ดำเนินการ ~ ${donePct.toFixed(2)}%`, donePct, showPct: true, isDone: false };
   };
-
-  /* ---------- ยกเลิก + คืนเงิน ---------- */
-  async function cancelOrder(btn){
-    const id = btn?.dataset?.id;
-    if (!id) return;
-
-    if (!confirm('ยืนยันการส่งคำสั่ง “ยกเลิกกับผู้ให้บริการ” ?')) return;
-
-    btn.disabled = true; const keep = btn.textContent; btn.textContent = '…';
-
-    try{
-      // 1) ขอเริ่มยกเลิกที่ผู้ให้บริการ
-      let res = await fetch(`/api/orders/${id}/cancel/start`, { method:'POST' });
-      if (res.status === 404) {
-        // ถ้า backend ยังไม่มี route ใหม่ จะ fallback ไปแบบ query
-        res = await fetch(`/api/orders/${id}/cancel?mode=start`, { method:'POST' });
-      }
-      const start = await res.json();
-      if (!start?.ok) throw new Error(start?.error || 'start-cancel failed');
-
-      // 2) อัปเดตหน้าให้แสดง "กำลังยกเลิก…"
-      window.applyOrderPatch({
-        _id: id,
-        status: 'canceling',
-        progress: 0,
-        remains: null,
-        updatedAt: new Date().toISOString()
-      });
-
-      // 3) Poll จนผู้ให้บริการยืนยันยกเลิก
-      const deadline = Date.now() + (2 * 60 * 1000); // 2 นาที
-      let final = null;
-
-      while (Date.now() < deadline) {
-        await new Promise(r => setTimeout(r, 5000));
-        const r2 = await fetch(`/api/orders/${id}/refresh`, { method:'POST' });
-        const data = await r2.json();
-        if (data) {
-          window.applyOrderPatch(Object.assign({ _id:id }, data));
-          const st = String(data.status||'').toLowerCase();
-          if (st === 'canceled' || st === 'completed') { final = data; break; }
-        }
-      }
-
-      if (!final) {
-        alert('ยังยืนยันการยกเลิกจากผู้ให้บริการไม่ได้ กรุณาลองรีเฟรชอีกครั้ง');
-        return;
-      }
-
-      if (String(final.status||'').toLowerCase() === 'canceled') {
-        // 4) ยกเลิกแล้ว -> เรียกคืนเงิน (ถ้า backend แยก endpoint คืนเงิน)
-        try {
-          const r3 = await fetch(`/api/orders/${id}/refund`, { method:'POST' });
-          if (r3.ok) {
-            const rf = await r3.json();
-            if (rf?.ok) window.applyOrderPatch({ _id:id, refundAmount:rf.refundAmount, refundType:rf.refundType });
-          }
-        } catch {}
-        alert('ยกเลิกสำเร็จ (ผู้ให้บริการยืนยันแล้ว) และคืนเงินเรียบร้อย');
-      } else {
-        alert('ยกเลิกไม่ทัน: คำสั่งซื้อเสร็จสิ้นแล้ว');
-      }
-
-    }catch(e){
-      console.error(e);
-      alert('ส่งคำสั่งยกเลิกไม่สำเร็จ: ' + (e.message||''));
-    }finally{
-      btn.textContent = keep;
-      btn.disabled = false;
-    }
-  }
-
-  document.addEventListener('click', e=>{
-    const b = e.target.closest('.btn-cancel'); 
-    if (!b) return;
-    e.preventDefault();
-    cancelOrder(b);
-  });
 
   /* ---------- สั่งซ้ำ (Repeat) ---------- */
   async function repeatOrder(btn){
@@ -1248,4 +1243,78 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
     pill.classList.add('has-ico'); // <- ป้ายเพื่อปิด ::before
   });
 })();
+
+/* helpers */
+async function postJSON(url, body) {
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json' },
+    body: body ? JSON.stringify(body) : null
+  });
+  let j = null; try { j = await r.json(); } catch {}
+  if (!r.ok) {
+    const msg = (j && j.error) ? j.error : ('HTTP ' + r.status);
+    const err = new Error(msg); err.status = r.status; err.payload = j; throw err;
+  }
+  return j || {};
+}
+
+function setPillCanceling(orderId) {
+  const row  = document.querySelector(`[data-order-id="${orderId}"]`);
+  const card = document.querySelector(`.o-card[data-order-id="${orderId}"]`);
+  const pill = row?.querySelector('.pill.long, .pill.progress') || card?.querySelector('.pill.long, .pill.progress');
+
+  // อัปเดต data-status เป็น canceling (ให้ตัวกรองและไอคอนรู้)
+  if (row)  row.dataset.status  = 'canceling';
+  if (card) card.dataset.status = 'canceling';
+
+  // ซ่อนปุ่มยกเลิก (กันสับสนว่าเป็นสถานะ)
+  row?.querySelectorAll('.btn-cancel').forEach(b => b.style.display = 'none');
+  card?.querySelectorAll('.btn-cancel').forEach(b => b.style.display = 'none');
+
+  // ปรับ pill ให้เป็นกำลังยกเลิก
+  if (pill) {
+    pill.classList.remove('ok','danger','violet','blue');
+    pill.classList.add('warn');
+    const bar   = pill.querySelector('.bar');   if (bar)   bar.style.width = '0%';
+    const label = pill.querySelector('.label'); if (label) label.textContent = 'กำลังสั่งยกเลิก…';
+    // fallback โครงสร้างเก่า
+    if (!label) pill.textContent = 'กำลังสั่งยกเลิก…';
+  }
+}
+
+async function pollCancel(orderId, { timeoutMs=120000, intervalMs=3000 } = {}) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeoutMs) {
+    try {
+      const j = await postJSON(`/orders/${orderId}/cancel/refresh`);
+      // provider คอนเฟิร์มยกเลิกแล้ว → updated=true (ฝั่ง server จะคืนเงิน/อัปเดตสถานะให้เรียบร้อย)
+      if (j?.updated) { location.reload(); return; }
+    } catch (e) {
+      // เงียบไว้—อาจ 429/5xx ชั่วคราว
+    }
+    await new Promise(s => setTimeout(s, intervalMs));
+  }
+  // ยังไม่คอนเฟิร์มในเวลา timeout → ปล่อยให้ refresh-all ซิงก์ต่อเอง
+  if (window.showMsg) showMsg({ variant:'info', title:'กำลังรอยืนยัน', text:'ระบบจะอัปเดตให้อัตโนมัติเมื่อยกเลิกสำเร็จ' });
+}
+
+async function startCancel(orderId, _providerOrderId_unused) {
+  const btn = document.querySelector(`tr[data-order-id="${orderId}"] .btn-cancel`)
+          || document.querySelector(`.o-card[data-order-id="${orderId}"] .btn-cancel`)
+          || document.querySelector(`[data-order-id="${orderId}"] .btn.small.danger`)
+          || document.querySelector(`button[onclick*="${orderId}"]`);
+  if (btn) btn.disabled = true;
+
+  try {
+    await postJSON(`/orders/${orderId}/cancel`);
+    setPillCanceling(orderId);
+    await pollCancel(orderId);
+  } catch (e) {
+    if (window.showMsg) showMsg({ variant:'error', title:'ยกเลิกไม่สำเร็จ', text: e.message || 'โปรดลองใหม่' });
+    else alert('ยกเลิกไม่สำเร็จ: ' + (e.message || 'โปรดลองใหม่'));
+    if (btn) btn.disabled = false;
+  }
+}
+
 </script>

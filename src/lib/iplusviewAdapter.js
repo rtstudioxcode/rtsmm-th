@@ -11,6 +11,16 @@ let _clientKey = null;
 let _clientInst = null;
 let _triedRefreshOnce = false;
 
+function normCancelCreateResp(data) {
+  // data อาจเป็น { data: [...] } หรือ object เดี่ยว
+  const first = data?.data?.[0] || data?.data || data;
+  return {
+    cancelId: first?.id ?? first?.cancel_id ?? data?.id ?? data?.cancel_id ?? null,
+    status: (first?.status ?? data?.status ?? '').toString().toLowerCase(),
+    raw: data,
+  };
+}
+
 async function getProviderRuntime() {
   // 1) live config (DB-merged) -> 2) ENV fallback
   let baseURL = trimBase(config?.provider?.baseUrl || config?.provider?.baseURL || '');
@@ -59,7 +69,6 @@ async function getClient() {
       Authorization: apiKey,
       'X-API-Key': apiKey,
     },
-    // อนุญาต HTTPS ที่บางที cert แปลก (ถ้าเจอค่อยเปิด)
     // httpsAgent: new https.Agent({ rejectUnauthorized: false }),
   });
   return _clientInst;
@@ -94,17 +103,7 @@ function normalizeStatus(data) {
   return { status: raw, rawStatus: raw };
 }
 
-function normCancelCreateResp(data) {
-  const first = data?.data?.[0] || data?.data || data;
-  return {
-    cancelId: first?.id ?? first?.cancel_id ?? data?.id ?? data?.cancel_id ?? null,
-    status: (first?.status ?? data?.status ?? '').toString().toLowerCase(),
-    raw: data,
-  };
-}
-
 /* ======================= provider catalog ======================= */
-/** รุ่นแปลงแล้ว (normalize โครง basic) */
 export async function getProviderCatalog() {
   const client = await getClient();
   const { data } = await client.get('/services');
@@ -131,7 +130,6 @@ export async function getProviderCatalog() {
   }));
 }
 
-/** รุ่นดิบจากผู้ให้บริการ (บางรายส่งเป็น array ตรง ๆ) */
 export async function getServices() {
   const client = await getClient();
   const { data } = await client.get('/services');
@@ -215,47 +213,73 @@ export async function getRefillStatus(refillIdOrOrderId) {
   return { raw: data, status: (data?.status || '').toLowerCase() };
 }
 
-export async function createCancel(orderId) {
+/* ============== Cancels (iPlusView) ============== */
+/** Create a cancel request (POST /cancels/:orderId) */
+export async function createCancel(providerOrderId) {
+  if (!providerOrderId) throw new Error('createCancel: providerOrderId is required');
   const client = await getClient();
-  const oid = Number(orderId);
-  if (!Number.isFinite(oid)) throw new Error('createCancel: invalid orderId');
-
-  try {
-    const { data } = await client.post('/cancels', { order_ids: [oid] });
-    const { cancelId, status, raw } = normCancelCreateResp(data);
-    const ok = !!cancelId || /^(ok|success|accepted)$/i.test(status);
-    return { ok, cancelId, status, raw };
-  } catch (e1) {
-    const { data } = await client.post('/cancels', { order_id: oid });
-    const { cancelId, status, raw } = normCancelCreateResp(data);
-    const ok = !!cancelId || /^(ok|success|accepted)$/i.test(status);
-    return { ok, cancelId, status, raw };
-  }
+  // ตามสเปกใหม่: orderId อยู่ใน path param
+  const { data } = await client.post(`/cancels/${encodeURIComponent(String(providerOrderId))}`, {});
+  return normCancelCreateResp(data);
 }
 
+/** Get cancel by ID (GET /cancels/:cancelId) */
 export async function getCancelById(cancelId) {
   if (!cancelId) throw new Error('getCancelById: cancelId is required');
   const client = await getClient();
-  const { data } = await client.get(`/cancels/${cancelId}`);
-  const status = (data?.status || data?.data?.status || '').toString().toLowerCase();
-  return { status, raw: data };
+  const { data } = await client.get(`/cancels/${encodeURIComponent(String(cancelId))}`);
+  return {
+    id: data?.id ?? data?.cancel_id ?? null,
+    status: String(data?.status || '').toLowerCase(),
+    amount: Number(data?.amount ?? data?.refund_amount ?? 0),
+    type:   String(data?.type || data?.refund_type || ''), // 'partial' | 'full' | ''
+    raw: data,
+  };
 }
 
+/** Normalize array response for cancels */
+function _normCancelArray(data) {
+  const arr = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
+  return arr.map(item => ({
+    id: item?.id ?? item?.cancel_id ?? null,
+    status: String(item?.status || '').toLowerCase(),
+    amount: Number(item?.amount ?? item?.refund_amount ?? 0),
+    type:   String(item?.type || item?.refund_type || ''),
+    raw: item,
+  }));
+}
+
+/**
+ * Find cancel requests by IDs (GET /cancels)
+ * รองรับรูปแบบพารามิเตอร์หลายแบบอัตโนมัติ:
+ *  1) ?ids[]=a&ids[]=b
+ *  2) ?ids=a,b
+ *  3) ?id[]=a&id[]=b
+ */
 export async function findCancelsByIds(ids = []) {
-  if (!Array.isArray(ids) || !ids.length) throw new Error('findCancelsByIds: ids required');
+  const list = (Array.isArray(ids) ? ids : [ids]).filter(Boolean).map(v => String(v));
+
+  if (!list.length) return [];
   const client = await getClient();
-  const { data } = await client.post('/cancels/find', { ids });
-  const list = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
-  const map = {};
-  list.forEach(x => {
-    const id = x?.id ?? x?.cancel_id;
-    const st = (x?.status || '').toString().toLowerCase();
-    if (id != null) map[String(id)] = st;
-  });
-  return { map, raw: data };
+
+  // 1) ?ids[]=a&ids[]=b
+  try {
+    const { data } = await client.get('/cancels', { params: { ids: list } });
+    return _normCancelArray(data);
+  } catch (e1) {
+    // 2) ?ids=a,b
+    try {
+      const { data } = await client.get('/cancels', { params: { ids: list.join(',') } });
+      return _normCancelArray(data);
+    } catch (e2) {
+      // 3) ?id[]=a&id[]=b
+      const { data } = await client.get('/cancels', { params: { id: list } });
+      return _normCancelArray(data);
+    }
+  }
 }
 
-// alias
+/** Alias ที่ชัดเจน */
 export async function cancelOrder(orderId) {
   return createCancel(orderId);
 }
