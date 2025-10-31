@@ -154,6 +154,69 @@ async function refreshProviderBalanceNow() {
   }
 }
 
+// helper
+const sleep = (ms)=>new Promise(r=>setTimeout(r, ms));
+
+async function forceCheckProviderAndUpdate(order) {
+  // 1) ถ้ามี cancelId ก็ลองถามปลายทางตรง ๆ
+  const cancelId = order?.meta?.cancelId || order?.cancelId;
+  if (cancelId) {
+    try {
+      const r = await getCancelById(cancelId);
+      // ตัวอย่าง: r.status อาจเป็น 'canceled' | 'partial' | 'processing'
+      if (r?.status === 'canceled' || r?.status === 'partial') {
+        order.status = (r.status === 'canceled') ? 'canceled' : 'partial';
+        if (r?.refundAmount != null) {
+          order.refundAmount = Number(r.refundAmount) || 0;
+          order.refundType   = (r.status === 'partial') ? 'partial' : 'full';
+        }
+        order.updatedAt = new Date();
+        await order.save();
+        // อัปเดตยอด/รีคอนซายล์เครดิต ฯลฯ
+        await reconcileUserByOrderEvent(order, 'cancel_confirmed');
+        return true;
+      }
+    } catch { /* เงียบไว้ แล้วไป fallback ต่อ */ }
+  }
+
+  // 2) Fallback: หา by orderId ถ้าผู้ให้บริการรองรับ
+  try {
+    const r2 = await findCancelsByIds([order.providerOrderId].filter(Boolean));
+    const hit = Array.isArray(r2) ? r2.find(x => String(x.orderId) === String(order.providerOrderId)) : null;
+    if (hit && (hit.status === 'canceled' || hit.status === 'partial')) {
+      order.status = (hit.status === 'canceled') ? 'canceled' : 'partial';
+      if (hit?.refundAmount != null) {
+        order.refundAmount = Number(hit.refundAmount) || 0;
+        order.refundType   = (hit.status === 'partial') ? 'partial' : 'full';
+      }
+      order.updatedAt = new Date();
+      await order.save();
+      await reconcileUserByOrderEvent(order, 'cancel_confirmed');
+      return true;
+    }
+  } catch { /* ผ่าน */ }
+
+  // 3) สำรองสุดท้าย: เช็กสถานะออเดอร์
+  try {
+    const s = await getOrderStatus(order.providerOrderId);
+    const st = String(s?.status || '').toLowerCase();
+    if (st === 'canceled' || st === 'partial') {
+      order.status = (st === 'canceled') ? 'canceled' : 'partial';
+      if (s?.refundAmount != null) {
+        order.refundAmount = Number(s.refundAmount) || 0;
+        order.refundType   = (st === 'partial') ? 'partial' : 'full';
+      }
+      order.updatedAt = new Date();
+      await order.save();
+      await reconcileUserByOrderEvent(order, 'cancel_confirmed');
+      return true;
+    }
+  } catch { /* ผ่าน */ }
+
+  return false;
+}
+
+
 // ─────────────────────────────────────────────────────────────
 // redirects
 // ─────────────────────────────────────────────────────────────
@@ -1056,6 +1119,69 @@ router.post('/api/orders/:id/refill', async (req, res) => {
     console.error('POST /api/orders/:id/refill error:', err);
     return res.status(500).json({ error: 'internal error' });
   }
+});
+
+/**
+ * Long-poll endpoint: รอผลยกเลิกให้จริงก่อนค่อยตอบ
+ * จะเช็กทุก 3 วินาที สูงสุด ~7 นาที (ปรับได้ตามต้องการ)
+ */
+router.post('/orders/:id/cancel/await', async (req, res) => {
+  const { id } = req.params;
+
+  // หน้าต่างรอครั้งละ 30s เพื่อกันรีเวสต์ค้างนานเกินไป (client จะยิงซ้ำอัตโนมัติ)
+  const PER_REQUEST_WAIT = 30_000;
+  const DEADLINE_MS      = 7 * 60 * 1000; // รวม ๆ ถ้าคลิกซ้ำต่อเนื่อง
+
+  const start = Date.now();
+  let order = await Order.findById(id);
+  if (!order) return res.status(404).json({ ok:false, error:'ไม่พบออเดอร์' });
+
+  // ถ้าระหว่างรอกลายเป็น canceled/partial แล้ว ให้ตอบเลย
+  const early = String(order.status||'').toLowerCase();
+  if (early === 'canceled' || early === 'partial') {
+    return res.json({
+      ok:true, updated:true,
+      status: order.status,
+      refundAmount: order.refundAmount ?? 0,
+      refundType: order.refundType ?? null,
+      updatedAt: order.updatedAt
+    });
+  }
+
+  // วนเช็กในหน้าต่าง 30s พร้อมกระตุ้นปรับสถานะจาก provider
+  const interval = 3_000;
+  while (Date.now() - start < PER_REQUEST_WAIT) {
+    // พยายามกระตุ้น/อัปเดตสถานะ (ถ้าพร้อม)
+    await order.populate('service');
+    const advanced = await forceCheckProviderAndUpdate(order);
+    if (advanced) {
+      return res.json({
+        ok:true, updated:true,
+        status: order.status,
+        refundAmount: order.refundAmount ?? 0,
+        refundType: order.refundType ?? null,
+        updatedAt: order.updatedAt
+      });
+    }
+
+    // เผื่อมี worker อื่นอัปเดต DB
+    order = await Order.findById(id);
+    const st = String(order?.status||'').toLowerCase();
+    if (st === 'canceled' || st === 'partial') {
+      return res.json({
+        ok:true, updated:true,
+        status: order.status,
+        refundAmount: order.refundAmount ?? 0,
+        refundType: order.refundType ?? null,
+        updatedAt: order.updatedAt
+      });
+    }
+
+    await sleep(interval);
+  }
+
+  // ยังไม่เสร็จภายในหน้าต่างรอครั้งนี้ → ให้ client ยิงมาใหม่เพื่อยืดเวลารอต่อ (จนสุด 7 นาที)
+  return res.json({ ok:true, updated:false, keepWaiting:true });
 });
 
 export default router;

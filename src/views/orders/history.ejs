@@ -179,7 +179,7 @@ function decideDisplaySSR(o){
 
                 <% if (stLower === 'canceling') { %>
                   <!-- ⬅️ กำลังสั่งยกเลิก -->
-                  กำลังสั่งยกเลิก…
+                  กำลังส่งยกเลิก…
                 <% } else if (dd.showPct) { %>
                   ดำเนินการ ~ <span class="pct"><%= dd.donePct.toFixed(2) %>%</span>
                 <% } else { %>
@@ -318,7 +318,7 @@ function decideDisplaySSR(o){
                 <% } %>
 
                 <% if (stLower === 'canceling') { %>
-                  กำลังสั่งยกเลิก…
+                  กำลังส่งยกเลิก…
                 <% } else if (mdd.showPct) { %>
                   ดำเนินการ ~ <span class="pct" data-pct="<%= mdd.donePct %>"><%= mdd.donePct.toFixed(2) %>%</span>
                 <% } else { %>
@@ -841,7 +841,7 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
 
       // ถ้า canceling แสดงข้อความเฉพาะ
       const mainLabel = isCanceling
-        ? 'กำลังสั่งยกเลิก…'
+        ? 'กำลังส่งยกเลิก…'
         : (dd.showPct ? `ดำเนินการ ~ <span class="pct">${Number(dd.donePct||0).toFixed(2)}%</span>` : dd.label);
 
       lblEl.innerHTML = isPartialRefund
@@ -852,7 +852,7 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
 
     // fallback: pill เดิม (ไม่มี .bar/.label)
     if (isCanceling) {
-      pillLong.textContent = 'กำลังสั่งยกเลิก…';
+      pillLong.textContent = 'กำลังส่งยกเลิก…';
     } else {
       pillLong.innerHTML = dd.showPct
         ? `ดำเนินการ ~ <span class="pct" data-pct="${dd.donePct}">${Number(dd.donePct||0).toFixed(2)}%</span>`
@@ -870,23 +870,26 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
   /* ===========================
  * Auto Refresh-All (Smart Poller)
  * - ปกติ: adaptive 1–2 นาที
- * - ถ้ามีแต่ canceling: "เป๊ะ" ทุก 5 นาที (ไม่เร็วกว่านี้)
+ * - ถ้ามีแต่ canceling หรือมี long-poll ยกเลิก: "เป๊ะ" ทุก 7 นาที
  * =========================== */
   const AutoRefresh = (() => {
-    const MIN_INTERVAL       = 60_000;    // 1 นาที
-    const MAX_INTERVAL       = 120_000;   // 2 นาที
-    const CANCELING_INTERVAL = 300_000;   // 5 นาที
+    const MIN_INTERVAL       = 60_000;     // 1 นาที
+    const MAX_INTERVAL       = 120_000;    // 2 นาที
+    const CANCELING_INTERVAL = 120_000;    // 2 นาที
     const ERR_BACKOFF        = 2.0;
+
+    // เก็บ orderId ที่กำลัง await ยกเลิกจริงจาก API
+    window.__CANCEL_AWAITING__ = window.__CANCEL_AWAITING__ || new Set();
 
     let interval = MIN_INTERVAL;
     let timer = null;
     let running = false;
 
-    // บันทึกเวลาที่รีเฟรชรอบ canceling ล่าสุด (มิลลิวินาที)
+    // เวลา refresh รอบ "canceling only" ล่าสุด
     let lastCancelingRun = 0;
 
-    // งานกำลังทำ (ไม่นับ canceling)
     const isVisible = el => !!(el && el.offsetParent !== null);
+
     const hasActiveNonCanceling = () => {
       const nodes = document.querySelectorAll(
         '#orderTable tbody tr[data-status="processing"], ' +
@@ -897,14 +900,17 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
       return Array.from(nodes).some(isVisible);
     };
 
-    // มี canceling ไหม
     const hasAnyCanceling = () => !!document.querySelector(
       '#orderTable tbody tr[data-status="canceling"], ' +
       '.o-card[data-status="canceling"]'
     );
 
-    // มีแต่ canceling ล้วน ๆ
-    const hasOnlyCanceling = () => hasAnyCanceling() && !hasActiveNonCanceling();
+    // มีแค่งาน canceling (หรือมี long-poll ยกเลิกกำลังรอผล) เท่านั้น
+    const hasOnlyCancelingOrAwait = () => {
+      const onlyCanceling = hasAnyCanceling() && !hasActiveNonCanceling();
+      const awaiting = (window.__CANCEL_AWAITING__?.size || 0) > 0;
+      return onlyCanceling || awaiting;
+    };
 
     const schedule = (ms) => {
       clearTimeout(timer);
@@ -913,7 +919,6 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
 
     const doRefresh = async (nextMs, { markCancelingRun = false } = {}) => {
       if (running) {
-        // ถ้ารอบก่อนยังไม่จบ ให้เลื่อนไป "อย่างน้อย" ตาม nextMs (กันโดน 5 วินาทีแซงสิทธิ์)
         schedule(Math.max(nextMs, 5_000));
         return;
       }
@@ -935,19 +940,20 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
     const tick = async () => {
       if (document.hidden) { schedule(MIN_INTERVAL); return; }
 
+      // โหมดปกติ: มีงานกำลังทำ (ไม่ใช่ canceling)
       if (hasActiveNonCanceling()) {
-        // โหมดปกติ: adaptive
         interval = Math.max(MIN_INTERVAL, Math.floor(interval * 0.9));
         await doRefresh(interval);
         return;
       }
 
-      if (hasOnlyCanceling()) {
-        // โหมด canceling ล้วน: เคารพ 5 นาที "เป๊ะ"
+      // โหมด canceling-only หรือกำลัง await ยกเลิกจาก API → ยึด 7 นาทีเป๊ะ
+      if (hasOnlyCancelingOrAwait()) {
         const now = Date.now();
+        if (!lastCancelingRun) lastCancelingRun = now;
         const dueIn = (lastCancelingRun + CANCELING_INTERVAL) - now;
         if (dueIn > 0) {
-          schedule(dueIn);   // ยังไม่ถึงกำหนด → รอส่วนต่างที่เหลือจริงๆ
+          schedule(dueIn);
           return;
         }
         await doRefresh(CANCELING_INTERVAL, { markCancelingRun: true });
@@ -958,43 +964,36 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
       schedule(MIN_INTERVAL);
     };
 
-    // กลับมาโฟกัส:
-    // - ถ้ามีงานปกติ → ยิงทันที
-    // - ถ้ามีแต่ canceling → ยิงทันที "เฉพาะ" เมื่อถึงกำหนด (ครบ 5 นาทีแล้วเท่านั้น)
+    // กลับมาโฟกัส
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) return;
       if (hasActiveNonCanceling()) {
         interval = MIN_INTERVAL;
         clearTimeout(timer);
         tick();
-      } else if (hasOnlyCanceling()) {
+      } else if (hasOnlyCancelingOrAwait()) {
         const now = Date.now();
         if (!lastCancelingRun) lastCancelingRun = now;
         const dueIn = (lastCancelingRun + CANCELING_INTERVAL) - now;
-        if (dueIn <= 0) {
-          clearTimeout(timer);
-          tick(); 
-        } else {
-          schedule(dueIn);
-        }
+        if (dueIn <= 0) { clearTimeout(timer); tick(); }
+        else { schedule(dueIn); }
       }
     });
 
-    // เริ่มต้น: ถ้ามีงาน (normal/canceling) → เริ่มใน 3 วิ
+    // เริ่มต้น
     window.addEventListener('load', () => {
       if (hasActiveNonCanceling()) {
         schedule(3_000);
-      } else if (hasOnlyCanceling()) {
+      } else if (hasOnlyCancelingOrAwait()) {
         lastCancelingRun = Date.now();
         schedule(CANCELING_INTERVAL);
       }
     });
 
-    // ผู้ใช้กดเอง → รีเซ็ตนาฬิกาเฉพาะโหมดปกติ
+    // ผู้ใช้กดเอง → รีเซ็ตเฉพาะโหมดปกติ
     const manual = document.querySelector('#btnSync');
     manual?.addEventListener('click', () => {
-      // ถ้ามีแต่ canceling ให้ยึด 5 นาทีเหมือนเดิม (ไม่รีเซ็ตให้ไวขึ้น)
-      if (hasOnlyCanceling()) return;
+      if (hasOnlyCancelingOrAwait()) return; // เคารพ 7 นาที
       interval = MIN_INTERVAL;
       schedule(interval);
     });
@@ -1009,7 +1008,7 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
     const st  = String(o.status||'').toLowerCase();
 
     if (st === 'canceling') {
-      return { label: 'กำลังสั่งยกเลิก…', donePct: 0, showPct: false, isDone: false };
+      return { label: 'กำลังส่งยกเลิก…', donePct: 0, showPct: false, isDone: false };
     }
 
     if (st === 'canceled') {
@@ -1420,29 +1419,36 @@ function setPillCanceling(orderId) {
     pill.classList.remove('ok','danger','violet','blue');
     pill.classList.add('warn');
     const bar   = pill.querySelector('.bar');   if (bar)   bar.style.width = '0%';
-    const label = pill.querySelector('.label'); if (label) label.textContent = 'กำลังสั่งยกเลิก…';
+    const label = pill.querySelector('.label'); if (label) label.textContent = 'กำลังส่งยกเลิก…';
     // fallback โครงสร้างเก่า
-    if (!label) pill.textContent = 'กำลังสั่งยกเลิก…';
+    if (!label) pill.textContent = 'กำลังส่งยกเลิก…';
   }
 }
 
-async function pollCancel(orderId, { timeoutMs=120000, intervalMs=3000 } = {}) {
+async function pollCancel(orderId, {
+  timeoutMs = 7 * 60 * 1000,
+  gapMs = 800
+} = {}) {
   const t0 = Date.now();
-  while (Date.now() - t0 < timeoutMs) {
-    try {
-      const j = await postJSON(`/orders/${orderId}/cancel/refresh`);
-      // provider คอนเฟิร์มยกเลิกแล้ว → updated=true (ฝั่ง server จะคืนเงิน/อัปเดตสถานะให้เรียบร้อย)
-      if (j?.updated) { location.reload(); return; }
-    } catch (e) {
-      // เงียบไว้—อาจ 429/5xx ชั่วคราว
+  // บอก AutoRefresh ว่ามี long-poll ยกเลิกกำลังรอ
+  window.__CANCEL_AWAITING__?.add(orderId);
+
+  try {
+    while (Date.now() - t0 < timeoutMs) {
+      try {
+        const j = await postJSON(`/orders/${orderId}/cancel/await`);
+        if (j?.updated) { location.reload(); return; }
+      } catch {}
+      await new Promise(s => setTimeout(s, gapMs));
     }
-    await new Promise(s => setTimeout(s, intervalMs));
+    // หมดเวลารอบนี้ → ให้ AutoRefresh (โหมด 7 นาที) ทำงานต่อ
+    window.showMsg?.({ variant:'info', title:'กำลังรอยืนยัน', text:'ระบบจะอัปเดตให้อัตโนมัติเมื่อยกเลิกสำเร็จ' });
+  } finally {
+    window.__CANCEL_AWAITING__?.delete(orderId);
   }
-  // ยังไม่คอนเฟิร์มในเวลา timeout → ปล่อยให้ refresh-all ซิงก์ต่อเอง
-  if (window.showMsg) showMsg({ variant:'info', title:'กำลังรอยืนยัน', text:'ระบบจะอัปเดตให้อัตโนมัติเมื่อยกเลิกสำเร็จ' });
 }
 
-async function startCancel(orderId, _providerOrderId_unused) {
+async function startCancel(orderId) {
   const btn = document.querySelector(`tr[data-order-id="${orderId}"] .btn-cancel`)
           || document.querySelector(`.o-card[data-order-id="${orderId}"] .btn-cancel`)
           || document.querySelector(`[data-order-id="${orderId}"] .btn.small.danger`)
@@ -1451,8 +1457,8 @@ async function startCancel(orderId, _providerOrderId_unused) {
 
   try {
     await postJSON(`/orders/${orderId}/cancel`);
-    setPillCanceling(orderId);
-    // await pollCancel(orderId);
+    setPillCanceling(orderId);          // UI: แสดง "กำลังส่งยกเลิก…"
+    await pollCancel(orderId);          // รอผลจริงจาก API → แล้วค่อยอัปเดต
   } catch (e) {
     if (window.showMsg) showMsg({ variant:'error', title:'ยกเลิกไม่สำเร็จ', text: e.message || 'โปรดลองใหม่' });
     else alert('ยกเลิกไม่สำเร็จ: ' + (e.message || 'โปรดลองใหม่'));
