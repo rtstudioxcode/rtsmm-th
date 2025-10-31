@@ -47,17 +47,19 @@ function decideDisplaySSR(o){
     <small class="muted">หน้าหลัก → ประวัติ ออเดอร์</small>
   </div>
 
-  <div class="right-actions">
+  <!-- <div class="right-actions">
     <button id="btnSync" class="btn primary">
       <span style="font-size:14px;">🔄</span> อัปเดตสถานะล่าสุด
     </button>
-  </div>
+  </div> -->
 </section>
 
 <% if (typeof syncError === 'string' && syncError) { %>
   <div class="orders-history alert error">⚠️ <%= syncError %></div>
 <% } else { %>
-  <div class="orders-history alert info">ℹ️ ปุ่มนี้สามารถกดซ้ำได้ทุก ๆ 1 นาที เพื่อดึงสถานะล่าสุดจากผู้ให้บริการ</div>
+  <div class="orders-history alert info">
+    ℹ️ ระบบจะอัปเดตสถานะอัตโนมัติทุก ~1–2 นาที (ถ้าเหลือแต่คำสั่ง “กำลังยกเลิก…” ระบบจะเช็คทุก 5 นาที)
+  </div>
 <% } %>
 
 <!-- แท็บตัวกรองสถานะ -->
@@ -866,18 +868,24 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
   const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
 
   /* ===========================
- * Auto Refresh-All (Smart Poller) — skip canceling
+ * Auto Refresh-All (Smart Poller)
+ * - ปกติ: adaptive 1–2 นาที
+ * - ถ้ามีแต่ canceling: "เป๊ะ" ทุก 5 นาที (ไม่เร็วกว่านี้)
  * =========================== */
   const AutoRefresh = (() => {
-    const MIN_INTERVAL = 60_000;   // 1 นาที
-    const MAX_INTERVAL = 120_000;  // 2 นาที
-    const ERR_BACKOFF  = 2.0;
-    let interval = MIN_INTERVAL;
+    const MIN_INTERVAL       = 60_000;    // 1 นาที
+    const MAX_INTERVAL       = 120_000;   // 2 นาที
+    const CANCELING_INTERVAL = 300_000;   // 5 นาที
+    const ERR_BACKOFF        = 2.0;
 
+    let interval = MIN_INTERVAL;
     let timer = null;
     let running = false;
 
-    // มีงานที่ "ยังดำเนินการจริง" ไหม (ไม่นับ canceling)
+    // บันทึกเวลาที่รีเฟรชรอบ canceling ล่าสุด (มิลลิวินาที)
+    let lastCancelingRun = 0;
+
+    // งานกำลังทำ (ไม่นับ canceling)
     const hasActiveNonCanceling = () => !!document.querySelector(
       '#orderTable tbody tr[data-status="processing"], ' +
       '#orderTable tbody tr[data-status="inprogress"], ' +
@@ -885,58 +893,99 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
       '.o-card[data-status="inprogress"]'
     );
 
-    // มีแต่ canceling ล้วน ๆ หรือไม่
-    const hasOnlyCanceling = () => {
-      const hasCanceling = !!document.querySelector(
-        '#orderTable tbody tr[data-status="canceling"], ' +
-        '.o-card[data-status="canceling"]'
-      );
-      return hasCanceling && !hasActiveNonCanceling();
-    };
+    // มี canceling ไหม
+    const hasAnyCanceling = () => !!document.querySelector(
+      '#orderTable tbody tr[data-status="canceling"], ' +
+      '.o-card[data-status="canceling"]'
+    );
 
-    const schedule = (ms = interval) => {
+    // มีแต่ canceling ล้วน ๆ
+    const hasOnlyCanceling = () => hasAnyCanceling() && !hasActiveNonCanceling();
+
+    const schedule = (ms) => {
       clearTimeout(timer);
-      timer = setTimeout(tick, ms);
+      timer = setTimeout(tick, Math.max(0, ms));
     };
 
-    const tick = async () => {
-      // ถ้าไม่มีงาน active จริง, หรือมีแต่ canceling, หรือแท็บไม่โฟกัส → ไม่ต้อง refresh
-      if (document.hidden || !hasActiveNonCanceling() || hasOnlyCanceling()) {
-        schedule(MIN_INTERVAL);
+    const doRefresh = async (nextMs, { markCancelingRun = false } = {}) => {
+      if (running) {
+        // ถ้ารอบก่อนยังไม่จบ ให้เลื่อนไป "อย่างน้อย" ตาม nextMs (กันโดน 5 วินาทีแซงสิทธิ์)
+        schedule(Math.max(nextMs, 5_000));
         return;
       }
-      if (running) { schedule(5_000); return; }
       running = true;
-
       try {
         const btnSync = document.querySelector('#btnSync');
         await refreshAll(btnSync || undefined);
-        interval = Math.max(MIN_INTERVAL, Math.floor(interval * 0.9));
-        schedule(interval);
+        if (markCancelingRun) lastCancelingRun = Date.now();
+        schedule(nextMs);
       } catch (e) {
         console.error('auto refresh failed:', e);
-        interval = Math.min(MAX_INTERVAL, Math.floor(interval * ERR_BACKOFF));
-        schedule(interval);
+        const backoff = Math.min(MAX_INTERVAL, Math.floor((nextMs || MIN_INTERVAL) * ERR_BACKOFF));
+        schedule(backoff);
       } finally {
         running = false;
       }
     };
 
+    const tick = async () => {
+      if (document.hidden) { schedule(MIN_INTERVAL); return; }
+
+      if (hasActiveNonCanceling()) {
+        // โหมดปกติ: adaptive
+        interval = Math.max(MIN_INTERVAL, Math.floor(interval * 0.9));
+        await doRefresh(interval);
+        return;
+      }
+
+      if (hasOnlyCanceling()) {
+        // โหมด canceling ล้วน: เคารพ 5 นาที "เป๊ะ"
+        const now = Date.now();
+        const dueIn = (lastCancelingRun + CANCELING_INTERVAL) - now;
+        if (dueIn > 0) {
+          schedule(dueIn);   // ยังไม่ถึงกำหนด → รอส่วนต่างที่เหลือจริงๆ
+          return;
+        }
+        await doRefresh(CANCELING_INTERVAL, { markCancelingRun: true });
+        return;
+      }
+
+      // ไม่มีงานใด ๆ
+      schedule(MIN_INTERVAL);
+    };
+
+    // กลับมาโฟกัส:
+    // - ถ้ามีงานปกติ → ยิงทันที
+    // - ถ้ามีแต่ canceling → ยิงทันที "เฉพาะ" เมื่อถึงกำหนด (ครบ 5 นาทีแล้วเท่านั้น)
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && hasActiveNonCanceling()) {
+      if (document.hidden) return;
+      if (hasActiveNonCanceling()) {
         interval = MIN_INTERVAL;
         clearTimeout(timer);
-        tick(); // ยิงทันทีเมื่อกลับมาโฟกัส
+        tick();
+      } else if (hasOnlyCanceling()) {
+        const now = Date.now();
+        const dueIn = (lastCancelingRun + CANCELING_INTERVAL) - now;
+        if (dueIn <= 0) { // ถึงเวลาแล้วค่อยยิง
+          clearTimeout(timer);
+          tick();
+        } else {
+          // ยังไม่ถึงเวลา → ตั้งนาฬิกาไว้เท่าที่เหลือ
+          schedule(dueIn);
+        }
       }
     });
 
+    // เริ่มต้น: ถ้ามีงาน (normal/canceling) → เริ่มใน 3 วิ
     window.addEventListener('load', () => {
-      if (hasActiveNonCanceling()) schedule(3_000);
+      if (hasActiveNonCanceling() || hasOnlyCanceling()) schedule(3_000);
     });
 
-    // ผู้ใช้กดเองยังทำงานได้ตามปกติ
+    // ผู้ใช้กดเอง → รีเซ็ตนาฬิกาเฉพาะโหมดปกติ
     const manual = document.querySelector('#btnSync');
     manual?.addEventListener('click', () => {
+      // ถ้ามีแต่ canceling ให้ยึด 5 นาทีเหมือนเดิม (ไม่รีเซ็ตให้ไวขึ้น)
+      if (hasOnlyCanceling()) return;
       interval = MIN_INTERVAL;
       schedule(interval);
     });
@@ -951,7 +1000,7 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
     const st  = String(o.status||'').toLowerCase();
 
     if (st === 'canceling') {
-      return { label: 'กำลังสั่งยกเลิก', donePct: 0, showPct: false, isDone: false };
+      return { label: 'กำลังสั่งยกเลิก…', donePct: 0, showPct: false, isDone: false };
     }
 
     if (st === 'canceled') {
@@ -1056,7 +1105,7 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
   }
 
   /* ---------- refresh-all แบบไม่ reload หน้า ---------- */
-  function setBusy(targets, on = true) {
+  function setBusyTargets(targets, on = true) {
     const list = Array.isArray(targets) ? targets : [targets];
     const seen = new Set();
 
@@ -1078,26 +1127,111 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
     }
   }
 
-  async function refreshAll(triggerBtn){
-    const btnSync = $('#btnSync');
-    const rowBtns = $$('.btn-refresh');
+  /* ---------- รีเฟรชเฉพาะออเดอร์เดียว ---------- */
+  function setBtnBusy(btn, on = true) {
+    if (!btn) return;
+    if (on) {
+      btn.disabled = true;
+      if (!btn.dataset.keepHtml) btn.dataset.keepHtml = btn.innerHTML;
+      btn.setAttribute('aria-busy', 'true');
+      btn.classList.add('is-loading');
+    } else {
+      btn.disabled = false;
+      btn.removeAttribute('aria-busy');
+      btn.classList.remove('is-loading');
+      if (btn.dataset.keepHtml) {
+        btn.innerHTML = btn.dataset.keepHtml;
+        delete btn.dataset.keepHtml;
+      }
+    }
+  }
 
-    const targets = [triggerBtn, btnSync, ...rowBtns].filter(Boolean);
+  async function refreshOneOrder(orderId, triggerBtn) {
+    if (!orderId) return;
+    setBtnBusy(triggerBtn, true);
+    try {
+      const res = await fetch(`/api/orders/${orderId}/refresh`, { method: 'POST' });
+      const data = await res.json();
+
+      // สร้าง patch แล้วอัปเดต DOM ผ่าน applyOrderPatch
+      const patch = {
+        _id: orderId,
+        status:        data.status,
+        progress:      data.progress,
+        remains:       data.remains,
+        startCount:    data.start_count,
+        currentCount:  data.current_count,
+        updatedAt:     data.updatedAt || new Date().toISOString(),
+        refundAmount:  data.refundAmount,
+        refundType:    data.refundType
+      };
+      window.applyOrderPatch?.(patch);
+
+      // อัปเดต cache modal (__ORDERS__) ถ้ามี
+      const arr = window.__ORDERS__ || [];
+      const idx = arr.findIndex(x => x._id === orderId);
+      if (idx > -1) {
+        const o = arr[idx];
+        o.status        = (patch.status        ?? o.status);
+        o.progress      = (typeof patch.progress      === 'number') ? patch.progress      : o.progress;
+        o.remains       = (typeof patch.remains       === 'number') ? patch.remains       : o.remains;
+        o.startCount    = (typeof patch.startCount    === 'number') ? patch.startCount    : o.startCount;
+        o.currentCount  = (typeof patch.currentCount  === 'number') ? patch.currentCount  : o.currentCount;
+        o.updatedAt     = patch.updatedAt || o.updatedAt;
+        if (typeof patch.refundAmount === 'number') o.refundAmount = patch.refundAmount;
+        if (typeof patch.refundType   === 'string') o.refundType   = patch.refundType;
+      }
+    } catch (e) {
+      console.error('refresh one failed:', e);
+    } finally {
+      setBtnBusy(triggerBtn, false);
+    }
+  }
+
+  /* ---------- เปลี่ยน handler ปุ่มรีเฟรชใต้สถานะให้รีเฟรชเฉพาะออเดอร์ ---------- */
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-refresh');
+    if (!btn) return;
+    e.preventDefault();
+
+    // ไม่ให้กดในสถานะที่ห้าม (ตามเงื่อนไข EJS ที่ซ่อนไว้อยู่แล้ว เผื่อ DOM เปลี่ยน)
+    const rowOrCard = btn.closest('[data-order-id]');
+    const st = (rowOrCard?.dataset?.status || '').toLowerCase();
+    if (st === 'canceling' || st === 'completed' || st === 'partial' || st === 'canceled') return;
+
+    const id = btn.dataset.id || rowOrCard?.dataset?.orderId;
+    refreshOneOrder(id, btn);
+  });
+
+  async function refreshAll(triggerBtn){
+    const btnSync = document.querySelector('#btnSync');
+
+    // ไม่อ้าง rowBtns แล้ว เพราะรีเฟรชทีละออเดอร์แยกต่างหาก
+    const targets = [triggerBtn, btnSync].filter(Boolean);
     const uniqTargets = [...new Set(targets)];
 
-    setBusy(uniqTargets, true);
+    setBusyTargets(uniqTargets, true);
     try{
       const res = await fetch('/api/orders/refresh-all', { method: 'POST' });
       const data = await res.json();
-
       if (!data?.ok) throw new Error(data?.error || 'refresh failed');
 
       (data.changes || []).forEach(patch => {
-        window.applyOrderPatch(patch);
+        // ── ข้ามออเดอร์ที่กำลังยกเลิก ───────────────────────────
+        const st = String(patch?.status || '').toLowerCase();
+        if (st === 'canceling') return;
+
+        // เผื่อกรณี server ไม่คืน status แต่ฝั่ง DOM เป็น canceling อยู่แล้ว → ข้ามเช่นกัน
+        const rowOrCard = document.querySelector(`[data-order-id="${patch._id}"]`)
+                      || document.querySelector(`.o-card[data-order-id="${patch._id}"]`);
+        const domSt = (rowOrCard?.dataset?.status || '').toLowerCase();
+        if (domSt === 'canceling') return;
+
+        window.applyOrderPatch?.(patch);
       });
-    }catch(e){
+    } catch(e){
       console.error(e);
-    }finally{
+    } finally{
       setBusy(uniqTargets, false);
     }
   }
@@ -1140,11 +1274,11 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
     e.preventDefault();
     refreshAll(e.currentTarget);
   });
-  document.addEventListener('click', (e)=>{
-    const b = e.target.closest('.btn-refresh'); if(!b) return;
-    e.preventDefault();
-    refreshAll(b);
-  });
+  // document.addEventListener('click', (e)=>{
+  //   const b = e.target.closest('.btn-refresh'); if(!b) return;
+  //   e.preventDefault();
+  //   refreshAll(b);
+  // });
 
   /* ---------- mobile card toggle ---------- */
   $('#orderCards')?.addEventListener('click', (e) => {

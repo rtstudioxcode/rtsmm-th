@@ -18,6 +18,8 @@ import {
   getBalance,
 } from '../lib/iplusviewAdapter.js';
 
+import { UsageLog } from '../models/UsageLog.js';
+
 const router = Router();
 router.use(requireAuth);
 
@@ -31,9 +33,9 @@ const toNum = v => {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 };
-const nz = v => (Number.isFinite(v) ? v : 0);
+const nz = v => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const calcCost = (q, rate) => Math.max(0, (nz(q) / 1000) * nz(rate));
-const round2 = n => Math.round(n * 100) / 100;
+const round2 = n => Math.round((Number(n) || 0) * 100) / 100;
 
 // ใช้ map สถานะไทย (ใช้ซ้ำ)
 const mapTH = (x='') => ({
@@ -83,18 +85,56 @@ function getServiceFlags(serviceDoc, providerServiceId) {
 /** คำนวณ % ที่ทำไปแล้ว จาก progress/remains/start-current */
 function computeDonePct(o) {
   const qty = Number(o.quantity) || 0;
-  if (qty <= 0) return (typeof o.progress === 'number') ? Math.max(0, Math.min(100, o.progress)) : 0;
   if (typeof o.progress === 'number') return Math.max(0, Math.min(100, o.progress));
-  if (typeof o.remains === 'number')  return Math.max(0, Math.min(100, (1 - Math.max(0, o.remains)/qty) * 100));
-  if (typeof o.startCount === 'number' && typeof o.currentCount === 'number') {
-    const gained = Math.max(0, o.currentCount - o.startCount);
-    return Math.max(0, Math.min(100, (gained/qty) * 100));
+  if (typeof o.remains === 'number' && qty > 0) {
+    const left = Math.max(0, o.remains);
+    return Math.max(0, Math.min(100, (1 - left / qty) * 100));
   }
-  return String(o.status||'').toLowerCase() === 'completed' ? 100 : 0;
+  if (typeof o.startCount === 'number' && typeof o.currentCount === 'number' && qty > 0) {
+    const gained = Math.max(0, o.currentCount - o.startCount);
+    return Math.max(0, Math.min(100, (gained / qty) * 100));
+  }
+  return 0;
 }
 
 function isDone(o) {
   return computeDonePct(o) >= 99.995 || String(o.status||'').toLowerCase() === 'completed';
+}
+
+// คืนเงินแบบ idempotent: คืนเฉพาะ “ส่วนต่าง” ที่ยังไม่เคยคืน
+async function refundIdempotent({ userId, orderId, currency = 'THB', amount }) {
+  const amt = Math.max(0, Number(amount) || 0);
+  if (amt <= 0) return { refunded: 0, already: 0, delta: 0 };
+
+  let already = 0;
+  try {
+    // รวมยอดที่เคยคืนไปแล้วจาก usage_logs
+    const agg = await UsageLog.aggregate([
+      { $match: { orderId, type: 'refund' } },
+      { $group: { _id: '$orderId', sum: { $sum: '$amount' } } }
+    ]);
+    already = Number(agg?.[0]?.sum || 0);
+  } catch {
+    // ถ้าไม่มี UsageLog model ก็ปล่อยผ่าน (ยังกันซ้ำจาก refundCommitted ได้อีกชั้น ถ้าคุณเพิ่มใน schema)
+  }
+
+  const delta = Math.max(0, amt - already);
+  if (delta <= 0) return { refunded: 0, already, delta: 0 };
+
+  let log = null;
+  try {
+    log = await UsageLog.create({
+      userId, orderId, type: 'refund', amount: delta, currency, note: 'cancel/partial refund'
+    });
+  } catch (e) {
+    // กันซ้ำระดับ DB (unique index) — ถ้าชน 11000 แปลว่ามี Log แล้ว → ไม่ต้อง inc ซ้ำ
+    if (e?.code === 11000) return { refunded: 0, already: amt, delta: 0 };
+    throw e;
+  }
+
+  // เพิ่มเงินเข้าบัญชีผู้ใช้ตาม "ส่วนต่าง"
+  await User.updateOne({ _id: userId }, { $inc: { balance: delta } });
+  return { refunded: delta, already, delta, logId: log?._id || null };
 }
 
 /** อัปเดตยอดเครดิตผู้ให้บริการ (ไม่ throw เพื่อไม่รันค้าง) */
@@ -722,7 +762,6 @@ router.post('/api/orders/refresh-all', async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 // NEW: cancel (สั่งยกเลิก → ตั้ง canceling) และ refill
 // ─────────────────────────────────────────────────────────────
-
 // UI กดจากหน้ารายการ (web) → สั่งยกเลิกและตั้งสถานะ "canceling"
 router.post('/orders/:id/cancel', requireAuth, async (req, res) => {
   try {
@@ -741,20 +780,19 @@ router.post('/orders/:id/cancel', requireAuth, async (req, res) => {
       return res.status(400).json({ ok:false, error:`สถานะ "${st}" ไม่สามารถยกเลิกได้` });
     }
 
-    // ถ้าไม่มี providerOrderId → ให้ค้าง canceling แล้วให้แอดมินดูต่อ
+    // ยิงไป provider ถ้ามี providerOrderId
     let cancelId = null;
     if (ord.providerOrderId) {
       try {
-        const resp = await providerCancelOrder(ord.providerOrderId); // lib จะยิง POST /cancels/:orderId
+        const resp = await providerCancelOrder(ord.providerOrderId); // POST /cancels/:orderId
         cancelId = resp?.cancelId ?? null;
       } catch (e) {
-        // provider ปฏิเสธ เช่น "Order is not cancellable."
         const msg = e?.response?.data?.error || e?.response?.data?.message || e.message || 'cancel denied by provider';
         return res.status(400).json({ ok:false, error: msg });
       }
     }
 
-    // ตั้งสถานะเป็นกำลังยกเลิก + สร้าง cancelInfo เสมอ
+    // ตั้งเป็นกำลังยกเลิก + เก็บ cancelInfo
     ord.status = 'canceling';
     ord.cancelInfo = {
       providerCancelId: cancelId || null,
@@ -763,7 +801,7 @@ router.post('/orders/:id/cancel', requireAuth, async (req, res) => {
     };
     ord.lastCancelId = cancelId || ord.lastCancelId || null;
 
-    // กันข้อมูลที่ถูกตั้งก่อนเวลา
+    // ล้างฟิลด์ผลยกเลิก/คืนเงินเก่า (กันแสดงผลก่อนเวลา)
     ord.canceledAt   = null;
     ord.refundAmount = null;
     ord.refundType   = null;
@@ -789,97 +827,85 @@ router.post('/orders/:id/cancel/refresh', requireAuth, async (req, res) => {
     const isAdmin = me?.role === 'admin';
     if (!(isOwner || isAdmin)) return res.status(403).json({ ok:false, error:'forbidden' });
 
-    // ถ้าสตางค์นี้ถูกยกเลิกไปแล้ว → ไม่ทำอะไรต่อ (กันคืนเงินซ้ำ)
+    // ถ้าปัจจุบันเป็น canceled อยู่แล้ว → ไม่ต้องทำซ้ำ
     if (String(ord.status||'').toLowerCase() === 'canceled') {
       return res.json({ ok:true, updated:false, providerStatus: ord.cancelInfo?.providerStatus || 'done' });
     }
 
-    // ต้องมี cancelId (จาก /orders/:id/cancel ที่ตั้งไว้ตอนกด "ยกเลิก")
-    const cancelId =
-      ord?.cancelInfo?.providerCancelId ||
-      ord?.lastCancelId ||
-      null;
-
+    const cancelId = ord?.cancelInfo?.providerCancelId || ord?.lastCancelId || null;
     if (!cancelId) {
       return res.status(400).json({ ok:false, error:'ยังไม่เคยส่งคำขอยกเลิก' });
     }
 
-    // ensure object
-    ord.cancelInfo = ord.cancelInfo || {
-      providerCancelId: cancelId,
-      requestedAt: ord.createdAt || new Date(),
-    };
+    ord.cancelInfo = ord.cancelInfo || { providerCancelId: cancelId, requestedAt: ord.createdAt || new Date() };
 
-    // ดึงผลยืนยันจาก Cancel API
+    // 1) เรียกผลจาก Cancel API
     let c;
     try {
       c = await getCancelById(cancelId);
-    } catch (e) {
-      // อย่าทำให้หน้า error — แค่ค้างสถานะกำลังยกเลิกต่อไป
+    } catch {
       ord.cancelInfo.providerStatus = 'pending';
       await ord.save();
       return res.json({ ok:true, updated:false, providerStatus: 'pending' });
     }
 
-    const st = String(c?.status || '').toLowerCase();
-    const DONE = /^(canceled|cancelled|success|ok|accepted|done|finished|completed)$/i;
+    const provStatus = String(c?.status || '').toLowerCase();
+    const DONE = /^(canceled|cancelled|success|ok|accepted|done|finished|completed|partial)$/i;
 
-    if (DONE.test(st)) {
-      // คำนวณเพดานต้นทุน
-      const est0 = nz(ord.estCost ?? ord.cost ?? calcCost(ord.quantity, ord.rateAtOrder));
-      const est  = Math.max(0, Number(est0) || 0);
-
-      // คำนวณคงเหลือตาม % ที่ทำไปแล้ว (เผื่อ API ไม่ส่ง amount)
-      const donePct   = computeDonePct(ord);               // 0..100
-      const leftRatio = Math.max(0, Math.min(1, 1 - (donePct/100)));
-      const computed  = round2(est * leftRatio);
-
-      // ยอดคืน: เลือกของ API ถ้าส่งมา (c.amount) ไม่งั้นใช้คำนวณเอง
-      let refund = Number.isFinite(+c?.amount) ? +c.amount : computed;
-      refund = Math.max(0, Math.min(refund, est));         // 0..est
-
-      // ประเภทการคืน
-      let refundType = c?.type || null;
-      if (!refundType) {
-        if (refund >= est - 1e-6) refundType = 'full';
-        else if (refund > 0)      refundType = 'partial';
-        else                      refundType = null;
-      }
-
-      // flip เป็น canceled (ครั้งเดียว)
-      ord.status = 'canceled';
-      ord.canceledAt = new Date();
-      ord.refundAmount = refund;
-      ord.refundType = refundType;
-      ord.cancelInfo.providerStatus = st || 'done';
-      ord.cancelInfo.confirmedAt = new Date();
+    if (!DONE.test(provStatus)) {
+      // ยังไม่จบ → คง canceling
+      ord.cancelInfo.providerStatus = provStatus || 'pending';
+      if (String(ord.status||'').toLowerCase() !== 'canceling') ord.status = 'canceling';
       await ord.save();
-
-      // คืนเงินเข้ากระเป๋า ถ้ามี
-      if (refund > 0) {
-        await User.updateOne({ _id: ord.user }, { $inc: { balance: refund } });
-      }
-      setTimeout(() => reconcileUserByOrderEvent(ord._id).catch(()=>{}), 0);
-
-      return res.json({
-        ok:true, updated:true,
-        order:{
-          status: ord.status,
-          refundAmount: ord.refundAmount,
-          refundType: ord.refundType
-        }
-      });
+      return res.json({ ok:true, updated:false, providerStatus: provStatus || 'pending' });
     }
 
-    // ยังไม่สำเร็จ → ค้าง "กำลังยกเลิก"
-    ord.cancelInfo.providerStatus = st || 'pending';
-    // ย้ำสถานะหลักอย่าเผลอเปลี่ยนเอง
-    if (String(ord.status||'').toLowerCase() !== 'canceling') {
-      ord.status = 'canceling';
-    }
+    // 2) เสร็จสิ้นฝั่ง provider → คำนวณยอดที่ควรคืน
+    const est0   = nz(ord.estCost ?? ord.cost ?? calcCost(ord.quantity, ord.rateAtOrder));
+    const est    = Math.max(0, Number(est0) || 0);
+    const donePct   = computeDonePct(ord);
+    const leftRatio = Math.max(0, Math.min(1, 1 - (donePct/100)));
+    const computed  = round2(est * leftRatio);
+
+    // ถ้า API ส่ง amount มาให้ ใช้อันนั้น; ไม่งั้นใช้คำนวณเอง
+    let shouldRefund = Number.isFinite(+c?.amount) ? +c.amount : computed;
+    shouldRefund = Math.max(0, Math.min(shouldRefund, est));
+
+    // ตัดสินสถานะสุดท้าย: partial ถ้าได้คืน < est (และ > 0), ไม่งั้น canceled (เต็มหรือศูนย์)
+    let finalStatus = 'canceled';
+    if (shouldRefund > 0 && shouldRefund < est) finalStatus = 'partial';
+
+    // 3) คืนเงินแบบ idempotent (คืนเฉพาะ “ส่วนต่าง” ที่ยังไม่เคยคืน)
+    const { delta } = await refundIdempotent({
+      userId: ord.user,
+      orderId: ord._id,
+      currency: ord.currency || 'THB',
+      amount: shouldRefund
+    });
+
+    // 4) อัปเดตออเดอร์ครั้งเดียว
+    ord.status = finalStatus;
+    ord.canceledAt = new Date();
+    ord.refundAmount = shouldRefund;
+    ord.refundType = (shouldRefund >= est - 1e-6) ? 'full' : (shouldRefund > 0 ? 'partial' : null);
+    ord.cancelInfo.providerStatus = provStatus || 'done';
+    ord.cancelInfo.confirmedAt = new Date();
     await ord.save();
 
-    return res.json({ ok:true, updated:false, providerStatus: st || 'pending' });
+    // sync totals (async)
+    setTimeout(() => reconcileUserByOrderEvent(ord._id).catch(()=>{}), 0);
+
+    return res.json({
+      ok:true,
+      updated:true,
+      providerStatus: provStatus || 'done',
+      order: {
+        status: ord.status,
+        refundAmount: ord.refundAmount,
+        refundType: ord.refundType,
+        refundDelta: delta
+      }
+    });
   } catch (e) {
     console.error('cancel refresh error:', e);
     return res.status(500).json({ ok:false, error:e.message || 'cancel refresh failed' });

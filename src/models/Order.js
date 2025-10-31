@@ -41,6 +41,8 @@ const OrderSchema = new Schema({
   canceledAt:   { type: Date },
 
   // การคืนเงิน
+  refundCommitted: { type: Boolean, default: false },
+  refundTxId: { type: String, default: null },
   refundAmount: { type: Number, default: 0, min: 0 },
   refundType:   { type: String, enum: ['full','partial','none', null], default: null },
   lastCancelId: { type: String },
