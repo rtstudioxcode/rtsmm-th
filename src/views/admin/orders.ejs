@@ -859,7 +859,7 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
   const AutoRefresh = (() => {
     const MIN_INTERVAL       = 60_000;    // 1 นาที
     const MAX_INTERVAL       = 120_000;   // 2 นาที
-    const CANCELING_INTERVAL = 300_000;   // 5 นาที
+    const CANCELING_INTERVAL = 420_000;   // 7 นาที
     const ERR_BACKOFF        = 2.0;
 
     let interval = MIN_INTERVAL;
@@ -870,12 +870,16 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
     let lastCancelingRun = 0;
 
     // งานกำลังทำ (ไม่นับ canceling)
-    const hasActiveNonCanceling = () => !!document.querySelector(
-      '#orderTable tbody tr[data-status="processing"], ' +
-      '#orderTable tbody tr[data-status="inprogress"], ' +
-      '.o-card[data-status="processing"], ' +
-      '.o-card[data-status="inprogress"]'
-    );
+    const isVisible = el => !!(el && el.offsetParent !== null);
+    const hasActiveNonCanceling = () => {
+      const nodes = document.querySelectorAll(
+        '#orderTable tbody tr[data-status="processing"], ' +
+        '#orderTable tbody tr[data-status="inprogress"], ' +
+        '.o-card[data-status="processing"], ' +
+        '.o-card[data-status="inprogress"]'
+      );
+      return Array.from(nodes).some(isVisible);
+    };
 
     // มี canceling ไหม
     const hasAnyCanceling = () => !!document.querySelector(
@@ -949,20 +953,25 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
         tick();
       } else if (hasOnlyCanceling()) {
         const now = Date.now();
+        if (!lastCancelingRun) lastCancelingRun = now;   // ถ้ายังไม่เคยตั้ง ให้เริ่มนับจากตอนนี้
         const dueIn = (lastCancelingRun + CANCELING_INTERVAL) - now;
-        if (dueIn <= 0) { // ถึงเวลาแล้วค่อยยิง
+        if (dueIn <= 0) {
           clearTimeout(timer);
-          tick();
+          tick();                                        // ถึงเวลาแล้วค่อยยิง
         } else {
-          // ยังไม่ถึงเวลา → ตั้งนาฬิกาไว้เท่าที่เหลือ
-          schedule(dueIn);
+          schedule(dueIn);                               // ยังไม่ถึง → รอส่วนต่างจริงๆ
         }
       }
     });
 
     // เริ่มต้น: ถ้ามีงาน (normal/canceling) → เริ่มใน 3 วิ
     window.addEventListener('load', () => {
-      if (hasActiveNonCanceling() || hasOnlyCanceling()) schedule(3_000);
+      if (hasActiveNonCanceling()) {
+        schedule(3_000);
+      } else if (hasOnlyCanceling()) {
+        lastCancelingRun = Date.now();        // ← เริ่มจับเวลา 5 นาทีตั้งแต่ตอนนี้
+        schedule(CANCELING_INTERVAL);         //    ไม่ยิงทันที
+      }
     });
 
     // ผู้ใช้กดเอง → รีเซ็ตนาฬิกาเฉพาะโหมดปกติ
@@ -1347,7 +1356,7 @@ async function startCancel(orderId, _providerOrderId_unused) {
   try {
     await postJSON(`/orders/${orderId}/cancel`);
     setPillCanceling(orderId);
-    await pollCancel(orderId);
+    // await pollCancel(orderId);
   } catch (e) {
     if (window.showMsg) showMsg({ variant:'error', title:'ยกเลิกไม่สำเร็จ', text: e.message || 'โปรดลองใหม่' });
     else alert('ยกเลิกไม่สำเร็จ: ' + (e.message || 'โปรดลองใหม่'));
