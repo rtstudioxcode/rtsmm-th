@@ -256,7 +256,7 @@ body.orders-wide .container{
   width:22px; height:22px; border-radius:999px;
   background:color-mix(in oklab,var(--accent) 20%, transparent);
 }
-.balance-pill .bal-amt{ white-space:nowrap }
+.balance-pill .bal-amt{ white-space:nowrap;}
 
 /* โฮเวอร์/โฟกัสนิด ๆ ให้รู้สึกคลิกได้ (แต่เป็นข้อมูลแสดงผล) */
 .balance-pill:hover{
@@ -328,7 +328,7 @@ body.orders-wide .container{
 @media (max-width:900px){
   /* ซ่อนท็อปบาร์เดสก์ท็อป */
   .topbar.desktop{ display:none; }
-  .balance-pill{ display:none }
+  .balance-pill{ display:none; }
 
   .m-topbar{
     position:sticky; top:0; z-index:200;
@@ -2877,7 +2877,7 @@ html[data-theme="dark"] .uicf__actions{
 .uicf__btn{
   height: clamp(40px, 6.2vw, 44px);
   border-radius: 8px; border: 0;
-  font-weight: 700; cursor:pointer;
+  font-weight: 400; cursor:pointer;
   font-size: clamp(13px, 2.4vw, 14px);
   -webkit-tap-highlight-color: transparent;
 }
@@ -3024,4 +3024,508 @@ html[data-theme="dark"] .uicf__btn--ghost{
 
   .ppc-item{ padding:10px 12px; cursor:pointer; white-space:nowrap; }
   .ppc-item:hover,.ppc-item.active{ background:rgba(255,255,255,.06); }
+}
+
+
+/* === Layout สองคอลัมน์ (ฟอร์มซ้าย / อิโมจิขวา) === */
+.detail-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) clamp(460px,28vw,620px);
+  gap:6px;
+  align-items:start;
+  margin-top:6px;
+}
+
+/* กัน margin เริ่มต้นของการ์ดด้านในให้ชิด */
+.detail-grid > .card,
+.detail-grid > .right-rail{
+  margin: 0 !important;
+}
+
+/* จูนช่องไฟด้านในของการ์ดฟอร์มซ้ายให้กระชับ */
+#detailBox .hdr{ margin-top: 6px; }
+#detailBox .meta{ margin-top: 6px; }
+#detailBox details{ margin-top: 8px; }
+
+/* เผื่อมีระยะห่างใต้ปุ่มยืนยันที่มากไป */
+#detailBox .form .btn.block{ margin-bottom: 8px; }
+
+/* ถ้าเลย์เอาต์หน้ามีตัวคุมช่องไฟแบบ stack เช่น .page > * + * { margin-top:20px } */
+.page > .detail-grid{
+  margin-top: 6px !important;    /* บังคับให้ชิดเท่าที่ต้องการ */
+}
+
+/* จอใหญ่พิเศษ – ขยายได้อีกนิดถ้าพื้นที่เหลือ */
+@media (min-width: 1600px){
+  .detail-grid{
+    grid-template-columns: minmax(0, 1fr) clamp(460px, 26vw, 620px);
+    gap: 14px;
+  }
+}
+
+/* breakpoint เดิมสำหรับ Mobile/Tablet: เรียงลง */
+@media (max-width: 1024px){
+  .detail-grid{ grid-template-columns: 1fr; }
+  .emoji-legend{ position: static; max-height: none; }
+}
+/* === แผงอิโมจิ === */
+.emoji-legend{
+  position: sticky;
+  top: 84px;                /* ปรับตามความสูง topbar */
+  max-height: calc(100dvh - 120px);
+  overflow: auto;
+}
+
+.legend-head{ margin-bottom:12px; padding:12px 14px 0 14px; }
+.legend-title{ font-weight:400; font-size:12px; }
+.legend-sub{ display:block; margin-top:4px; }
+
+.legend-list{ display:flex; flex-direction:column; gap:10px; }
+
+.legend-title{
+  font-weight:800; letter-spacing:.2px;
+  background: linear-gradient(180deg,var(--primary),var(--primary));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  text-shadow: 0 0 0 var(--primary); /* ให้คมในบางเบราว์เซอร์ */
+}
+
+.legend-item{
+  display:flex; gap:1px;
+  align-items:flex-start;
+  padding:10px 12px;
+  border:1px solid var(--elevated-border,#24262b);
+  border-radius:10px;
+  background:var(--elevated-bg,#141518);
+}
+
+.legend-emoji{
+  min-width:72px;
+  max-width:120px;
+  font-weight:400;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  color: var(--title,#eadfb8);
+}
+
+.legend-content{ flex:1; }
+.legend-label{ line-height:1.45; }
+.legend-sub{ color: var(--muted); }
+
+/* Layout สองคอลัมน์ */
+.detail-grid{
+  display:grid;
+  grid-template-columns: minmax(0,1fr) clamp(460px, 28vw, 620px);
+  gap:6px;
+  align-items:start;
+}
+
+/* คอลัมน์ขวาเป็นสแตกสองการ์ด + sticky */
+.right-rail{
+  position:sticky;
+  top:84px;                 /* ปรับตาม topbar ของคุณ */
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  height:auto;              /* ให้ JS เป็นคนกำหนด */
+  overflow:hidden;          /* กันพื้นหลังล้น */
+}
+
+/* การ์ดด้านขวาให้เลื่อนได้ภายใน */
+.right-rail > .card{
+  overflow:auto;
+  margin: 0 !important;
+}
+
+/* ลิสต์อัปเดต */
+.updates-list{ display:flex; flex-direction:column; gap:10px; }
+.update-item{
+  border:1px solid var(--elevated-border,#24262b);
+  background:var(--elevated-bg,#141518);
+  border-radius:10px;
+  padding:10px 12px;
+}
+.update-head{
+  display:flex; justify-content:space-between; align-items:center;
+  gap:8px; margin-bottom:4px; font-size:12px;
+}
+.update-badges{ display:flex; gap:6px; flex-wrap:wrap; }
+.badge{
+  border:1px solid var(--elevated-border,#24262b);
+  border-radius:999px; padding:2px 8px; font-size:12px; white-space:nowrap;
+  background: rgba(255,255,255,0.03);
+}
+
+@media (max-width:1024px){
+  .detail-grid{ grid-template-columns:1fr; }
+  .right-rail{
+    position:static;
+    height:auto;
+    overflow:visible;
+  }
+  .right-rail > .card{ max-height:none; height:auto; }
+}
+.updates-list .update-item + .update-item{
+  margin-top: 6px;
+}
+
+/* ===== THEME SURFACES ===== */
+[data-theme="dark"]{
+  --surface-0: #0f1114;                 /* พื้นหลังเพจ */
+  --surface-1: var(--elevated-bg,#14171c); /* การ์ดชั้นนอก */
+  --surface-2: #1a1f26;                 /* การ์ดชั้นใน/บล็อกย่อย */
+  --surface-3: #0b0e12;                 /* อินเส็ต/พื้น hover */
+  --surface-border: var(--elevated-border,#24262b);
+  --surface-shadow: var(--elevated-shadow,0 12px 30px rgba(0,0,0,.35));
+  --surface-highlight: rgba(255,255,255,.04);   /* เส้นไฮไลท์บาง ๆ */
+  --card-glow: rgba(42,132,255,.08);
+  --ring: var(--focus-ring,0 0 0 3px rgba(42,132,255,.35));
+  --muted: var(--text-muted,#a7b0bb);
+  --primary: var(--text-primary,#f2f4f8);
+  --accent: var(--accent,#2a84ff);
+}
+
+[data-theme="light"]{
+  --surface-0: #f6f7fb;
+  --surface-1: #ffffff;
+  --surface-2: #f1f4f9;
+  --surface-3: #e8ecf4;
+  --surface-border: #e1e6ef;
+  --surface-shadow: 0 10px 22px rgba(18, 24, 40, .08);
+  --surface-highlight: rgba(255,255,255,.65);
+  --card-glow: rgba(42,132,255,.10);
+  --ring: 0 0 0 3px rgba(42,132,255,.18);
+  --muted: #667085;
+  --primary: #0f172a;
+  --accent: #2a84ff;
+}
+
+.right-rail{
+  position:sticky; top:84px;
+  display:flex; flex-direction:column; gap:6px;
+  height:auto; overflow:hidden;
+}
+
+/* การ์ดพื้นผิวมีมิติ */
+.card{
+  background: linear-gradient(180deg, var(--surface-1), var(--surface-1)) padding-box,
+              linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,0)) border-box; /* เส้นขอบมีประกายเบาๆ */
+  border:1px solid var(--surface-border);
+  box-shadow: var(--surface-shadow), 0 1px 0 var(--surface-highlight) inset; /* เงา + ไฮไลท์อินเส็ต */
+  border-radius:16px;
+  color: var(--primary);
+}
+
+/* ลิสต์อัปเดตด้านในเป็น surface-2 เพิ่มมิติ */
+.updates-list .update-item{
+  background: linear-gradient(180deg, var(--surface-2), var(--surface-2));
+  border:1px solid var(--surface-border);
+  border-radius:12px;
+  padding:10px 12px;
+  box-shadow: 0 1px 0 var(--surface-highlight) inset;
+}
+.updates-list .update-item:hover{
+  box-shadow: 0 1px 0 var(--surface-highlight) inset,
+              0 0 0 3px var(--card-glow);
+}
+
+/* แถบเวลาหัวรายการ */
+.update-head{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:4px; }
+.update-head .muted{ color: var(--muted); }
+
+/* badge */
+.badge{
+  border:1px solid var(--surface-border);
+  border-radius:999px; padding:2px 8px; font-size:12px;
+  background: linear-gradient(180deg, var(--surface-3), transparent);
+  color: var(--primary);
+  box-shadow: 0 1px 0 var(--surface-highlight) inset;
+}
+
+/* บล็อกอิโมจิ */
+.emoji-legend .legend-list .legend-item{
+  background: linear-gradient(180deg, var(--surface-2), var(--surface-2));
+  border:1px solid var(--surface-border);
+  border-radius:12px;
+  padding:10px 12px;
+  box-shadow: 0 1px 0 var(--surface-highlight) inset;
+}
+.legend-emoji{ color: var(--title,#eadfb8); font-weight:700; min-width:72px; }
+
+/* สกรอลล์บาร์ให้เข้าธีม */
+.right-rail > .card::-webkit-scrollbar,
+.updates-list::-webkit-scrollbar{ width:10px; }
+.right-rail > .card::-webkit-scrollbar-thumb,
+.updates-list::-webkit-scrollbar-thumb{
+  background: linear-gradient(180deg, var(--surface-3), var(--surface-2));
+  border: 2px solid transparent; border-radius:999px; background-clip: padding-box;
+}
+
+/* ปุ่ม/ลิงก์ในกล่องให้มีแหวน focus เข้าธีม */
+.card :where(button, .btn, a):focus-visible{
+  outline:none; box-shadow: var(--ring);
+}
+
+/* มือถือ */
+@media (max-width:1024px){
+  .detail-grid{ grid-template-columns:1fr; }
+  .right-rail{ position:static; height:auto; overflow:visible; }
+}
+
+.card::before{
+  content:""; display:block; height:1px;
+  background: linear-gradient(90deg, transparent, var(--surface-highlight), transparent);
+  border-radius:999px; margin:2px 10px 0;
+}
+
+/* =========================
+   Theme Tokens (เชื่อมกับ html[data-theme])
+   ========================= */
+
+/* Dark (ค่าพื้นฐาน) */
+:root,
+html[data-theme="dark"] {
+  --page:           #0f1114;
+  --card:           #14171b;
+  --card-2:         #171a1f;         /* แผงรอง/กล่องย่อย */
+  --muted:          #9aa3ad;
+  --text:           #f2f4f8;
+  --text-weak:      #c9d0d7;
+
+  --border:         #242a31;
+  --shadow-1:       0 8px 22px rgba(0,0,0,.35);
+  --shadow-2:       0 1px 0 rgba(255,255,255,.03) inset; /* ขอบในบางๆให้มีมิติ */
+
+  --accent:         #2a84ff;
+  --accent-weak:    rgba(42,132,255,.14);
+  --danger:         #ef4444;
+  --success:        #10b981;
+  --warn:           #f59e0b;
+
+  --pill-bg:        #0f141a;
+  --pill-border:    #2a3139;
+
+  --topbar:         #121418;
+  --sidebar:        #121418;
+  --sidebar-border: #1f2329;
+}
+
+/* ==== LIGHT THEME: ลดความขาว + เพิ่มมิติ ==== */
+html[data-theme="light"]{
+  /* พื้นหลังเพจให้เทาอมน้ำเงินอ่อน (ไม่ขาวล้วน) */
+  --page:           #eef2f7;
+
+  /* การ์ดหลัก “ขาวอมเทา” ไม่จ้า */
+  --card:           #fafcff;   /* เดิม #fff */
+  /* การ์ดย่อย/พื้นในกล่อง */
+  --card-2:         #f2f6fb;   /* เดิม #f7f9fb */
+
+  /* เส้นขอบชัดขึ้นเล็กน้อย */
+  --border:         #cfd9e6;   /* เดิม #dbe2ea */
+
+  /* สีตัวอักษรเข้มขึ้นเล็กน้อยเพื่อคอนทราสต์ที่ดี */
+  --text:           #0e1522;
+  --text-weak:      #314155;
+  --muted:          #5a6b7f;
+
+  /* เงา: เพิ่มน้ำหนักเงาหลักเล็กน้อย และ inset ให้เห็นขอบใน */
+  --shadow-1:       0 10px 26px rgba(15, 21, 34, .10);
+  --shadow-2:       0 1px 0 rgba(15, 21, 34, .06) inset;
+
+  /* แผงท็อปบาร์/ไซด์บาร์แยกชั้นจากเพจ */
+  --topbar:         #ffffff;
+  --sidebar:        #ffffff;
+  --sidebar-border: #cfd9e6;
+
+  /* พื้นชิประดับบนขวาให้มีสีพื้นนวล ไม่ขาวจ้า */
+  --pill-bg:        #f8fbff;   /* เดิม #fff */
+  --pill-border:    #cfd9e6;
+
+  /* แบรนด์คงเดิม แต่ทำเวอร์ชันอ่อนให้มีโทน */
+  --accent:         #245edb;
+  --accent-weak:    rgba(36,94,219,.12);
+}
+
+/* แผงบน/เมนูด้านข้าง: ตัดชั้นชัดขึ้นใน Light */
+html[data-theme="light"] .topbar.desktop{
+  background: linear-gradient(180deg, var(--topbar), #f8fbff);
+  border-bottom: 1px solid var(--sidebar-border);
+  box-shadow: var(--shadow-2);
+}
+html[data-theme="light"] .sidebar{
+  background: linear-gradient(180deg, var(--sidebar), #f7faff);
+  border-right: 1px solid var(--sidebar-border);
+  box-shadow: var(--shadow-2);
+}
+
+/* การ์ด/แผงทั่วไป: เติมกราเดียนต์นวล ๆ ให้ไม่แบน */
+html[data-theme="light"] .card,
+html[data-theme="light"] .panel,
+html[data-theme="light"] .section-card{
+  background: linear-gradient(180deg, var(--card) 0%, #f6f9ff 100%);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-1), var(--shadow-2);
+}
+
+/* กล่องย่อยภายในการ์ด */
+html[data-theme="light"] .card .subcard,
+html[data-theme="light"] .card-weak{
+  background: linear-gradient(180deg, var(--card-2) 0%, #eaf1fa 100%);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+}
+
+/* ชิป/ปุ่มวงรี (ยอดเงิน, ออกจากระบบ ฯลฯ) ให้มีพื้นนวล + ขอบชัดขึ้น */
+html[data-theme="light"] .balance-pill,
+html[data-theme="light"] .logout-pill,
+html[data-theme="light"] .pill,
+html[data-theme="light"] .chip{
+  background: linear-gradient(180deg, var(--pill-bg), #eef3fa);
+  border: 1px solid var(--pill-border);
+  color: var(--text);
+  box-shadow: var(--shadow-2);
+}
+
+/* Badge/Tag เล็ก ๆ ให้แยกจากพื้น */
+html[data-theme="light"] .badge, 
+html[data-theme="light"] .tag{
+  background: #eff4fb;
+  border: 1px solid var(--border);
+  color: var(--text-weak);
+  box-shadow: var(--shadow-2);
+}
+
+/* เส้นแบ่ง/ขอบจุดต่าง ๆ ให้เข้ากับโทนใหม่ */
+html[data-theme="light"] .divider, 
+html[data-theme="light"] .hr{
+  border-color: var(--border);
+}
+
+/* โฮเวอร์รายการ/ปุ่มแบบอ่อน ๆ ไม่ฉูดฉาด */
+html[data-theme="light"] .list-item:hover,
+html[data-theme="light"] .btn.ghost:hover{
+  background: rgba(36,94,219,.05);
+}
+
+/* พื้นฐานหน้า */
+html, body {
+  background: var(--page);
+  color: var(--text);
+}
+
+/* คอนเทนเนอร์หลัก */
+.container {
+  background: transparent;
+  color: var(--text);
+}
+
+/* การ์ดพื้นฐาน */
+.card,
+.section-card,
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-1), var(--shadow-2);
+  border-radius: 14px;
+}
+
+/* กล่องย่อย/กล่องรายการภายในการ์ด (เช่น list ภาคขวา) */
+.card .subcard,
+.panel .subcard,
+.card-weak {
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+  border-radius: 12px;
+}
+
+/* ข้อความรอง/Muted */
+.muted,
+.text-muted {
+  color: var(--muted);
+}
+
+/* เส้นขอบทั่วไป */
+.hr,
+.divider {
+  border-color: var(--border);
+}
+
+/* ปุ่ม/ชิปแบบ Pill ด้านบนขวา */
+.balance-pill,
+.logout-pill,
+.chip,
+.pill {
+  background: var(--pill-bg);
+  border: 1px solid var(--pill-border);
+  color: var(--text);
+  box-shadow: var(--shadow-2);
+}
+
+/* ปุ่มเน้นโทนแบรนด์ */
+.btn.primary,
+.pill.primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: #fff;
+}
+.btn.outline,
+.pill.ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+/* Topbar / Sidebar ให้มีแผงชัดใน Light */
+.topbar.desktop {
+  background: var(--topbar);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+}
+.sidebar {
+  background: var(--sidebar);
+  border-right: 1px solid var(--sidebar-border);
+  box-shadow: var(--shadow-2);
+}
+
+/* แท็ก/สถานะเล็ก ๆ (เช่น “ลบออก”, “ปิดการใช้งาน”) */
+.badge,
+.tag {
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  color: var(--text-weak);
+  box-shadow: var(--shadow-2);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* สีช่วยจำ */
+.badge--removed { color: var(--danger); }
+.badge--closed  { color: var(--warn); }
+.badge--ok      { color: var(--success); }
+.badge--info    { color: var(--accent); }
+
+.surface-sunken { /* แผงต่ำลงเล็กน้อย ใช้รอง list ยาว */
+  background: linear-gradient( to bottom, var(--card) 0%, var(--card) 40%, var(--card-2) 100% );
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+  border-radius: 12px;
+}
+
+.badge--removed::after { content: "  ลบออก"; }
+.badge--closed::after  { content: "  ปิดการใช้งาน"; }
+
+.pill.long .label .st-ico,
+.pill.progress .st-ico{
+  display:inline-block;
+  width:16px; height:16px;
+  background: var(--st-ico) no-repeat center/contain;
+  margin-right:6px;
+  vertical-align:-2px;
+}
+.pill.long.has-ico::before,
+.pill.progress.has-ico::before{
+  content:none; /* ถ้ามี pseudo เดิม ให้ปิดเมื่อมี .has-ico */
 }

@@ -8,8 +8,8 @@ import { decryptAesGcm } from './lib/crypto.js';
  */
 const envConfig = {
   port: Number(process.env.PORT || 3000),
-  mongoUri: process.env.MONGO_URI,
-  // mongoUri: process.env.MONGO_URI || 'mongodb://admin:060843Za@147.50.240.76:27017/rtsmm-th?authSource=admin',
+  // mongoUri: process.env.MONGO_URI,
+  mongoUri: process.env.MONGO_URI || 'mongodb://mongo:UExusYQYbMpqTLSRXPKAMfHyuVaRoVnK@ballast.proxy.rlwy.net:33636/rtsmm-th?replicaSet=rs0&authSource=admin&retryWrites=true&w=majority',
   sessionSecret: process.env.SESSION_SECRET || '',
   provider: {
     baseUrl: ((process.env.IPV_API_BASE || '').replace(/\/+$/, '')) || '',

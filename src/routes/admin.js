@@ -334,47 +334,71 @@ router.patch("/users/:id", async (req, res) => {
 
 router.post("/manual-topup", async (req, res) => {
   try {
-    const { username, amount, txId } = req.body;
+    let { username, amount, txId } = req.body;
 
-    if (!username || !amount)
+    if (!username || amount === undefined || amount === null) {
       return res.json({ ok: false, error: "ข้อมูลไม่ครบ" });
+    }
+
+    // รองรับกรณี amount เป็น string มีคอมมา
+    const amt = Math.round(Number(String(amount).replace(/,/g, "")) * 100) / 100;
+    if (!(amt > 0)) {
+      return res.json({ ok: false, error: "จำนวนเงินไม่ถูกต้อง" });
+    }
+    const amtCents = Math.round(amt * 100);
 
     const user = await User.findOne({ username });
     if (!user) return res.json({ ok: false, error: "ไม่พบผู้ใช้" });
 
-    // 🟢 เพิ่มยอดเข้า balance
-    user.balance = (user.balance || 0) + Number(amount);
+    // 🟢 เพิ่มยอดเข้า balance (บาท)
+    user.balance = Number(user.balance || 0) + amt;
     await user.save();
 
-    // 🟣 ถ้ามี txId ให้ update
+    const now = new Date();
+
     if (txId) {
+      // 🟣 ถ้ามี txId → อัปเดตทรานแซกชันเดิมให้ครบฟิลด์
       await Transaction.findOneAndUpdate(
         { transactionId: txId },
         {
           $set: {
             userId: user._id,
+            username: user.username,
+            method: "admin",
+            amount: amt,            // บาท
+            amountCents: amtCents,  // สตางค์ (required)
+            currency: "THB",
             status: "completed",
-            updatedAt: new Date(),
+            updatedAt: now,
+            paidAt: now,
+          },
+          $setOnInsert: {
+            createdAt: now,
           },
         },
-        { new: true }
+        { new: true, upsert: true } // กันกรณีหาไม่เจอ ก็สร้างใหม่
       );
     } else {
-      // 🟠 ถ้าไม่มี txId ให้สร้างใหม่
+      // 🟠 ถ้าไม่มี txId → สร้างใหม่ให้ครบฟิลด์
       await Transaction.create({
         transactionId: ulid(),
         userId: user._id,
-        method: "manual",
-        amount,
+        username: user.username,
+        method: "admin",
+        amount: amt,            // บาท
+        amountCents: amtCents,  // สตางค์ (required)
+        currency: "THB",
         status: "completed",
-        createdAt: new Date(),
+        createdAt: now,
+        updatedAt: now,
+        paidAt: now,
       });
     }
 
-    res.json({ ok: true, username, amount });
+    return res.json({ ok: true, username, amount: amt, balance: user.balance });
   } catch (err) {
-    console.error("manual-topup error:", err);
-    res.json({ ok: false, error: "เกิดข้อผิดพลาดในระบบ" });
+    console.error("admin-topup error:", err);
+    return res.json({ ok: false, error: "เกิดข้อผิดพลาดในระบบ" });
   }
 });
 

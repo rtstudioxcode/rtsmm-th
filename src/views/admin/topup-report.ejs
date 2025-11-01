@@ -78,6 +78,7 @@
           <th>วันที่ / เวลา</th>
           <th>รหัสรายการ</th>
           <th>ผู้ใช้</th>
+          <th style="text-align:left;">วิธีเติม</th>
           <th>ข้อมูลผู้โอน</th>
           <th>ข้อมูลผู้รับ</th>
           <th style="text-align:right;">จำนวนเงิน</th>
@@ -115,7 +116,17 @@
                     <% } %>
                 </div>
             </div>
-            </td>
+          </td>
+          <td>
+            <% const m = (tx.method || '').toLowerCase(); %>
+            <%=
+              (m === 'tw' || m === 'truewallet') ? 'True Wallet' :
+              (m === 'kbank') ? 'QR Code - Scan' :
+              (m === 'admin') ? 'Admin' :
+              (m === 'manual') ? 'เติมมือ' :
+              (m || '—')
+            %>
+          </td>
           <td>
             <% if (method === 'truewallet' || method === 'tw') { %>
               <img src="/static/assets/payment/tw.webp" class="bank-logo" />
@@ -225,6 +236,20 @@
             <% } else { %>
               <span class="muted">ไม่พบข้อมูลผู้รับ</span>
             <% } %>
+          </div>
+        </div>
+
+        <div class="tx-row">
+          <div class="tx-label">วิธีเติม</div>
+          <div class="tx-value">
+            <% const m = (tx.method || '').toLowerCase(); %>
+            <%=
+              (m === 'tw' || m === 'truewallet') ? 'True Wallet' :
+              (m === 'kbank') ? 'QR Code - Scan' :
+              (m === 'admin') ? 'Admin' :
+              (m === 'manual') ? 'เติมมือ' :
+              (m || '—')
+            %>
           </div>
         </div>
 

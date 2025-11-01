@@ -51,62 +51,119 @@
   </div>
 </section>
 
-<!-- รายละเอียด + ฟอร์มสั่งซื้อ -->
-<section class="card" id="detailBox" style="display:none">
-  <div id="hdr" class="hdr"></div>
-  <div id="meta" class="meta"></div>
+<!-- ===== กล่อง 2 คอลัมน์: ฟอร์มซ้าย + อิโมจิขวา ===== -->
+<section class="detail-grid">
+  <!-- ซ้าย: รายละเอียด + ฟอร์มสั่งซื้อ (ของเดิม) -->
+  <section class="card" id="detailBox" style="display:none">
+    <div id="hdr" class="hdr"></div>
+    <div id="meta" class="meta"></div>
 
-  <details class="mt" open>
-    <summary>รายละเอียดบริการ</summary>
-    <div id="desc" class="desc mt">—</div>
-  </details>
+    <details class="mt" open>
+      <summary>รายละเอียดบริการ</summary>
+      <div id="desc" class="desc mt">—</div>
+    </details>
 
-  <form id="orderForm" class="form" onsubmit="return submitOrder(event)">
-    <input type="hidden" id="groupId" name="groupId">
-    <input type="hidden" id="providerServiceId" name="providerServiceId">
+    <form id="orderForm" class="form" onsubmit="return submitOrder(event)">
+      <input type="hidden" id="groupId" name="groupId">
+      <input type="hidden" id="providerServiceId" name="providerServiceId">
 
-    <label>ลิงก์/เป้าหมาย
-      <input id="link" name="link" required placeholder="https://…">
-    </label>
+      <label>ลิงก์/เป้าหมาย
+        <input id="link" name="link" required placeholder="https://…">
+      </label>
 
-    <div class="row2">
-      <!-- จำนวน + hint ต่ำสุด/สูงสุด -->
-      <label class="with-hint">ปริมาณ
-        <input id="qty" name="quantity" type="number" required>
-        <div id="qtyHint" class="hintline">
-          <span class="min">ขั้นต่ำ: <b id="minVal">—</b></span>
-          <span class="dot">•</span>
-          <span class="max">สูงสุด: <b id="maxVal">—</b></span>
+      <div class="row2">
+        <label class="with-hint">ปริมาณ
+          <input id="qty" name="quantity" type="number" required>
+          <div id="qtyHint" class="hintline">
+            <span class="min">ขั้นต่ำ: <b id="minVal">—</b></span>
+            <span class="dot">•</span>
+            <span class="max">สูงสุด: <b id="maxVal">—</b></span>
+          </div>
+        </label>
+
+        <label>ค่าใช้จ่ายโดยประมาณ
+          <div class="input-group">
+            <span class="input-prefix">฿</span>
+            <input id="est" class="input right" type="text" readonly value="0">
+          </div>
+          <small class="muted" id="rateNote" style="display:none"></small>
+        </label>
+      </div>
+
+      <div class="row2 toggles">
+        <label class="toggle">
+          <input id="drip" type="checkbox">
+          <span class="lbl">📦 ทยอยดำเนินการ (Dripfeed)</span>
+          <small class="hint">ระบบจะค่อย ๆ ทำงานเป็นรอบ เพื่อความปลอดภัย</small>
+        </label>
+        <label class="toggle">
+          <input id="sys" type="checkbox">
+          <span class="lbl">⚙️ ตั้งออเดอร์ตามระบบ</span>
+          <small class="hint">ให้ระบบตรวจสอบและสั่งซ้ำให้อัตโนมัติ</small>
+        </label>
+      </div>
+
+      <button class="btn primary block">ยืนยันคำสั่งซื้อ</button>
+    </form>
+
+    <div id="resp" class="mt"></div>
+  </section>
+
+  <!-- ขวา: อัปเดตวันนี้ + ความหมายอิโมจิ -->
+  <aside class="right-rail">
+    <!-- อัปเดตบริการวันนี้ -->
+    <section class="card updates-card" aria-label="อัปเดตบริการ (วันนี้)">
+      <div class="legend-head">
+        <div class="legend-title">🛎️ อัปเดตบริการ (วันนี้)</div>
+        <small class="legend-sub muted">ดึงจากฐานข้อมูล changelogs</small>
+      </div>
+      <div id="updatesList" class="updates-list">
+        <div class="muted">กำลังโหลด…</div>
+      </div>
+    </section>
+
+    <!-- ขวา: ความหมายอิโมจิ -->
+    <section class="card emoji-legend" aria-label="ความหมาย อิโมจิ ในชื่อบริการ">
+      <div class="legend-head">
+        <div class="legend-title">🧩 ความหมาย อิโมจิ ในชื่อบริการ</div>
+        <small class="legend-sub muted">สิ่งสำคัญที่ต้องรู้เกี่ยวกับอิโมจิต่างๆ</small>
+      </div>
+
+      <div class="legend-list">
+
+        <div class="legend-item">
+          <div class="legend-emoji">⭐ | 🔥</div>
+          <div class="legend-content">
+            <div class="legend-label">บริการที่ดี, ขายดี | ยอดฮิต พิเศษ</div>
+          </div>
         </div>
-      </label>
 
-      <!-- ค่าใช้จ่ายแบบมี prefix ฿ -->
-      <label>ค่าใช้จ่ายโดยประมาณ
-        <div class="input-group">
-          <span class="input-prefix">฿</span>
-          <input id="est" class="input right" type="text" readonly value="0">
+        <div class="legend-item"><div class="legend-emoji">🍓</div><div class="legend-content"><div class="legend-label">ราคาถูก ลดราคา โปรโมชั่น</div></div></div>
+        <div class="legend-item"><div class="legend-emoji">💎</div><div class="legend-content"><div class="legend-label">คุณภาพสูง ราคาสูง</div></div></div>
+        <div class="legend-item"><div class="legend-emoji">👍🏻</div><div class="legend-content"><div class="legend-label">บริการแนะนำ</div></div></div>
+        <div class="legend-item"><div class="legend-emoji">🐌</div><div class="legend-content"><div class="legend-label">เริ่มทำงานช้า / จัดส่งช้า</div></div></div>
+        <div class="legend-item"><div class="legend-emoji">♻️, 𝐑𝐁</div><div class="legend-content"><div class="legend-label">มีปุ่มเติมคืนตามระยะเวลา แสดงผลทุกๆ 24 ชั่วโมง</div></div></div>
+        <div class="legend-item"><div class="legend-emoji">💧</div><div class="legend-content"><div class="legend-label">ทยอยจัดส่ง</div></div></div>
+        <div class="legend-item"><div class="legend-emoji">🆕</div><div class="legend-content"><div class="legend-label">บริการใหม่ อัพเดทล่าสุด</div></div></div>
+        <div class="legend-item"><div class="legend-emoji">🚫, ❌, 𝐍𝐑</div><div class="legend-content"><div class="legend-label">ไม่มีรับประกัน ไม่เติมคืน แม้ว่ายอดจะลดหรือไม่ครบ</div></div></div>
+        <div class="legend-item"><div class="legend-emoji">🛡️</div><div class="legend-content"><div class="legend-label">บริการมีรับประกันจากเซิพเวอร์</div></div></div>
+        <div class="legend-item"><div class="legend-emoji">𝐒𝐭𝐚𝐛𝐥𝐞, 𝐎𝐫𝐠𝐚𝐧𝐢𝐜</div><div class="legend-content"><div class="legend-label">การจัดส่งที่มีเสถียรภาพ เป็นธรรมชาติ</div></div></div>
+        <div class="legend-item"><div class="legend-emoji">𝐍𝐨𝐧 𝐃𝐫𝐨𝐩</div><div class="legend-content"><div class="legend-label">ไม่ลดลง แต่ก็มีโอกาสลดลงได้บ้าง</div></div></div>
+        <div class="legend-item"><div class="legend-emoji">⚡️, 🚀</div><div class="legend-content"><div class="legend-label">ความเร็วในการจัดส่ง ยิ่งเยอะยิ่งไว</div></div></div>
+        <div class="legend-item"><div class="legend-emoji">⛔️</div><div class="legend-content"><div class="legend-label">มีปุ่มยกเลิก</div></div></div>
+        <div class="legend-item">
+          <div class="legend-emoji">𝐑𝟑𝟎, 𝐑∞, 𝐆∞</div>
+          <div class="legend-content">
+            <div class="legend-label">R = รับประกันจากบริการ, ตัวเลขคือจำนวนวัน เช่น R30 และ ∞ = ตลอดอายุบริการ</div>
+          </div>
         </div>
-        <small class="muted" id="rateNote" style="display:none"></small>
-      </label>
-    </div>
+        <div class="legend-item"><div class="legend-emoji">~1H , 0-24H</div><div class="legend-content"><div class="legend-label">เริ่มประมาณ 1 ชั่วโมง / เริ่มในช่วง 0–24 ชั่วโมง</div></div></div>
+        <div class="legend-item"><div class="legend-emoji">~1K/D</div><div class="legend-content"><div class="legend-label">ความเร็วเฉลี่ย ~1,000 ต่อวัน</div></div></div>
+        <div class="legend-item"><div class="legend-emoji">Mix/Mixed, Bot/Clone, Real</div><div class="legend-content"><div class="legend-label">Mixed=ผสม, Bot/Clone=บอท/เลียนแบบ, Real=บัญชีจริง</div></div></div>
+        <div class="legend-item"><div class="legend-emoji">HQ, MQ, LQ</div><div class="legend-content"><div class="legend-label">คุณภาพ: HQ สูง / MQ กลาง / LQ ต่ำ</div></div></div>
 
-    <div class="row2 toggles">
-      <label class="toggle">
-        <input id="drip" type="checkbox">
-        <span class="lbl">📦 ทยอยดำเนินการ (Dripfeed)</span>
-        <small class="hint">ระบบจะค่อย ๆ ทำงานเป็นรอบ เพื่อความปลอดภัย</small>
-      </label>
-      <label class="toggle">
-        <input id="sys" type="checkbox">
-        <span class="lbl">⚙️ ตั้งออเดอร์ตามระบบ</span>
-        <small class="hint">ให้ระบบตรวจสอบและสั่งซ้ำให้อัตโนมัติ</small>
-      </label>
-    </div>
-
-    <button class="btn primary block">ยืนยันคำสั่งซื้อ</button>
-  </form>
-
-  <div id="resp" class="mt"></div>
+      </div>
+  </aside>
 </section>
 
 <script>
@@ -124,6 +181,36 @@ const notify = (opts = {}) => {
   // fallback สุดท้าย
   alert((title ? title + '\n' : '') + (text || ''));
 };
+</script>
+
+<script>
+// === ไอคอนสถานะ (ใช้ซ้ำ) ===
+const __STATUS_ICONS__ = {
+  processing: '/static/assets/status/processing.png',
+  inprogress: '/static/assets/status/inprogress.png',
+  completed:  '/static/assets/status/completed.png',
+  partial:    '/static/assets/status/partial.png',
+  canceled:   '/static/assets/status/canceled.png',
+  canceling:  '/static/assets/status/processing.png',
+  default:    '/static/assets/status/processing.png'
+};
+
+function ensureStatusIcon(pill, status){
+  if (!pill) return;
+  const url = __STATUS_ICONS__[String(status||'').toLowerCase()] || __STATUS_ICONS__.default;
+
+  // หา/สร้างตัวไอคอน
+  let ico = pill.querySelector(':scope .label .st-ico, :scope > .st-ico');
+  if (!ico) {
+    ico = document.createElement('span');
+    ico.className = 'st-ico';
+    // ใส่หน้า label ถ้ามี ไม่งั้นใส่ต้น pill
+    const lbl = pill.querySelector(':scope .label');
+    (lbl || pill).prepend(ico);
+  }
+  ico.style.setProperty('--st-ico', `url("${url}")`);
+  pill.classList.add('has-ico'); // กัน ::before ซ้อน
+}
 </script>
 
 <script>
@@ -758,4 +845,117 @@ async function submitOrder(ev){
     submitBtn && (submitBtn.disabled = false);
   }
 }
+</script>
+
+<script>
+// — เพิ่มตรงสคริปต์ของหน้าเดียวกับ loadLatestUpdates() —
+const DIFF_TH = {
+  new: 'เพิ่มใหม่',
+  open: 'เปิดใช้งาน',
+  close: 'ปิดการใช้งาน',
+  removed: 'ลบออก',
+  updated: 'อัปเดต',
+  state: 'สถานะเริ่มต้น',
+};
+const STATUS_TH = {
+  new: 'เพิ่มใหม่',
+  open: 'เปิดใช้งาน',
+  active: 'เปิดใช้งาน',
+  close: 'ปิดการใช้งาน',
+  closed: 'ปิดการใช้งาน',
+  removed: 'ลบออก',
+  delete: 'ลบออก',
+  deleted: 'ลบออก',
+};
+
+function tDiff(s){ const k = String(s||'').toLowerCase(); return DIFF_TH[k] || s || '—'; }
+function tStatus(s){ const k = String(s||'').toLowerCase(); return STATUS_TH[k] || s || '—'; }
+
+// ===== ดึงอัปเดตของ "วันล่าสุด" ผ่าน API เดิมที่คุณมีอยู่แล้ว =====
+// /api/changes?latest=1&target=service&limit=300
+async function loadLatestUpdates(){
+  const el = document.getElementById('updatesList');
+  if (!el) return;
+  try {
+    const r = await fetch('/api/changes?latest=1&target=service&limit=300');
+    const j = await r.json();
+    if (!j.ok) { el.innerHTML = '<div class="muted">โหลดข้อมูลไม่สำเร็จ</div>'; return; }
+    const items = Array.isArray(j.items) ? j.items : [];
+    if (!items.length) { el.innerHTML = '<div class="muted">วันนี้ยังไม่มีอัปเดต</div>'; return; }
+
+    el.innerHTML = '';
+    items.forEach(x => {
+      const d = new Date(x.ts);
+      const hh = String(d.getHours()).padStart(2,'0');
+      const mm = String(d.getMinutes()).padStart(2,'0');
+
+      const row = document.createElement('div');
+      row.className = 'update-item';
+      row.innerHTML = `
+        <div class="update-head">
+          <span class="muted">${hh}:${mm}</span>
+          <div class="update-badges">
+            ${x.platform ? `<span class="badge">${escapeHtml(x.platform)}</span>` : ''}
+            ${x.categoryName ? `<span class="badge">${escapeHtml(x.categoryName)}</span>` : ''}
+            ${x.diff ? `<span class="badge">${escapeHtml(tDiff(x.diff))}</span>` : ''}
+            ${(x.oldStatus || x.newStatus)
+              ? `<span class="badge">${escapeHtml(tStatus(x.newStatus))}</span>`
+              : ''
+            }
+          </div>
+        </div>
+        <div class="update-title"><b>${escapeHtml(x.serviceName || '—')}</b>
+          <small class="muted">#${escapeHtml(x.providerServiceId||'')}</small>
+        </div>
+      `;
+      el.appendChild(row);
+    });
+  } catch (e) {
+    console.error(e);
+    el.innerHTML = '<div class="muted">เครือข่ายมีปัญหา</div>';
+  }
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+// ===== ปรับความสูงรวมของสองการ์ดขวาให้เท่ากับฟอร์มซ้าย =====
+function syncRightRailHeights(){
+  const left   = document.getElementById('detailBox');
+  const rail   = document.querySelector('.right-rail');
+  const updates= document.querySelector('.updates-card');
+  const legend = document.querySelector('.emoji-legend');
+  if (!left || !rail || !updates || !legend) return;
+
+  const total = Math.round(left.offsetHeight);
+
+  const GAP = 6; // ✅ เดิม 16 — ให้ตรงกับ .right-rail{ gap:6px }
+
+  rail.style.height = total + 'px';
+
+  // สัดส่วนเหมือนเดิม (อิโมจิยาวกว่านิดเดียว)
+  const updatesH = Math.max(160, Math.round((total - GAP) * 0.47));
+  const legendH  = Math.max(160, (total - GAP) - updatesH);
+
+  updates.style.height = updatesH + 'px';
+  legend .style.height = legendH  + 'px';
+  updates.style.overflow = 'auto';
+  legend .style.overflow = 'auto';
+}
+
+function initHeightSync(){
+  syncRightRailHeights();
+  window.addEventListener('resize', syncRightRailHeights);
+
+  // ถ้าฟอร์มซ้ายสูงขึ้น/ลดลง (เปิดรายละเอียด, คิดราคา, ฯลฯ) ให้ sync ใหม่
+  const ro = new ResizeObserver(syncRightRailHeights);
+  const left = document.getElementById('detailBox');
+  if (left) ro.observe(left);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadLatestUpdates();
+  initHeightSync();
+});
 </script>

@@ -372,7 +372,6 @@ app.get("/blog", (req, res) => {
     },
   ];
 
-  res.render("blog", { layout: true, pageTitle: "บทความ | RTSMM-TH", posts });
   res.render("blog", {
     layout: true,
     pageTitle: "บทความ | RTSMM-TH",

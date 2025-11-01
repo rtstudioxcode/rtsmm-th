@@ -59,7 +59,7 @@
   <!-- Sidebar -->
   <aside id="sb" class="sidebar" aria-label="Side navigation">
     <div class="sb-head">
-      <a href="/" class="sb-brand" aria-label="หน้าแรก">
+      <a href="/orders/new" class="sb-brand" aria-label="หน้าแรก">
         <img class="brand-icon" src="/static/logo/icon-logo.png" alt="" />
         <img class="brand-wordmark" src="/static/logo/logo-rtssm-th.png" alt="RTSMM-TH" />
       </a>
@@ -164,7 +164,7 @@
     <header class="topbar desktop">
       <div class="left" style="display:flex;align-items:center;gap:12px">
         <!-- <button class="btn hamburger" id="sbToggle" aria-label="เปิด/ปิดเมนู">☰ เมนู</button> -->
-        <span class="brand" onclick="location.href='/'" role="link" tabindex="0">RTSSM-TH.COM ผู้ให้บริการการตลาดออนไลน์และโซเชียลระดับสากล มาตรฐานมืออาชีพ ดูแลลูกค้าทั่วโลก</span>
+        <span class="brand" onclick="location.href='/orders/new'" role="link" tabindex="0">RTSSM-TH.COM ผู้ให้บริการการตลาดออนไลน์และโซเชียลระดับสากล มาตรฐานมืออาชีพ ดูแลลูกค้าทั่วโลก</span>
       </div>
 
       <nav class="nav" aria-label="Top navigation">
@@ -212,11 +212,11 @@
     <!-- Mobile Topbar (แสดงเฉพาะจอ ≤ 900px) -->
     <div class="m-topbar">
       <button id="sbToggle" class="m-iconbtn" aria-label="เมนู">☰</button>
-      <a href="/" class="m-brand" aria-label="RTSMM-TH">RTSMM-TH</a>
+      <a href="/orders/new" class="m-brand" aria-label="RTSMM-TH">RTSMM-TH</a>
       <div class="m-right">
         <% if (me) { %>
           <button class="m-pill" aria-label="ยอดเงินคงเหลือ">
-            <span class="muted" style="margin-right:8px"><%= balanceText %></span>
+            <span class="muted" style="margin: auto; width: 75px;"><%= balanceText %></span>
           </button>
         <% } %>
         <button id="themeToggle" class="m-iconbtn" aria-label="สลับธีม">🌓</button>

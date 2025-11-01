@@ -59,7 +59,7 @@ const TransactionSchema = new mongoose.Schema({
 
   username: { type: String },
 
-  method: { type: String, enum: ["tw","scb","kbank","manual"], required: true },
+  method: { type: String, enum: ["tw","scb","kbank","manual", "admin"], required: true },
 
   // จาก SMS/สลิป
   senderBank: String,
