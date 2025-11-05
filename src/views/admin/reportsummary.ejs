@@ -5,6 +5,49 @@
   </div>
 </section>
 
+<!-- สรุปยอดรวมทั้งเดือน -->
+<div class="grid cards summary-cards">
+  <section class="card2">
+    <div class="card-head row-head">
+      <h3>ยอดต้นทุนรวม</h3>
+      <span class="metric-badge soft">ทั้งเดือน</span>
+    </div>
+    <div class="big muted">
+      ฿<%= Number(monthTotals.cost || 0).toLocaleString(undefined,{minimumFractionDigits:2}) %>
+    </div>
+  </section>
+
+  <section class="card2">
+    <div class="card-head row-head">
+      <h3>ยอดขายรวม</h3>
+      <span class="metric-badge soft">ทั้งเดือน</span>
+    </div>
+    <div class="big accent">
+      ฿<%= Number(monthTotals.sale || 0).toLocaleString(undefined,{minimumFractionDigits:2}) %>
+    </div>
+  </section>
+
+  <section class="card2">
+    <div class="card-head row-head">
+      <h3>บริการทั้งหมด</h3>
+      <span class="metric-badge soft">ทั้งเดือน</span>
+    </div>
+    <div class="big info">
+      <%= Number(monthTotals.count || 0).toLocaleString() %> รายการ
+    </div>
+  </section>
+
+  <section class="card2">
+    <div class="card-head row-head">
+      <h3>กำไรรวม</h3>
+      <span class="metric-badge soft">ทั้งเดือน</span>
+    </div>
+    <div class="big <%= (monthTotals.profit||0) >= 0 ? 'success' : 'danger' %>">
+      ฿<%= Number(monthTotals.profit || 0).toLocaleString(undefined,{minimumFractionDigits:2}) %>
+    </div>
+  </section>
+</div>
+
 <div class="month-toolbar" role="group" aria-label="เลือกเดือน">
   <button class="btn ghost" id="btnPrev" type="button" aria-label="เดือนก่อนหน้า">◀︎</button>
   <label class="month-ctrl">
@@ -51,36 +94,25 @@ const headMonthLabel = `${MONTHS_TH[(mm||1)-1]} ${yy}`; // ถ้าอยาก
         </tr>
         <tr>
           <th style="text-align: start; width:141px">วันที่</th>
-          <th style="text-align: center;">ยอดต้นทุน (฿)</th>
-          <th style="text-align: center;">ยอดขาย (฿)</th>
-          <th style="text-align: center;">บริการทั้งหมด (รายการ)</th>
-          <th style="text-align: center;">กำไร (฿)</th>
+          <th style="text-align: center;">ต้นทุน</th>
+          <th style="text-align: center;">ยอดขาย</th>
+          <th style="text-align: center;">บริการทั้งหมด</th>
+          <th style="text-align: center;">กำไร</th>
         </tr>
       </thead>
       <tbody>
         <% rows.forEach(r => { %>
           <tr>
             <td  style="text-align: start;"><%= r.day %></td>
-            <td  style="text-align: center;"><%= r.cost.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2}) %></td>
-            <td  style="text-align: center;"><%= r.sale.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2}) %></td>
-            <td  style="text-align: center;"><%= r.count %></td>
+            <td  style="text-align: center; color: #bbb7b7;"><%= r.cost.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2}) %></td>
+            <td  style="text-align: center; color: #43cf43;"><%= r.sale.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2}) %></td>
+            <td  style="text-align: center; color: #0ea9e6;"><%= r.count %></td>
             <td  style="text-align: center;" class="<%= r.profit >= 0 ? 'text-success' : 'text-danger' %>">
               <%= r.profit.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2}) %>
             </td>
           </tr>
         <% }) %>
       </tbody>
-      <tfoot>
-        <tr>
-          <th style="text-align: start;" class="textsummary">ยอดรวมทั้งเดือน</th>
-          <th style="text-align: center;" class="textsummary"><%= monthTotals.cost.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2}) %></th>
-          <th style="text-align: center;" class="textsummary"><%= monthTotals.sale.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2}) %></th>
-          <th style="text-align: center;" class="textsummary"><%= monthTotals.count %></th>
-          <th style="text-align: center;"7 class="<%= monthTotals.profit >= 0 ? 'text-success' : 'text-danger' %>">
-            <%= monthTotals.profit.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2}) %>
-          </th>
-        </tr>
-      </tfoot>
     </table>
   </div>
 </section>
@@ -102,204 +134,45 @@ const headMonthLabel = `${MONTHS_TH[(mm||1)-1]} ${yy}`; // ถ้าอยาก
 .text-success{color:var(--success,#10b981);font-weight:400}
 .text-danger{color:var(--danger,#ef4444);font-weight:400}
 
-.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:16px}
-.month-toolbar{display:flex;align-items:center;gap:10px;background:var(--pick-toolbar-bg,#15171b);border:1px solid var(--tbl-border,#24262b);border-radius:999px;padding:6px 10px;box-shadow:var(--elevated-shadow,0 10px 24px rgba(0,0,0,.25))}
-.month-ctrl{display:flex;align-items:center;gap:6px;background:var(--pick-chip-bg,rgba(255,255,255,.06));border:1px solid var(--pick-chip-border,#24262b);border-radius:999px;padding:6px 10px}
-.month-ctrl input{background:transparent;border:0;outline:none;color:var(--pick-input,#f2f4f8);font-weight:400;letter-spacing:.3px;min-width:115px;text-align:center;cursor:pointer}
-.month-ctrl input:focus-visible{box-shadow:0 0 0 3px var(--pick-toolbar-ring,rgba(42,132,255,.35));border-radius:8px}
-.icon-btn{background:transparent;border:0;cursor:pointer;color:var(--pick-icon,#a7b0bb);font-size:16px}
-.icon-btn:hover{color:var(--pick-icon-hover,#fff)}
 
-/* Month Picker (popup) */
-#monthPicker[hidden]{display:none!important}
-.mp-popup{position:fixed;inset:0;display:grid;place-items:start end;padding:72px 16px 16px;background:rgba(0,0,0,.28);z-index:2147483647}
-.mp-card{width:260px;background:var(--pick-bg,#121418);border:1px solid var(--pick-border,#262a32);border-radius:14px;box-shadow:var(--pick-shadow,0 18px 60px rgba(0,0,0,.45))}
-.mp-head{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--tbl-border,#1e2128)}
-.mp-year{font-weight:400;color:var(--pick-year,#e5e7eb);letter-spacing:.5px}
-.mp-nav{background:transparent;border:1px solid var(--pick-nav-bg,#2a2e37);border-radius:8px;color:var(--pick-nav,#aeb6c4);cursor:pointer;padding:4px 8px}
-.mp-nav:hover{background:var(--pick-nav-bg-hover,#1b1f27)}
-.mp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px}
-.mp-m{display:grid;place-items:center;padding:10px 0;border:1px solid var(--pick-month-bg,#242a33);border-radius:10px;color:var(--pick-month,#cbd5e1);cursor:pointer;font-weight:400;letter-spacing:.3px;transition:background .12s ease,color .12s ease,border-color .12s ease}
-.mp-m:hover{background:var(--pick-month-hover,#1b2130);border-color:var(--pick-month-hover,#1b2130)}
-.mp-m.active{background:var(--pick-month-active,#2a84ff);color:var(--pick-month-active-text,#fff);border-color:var(--pick-month-active,#2a84ff)}
-.mp-m.current{outline:2px dashed var(--pick-month-current,rgba(42,132,255,.6));outline-offset:2px}
-.mp-actions{display:flex;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid var(--tbl-border,#1e2128)}
-.mp-actions .spacer{flex:1}
+/* Summary cards (4 ใบ) */
+.summary-cards {
+  margin: 8px 0 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.summary-cards .card2 { padding: 12px 14px; }
 
-/* Light theme tokens (สรุป) */
-html[data-theme="light"]{
-  --tbl-head-bg:#f6f7fb;--tbl-head-text:#334155;--tbl-row:#fff;--tbl-row-alt:#f3f4f6;--tbl-text:#111827;--tbl-border:#e5e7eb;--tbl-hover:#eef2f7;
-  --pick-toolbar-bg:#fff;--pick-chip-bg:#f3f4f6;--pick-chip-border:#e5e7eb;--pick-icon:#64748b;--pick-icon-hover:#111827;--pick-input:#111827;
-  --pick-bg:#fff;--pick-border:#e5e7eb;--pick-shadow:0 18px 60px rgba(0,0,0,.12);--pick-year:#0f172a;--pick-nav:#334155;--pick-nav-bg:#e5e7eb;--pick-nav-bg-hover:#dbe2ea;
-  --pick-month:#0f172a;--pick-month-bg:#e9eef5;--pick-month-hover:#dde6f2;--pick-month-active:#2a84ff;--pick-month-active-text:#fff;--pick-month-current:rgba(42,132,255,.45)
+.summary-cards .big { 
+  font-size: clamp(20px, 2.2vw, 28px);
+  font-weight: 600; 
+  letter-spacing: .2px;
+  padding: 6px 2px;
 }
 
-/* ====== Mobile overrides (<=640px) ====== */
-@media (max-width: 640px){
-  /* ให้หัวข้อชิดขอบ + แถบเครื่องมือกว้างไม่เกินจอ */
-  .page-head{ padding-inline: 12px; }
+/* สีช่วยอ่าน */
+.summary-cards .big.muted   { color: var(--text-muted,#a7b0bb); }
+.summary-cards .big.accent  { color: var(--accent,#2a84ff); }
+.summary-cards .big.info    { color: #4fb6ff; }
+.summary-cards .big.success { color: var(--success,#10b981); }
+.summary-cards .big.danger  { color: var(--danger,#ef4444); }
 
-  /* จัด month-toolbar เป็นกริด 4 ช่อง: [ก่อนหน้า][ตัวเลือกเดือนยืด][ถัดไป][เดือนนี้] */
-  .month-toolbar{
-    width: 100%;
-    max-width: min(92vw, 420px);
-    margin-inline: auto;
-    padding: 6px 8px;
-    gap: 6px;
-    display: grid;
-    grid-template-columns: auto 1fr auto auto;
-    align-items: center;
-    border-radius: 14px;
-  }
-
-  /* ช่องตัวเลือกเดือนให้หด/ยืดได้ และไม่ดันปุ่มอื่น */
-  .month-ctrl{
-    min-width: 0;
-    padding: 6px 10px;
-  }
-  .month-ctrl input{
-    min-width: 0;
-    width: 100%;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    overflow: hidden;
-    font-size: 14px;
-  }
-
-  /* ปุ่มต่าง ๆ ให้เล็กลงนิด เพื่อไม่ล้น */
-  .month-toolbar .btn,
-  .month-toolbar .btn.ghost{
-    padding: 6px 10px;
-    font-size: 14px;
-    min-width: auto;      /* อนุญาตให้หด */
-    white-space: nowrap;  /* ไม่หักบรรทัด */
-  }
-
-  /* ไอคอนปฏิทินเล็กลงนิด */
-  .icon-btn{ font-size: 15px; }
+/* ป้ายขวาบนเบา ๆ */
+.metric-badge.soft {
+  color: var(--text-muted,#a7b0bb);
+  background: transparent;
+  border: 1px dashed var(--elevated-border,#24262b);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
 }
 
-/* Popup โหมด: center หรือ anchor ใต้ toolbar */
-.mp-popup.center{
-  position:fixed; inset:0; display:grid; place-items:center;
-  background:rgba(0,0,0,.28); padding:0; z-index:2147483647;
+/* Responsive */
+@media (max-width: 992px){
+  .summary-cards { grid-template-columns: repeat(2, minmax(0,1fr)); }
 }
-.mp-popup.anchor{
-  position:fixed; inset:0; display:block;
-  background:transparent; pointer-events:none; z-index:2147483647;
-}
-.mp-popup.anchor .mp-card{
-  position:fixed; top:var(--mp-top,0px); left:var(--mp-left,0px);
-  width:min(320px,92vw); transform:none; pointer-events:auto;
-}
-@media (max-width:768px){
-  .mp-popup.anchor .mp-card{ width:min(360px,94vw); }
-}
-/* โหมด anchor: วาง popup ใต้ .month-toolbar เสมอ */
-.mp-popup.anchor{
-  position:fixed;
-  inset:0;
-  display:block;
-  background:transparent;           /* ไม่ต้องมีฉากมืด */
-  pointer-events:none;              /* ให้คลิกผ่านนอกการ์ดได้ */
-  z-index:2147483647;
-}
-.mp-popup.anchor .mp-card{
-  position:fixed;
-  top:var(--mp-top, 0px);
-  left:var(--mp-left, 0px);
-  transform:none;
-  width:min(420px, 94vw);           /* เดสก์ท็อปกว้างขึ้นหน่อย */
-  pointer-events:auto;              /* การ์ดรับคลิก */
-  border-radius:14px;
-  box-shadow:0 18px 60px rgba(0,0,0,.45);
-}
-
-/* ลูกศรชี้เล็ก ๆ (optional) */
-.mp-popup.anchor .mp-card::before{
-  content:"";
-  position:absolute;
-  top:-8px;
-  left:24px;                        /* จะถูกเลื่อนตาม calc left ที่ JS คำนวณ */
-  width:12px; height:12px;
-  background:inherit;
-  border-left:1px solid var(--pick-border,#262a32);
-  border-top:1px solid var(--pick-border,#262a32);
-  transform:rotate(45deg);
-}
-
-/* มือถือยังคุมขนาดให้พอดี */
-@media (max-width: 768px){
-  .mp-popup.anchor .mp-card{
-    width:min(360px, 94vw);
-    box-shadow:0 14px 36px rgba(0,0,0,.40);
-  }
-}
-
-/* คงสไตล์เดิมของ toolbar */
-.month-toolbar{
-  display:flex; align-items:center; gap:10px;
-  background:var(--pick-toolbar-bg,#15171b);
-  border:1px solid var(--tbl-border,#24262b);
-  border-radius:999px;
-  padding:6px 10px;
-  box-shadow:var(--elevated-shadow,0 10px 24px rgba(0,0,0,.25));
-}
-.month-ctrl{
-  display:flex; align-items:center; gap:6px;
-  background:var(--pick-chip-bg,rgba(255,255,255,.06));
-  border:1px solid var(--pick-chip-border,#24262b);
-  border-radius:999px; padding:6px 10px;
-}
-.month-ctrl input{
-  background:transparent; border:0; outline:none;
-  color:var(--pick-input,#f2f4f8);
-  font-weight:400; letter-spacing:.3px;
-  min-width:115px; text-align:center; cursor:pointer;
-}
-.month-ctrl input:focus-visible{ box-shadow:0 0 0 3px var(--pick-toolbar-ring,rgba(42,132,255,.35)); border-radius:8px; }
-.icon-btn{ background:transparent; border:0; cursor:pointer; color:var(--pick-icon,#a7b0bb); font-size:16px; }
-.icon-btn:hover{ color:var(--pick-icon-hover,#fff); }
-
-/* มือถือ: ให้กว้างพอดีจอ (เหมือนเดิม) */
-@media (max-width: 768px){
-  .month-toolbar-row{ padding: 0 12px; }
-  .month-toolbar{
-    width:100%;
-    max-width:min(92vw, 420px);
-    margin: 0 auto;
-    gap:8px;
-  }
-}
-
-/* เดสก์ท็อป: จัดกึ่งกลาง section เสมอ */
-@media (min-width: 1024px){
-  .month-toolbar-row{
-    display:grid;            /* ตัวคอนเทนเนอร์กว้างเต็มแถว */
-    place-items:center;      /* จัดลูกให้อยู่กลางทั้งแกน X/Y */
-    margin-top:10px;
-  }
-  .month-toolbar{
-    width:fit-content;       /* ให้กว้างเท่าที่จำเป็น เพื่อจัดกลางได้สวย */
-    margin:0;                /* ไม่ต้องใช้ margin auto แล้ว เพราะแถวจัดให้กลางให้ */
-  }
-}
-
-/* เดสก์ท็อป: พื้นหลังยาวเต็มแถว แต่ปุ่มอยู่กึ่งกลาง */
-@media (min-width:1024px){
-  .month-toolbar{
-    width: 100%;                 /* พื้นหลังยาวเต็มแถว */
-    margin: 10px 0 0;            /* ไม่ต้อง margin auto แล้ว */
-    display: flex;
-    justify-content: center;     /* จัด “คอนเทนต์” ไปกึ่งกลาง */
-    align-items: center;
-    gap: 10px;                   /* ระยะห่างปุ่ม ๆ */
-  }
-
-  /* ไม่ให้ลูก ๆ ถูกยืดกว้างตาม 100% */
-  .month-toolbar > *{
-    flex: 0 0 auto;
-  }
+@media (max-width: 560px){
+  .summary-cards { grid-template-columns: 1fr; }
 }
 </style>
 
