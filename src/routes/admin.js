@@ -60,13 +60,45 @@ router.get("/", async (req, res) => {
 
     const userCount = await User.countDocuments({});
 
-    // 🟢 Fetch all pending top-up transactions
+    // 🟢 ดึงรายการเติมเงินที่รอ
     const pendingTransactions = await Transaction.find({ status: "pending" })
       .sort({ createdAt: -1 })
       .limit(100)
+      // populate ไว้ก่อน เผื่อมี userId พร้อม
+      .populate({ path: 'userId', select: 'username' })
       .lean();
 
-    // 🟩 Fetch all available web wallets (for reference / matching)
+    // 👉 สร้างแผนที่ userId -> username (กันกรณี populate ไม่ครบ)
+    const uidList = [...new Set(
+      pendingTransactions
+        .map(tx => (tx.userId?._id || tx.userId))  // ทั้งกรณีเป็น obj หรือ id
+        .filter(Boolean)
+        .map(String)
+    )];
+
+    let userMap = {};
+    if (uidList.length) {
+      const users = await User.find(
+        { _id: { $in: uidList } },
+        { username: 1 }
+      ).lean();
+      userMap = Object.fromEntries(users.map(u => [String(u._id), u.username]));
+    }
+
+    // 🧩 เย็บ username + จัด method ให้พร้อมใช้
+    for (const tx of pendingTransactions) {
+      const idStr = String(tx.userId?._id || tx.userId || '');
+      const unameFromPopulate = tx.userId && typeof tx.userId === 'object' ? tx.userId.username : null;
+
+      // สร้างฟิลด์ user ให้มี username เสมอ (ฝั่ง EJS ใช้ tx.user.username ได้ตรงๆ)
+      tx.user = tx.user || {};
+      tx.user.username = unameFromPopulate || userMap[idStr] || tx.user?.username || null;
+
+      // เก็บ method ให้เป็น lower-case ใช้งานง่าย
+      tx.method = String(tx.method || '').toLowerCase();
+    }
+
+    // 🟩 กระเป๋ารับเงินทั้งหมด (สำหรับแม็ปฝั่ง UI)
     const webWallets = await Topup.find({ isActive: true }).lean();
 
     // ✅ Render admin dashboard
@@ -77,16 +109,55 @@ router.get("/", async (req, res) => {
       lastSyncAt: ps.lastSyncAt || null,
       transactions: pendingTransactions,
       webWallets,
-      stats: {
-        orderCount,
-        userCount,
-      },
+      stats: { orderCount, userCount },
     });
   } catch (err) {
     console.error("Dashboard error:", err);
     res.status(500).send("เกิดข้อผิดพลาดในระบบ");
   }
 });
+
+// router.get("/", async (req, res) => {
+//   try {
+//     // 🟣 Get provider settings
+//     let ps = await ProviderSettings.findOne();
+//     if (!ps) ps = new ProviderSettings();
+
+//     const servicesTotal = await Service.countDocuments({});
+
+//     const orderCount = await Order.countDocuments({
+//       status: { $nin: ['canceled', 'cancelled', 'processing'] }
+//     });
+
+//     const userCount = await User.countDocuments({});
+
+//     // 🟢 Fetch all pending top-up transactions
+//     const pendingTransactions = await Transaction.find({ status: "pending" })
+//       .sort({ createdAt: -1 })
+//       .limit(100)
+//       .lean();
+
+//     // 🟩 Fetch all available web wallets (for reference / matching)
+//     const webWallets = await Topup.find({ isActive: true }).lean();
+
+//     // ✅ Render admin dashboard
+//     res.render("admin/dashboard", {
+//       title: "หลังบ้าน",
+//       balance: ps.lastBalance || 0,
+//       servicesTotal,
+//       lastSyncAt: ps.lastSyncAt || null,
+//       transactions: pendingTransactions,
+//       webWallets,
+//       stats: {
+//         orderCount,
+//         userCount,
+//       },
+//     });
+//   } catch (err) {
+//     console.error("Dashboard error:", err);
+//     res.status(500).send("เกิดข้อผิดพลาดในระบบ");
+//   }
+// });
 
 // Refresh balance
 router.post("/refresh-balance", async (req, res) => {
@@ -334,59 +405,68 @@ router.patch("/users/:id", async (req, res) => {
 
 router.post("/manual-topup", async (req, res) => {
   try {
-    let { username, amount, txId } = req.body;
+    let { username, amount, txId, method } = req.body;
 
+    // ── ตรวจข้อมูลพื้นฐาน ─────────────────────────────────────────
     if (!username || amount === undefined || amount === null) {
       return res.json({ ok: false, error: "ข้อมูลไม่ครบ" });
     }
 
-    // รองรับกรณี amount เป็น string มีคอมมา
+    // รองรับ amount เป็น string มีคอมมา
     const amt = Math.round(Number(String(amount).replace(/,/g, "")) * 100) / 100;
     if (!(amt > 0)) {
       return res.json({ ok: false, error: "จำนวนเงินไม่ถูกต้อง" });
     }
     const amtCents = Math.round(amt * 100);
 
+    // ── ปรับ/ตรวจค่า method ───────────────────────────────────────
+    const ALLOWED_METHODS = ["admin", "truewallet", "kbank", "scb", "manual"];
+    let m = String(method || "admin").toLowerCase();
+    if (!ALLOWED_METHODS.includes(m)) m = "admin";
+
+    // ── หา user ───────────────────────────────────────────────────
     const user = await User.findOne({ username });
     if (!user) return res.json({ ok: false, error: "ไม่พบผู้ใช้" });
 
-    // 🟢 เพิ่มยอดเข้า balance (บาท)
+    // ── เพิ่มยอดเข้า balance (บาท) ────────────────────────────────
     user.balance = Number(user.balance || 0) + amt;
     await user.save();
 
     const now = new Date();
 
+    // ── อัปเดต/สร้าง Transaction ─────────────────────────────────
     if (txId) {
-      // 🟣 ถ้ามี txId → อัปเดตทรานแซกชันเดิมให้ครบฟิลด์
+      // มี txId → upsert ให้ครบฟิลด์
       await Transaction.findOneAndUpdate(
         { transactionId: txId },
         {
           $set: {
             userId: user._id,
             username: user.username,
-            method: "admin",
+            method: m,              // ← ใช้ method ที่เลือก
             amount: amt,            // บาท
-            amountCents: amtCents,  // สตางค์ (required)
+            amountCents: amtCents,  // สตางค์
             currency: "THB",
             status: "completed",
             updatedAt: now,
             paidAt: now,
           },
           $setOnInsert: {
+            transactionId: txId,
             createdAt: now,
           },
         },
-        { new: true, upsert: true } // กันกรณีหาไม่เจอ ก็สร้างใหม่
+        { new: true, upsert: true }
       );
     } else {
-      // 🟠 ถ้าไม่มี txId → สร้างใหม่ให้ครบฟิลด์
+      // ไม่มี txId → สร้างใหม่
       await Transaction.create({
         transactionId: ulid(),
         userId: user._id,
         username: user.username,
-        method: "admin",
-        amount: amt,            // บาท
-        amountCents: amtCents,  // สตางค์ (required)
+        method: m,              // ← ใช้ method ที่เลือก
+        amount: amt,
+        amountCents: amtCents,
         currency: "THB",
         status: "completed",
         createdAt: now,
@@ -395,12 +475,90 @@ router.post("/manual-topup", async (req, res) => {
       });
     }
 
-    return res.json({ ok: true, username, amount: amt, balance: user.balance });
+    // (ถ้ามีโมเดล topup_logs/WalletTransaction และอยากบันทึกแยก — ค่อยเพิ่มตรงนี้ได้)
+
+    return res.json({
+      ok: true,
+      username,
+      amount: amt,
+      method: m,
+      balance: user.balance,
+    });
   } catch (err) {
     console.error("admin-topup error:", err);
     return res.json({ ok: false, error: "เกิดข้อผิดพลาดในระบบ" });
   }
 });
+
+// router.post("/manual-topup", async (req, res) => {
+//   try {
+//     let { username, amount, txId } = req.body;
+
+//     if (!username || amount === undefined || amount === null) {
+//       return res.json({ ok: false, error: "ข้อมูลไม่ครบ" });
+//     }
+
+//     // รองรับกรณี amount เป็น string มีคอมมา
+//     const amt = Math.round(Number(String(amount).replace(/,/g, "")) * 100) / 100;
+//     if (!(amt > 0)) {
+//       return res.json({ ok: false, error: "จำนวนเงินไม่ถูกต้อง" });
+//     }
+//     const amtCents = Math.round(amt * 100);
+
+//     const user = await User.findOne({ username });
+//     if (!user) return res.json({ ok: false, error: "ไม่พบผู้ใช้" });
+
+//     // 🟢 เพิ่มยอดเข้า balance (บาท)
+//     user.balance = Number(user.balance || 0) + amt;
+//     await user.save();
+
+//     const now = new Date();
+
+//     if (txId) {
+//       // 🟣 ถ้ามี txId → อัปเดตทรานแซกชันเดิมให้ครบฟิลด์
+//       await Transaction.findOneAndUpdate(
+//         { transactionId: txId },
+//         {
+//           $set: {
+//             userId: user._id,
+//             username: user.username,
+//             method: "admin",
+//             amount: amt,            // บาท
+//             amountCents: amtCents,  // สตางค์ (required)
+//             currency: "THB",
+//             status: "completed",
+//             updatedAt: now,
+//             paidAt: now,
+//           },
+//           $setOnInsert: {
+//             createdAt: now,
+//           },
+//         },
+//         { new: true, upsert: true } // กันกรณีหาไม่เจอ ก็สร้างใหม่
+//       );
+//     } else {
+//       // 🟠 ถ้าไม่มี txId → สร้างใหม่ให้ครบฟิลด์
+//       await Transaction.create({
+//         transactionId: ulid(),
+//         userId: user._id,
+//         username: user.username,
+//         method: "admin",
+//         amount: amt,            // บาท
+//         amountCents: amtCents,  // สตางค์ (required)
+//         currency: "THB",
+//         status: "completed",
+//         createdAt: now,
+//         updatedAt: now,
+//         paidAt: now,
+//       });
+//     }
+
+//     return res.json({ ok: true, username, amount: amt, balance: user.balance });
+//   } catch (err) {
+//     console.error("admin-topup error:", err);
+//     return res.json({ ok: false, error: "เกิดข้อผิดพลาดในระบบ" });
+//   }
+// });
 
 // ปฏิเสธรายการเติมเงิน
 router.post('/topup/:id/reject', async (req, res) => {
@@ -558,55 +716,137 @@ router.get('/api/users/search', requireAuth, async (req, res) => {
 // TOPUP REPORT (Admin)
 // ─────────────────────────────────────────────────────────────
 router.get('/topup-report', async (req, res) => {
-  try {
-    if (req.user?.role !== 'admin') {
-      return res.status(403).send('Forbidden');
-    }
+  const raw = (req.query.month || '').slice(0, 7); // 'YYYY-MM'
+  const now = new Date();
 
-    const pageRaw = parseInt(req.query.page, 10);
-    const perRaw  = parseInt(req.query.perpage, 10);
+  // ===== คำนวณช่วงเวลาเดือน (เริ่มต้นเป็นเดือนปัจจุบัน) =====
+  const [yy, mm] = raw && /^\d{4}-\d{2}$/.test(raw)
+    ? raw.split('-').map(Number)
+    : [now.getFullYear(), now.getMonth() + 1];
 
-    const page    = Math.max(1, Number.isFinite(pageRaw) ? pageRaw : 1);
-    let   perpage = Number.isFinite(perRaw) ? perRaw : 100;
-    perpage       = Math.max(10, Math.min(100, perpage)); // 10–100
+  // สร้างช่วงเวลาแบบ [start, end)
+  const start = new Date(Date.UTC(yy, mm - 1, 1, 0, 0, 0));
+  const end   = new Date(Date.UTC(yy, mm, 1, 0, 0, 0));
 
-    const q = {}; // โชว์ทุกรายการ
+  // ถ้าคุณเก็บเวลาตาม Asia/Bangkok แล้วต้องการชดเชยให้ตรงวัน
+  // สามารถเลื่อน +7 ชั่วโมงก่อน query ได้ (เลือกอย่างใดอย่างหนึ่งตามการบันทึกเวลาใน DB)
+  // const tzOffsetHours = 7;
+  // start.setUTCHours(start.getUTCHours() - tzOffsetHours);
+  // end.setUTCHours(end.getUTCHours() - tzOffsetHours);
 
-    const [total, items, aggCompleted] = await Promise.all([
-      Transaction.countDocuments(q),
+  const monthStr = `${yy}-${String(mm).padStart(2, '0')}`;
 
-      // ✅ populate userId ให้มี avatarUrl/avatarVer ติดมาด้วย
-      Transaction.find(q)
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * perpage)
-        .limit(perpage)
-        .populate({ path: 'userId', select: 'username email avatarUrl avatarVer' })
-        .lean(),
+  // เงื่อนไขหลักของเดือนนี้
+  const monthMatch = { createdAt: { $gte: start, $lt: end } };
 
-      // ✅ สรุปรายการที่สำเร็จ
-      Transaction.aggregate([
-        { $match: { status: 'completed' } },
-        { $group: { _id: null, sum: { $sum: '$amount' }, count: { $sum: 1 } } }
-      ])
-    ]);
+  // ===== รายการธุรกรรมของเดือน =====
+  const transactions = await Transaction.find(monthMatch)
+    .sort({ createdAt: -1 })
+    .populate({ path: 'userId', select: 'username email avatarUrl avatarVer' })
+    .lean();
 
-    const totalPages     = Math.max(1, Math.ceil(total / perpage));
-    const sumCompleted   = aggCompleted?.[0]?.sum   || 0;
-    const countCompleted = aggCompleted?.[0]?.count || 0;
+  // ===== รวม “ทั้งหมด” แต่ไม่เอาแอดมิน (completed เท่านั้น) =====
+  const aggNoAdmin = await Transaction.aggregate([
+    { $match: { ...monthMatch, status: 'completed', method: { $ne: 'admin' } } },
+    { $group: { _id: null, sum: { $sum: '$amount' }, count: { $sum: 1 } } },
+  ]);
 
-    // กระเป๋ารับเงิน (มีหรือไม่มีได้)
-    const webWallets = res.locals.webWallets || [];
+  const sumNoAdmin   = aggNoAdmin?.[0]?.sum   || 0;
+  const countNoAdmin = aggNoAdmin?.[0]?.count || 0;
 
-    res.render('admin/topup-report', {
-      transactions: items,
-      page, perpage, total, totalPages,
-      sumCompleted, countCompleted,
-      webWallets
-    });
-  } catch (err) {
-    console.error('GET /admin/topup-report error:', err);
-    res.status(500).send('Server error');
-  }
+  // ===== รวมตามเมธอด (completed เท่านั้น) =====
+  const aggByMethod = await Transaction.aggregate([
+    { $match: { ...monthMatch, status: 'completed' } },
+    { $group: { _id: '$method', sum: { $sum: '$amount' }, count: { $sum: 1 } } },
+  ]);
+
+  // map ป้ายชื่อสวย ๆ
+  const METHOD_LABELS = {
+    admin: 'แอดมิน',
+    manual: 'เติมมือ',
+    truewallet: 'True Wallet', tw: 'True Wallet',
+    kbank: 'KBank',
+    scb: 'SCB',
+  };
+
+  const methodTotals = aggByMethod
+    .map(m => ({
+      method: (m._id || '').toLowerCase(),
+      label: METHOD_LABELS[(m._id || '').toLowerCase()] || (m._id || 'ไม่ระบุ'),
+      sum: m.sum || 0,
+      count: m.count || 0,
+    }))
+    // แสดงเฉพาะเมธอดที่มีรายการจริง
+    .filter(m => m.count > 0);
+
+  // (ออปชัน) รวม completed ทั้งหมดของเดือน (ใช้ถ้าต้องโชว์การ์ดรวมเดิม)
+  const aggCompleted = await Transaction.aggregate([
+    { $match: { ...monthMatch, status: 'completed' } },
+    { $group: { _id: null, sum: { $sum: '$amount' }, count: { $sum: 1 } } },
+  ]);
+  const sumCompleted   = aggCompleted?.[0]?.sum   || 0;
+  const countCompleted = aggCompleted?.[0]?.count || 0;
+
+  // ส่งให้วิว — ไม่มี perpage/page/total อีกต่อไป
+  res.render('admin/topup-report', {
+    transactions,
+    monthStr,
+    sumNoAdmin, countNoAdmin,
+    methodTotals,
+    sumCompleted, countCompleted,
+  });
 });
+
+// router.get('/topup-report', async (req, res) => {
+//   try {
+//     if (req.user?.role !== 'admin') {
+//       return res.status(403).send('Forbidden');
+//     }
+
+//     const pageRaw = parseInt(req.query.page, 10);
+//     const perRaw  = parseInt(req.query.perpage, 10);
+
+//     const page    = Math.max(1, Number.isFinite(pageRaw) ? pageRaw : 1);
+//     let   perpage = Number.isFinite(perRaw) ? perRaw : 100;
+//     perpage       = Math.max(10, Math.min(100, perpage)); // 10–100
+
+//     const q = {}; // โชว์ทุกรายการ
+
+//     const [total, items, aggCompleted] = await Promise.all([
+//       Transaction.countDocuments(q),
+
+//       // ✅ populate userId ให้มี avatarUrl/avatarVer ติดมาด้วย
+//       Transaction.find(q)
+//         .sort({ createdAt: -1 })
+//         .skip((page - 1) * perpage)
+//         .limit(perpage)
+//         .populate({ path: 'userId', select: 'username email avatarUrl avatarVer' })
+//         .lean(),
+
+//       // ✅ สรุปรายการที่สำเร็จ
+//       Transaction.aggregate([
+//         { $match: { status: 'completed' } },
+//         { $group: { _id: null, sum: { $sum: '$amount' }, count: { $sum: 1 } } }
+//       ])
+//     ]);
+
+//     const totalPages     = Math.max(1, Math.ceil(total / perpage));
+//     const sumCompleted   = aggCompleted?.[0]?.sum   || 0;
+//     const countCompleted = aggCompleted?.[0]?.count || 0;
+
+//     // กระเป๋ารับเงิน (มีหรือไม่มีได้)
+//     const webWallets = res.locals.webWallets || [];
+
+//     res.render('admin/topup-report', {
+//       transactions: items,
+//       page, perpage, total, totalPages,
+//       sumCompleted, countCompleted,
+//       webWallets
+//     });
+//   } catch (err) {
+//     console.error('GET /admin/topup-report error:', err);
+//     res.status(500).send('Server error');
+//   }
+// });
 
 export default router;

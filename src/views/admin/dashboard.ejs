@@ -163,7 +163,13 @@
           <td>
             <button
               class="btn small success"
-              onclick="openManualTopupModal('<%= tx.transactionId %>', <%= tx.amount %>, '<%= (tx.user?.username||'').replace(/'/g, "\\'") %>')">
+              onclick="openManualTopupModal(
+                '<%= tx.transactionId %>',
+                <%= tx.amount %>,
+                '<%= (tx.user?.username||'').replace(/'/g,'\\\'') %>',
+                '<%= (tx.method || 'admin').toLowerCase() %>',
+                true   // ⬅️ ล็อกค่า
+              )">
               เติมให้ผู้ใช้
             </button>
             <button
@@ -253,8 +259,14 @@
         </div>
 
         <div class="tx-actions">
-          <button class="btn small success" style="width: 100%;"
-            onclick="openManualTopupModal('<%= tx.transactionId %>', <%= tx.amount %>, '<%= (tx.user?.username||'').replace(/'/g, "\\'") %>')">
+          <button class="btn small success" style="width:100%;"
+            onclick="openManualTopupModal(
+              '<%= tx.transactionId %>',
+              <%= tx.amount %>,
+              '<%= (tx.user?.username||'').replace(/'/g, "\\'") %>',
+              '<%= (tx.method || 'admin').toLowerCase() %>',
+              true   // ⬅️ ล็อกค่า
+            )">
             เติมให้ผู้ใช้
           </button>
           <button class="btn small danger" style="width: 100%; margin-top: 8px;"
@@ -276,6 +288,74 @@
 </div>
 
 <div id="manualTopupModal" class="hidden modal">
+  <div class="overlay" data-close="1"></div>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="manualTitle">
+    <div class="hdr">
+      <div class="title" id="manualTitle">เติมเงินให้ผู้ใช้</div>
+      <button class="icon close" id="manualTopupClose" aria-label="ปิด">×</button>
+    </div>
+    <hr class="sep" />
+
+    <div class="body">
+      <form id="manualTopupForm" onsubmit="return submitManualTopup(event)">
+        <label>
+          ชื่อผู้ใช้ (Username)
+          <input
+            type="text"
+            id="manualUsername"
+            list="userList"
+            autocomplete="off"
+            required
+            placeholder="พิมพ์ค้นหา เช่น: ad"
+            class="block input mt-sm"
+          />
+          <datalist id="userList"></datalist>
+        </label>
+
+        <div class="row2 mt">
+          <label class="grow">
+            จำนวนเงิน
+            <input
+              type="number"
+              id="manualAmount"
+              required
+              min="1"
+              step="0.01"
+              placeholder="เช่น 100.00"
+              class="block input mt-sm"
+            />
+          </label>
+
+          <label class="grow">
+            วิธีการเติม (Method)
+            <div class="select-wrap">
+              <select id="manualMethod" required class="block input mt-sm">
+                <option value="admin" selected>แอดมิน</option>
+                <option value="truewallet">True Wallet</option>
+                <option value="kbank">KBank</option>
+                <option value="scb">SCB</option>
+                <option value="manual">เติมมือ</option>
+              </select>
+            </div>
+          </label>
+        </div>
+
+        <div class="card soft mt">
+          💡 ระบบจะเพิ่มยอดเงินเข้าบัญชีของผู้ใช้ทันที และบันทึกในระบบ
+        </div>
+
+        <div class="footer d-flex justify-content-center mt">
+          <button class="block btn primary" type="submit">
+            ยืนยันเติมเงิน
+          </button>
+        </div>
+      </form>
+      <div id="manualTopupStatus" class="mt"></div>
+    </div>
+  </div>
+</div>
+
+<!-- <div id="manualTopupModal" class="hidden modal">
   <div class="overlay" data-close="1"></div>
   <div
     class="dialog"
@@ -330,7 +410,7 @@
       <div id="manualTopupStatus" class="mt"></div>
     </div>
   </div>
-</div>
+</div> -->
 
 <script>
 async function refreshBal(){
@@ -455,99 +535,307 @@ async function syncServices() {
     el.__binded = true;
   }
 
+  (function makeBeautifulSelect(){
+    const sel = document.getElementById('manualMethod');
+    const wrap = sel?.closest('.select-wrap');
+    if (!sel || !wrap) return;
+
+    // ปุ่มหลัก
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'fake-select';
+    btn.innerHTML = `
+      <span class="fake-label">${sel.options[sel.selectedIndex]?.text || 'เลือกวิธีการ'}</span>
+      <span class="fake-caret">▾</span>
+    `;
+
+    // เมนู
+    const menu = document.createElement('div');
+    menu.className = 'fake-menu';
+
+    const rebuildMenu = () => {
+      menu.innerHTML = '';
+      [...sel.options].forEach((o, idx) => {
+        const it = document.createElement('button');
+        it.type = 'button';
+        it.className = 'fake-item';
+        it.textContent = o.textContent;
+        if (o.disabled) it.disabled = true;
+        if (idx === sel.selectedIndex) it.setAttribute('aria-selected', 'true');
+        it.addEventListener('click', () => {
+          if (o.disabled) return;
+          sel.value = o.value;
+          btn.querySelector('.fake-label').textContent = o.textContent;
+          wrap.classList.remove('open');
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        menu.appendChild(it);
+      });
+    };
+    rebuildMenu();
+
+    // เปิด/ปิดเมนู
+    btn.addEventListener('click', () => { if (!btn.disabled) wrap.classList.toggle('open'); });
+    document.addEventListener('click', (e) => { if (!wrap.contains(e.target)) wrap.classList.remove('open'); });
+
+    // sync disabled/selected จาก select
+    const syncState = () => {
+      btn.disabled = sel.disabled;
+      btn.querySelector('.fake-label').textContent = sel.options[sel.selectedIndex]?.text || '';
+      rebuildMenu();
+    };
+    const mo = new MutationObserver(syncState);
+    mo.observe(sel, { attributes: true, attributeFilter: ['disabled'] });
+    sel.addEventListener('change', syncState);
+
+    // ป้องกันเมนูล้นขอบจอ (คำนวณความสูงตาม viewport)
+    const fitMenu = () => {
+      const r = wrap.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - r.bottom - 16;
+      menu.style.maxHeight = Math.max(160, Math.min(320, spaceBelow)).toFixed(0) + 'px';
+    };
+    window.addEventListener('resize', fitMenu);
+    window.addEventListener('scroll', fitMenu, { passive: true });
+    btn.addEventListener('click', fitMenu);
+
+    wrap.appendChild(btn);
+    wrap.appendChild(menu);
+  })();
+
   /* 🟣 Modal Controls (เหมือน QR Modal) */
-  function openManualTopupModal(txId = null, amount = null, suggestedUsername = ''){
+  // function openManualTopupModal(txId = null, amount = null, suggestedUsername = ''){
+  //   const modal = document.getElementById("manualTopupModal");
+  //   modal.classList.remove("hidden");
+
+  //   const form = document.getElementById("manualTopupForm");
+  //   form.reset();
+  //   document.getElementById("manualTopupStatus").innerHTML = "";
+
+  //   window.currentTxId = txId;
+
+  //   const amtInput = document.getElementById("manualAmount");
+  //   if (amount){
+  //     amtInput.value = Number(amount).toFixed(2);
+  //     amtInput.readOnly = true;
+  //     amtInput.style.opacity = "0.7";
+  //   }else{
+  //     amtInput.value = "";
+  //     amtInput.readOnly = false;
+  //     amtInput.style.opacity = "1";
+  //   }
+
+  //   const userInput = document.getElementById('manualUsername');
+  //   if (suggestedUsername && suggestedUsername !== 'null'){
+  //     userInput.value = suggestedUsername;
+  //     doUserSearch(suggestedUsername);             // preload รายการที่เกี่ยวข้อง
+  //   }else{
+  //     userInput.value = '';
+  //     doUserSearch('');                            // preload 10–20 คนแรก
+  //   }
+
+  //   bindUsernameSearchOnce();
+
+  //   // ช่วยให้ dropdown โผล่ไวขึ้นบนบาง browser: ยิง input event เบาๆ
+  //   setTimeout(()=>{ userInput.dispatchEvent(new Event('input')); }, 50);
+  // }
+
+  // function closeManualTopupModal(){
+  //   document.getElementById("manualTopupModal").classList.add("hidden");
+  //   document.getElementById("manualTopupStatus").innerHTML = "";
+  // }
+
+  // // ปุ่มปิด (×)
+  // document.getElementById("manualTopupClose").onclick = closeManualTopupModal;
+  // // คลิก overlay ปิด
+  // document.getElementById("manualTopupModal").addEventListener("click",(e)=>{ if(e.target.dataset.close==="1") closeManualTopupModal(); });
+  // // ปุ่ม Escape ปิด
+  // document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") closeManualTopupModal(); });
+  function openManualTopupModal(txId = null, amount = null, suggestedUsername = '', method = 'admin', lock = false){
     const modal = document.getElementById("manualTopupModal");
+    if (!modal) return;
     modal.classList.remove("hidden");
 
-    const form = document.getElementById("manualTopupForm");
-    form.reset();
-    document.getElementById("manualTopupStatus").innerHTML = "";
+    const form    = document.getElementById("manualTopupForm");
+    const status  = document.getElementById("manualTopupStatus");
+    const userInp = document.getElementById("manualUsername");
+    const amtInp  = document.getElementById("manualAmount");
+    const mSel    = document.getElementById("manualMethod");
+
+    if (form) form.reset();
+    if (status) status.innerHTML = "";
 
     window.currentTxId = txId;
 
-    const amtInput = document.getElementById("manualAmount");
-    if (amount){
-      amtInput.value = Number(amount).toFixed(2);
-      amtInput.readOnly = true;
-      amtInput.style.opacity = "0.7";
-    }else{
-      amtInput.value = "";
-      amtInput.readOnly = false;
-      amtInput.style.opacity = "1";
+    // จำนวนเงิน
+    if (amtInp){
+      if (amount){
+        amtInp.value = Number(amount).toFixed(2);
+        amtInp.readOnly = true;
+        amtInp.classList.add('is-readonly');
+      }else{
+        amtInp.readOnly = false;
+        amtInp.classList.remove('is-readonly');
+      }
     }
 
-    const userInput = document.getElementById('manualUsername');
-    if (suggestedUsername && suggestedUsername !== 'null'){
-      userInput.value = suggestedUsername;
-      doUserSearch(suggestedUsername);             // preload รายการที่เกี่ยวข้อง
-    }else{
-      userInput.value = '';
-      doUserSearch('');                            // preload 10–20 คนแรก
+    // Username
+    if (userInp){
+      if (suggestedUsername && suggestedUsername !== 'null'){
+        userInp.value = suggestedUsername;
+        doUserSearch(suggestedUsername);
+      }else{
+        userInp.value = '';
+        doUserSearch('');
+      }
+      bindUsernameSearchOnce();
+      setTimeout(()=>{ try{ userInp.dispatchEvent(new Event('input')); }catch{} }, 50);
+      userInp.readOnly = !!lock;                 // ⬅️ ล็อกเมื่อกดจากรายการ
+      userInp.classList.toggle('is-readonly', !!lock);
     }
 
-    bindUsernameSearchOnce();
+    // Method
+    if (mSel){
+      mSel.value = (method || 'admin').toLowerCase();
+      mSel.disabled = !!lock;                    // ⬅️ ล็อกเมื่อกดจากรายการ
+      mSel.classList.toggle('is-disabled', !!lock);
+    }
 
-    // ช่วยให้ dropdown โผล่ไวขึ้นบนบาง browser: ยิง input event เบาๆ
-    setTimeout(()=>{ userInput.dispatchEvent(new Event('input')); }, 50);
+    // จัด layout ให้ Method ขึ้นระดับเดียวกับจำนวนเงิน (Desktop)
+    document.getElementById('manualMethod')?.closest('label')?.classList.add('align-top');
   }
 
   function closeManualTopupModal(){
-    document.getElementById("manualTopupModal").classList.add("hidden");
-    document.getElementById("manualTopupStatus").innerHTML = "";
+    const modal  = document.getElementById("manualTopupModal");
+    const status = document.getElementById("manualTopupStatus");
+    if (!modal) return;
+    modal.classList.add("hidden");
+    if (status) status.innerHTML = "";
   }
 
-  // ปุ่มปิด (×)
-  document.getElementById("manualTopupClose").onclick = closeManualTopupModal;
-  // คลิก overlay ปิด
-  document.getElementById("manualTopupModal").addEventListener("click",(e)=>{ if(e.target.dataset.close==="1") closeManualTopupModal(); });
-  // ปุ่ม Escape ปิด
-  document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") closeManualTopupModal(); });
-
+  // ปุ่มปิด / overlay / ESC (ผูกกับของเดิม แต่กัน null)
+  document.getElementById("manualTopupClose")?.addEventListener('click', closeManualTopupModal);
+  document.getElementById("manualTopupModal")?.addEventListener("click", (e)=>{
+    if (e.target?.dataset?.close === "1") closeManualTopupModal();
+  });
+  document.addEventListener("keydown", (e)=>{
+    if (e.key === "Escape") {
+      const modal = document.getElementById("manualTopupModal");
+      if (modal && !modal.classList.contains("hidden")) closeManualTopupModal();
+    }
+  });
   /* 🧾 ส่งข้อมูลเติมเงิน */
+  // async function submitManualTopup(ev) {
+  //   ev.preventDefault();
+  //   const username = document.getElementById("manualUsername").value.trim();
+  //   const amount = parseFloat(
+  //     document.getElementById("manualAmount").value || 0
+  //   );
+  //   const txId = window.currentTxId || null;
+
+  //   if (!username || !(amount > 0)) {
+  //     document.getElementById("manualTopupStatus").innerHTML =
+  //       '<div class="card soft">❌ กรุณากรอกข้อมูลให้ครบถ้วน</div>';
+  //     return false;
+  //   }
+
+  //   document.getElementById("manualTopupStatus").innerHTML =
+  //     '<div class="muted">⏳ กำลังทำรายการ...</div>';
+
+  //   try {
+  //     const res = await fetch("/admin/manual-topup", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({ username, amount, txId }),
+  //     });
+
+  //     const data = await res.json();
+  //     if (data.ok) {
+  //       document.getElementById("manualTopupStatus").innerHTML = `
+  //         <div class="card soft">
+  //           ✅ เติมเงินสำเร็จให้ผู้ใช้ <b>${username}</b><br>
+  //           <b>จำนวน:</b> ${amount.toLocaleString()} บาท
+  //         </div>`;
+  //       setTimeout(() => closeManualTopupModal(), 1500);
+  //       setTimeout(() => window.location.reload(), 1700);
+  //     } else {
+  //       document.getElementById("manualTopupStatus").innerHTML =
+  //         '<div class="card soft">❌ ' +
+  //         (data.error || "เกิดข้อผิดพลาด") +
+  //         "</div>";
+  //     }
+  //   } catch (err) {
+  //     document.getElementById("manualTopupStatus").innerHTML =
+  //       '<div class="card soft">❌ ขัดข้อง: ' + err.message + "</div>";
+  //   }
+  // }
   async function submitManualTopup(ev) {
     ev.preventDefault();
-    const username = document.getElementById("manualUsername").value.trim();
-    const amount = parseFloat(
-      document.getElementById("manualAmount").value || 0
-    );
+
+    const form = ev.currentTarget || ev.target;
+    const username = document.getElementById("manualUsername")?.value?.trim() || "";
+    const amount = parseFloat(document.getElementById("manualAmount")?.value || 0);
+    const method = document.getElementById("manualMethod")?.value || "admin"; // ⬅️ ใหม่
     const txId = window.currentTxId || null;
 
+    const $status = document.getElementById("manualTopupStatus");
+    const submitBtn = form.querySelector('button[type="submit"]');
+
+    // map เพื่อแสดงผลภาษาไทยสวยๆ
+    const METHOD_LABELS = {
+      admin: "แอดมิน",
+      truewallet: "True Wallet",
+      kbank: "KBank",
+      scb: "SCB",
+      manual: "เติมมือ",
+    };
+
+    // ตรวจค่าพื้นฐาน
     if (!username || !(amount > 0)) {
-      document.getElementById("manualTopupStatus").innerHTML =
-        '<div class="card soft">❌ กรุณากรอกข้อมูลให้ครบถ้วน</div>';
+      $status.innerHTML = '<div class="card soft">❌ กรุณากรอกข้อมูลให้ครบถ้วน</div>';
       return false;
     }
 
-    document.getElementById("manualTopupStatus").innerHTML =
-      '<div class="muted">⏳ กำลังทำรายการ...</div>';
+    // ป้องกันกดซ้ำ
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.dataset.keep = submitBtn.textContent;
+      submitBtn.textContent = "กำลังทำรายการ…";
+    }
+    $status.innerHTML = '<div class="muted">⏳ กำลังทำรายการ...</div>';
 
     try {
       const res = await fetch("/admin/manual-topup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, amount, txId }),
+        // ⬇️ ส่ง method ไปด้วย
+        body: JSON.stringify({ username, amount, txId, method }),
       });
 
       const data = await res.json();
-      if (data.ok) {
-        document.getElementById("manualTopupStatus").innerHTML = `
+      if (res.ok && data?.ok) {
+        const thMethod = METHOD_LABELS[method] || method;
+        $status.innerHTML = `
           <div class="card soft">
             ✅ เติมเงินสำเร็จให้ผู้ใช้ <b>${username}</b><br>
-            <b>จำนวน:</b> ${amount.toLocaleString()} บาท
+            <b>จำนวน:</b> ${amount.toLocaleString(undefined,{maximumFractionDigits:2})} บาท<br>
+            <b>วิธีการเติม:</b> ${thMethod}
           </div>`;
-        setTimeout(() => closeManualTopupModal(), 1500);
+        setTimeout(() => closeManualTopupModal?.(), 1500);
         setTimeout(() => window.location.reload(), 1700);
       } else {
-        document.getElementById("manualTopupStatus").innerHTML =
-          '<div class="card soft">❌ ' +
-          (data.error || "เกิดข้อผิดพลาด") +
-          "</div>";
+        $status.innerHTML =
+          '<div class="card soft">❌ ' + (data?.error || "เกิดข้อผิดพลาด") + "</div>";
       }
     } catch (err) {
-      document.getElementById("manualTopupStatus").innerHTML =
-        '<div class="card soft">❌ ขัดข้อง: ' + err.message + "</div>";
+      $status.innerHTML = '<div class="card soft">❌ ขัดข้อง: ' + (err.message || '') + "</div>";
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = submitBtn.dataset.keep || "ยืนยันเติมเงิน";
+        delete submitBtn.dataset.keep;
+      }
     }
+    return false;
   }
   // Toggle หุบ/ขยายสำหรับมือถือ
   (function initTxAccordion(){

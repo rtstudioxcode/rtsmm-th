@@ -16,56 +16,84 @@
 
 <!-- สรุปยอดเติมเงินที่สำเร็จทั้งเว็บ -->
 <div class="grid cards">
-  <section class="card2">
-    <div class="card-head row-head">
-      <h3>ยอดเติมเงินสำเร็จสะสม</h3>
-      <div class="head-right">
-        <span class="metric-badge" style="color: #cc8110; padding:2px 18px;">
-          <%= (countCompleted || 0).toLocaleString() %> รายการ
-        </span>
+  <% if (typeof sumNoAdmin !== 'undefined' && sumNoAdmin > 0) { %>
+    <section class="card">
+      <div class="card-head row-head">
+        <h3>ยอดเติมรวมทั้งหมด (ไม่รวมแอดมิน)</h3>
+        <div class="head-right">
+          <span class="metric-badge" style="color:#cc8110; padding:2px 18px;">
+            <%= (countNoAdmin || 0).toLocaleString() %> รายการ
+          </span>
+        </div>
       </div>
-    </div>
-    <div class="big" style="color: #35cc10; padding:6px 2px;">
-      ฿<%= Number(sumCompleted || 0).toLocaleString(undefined, {minimumFractionDigits:2}) %>
-    </div>
-  </section>
+      <div class="big" style="color:#35cc10; padding:6px 2px;">
+        ฿<%= Number(sumNoAdmin || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) %>
+      </div>
+    </section>
+  <% } %>
 </div>
+
+<div class="grid cards">
+  <% if (Array.isArray(methodTotals) && methodTotals.length) { %>
+    <% methodTotals.forEach(m => { %>
+      <section class="card2">
+        <div class="card-head row-head">
+          <h3>ยอดเติมรวม <%= m.label %></h3>
+          <div class="head-right">
+            <span class="metric-badge" style="color:#cc8110; padding:2px 18px;">
+              <%= (m.count || 0).toLocaleString() %> รายการ
+            </span>
+          </div>
+        </div>
+        <div class="big" style="color:#35cc10; padding:6px 2px;">
+          ฿<%= Number(m.sum || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) %>
+        </div>
+      </section>
+    <% }) %>
+  <% } %>
+</div>
+
+<!-- ✔️ แถบเลือกเดือน -->
+<div class="month-toolbar" role="group" aria-label="เลือกเดือน">
+  <button class="btn ghost" id="btnPrev" type="button" aria-label="เดือนก่อนหน้า">◀︎</button>
+  <label class="month-ctrl">
+    <input id="monthInput" type="text" value="<%= monthStr %>" readonly aria-label="เลือกเดือน" />
+    <button class="icon-btn" id="btnOpenPicker" type="button" aria-label="เปิดตัวเลือกเดือน">📅</button>
+  </label>
+  <button class="btn ghost" id="btnNext" type="button" aria-label="เดือนถัดไป">▶︎</button>
+  <button class="btn" id="btnThisMonth" type="button">เดือนนี้</button>
+</div>
+
+<!-- Popup: Month Picker -->
+<div id="monthPicker" class="mp-popup" hidden>
+  <div class="mp-card" role="dialog" aria-modal="true" aria-label="เลือกเดือน">
+    <div class="mp-head">
+      <button class="mp-nav" id="mpPrevYear" aria-label="ปีก่อนหน้า">‹</button>
+      <div class="mp-year" id="mpYear">2025</div>
+      <button class="mp-nav" id="mpNextYear" aria-label="ปีถัดไป">›</button>
+    </div>
+    <div class="mp-grid" id="mpGrid" role="grid" aria-label="รายชื่อเดือน">
+      <!-- เติมด้วยสคริปต์ -->
+    </div>
+    <div class="mp-actions">
+      <button class="btn ghost" id="mpClear">ล้าง</button>
+      <div class="spacer"></div>
+      <button class="btn ghost" id="mpThisMonth">เดือนนี้</button>
+      <button class="btn primary" id="mpOK">ตกลง</button>
+    </div>
+  </div>
+</div>
+
+<%
+// monthStr รูปแบบ 'YYYY-MM'
+const [yy, mm] = (monthStr || '').split('-').map(Number);
+const MONTHS_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const headMonthLabel = `${MONTHS_TH[(mm||1)-1]} ${yy}`; // ถ้าอยากเป็น พ.ศ. ใช้ (yy+543)
+%>
 
 <div class="history-wrapper card soft">
   <div class="title flex-between" style="align-items:center; gap:10px;">
     <h3 style="margin:0;">ทุกรายการเติมเงิน</h3>
-    <!-- Pagination -->
-    <div class="pager row pager-wrap">
-        <div class="pager-right">
-            <div class="pager-left muted">
-                แสดง <%= ((page-1)*perpage+1).toLocaleString() %>–
-                <%= Math.min(page*perpage, total).toLocaleString() %> จาก
-                <%= total.toLocaleString() %> รายการ
-            </div>
-            <div class="pages">
-                <button class="btn small" <%= page<=1?'disabled':'' %> onclick="gotoPage(<%= page-1 %>)">«</button>
-                <% const maxLinks = 7;
-                    const start = Math.max(1, page - 3);
-                    const end   = Math.min(totalPages, Math.max(page + 3, Math.min(totalPages, start + maxLinks - 1)));
-                    for (let p = start; p <= end; p++) { %>
-                    <button class="btn small <%= p===page?'primary':'' %>" onclick="gotoPage(<%= p %>)"><%= p %></button>
-                <% } %>
-                <button class="btn small" <%= page>=totalPages?'disabled':'' %> onclick="gotoPage(<%= page+1 %>)">»</button>
-            </div>
-
-            <!-- perpage (ติดท้ายปุ่มถัดไป) -->
-            <div class="perpage-control">
-                <button id="ppBtn" class="pp-chip" type="button">
-                    <span id="ppVal"><%= perpage %></span>หน้า▾
-                </button>
-                <div id="ppMenu" class="pp-menu" hidden>
-                    <% [10,20,50,100].forEach(n=>{ %>
-                    <button type="button" class="pp-item <%= perpage===n?'active':'' %>" data-val="<%= n %>"><%= n %></button>
-                    <% }) %>
-                </div>
-            </div>
-        </div>
-    </div>
   </div>
 
   <% if (transactions && transactions.length) { %>
@@ -80,7 +108,6 @@
           <th>ผู้ใช้</th>
           <th style="text-align:left;">วิธีเติม</th>
           <th>ข้อมูลผู้โอน</th>
-          <th>ข้อมูลผู้รับ</th>
           <th style="text-align:right;">จำนวนเงิน</th>
           <th style="text-align:center;">สถานะ</th>
           <th></th>
@@ -89,7 +116,6 @@
       <tbody>
         <% transactions.forEach(tx => {
              const method = (tx.method||'').toLowerCase();
-             const wallet = (webWallets||[]).find(w => w.accountCode === method);
              const statusLabel =
                 (tx.status === "completed" || tx.status === "completed") ? "สำเร็จ" :
                 (tx.status === "pending" || tx.status === "pending") ? "รอดำเนินการ" :
@@ -138,15 +164,6 @@
               <div class="muted">เลขท้ายบัญชีผู้โอน: <%= tx.senderLast6 || '-' %></div>
             <% } %>
           </td>
-          <td>
-            <% if (wallet) { %>
-              <img src="/static/assets/payment/<%= wallet.accountCode %>.webp" class="bank-logo" />
-              <b><%= wallet.accountName %></b>
-              <div class="muted">เลขบัญชี: <%= wallet.accountNumber %></div>
-            <% } else { %>
-              <span class="muted">ไม่พบข้อมูลผู้รับ</span>
-            <% } %>
-          </td>
           <td class="amount">฿<%= Number(tx.amount).toLocaleString(undefined,{ minimumFractionDigits: 2 }) %></td>
           <td class="status <%= (tx.status||'').toLowerCase() %>"><%= statusLabel %></td>
           <td>
@@ -170,7 +187,6 @@
   <div class="mobile-only tx-accordion-list" style="margin-top:10px;">
     <% transactions.forEach(tx => {
          const method = (tx.method||'').toLowerCase();
-         const wallet = (webWallets||[]).find(w => w.accountCode === method);
          const statusLabel =
            (tx.status === "completed" || tx.status === "completed") ? "สำเร็จ" :
            (tx.status === "pending" || tx.status === "pending") ? "รอดำเนินการ" :
@@ -227,19 +243,6 @@
         </div>
 
         <div class="tx-row">
-          <div class="tx-label">ผู้รับ</div>
-          <div class="tx-value">
-            <% if (wallet) { %>
-              <img src="/static/assets/payment/<%= wallet.accountCode %>.webp" class="bank-logo" alt="">
-              <b><%= wallet.accountName %></b><br>
-              <span class="muted">เลขบัญชี: <%= wallet.accountNumber %></span>
-            <% } else { %>
-              <span class="muted">ไม่พบข้อมูลผู้รับ</span>
-            <% } %>
-          </div>
-        </div>
-
-        <div class="tx-row">
           <div class="tx-label">วิธีเติม</div>
           <div class="tx-value">
             <% const m = (tx.method || '').toLowerCase(); %>
@@ -285,9 +288,10 @@
   
 
   <% } else { %>
-    <div class="empty-history">
-      <img src="/static/assets/emoji/empty.png" alt="">
-      <p class="muted">ยังไม่มีรายการเติมเงิน</p>
+    <div class="empty-history" role="status" aria-live="polite">
+      <img src="/static/assets/emoji/empty.png" alt="" aria-hidden="true">
+      <div class="empty-title">ยังไม่มีรายการเติมเงิน</div>
+      <div class="empty-sub">เมื่อมีรายการ ระบบจะแสดงที่นี่โดยอัตโนมัติ</div>
     </div>
   <% } %>
 </div>
@@ -327,411 +331,629 @@
 </div>
 
 <style>
-    /* =========================
-   Table Colors (Dark/Light)
-   ========================= */
-    :root {
-    /* dark */
-    --tbl-head-bg:        rgba(255,255,255,.08);
-    --tbl-head-text:      var(--text-primary,#f2f4f8);
-    --tbl-row-bg:         rgba(255,255,255,.02);
-    --tbl-row-alt:        rgba(255,255,255,.06);
-    --tbl-border:         #2a2f36;
-    --tbl-hover:          rgba(255,255,255,.10);
-    }
-    html[data-theme="light"] {
-    /* light */
-    --tbl-head-bg:   #eef2f6;        /* เข้มขึ้น 1 เชด */
-    --tbl-head-text: #0f172a;        /* เทาเข้มอ่านง่าย */
-    --tbl-row-bg:    #ffffff;        /* แถวพื้น */
-    --tbl-row-alt:   #f7fafc;        /* แถวสลับอ่อนกว่า 1 เชด */
-    --tbl-border:    #e5e7eb;        /* เส้นคั่นอ่อน */
-    --tbl-hover:     #e9eef5;        /* hover อ่อน */
-    }
+/* =========================
+Table Colors (Dark/Light)
+========================= */
+:root {
+  /* dark */
+  --tbl-head-bg:        rgba(255,255,255,.08);
+  --tbl-head-text:      var(--text-primary,#f2f4f8);
+  --tbl-row-bg:         rgba(255,255,255,.02);
+  --tbl-row-alt:        rgba(255,255,255,.06);
+  --tbl-border:         #2a2f36;
+  --tbl-hover:          rgba(255,255,255,.10);
+}
+html[data-theme="light"] {
+  /* light */
+  --tbl-head-bg:   #eef2f6;        /* เข้มขึ้น 1 เชด */
+  --tbl-head-text: #0f172a;        /* เทาเข้มอ่านง่าย */
+  --tbl-row-bg:    #ffffff;        /* แถวพื้น */
+  --tbl-row-alt:   #f7fafc;        /* แถวสลับอ่อนกว่า 1 เชด */
+  --tbl-border:    #e5e7eb;        /* เส้นคั่นอ่อน */
+  --tbl-hover:     #e9eef5;        /* hover อ่อน */
+}
 
-    /* โครงตาราง */
-    .table-wrap{ overflow:auto; -webkit-overflow-scrolling:touch; }
-    .history-table{
+/* โครงตาราง */
+.table-wrap{ overflow:auto; -webkit-overflow-scrolling:touch; }
+.history-table{
+  width:100%;
+  border-collapse:separate;         /* ใช้ separate เพื่อให้เส้นคั่นเนียน */
+  border-spacing:0;
+  margin-top:10px;
+  font-size:14px;
+  min-width:720px;
+  white-space:nowrap;
+  background:transparent;
+  box-shadow: inset 0 1px 0 var(--tbl-border);
+}
+
+.history-table thead th,
+.history-table tbody td{
+  padding:12px 14px;
+  vertical-align:middle;
+  border-bottom:1px solid var(--tbl-border);
+}
+
+/* หัวตารางเข้ม + sticky */
+.history-table thead th{
+  position:sticky; top:0; z-index:5;
+  text-align:left;
+  font-weight:500;
+  color:var(--tbl-head-text);
+  background:var(--tbl-head-bg);
+  backdrop-filter: blur(2px);
+}
+
+/* แถวสลับเฉด + hover */
+.history-table tbody tr{ background:var(--tbl-row-bg); }
+.history-table tbody tr:nth-child(even){ background:var(--tbl-row-alt); }
+.history-table tbody tr:hover{ background:var(--tbl-hover); }
+
+/* คอลัมน์พิเศษ */
+.history-table .amount{ text-align:right; font-weight:600; }
+.history-table .status{ text-align:center; font-weight:500; }
+
+/* โลโก้ธนาคารคมชัด */
+.bank-logo{
+  width:28px; height:28px; object-fit:contain; vertical-align:middle; margin-right:6px;
+  filter: none;
+}
+
+/* ปรับเส้นขอบรอบแรก/สุดท้ายให้เนียน */
+.history-table thead th:first-child,
+.history-table tbody td:first-child { padding-left:16px; }
+.history-table thead th:last-child,
+.history-table tbody td:last-child  { padding-right:16px; }
+
+/* เสริมมิติแก่กรอบการ์ดตาราง (เบา ๆ) */
+.history-wrapper.card.soft{
+  border-color: var(--tbl-border);
+  box-shadow: var(--elevated-shadow,0 10px 24px rgba(0,0,0,.12));
+}
+html[data-theme="light"] .history-wrapper.card.soft{
+  box-shadow: 0 8px 22px rgba(15, 23, 42, .06);
+}
+
+/* Desktop/Mobile switch */
+.mobile-only{ display:none !important; }
+.desktop-only{ display:block !important; }
+@media (max-width:768px){
+  .desktop-only{ display:none !important; }
+  .mobile-only{ display:block !important; }
+}
+
+/* Accordion (มือถือ) */
+.tx-accordion-list{ display:grid; gap:10px; }
+.tx-accordion{ background:var(--card,#1a1d22); border:1px solid var(--border,#2a2f36); border-radius:12px; overflow:hidden; box-shadow:var(--elevated-shadow,0 10px 24px rgba(0,0,0,.25)); }
+.tx-accordion__head{ width:100%; display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px; padding:12px 14px; background:#0f1013; color:var(--text-primary,#f2f4f8); border:0; cursor:pointer; }
+.tx-accordion__title{ min-width:0; }
+.tx-accordion__title .tx-id{ display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-weight:400; letter-spacing:.3px; }
+.tx-accordion__meta{ display:inline-grid; grid-auto-flow:column; gap:10px; align-items:center; color:var(--title,#eadfb8); font-weight:400; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.tx-accordion__meta .tx-toggle{ width:28px; height:28px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--border,#2a2f36); background:#17191d; }
+.tx-accordion__body{ display:none; padding:12px 14px 14px; background:var(--elevated-bg,#141518); }
+.tx-accordion[data-open="1"] .tx-accordion__body{ display:block; }
+.tx-accordion[data-open="1"] .tx-accordion__meta .tx-toggle::before{ content:'–'; }
+.tx-accordion[data-open="0"] .tx-accordion__meta .tx-toggle::before{ content:'+'; }
+.tx-row{ display:grid; grid-template-columns:110px 1fr; gap:10px; padding:8px 0; border-bottom:1px dashed var(--border,#2a2f36); }
+.tx-row:last-child{ border-bottom:0; }
+.tx-label{ color:var(--muted,#a7b0bb); }
+.tx-value{ color:var(--text-primary,#f2f4f8); }
+.pill{ display:inline-block; padding:4px 10px; border-radius:999px; font-weight:400; font-size:12px; background:#22262d; border:1px solid #313641; }
+.pill--pending{ color:#ffc107; }
+.pill--completed{ color:#10b981; }
+.pill--failed{ color:#f87171; }
+.pill--canceled{ color:#94a3b8; }
+.tx-actions{ width:100%; margin-top:12px; display:flex; justify-content:flex-start; }
+
+/* Modal */
+.modal.hidden{ display:none; }
+.modal{ position:fixed; inset:0; z-index:100; }
+.modal .overlay{ position:absolute; inset:0; background:rgba(0,0,0,.55); cursor:pointer; }
+.modal .dialog{ position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); max-width:420px; width:calc(100% - 24px); background:var(--card,#1c1f24); border:1px solid var(--border,#2a2f36); border-radius:14px; box-shadow:0 18px 60px rgba(0,0,0,.4); padding:16px 18px 18px; animation:modalFadeIn .25s ease-out; z-index:200; }
+.modal .hdr{ display:flex; justify-content:space-between; align-items:center; }
+.modal .title{ font-weight:400; font-size:16px; }
+.modal .icon.close{ border:0; background:transparent; font-size:22px; color:var(--text,#fff); cursor:pointer; }
+.modal .sep{ border:0; border-top:1px solid var(--border,#2a2f36); margin:12px 0; }
+.modal .body{ font-size:14px; line-height:1.6; max-height:60vh; overflow-y:auto; }
+
+/* Card v2, badges (reuse) */
+.row-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; }
+.head-right{ display:flex; align-items:center; gap:8px; margin-left:auto; }
+.metric-badge{ display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; font-weight:400; letter-spacing:.2px; background:var(--pick-chip-bg,rgba(255,255,255,.06)); border:1px solid var(--pick-chip-border,#24262b); color:var(--text-primary,#f2f4f8); }
+html[data-theme="light"] .metric-badge{ background:#f3f4f6; border-color:#e5e7eb; color:#111827; }
+
+.card2{ position:relative; border-radius:5px; background:var(--elevated-bg,#141518); border:1px solid var(--elevated-border,#24262b); box-shadow:var(--elevated-shadow,0 10px 24px rgba(0,0,0,.35)); padding:14px 16px; transition:transform .12s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease; will-change:transform,box-shadow; }
+.card2::before{ content:""; position:absolute; inset:0 auto 0 0; width:0; background:var(--accent,#2a84ff); border-radius:16px 0 0 16px; transition:width .15s ease; }
+.card2:hover{ transform:translateY(-1px); box-shadow:0 14px 30px rgba(0,0,0,.4); border-color:color-mix(in oklab, var(--accent,#2a84ff) 28%, var(--elevated-border,#24262b)); }
+.card2:hover::before{ width:3px; }
+html[data-theme="light"] .card2{ background:#fff; border-color:#e5e7eb; box-shadow:0 10px 24px rgba(0,0,0,.12); }
+html[data-theme="light"] .card2:hover{ border-color:color-mix(in oklab, var(--accent,#2a84ff) 35%, #e5e7eb); box-shadow:0 16px 36px rgba(0,0,0,.16); }
+
+.pill--reject, .status.reject{ color:#ef4444; }
+.status{ text-align:center; font-weight:400; }
+.status.pending   { color:#ffc107; }
+.status.completed,
+.status.success   { color:#10b981; }   /* สำเร็จ */
+.status.rejected,
+.status.reject    { color:#ef4444; }   /* ถูกปฏิเสธ */
+.status.failed,
+.status.error     { color:#f87171; }   /* ล้มเหลว */
+.status.canceled,
+.status.cancelled { color:#94a3b8; }   /* ยกเลิก */
+.pp-chip{
+  height:28px; padding:0 10px; border-radius:999px; cursor:pointer;
+  background:var(--pick-chip-bg, rgba(255,255,255,.06));
+  border:1px solid var(--pick-chip-border, #24262b);
+  color:var(--text-primary,#f2f4f8);
+  font-size:12px; line-height:26px;
+  align-items: center;
+  font-family: Prompt;
+}
+.pp-menu{
+  position:absolute; right:0; margin-top:6px; min-width:120px; padding:6px;
+  background:var(--card,#1c1f24); border:1px solid var(--border,#2a2f36);
+  border-radius:10px; box-shadow:0 14px 30px rgba(0,0,0,.35); z-index:30;
+  font-family: Prompt;
+}
+.pp-item{
+  display:block; width:100%; text-align:left; border:0; background:transparent;
+  color:var(--text-primary,#f2f4f8); padding:8px 10px; border-radius:8px; font-size:13px; cursor:pointer;
+  font-family: Prompt;
+}
+.pp-item:hover{ background:rgba(255,255,255,.06); }
+.pp-item.active{ outline:1px solid var(--accent,#2a84ff); }
+html[data-theme="light"] .pp-chip{
+  background:#f3f4f6; border-color:#e5e7eb; color:#111827;
+}
+html[data-theme="light"] .pp-menu{
+  background:#fff; border-color:#e5e7eb; box-shadow:0 16px 36px rgba(0,0,0,.16);
+}
+html[data-theme="light"] .pp-item:hover{ background:#f3f4f6; }
+
+.pp-chip{
+  height:32px; padding:0 12px; border-radius:999px; cursor:pointer;
+  background:var(--pick-chip-bg, rgba(255,255,255,.06));
+  border:1px solid var(--pick-chip-border, #24262b);
+  color:var(--text-primary,#f2f4f8);
+  font-size:13px; line-height:30px;
+  display:inline-flex; align-items:center; gap:6px;
+}
+.pp-menu{
+  position:absolute; right:0; top:calc(100% + 6px);
+  min-width:120px; padding:6px;
+  background:var(--card,#1c1f24); border:1px solid var(--border,#2a2f36);
+  border-radius:10px; box-shadow:0 18px 48px rgba(0,0,0,.45);
+  z-index:1000; /* ลอยสุดไม่โดนตารางบัง */
+}
+.pp-item{
+  display:block; width:100%; text-align:left; border:0; background:transparent;
+  color:var(--text-primary,#f2f4f8); padding:8px 10px; border-radius:8px; font-size:13px; cursor:pointer;
+}
+.pp-item:hover{ background:rgba(255,255,255,.06); }
+.pp-item.active{ outline:1px solid var(--accent,#2a84ff); }
+
+/* Light theme */
+html[data-theme="light"] .pp-chip{
+  background:#f3f4f6; border-color:#e5e7eb; color:#111827;
+}
+html[data-theme="light"] .pp-menu{
+  background:#fff; border-color:#e5e7eb; box-shadow:0 18px 48px rgba(0,0,0,.16);
+}
+html[data-theme="light"] .pp-item:hover{ background:#f3f4f6; }
+
+/* ===== Mobile tuning (ไม่ใหญ่ไป + เรียงบรรทัดเดียวติดกัน) ===== */
+@media (max-width:768px){
+.pager-wrap{ gap:8px; }
+.pager-left{ text-align: start; font-size:12px; order:1; width:100%; }
+.pager-right{ justify-content:flex-end; order:2; width:100%; justify-content:flex-end; gap:8px; }
+.pages{ gap:6px; }
+.pages .btn.small{ height:30px; padding:0 10px; font-size:12px; border-radius:10px; }
+.pp-chip{ height:30px; line-height:28px; font-size:12px; padding:0 10px; }
+.pp-menu{ top:calc(100% + 4px); } /* เมนูยังลอยหน้าสุด */
+}
+/* User cell with avatar */
+.user-cell{
+  display:inline-flex; align-items:center; gap:10px; min-width:0;
+}
+.avatar-sm{
+  width:28px; height:28px; border-radius:50%;
+  object-fit:cover; flex:0 0 28px;
+  border:1px solid var(--border,#2a2f36);
+  background:var(--card,#1a1d22);
+}
+.user-meta{ display:flex; align-items:center; gap:6px; min-width:0; }
+.user-name{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* light theme tune */
+html[data-theme="light"] .avatar-sm{
+  border-color:#e5e7eb; background:#fff;
+}
+/* desktop: แสดงชื่อกับอีเมลต่อบรรทัดเดียวคั่นด้วยจุด */
+.user-meta{ display:inline-flex; align-items:center; gap:6px; max-width:100%; }
+.user-meta .user-name{
+  max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.user-meta .user-email{ white-space:nowrap; }
+.user-meta .user-email::before{ content:' · '; }
+/* mobile: อีเมลย้ายลงบรรทัดใหม่ และตัด prefix จุดออก */
+@media (max-width:768px){
+.user-meta{ display:block; }
+.user-meta .user-email{
+    display:block; margin-top:2px; white-space:normal;
+    overflow:hidden; text-overflow:ellipsis;
+}
+.user-meta .user-email::before{ content:''; }
+}
+  /* ─────────────────────────────────────────
+  Per-page dropdown (เล็ก กระทัดรัด รองรับธีม)
+  ───────────────────────────────────────── */
+.perpage-control{
+  position:relative;
+  display:inline-block;
+  z-index:60;                 /* สูงกว่าหัวตาราง (th:z-index:5) */
+  font-family: Prompt, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+/* ปุ่มชิปขนาดกะทัดรัด */
+.pp-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  height:32px;
+  padding:0 12px;
+  line-height:30px;
+  font-size:13px;
+  font-weight:500;
+  border-radius:999px;
+  cursor:pointer;
+
+  /* ธีมมืด (อิง token เดิม) */
+  background:var(--pick-chip-bg, rgba(255,255,255,.06));
+  border:1px solid var(--pick-chip-border, #24262b);
+  color:var(--text-primary,#f2f4f8);
+
+  transition:background .15s ease, border-color .15s ease, box-shadow .15s ease, color .15s ease;
+}
+.pp-chip:hover{
+  background:color-mix(in oklab, var(--pick-chip-bg, rgba(255,255,255,.06)) 60%, #ffffff 10%);
+}
+.pp-chip:active{ transform:translateY(0.5px); }
+.pp-chip:focus-visible{
+  outline:0;
+  box-shadow:0 0 0 3px color-mix(in oklab, var(--accent,#2a84ff) 35%, transparent);
+}
+
+/* เมนูดรอปดาวน์ */
+.pp-menu{
+  position:absolute;
+  right:0;
+  top:calc(100% + 6px);
+  min-width:140px;
+  padding:6px;
+  border-radius:12px;
+
+  /* ธีมมืด */
+  background:var(--card,#1c1f24);
+  border:1px solid var(--border,#2a2f36);
+  box-shadow:0 18px 48px rgba(0,0,0,.45);
+
+  z-index:2000;               /* ลอยหน้าสุด ไม่โดนตารางบัง */
+}
+.pp-menu[hidden]{ display:none !important; }
+
+/* ลูกศรเล็ก ๆ ชี้จากปุ่ม */
+.pp-menu::before{
+  content:"";
+  position:absolute;
+  right:18px;
+  top:-6px;
+  width:10px; height:10px;
+  background:inherit;
+  border-left:inherit; border-top:inherit;
+  transform:rotate(45deg);
+}
+
+/* รายการตัวเลือก */
+.pp-item{
+  display:block;
+  width:100%;
+  text-align:left;
+  border:0;
+  background:transparent;
+  color:var(--text-primary,#f2f4f8);
+  padding:8px 10px;
+  border-radius:8px;
+  font-size:13px;
+  cursor:pointer;
+  transition:background .12s ease, color .12s ease;
+}
+.pp-item:hover{ background:rgba(255,255,255,.06); }
+.pp-item.active,
+.pp-item[aria-current="true"]{
+  outline:1.5px solid var(--accent,#2a84ff);
+  background:color-mix(in oklab, var(--accent,#2a84ff) 10%, transparent);
+}
+
+/* ───────── Light theme (ใช้โทนเทาอย่างเดียว) ───────── */
+html[data-theme="light"] .pp-chip{
+  background:#f5f7fb;          /* เทาอ่อน */
+  border-color:#e5e7eb;        /* เทาเส้นขอบ */
+  color:#111827;               /* ตัวอักษรเข้ม */
+  box-shadow:0 2px 0 rgba(17,24,39,.06) inset;
+}
+html[data-theme="light"] .pp-chip:hover{
+  background:#eef2f7;          /* hover เทาอ่อนขึ้นเล็กน้อย */
+  border-color:#d9dde5;
+}
+html[data-theme="light"] .pp-chip:focus-visible{
+  box-shadow:0 0 0 3px rgba(59,130,246,.25); /* วงแหวนฟ้าอ่อน */
+}
+
+html[data-theme="light"] .pp-menu{
+  background:#ffffff;          /* กล่องขาว */
+  border-color:#e5e7eb;
+  box-shadow:0 22px 46px rgba(15,23,42,.14);
+}
+html[data-theme="light"] .pp-item{ color:#111827; }
+html[data-theme="light"] .pp-item:hover{ background:#f3f4f6; }
+html[data-theme="light"] .pp-item.active,
+html[data-theme="light"] .pp-item[aria-current="true"]{
+  outline:1.5px solid #9aa5b1; /* เทาไฮไลต์ */
+  background:#f1f5f9;
+}
+
+/* ───────── มือถือ: ขนาดคงที่ อ่านง่าย ไม่เทอะทะ ───────── */
+@media (max-width:768px){
+  .pp-chip{
+      height:30px;
+      line-height:28px;
+      font-size:12px;
+      padding:0 10px;
+  }
+  .pp-menu{
+      top:calc(100% + 4px);
+      min-width:130px;
+      border-radius:10px;
+  }
+}
+
+
+
+/* Month Picker (popup) */
+#monthPicker[hidden]{display:none!important}
+.mp-popup{position:fixed;inset:0;display:grid;place-items:start end;padding:72px 16px 16px;background:rgba(0,0,0,.28);z-index:2147483647}
+.mp-card{width:260px;background:var(--pick-bg,#121418);border:1px solid var(--pick-border,#262a32);border-radius:14px;box-shadow:var(--pick-shadow,0 18px 60px rgba(0,0,0,.45))}
+.mp-head{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--tbl-border,#1e2128)}
+.mp-year{font-weight:400;color:var(--pick-year,#e5e7eb);letter-spacing:.5px}
+.mp-nav{background:transparent;border:1px solid var(--pick-nav-bg,#2a2e37);border-radius:8px;color:var(--pick-nav,#aeb6c4);cursor:pointer;padding:4px 8px}
+.mp-nav:hover{background:var(--pick-nav-bg-hover,#1b1f27)}
+.mp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px}
+.mp-m{display:grid;place-items:center;padding:10px 0;border:1px solid var(--pick-month-bg,#242a33);border-radius:10px;color:var(--pick-month,#cbd5e1);cursor:pointer;font-weight:400;letter-spacing:.3px;transition:background .12s ease,color .12s ease,border-color .12s ease}
+.mp-m:hover{background:var(--pick-month-hover,#1b2130);border-color:var(--pick-month-hover,#1b2130)}
+.mp-m.active{background:var(--pick-month-active,#2a84ff);color:var(--pick-month-active-text,#fff);border-color:var(--pick-month-active,#2a84ff)}
+.mp-m.current{outline:2px dashed var(--pick-month-current,rgba(42,132,255,.6));outline-offset:2px}
+.mp-actions{display:flex;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid var(--tbl-border,#1e2128)}
+.mp-actions .spacer{flex:1}
+
+/* Light theme tokens (สรุป) */
+html[data-theme="light"]{
+  --tbl-head-bg:#f6f7fb;--tbl-head-text:#334155;--tbl-row:#fff;--tbl-row-alt:#f3f4f6;--tbl-text:#111827;--tbl-border:#e5e7eb;--tbl-hover:#eef2f7;
+  --pick-toolbar-bg:#fff;--pick-chip-bg:#f3f4f6;--pick-chip-border:#e5e7eb;--pick-icon:#64748b;--pick-icon-hover:#111827;--pick-input:#111827;
+  --pick-bg:#fff;--pick-border:#e5e7eb;--pick-shadow:0 18px 60px rgba(0,0,0,.12);--pick-year:#0f172a;--pick-nav:#334155;--pick-nav-bg:#e5e7eb;--pick-nav-bg-hover:#dbe2ea;
+  --pick-month:#0f172a;--pick-month-bg:#e9eef5;--pick-month-hover:#dde6f2;--pick-month-active:#2a84ff;--pick-month-active-text:#fff;--pick-month-current:rgba(42,132,255,.45)
+}
+
+/* ====== Mobile overrides (<=640px) ====== */
+@media (max-width: 640px){
+  /* ให้หัวข้อชิดขอบ + แถบเครื่องมือกว้างไม่เกินจอ */
+  .page-head{ padding-inline: 12px; }
+
+  /* จัด month-toolbar เป็นกริด 4 ช่อง: [ก่อนหน้า][ตัวเลือกเดือนยืด][ถัดไป][เดือนนี้] */
+  .month-toolbar{
+    width: 100%;
+    max-width: min(92vw, 420px);
+    margin-inline: auto;
+    padding: 6px 8px;
+    gap: 6px;
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    align-items: center;
+    border-radius: 14px;
+  }
+
+  /* ช่องตัวเลือกเดือนให้หด/ยืดได้ และไม่ดันปุ่มอื่น */
+  .month-ctrl{
+    min-width: 0;
+    padding: 6px 10px;
+  }
+  .month-ctrl input{
+    min-width: 0;
+    width: 100%;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    font-size: 14px;
+  }
+
+  /* ปุ่มต่าง ๆ ให้เล็กลงนิด เพื่อไม่ล้น */
+  .month-toolbar .btn,
+  .month-toolbar .btn.ghost{
+    padding: 6px 10px;
+    font-size: 14px;
+    min-width: auto;      /* อนุญาตให้หด */
+    white-space: nowrap;  /* ไม่หักบรรทัด */
+  }
+
+  /* ไอคอนปฏิทินเล็กลงนิด */
+  .icon-btn{ font-size: 15px; }
+}
+/* Empty state: ตรงกลาง พอดีตา ทุกหน้าจอ */
+.empty-history{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  gap:10px;
+  min-height:46vh;                /* สูงพอให้ดูกลางการ์ด */
+  padding:24px 16px;
+  max-width:520px;                /* ไม่กว้างเกิน */
+  margin:0 auto;                  /* จัดกึ่งกลางใน .history-wrapper */
+}
+.empty-history img{
+  width:140px;                    /* ขนาดพอดี ไม่ใหญ่ไป */
+  max-width:40vw;
+  height:auto;
+  filter:none;
+  opacity:.95;
+}
+.empty-history .empty-title{
+  font-weight:600;
+  font-size:16px;
+  color:var(--text-primary,#f2f4f8);
+}
+.empty-history .empty-sub{
+  font-size:13px;
+  color:var(--muted,#a7b0bb);
+}
+
+/* ปรับเฉพาะมือถือ */
+@media (max-width:768px){
+  .empty-history{
+    min-height:38vh;
+    padding:20px 12px;
+    max-width:92vw;
+  }
+  .empty-history img{
+    width:120px;
+    max-width:55vw;
+    opacity:.9;
+  }
+}
+html[data-theme="dark"] .empty-history img{ opacity:.35 }
+
+ /* Popup โหมด: center หรือ anchor ใต้ toolbar */
+.mp-popup.center{
+  position:fixed; inset:0; display:grid; place-items:center;
+  background:rgba(0,0,0,.28); padding:0; z-index:2147483647;
+}
+.mp-popup.anchor{
+  position:fixed; inset:0; display:block;
+  background:transparent; pointer-events:none; z-index:2147483647;
+}
+.mp-popup.anchor .mp-card{
+  position:fixed; top:var(--mp-top,0px); left:var(--mp-left,0px);
+  width:min(320px,92vw); transform:none; pointer-events:auto;
+}
+@media (max-width:768px){
+  .mp-popup.anchor .mp-card{ width:min(360px,94vw); }
+}
+/* โหมด anchor: วาง popup ใต้ .month-toolbar เสมอ */
+.mp-popup.anchor{
+  position:fixed;
+  inset:0;
+  display:block;
+  background:transparent;           /* ไม่ต้องมีฉากมืด */
+  pointer-events:none;              /* ให้คลิกผ่านนอกการ์ดได้ */
+  z-index:2147483647;
+}
+.mp-popup.anchor .mp-card{
+  position:fixed;
+  top:var(--mp-top, 0px);
+  left:var(--mp-left, 0px);
+  transform:none;
+  width:min(420px, 94vw);           /* เดสก์ท็อปกว้างขึ้นหน่อย */
+  pointer-events:auto;              /* การ์ดรับคลิก */
+  border-radius:14px;
+  box-shadow:0 18px 60px rgba(0,0,0,.45);
+}
+
+/* ลูกศรชี้เล็ก ๆ (optional) */
+.mp-popup.anchor .mp-card::before{
+  content:"";
+  position:absolute;
+  top:-8px;
+  left:24px;                        /* จะถูกเลื่อนตาม calc left ที่ JS คำนวณ */
+  width:12px; height:12px;
+  background:inherit;
+  border-left:1px solid var(--pick-border,#262a32);
+  border-top:1px solid var(--pick-border,#262a32);
+  transform:rotate(45deg);
+}
+
+/* มือถือยังคุมขนาดให้พอดี */
+@media (max-width: 768px){
+  .mp-popup.anchor .mp-card{
+    width:min(360px, 94vw);
+    box-shadow:0 14px 36px rgba(0,0,0,.40);
+  }
+}
+
+/* คงสไตล์เดิมของ toolbar */
+.month-toolbar{
+  display:flex; align-items:center; gap:10px;
+  background:var(--pick-toolbar-bg,#15171b);
+  border:1px solid var(--tbl-border,#24262b);
+  border-radius:999px;
+  padding:6px 10px;
+  box-shadow:var(--elevated-shadow,0 10px 24px rgba(0,0,0,.25));
+}
+.month-ctrl{
+  display:flex; align-items:center; gap:6px;
+  background:var(--pick-chip-bg,rgba(255,255,255,.06));
+  border:1px solid var(--pick-chip-border,#24262b);
+  border-radius:999px; padding:6px 10px;
+}
+.month-ctrl input{
+  background:transparent; border:0; outline:none;
+  color:var(--pick-input,#f2f4f8);
+  font-weight:400; letter-spacing:.3px;
+  min-width:115px; text-align:center; cursor:pointer;
+}
+.month-ctrl input:focus-visible{ box-shadow:0 0 0 3px var(--pick-toolbar-ring,rgba(42,132,255,.35)); border-radius:8px; }
+.icon-btn{ background:transparent; border:0; cursor:pointer; color:var(--pick-icon,#a7b0bb); font-size:16px; }
+.icon-btn:hover{ color:var(--pick-icon-hover,#fff); }
+
+/* มือถือ: ให้กว้างพอดีจอ (เหมือนเดิม) */
+@media (max-width: 768px){
+  .month-toolbar-row{ padding: 0 12px; }
+  .month-toolbar{
     width:100%;
-    border-collapse:separate;         /* ใช้ separate เพื่อให้เส้นคั่นเนียน */
-    border-spacing:0;
+    max-width:min(92vw, 420px);
+    margin: 0 auto;
+    gap:8px;
+  }
+}
+
+/* เดสก์ท็อป: จัดกึ่งกลาง section เสมอ */
+@media (min-width: 1024px){
+  .month-toolbar-row{
+    display:grid;            /* ตัวคอนเทนเนอร์กว้างเต็มแถว */
+    place-items:center;      /* จัดลูกให้อยู่กลางทั้งแกน X/Y */
     margin-top:10px;
-    font-size:14px;
-    min-width:720px;
-    white-space:nowrap;
-    background:transparent;
-    box-shadow: inset 0 1px 0 var(--tbl-border);
-    }
+  }
+  .month-toolbar{
+    width:fit-content;       /* ให้กว้างเท่าที่จำเป็น เพื่อจัดกลางได้สวย */
+    margin:0;                /* ไม่ต้องใช้ margin auto แล้ว เพราะแถวจัดให้กลางให้ */
+  }
+}
 
-    .history-table thead th,
-    .history-table tbody td{
-    padding:12px 14px;
-    vertical-align:middle;
-    border-bottom:1px solid var(--tbl-border);
-    }
+/* เดสก์ท็อป: พื้นหลังยาวเต็มแถว แต่ปุ่มอยู่กึ่งกลาง */
+@media (min-width:1024px){
+  .month-toolbar{
+    width: 100%;                 /* พื้นหลังยาวเต็มแถว */
+    margin: 10px 0 0;            /* ไม่ต้อง margin auto แล้ว */
+    display: flex;
+    justify-content: center;     /* จัด “คอนเทนต์” ไปกึ่งกลาง */
+    align-items: center;
+    gap: 10px;                   /* ระยะห่างปุ่ม ๆ */
+  }
 
-    /* หัวตารางเข้ม + sticky */
-    .history-table thead th{
-    position:sticky; top:0; z-index:5;
-    text-align:left;
-    font-weight:500;
-    color:var(--tbl-head-text);
-    background:var(--tbl-head-bg);
-    backdrop-filter: blur(2px);
-    }
-
-    /* แถวสลับเฉด + hover */
-    .history-table tbody tr{ background:var(--tbl-row-bg); }
-    .history-table tbody tr:nth-child(even){ background:var(--tbl-row-alt); }
-    .history-table tbody tr:hover{ background:var(--tbl-hover); }
-
-    /* คอลัมน์พิเศษ */
-    .history-table .amount{ text-align:right; font-weight:600; }
-    .history-table .status{ text-align:center; font-weight:500; }
-
-    /* โลโก้ธนาคารคมชัด */
-    .bank-logo{
-    width:28px; height:28px; object-fit:contain; vertical-align:middle; margin-right:6px;
-    filter: none;
-    }
-
-    /* ปรับเส้นขอบรอบแรก/สุดท้ายให้เนียน */
-    .history-table thead th:first-child,
-    .history-table tbody td:first-child { padding-left:16px; }
-    .history-table thead th:last-child,
-    .history-table tbody td:last-child  { padding-right:16px; }
-
-    /* เสริมมิติแก่กรอบการ์ดตาราง (เบา ๆ) */
-    .history-wrapper.card.soft{
-    border-color: var(--tbl-border);
-    box-shadow: var(--elevated-shadow,0 10px 24px rgba(0,0,0,.12));
-    }
-    html[data-theme="light"] .history-wrapper.card.soft{
-    box-shadow: 0 8px 22px rgba(15, 23, 42, .06);
-    }
-
-    /* Desktop/Mobile switch */
-    .mobile-only{ display:none !important; }
-    .desktop-only{ display:block !important; }
-    @media (max-width:768px){
-        .desktop-only{ display:none !important; }
-        .mobile-only{ display:block !important; }
-    }
-
-    /* Accordion (มือถือ) */
-    .tx-accordion-list{ display:grid; gap:10px; }
-    .tx-accordion{ background:var(--card,#1a1d22); border:1px solid var(--border,#2a2f36); border-radius:12px; overflow:hidden; box-shadow:var(--elevated-shadow,0 10px 24px rgba(0,0,0,.25)); }
-    .tx-accordion__head{ width:100%; display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px; padding:12px 14px; background:#0f1013; color:var(--text-primary,#f2f4f8); border:0; cursor:pointer; }
-    .tx-accordion__title{ min-width:0; }
-    .tx-accordion__title .tx-id{ display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-weight:400; letter-spacing:.3px; }
-    .tx-accordion__meta{ display:inline-grid; grid-auto-flow:column; gap:10px; align-items:center; color:var(--title,#eadfb8); font-weight:400; font-variant-numeric:tabular-nums; white-space:nowrap; }
-    .tx-accordion__meta .tx-toggle{ width:28px; height:28px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--border,#2a2f36); background:#17191d; }
-    .tx-accordion__body{ display:none; padding:12px 14px 14px; background:var(--elevated-bg,#141518); }
-    .tx-accordion[data-open="1"] .tx-accordion__body{ display:block; }
-    .tx-accordion[data-open="1"] .tx-accordion__meta .tx-toggle::before{ content:'–'; }
-    .tx-accordion[data-open="0"] .tx-accordion__meta .tx-toggle::before{ content:'+'; }
-    .tx-row{ display:grid; grid-template-columns:110px 1fr; gap:10px; padding:8px 0; border-bottom:1px dashed var(--border,#2a2f36); }
-    .tx-row:last-child{ border-bottom:0; }
-    .tx-label{ color:var(--muted,#a7b0bb); }
-    .tx-value{ color:var(--text-primary,#f2f4f8); }
-    .pill{ display:inline-block; padding:4px 10px; border-radius:999px; font-weight:400; font-size:12px; background:#22262d; border:1px solid #313641; }
-    .pill--pending{ color:#ffc107; }
-    .pill--completed{ color:#10b981; }
-    .pill--failed{ color:#f87171; }
-    .pill--canceled{ color:#94a3b8; }
-    .tx-actions{ width:100%; margin-top:12px; display:flex; justify-content:flex-start; }
-
-    /* Modal */
-    .modal.hidden{ display:none; }
-    .modal{ position:fixed; inset:0; z-index:100; }
-    .modal .overlay{ position:absolute; inset:0; background:rgba(0,0,0,.55); cursor:pointer; }
-    .modal .dialog{ position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); max-width:420px; width:calc(100% - 24px); background:var(--card,#1c1f24); border:1px solid var(--border,#2a2f36); border-radius:14px; box-shadow:0 18px 60px rgba(0,0,0,.4); padding:16px 18px 18px; animation:modalFadeIn .25s ease-out; z-index:200; }
-    .modal .hdr{ display:flex; justify-content:space-between; align-items:center; }
-    .modal .title{ font-weight:400; font-size:16px; }
-    .modal .icon.close{ border:0; background:transparent; font-size:22px; color:var(--text,#fff); cursor:pointer; }
-    .modal .sep{ border:0; border-top:1px solid var(--border,#2a2f36); margin:12px 0; }
-    .modal .body{ font-size:14px; line-height:1.6; max-height:60vh; overflow-y:auto; }
-
-    /* Card v2, badges (reuse) */
-    .row-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; }
-    .head-right{ display:flex; align-items:center; gap:8px; margin-left:auto; }
-    .metric-badge{ display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; font-weight:400; letter-spacing:.2px; background:var(--pick-chip-bg,rgba(255,255,255,.06)); border:1px solid var(--pick-chip-border,#24262b); color:var(--text-primary,#f2f4f8); }
-    html[data-theme="light"] .metric-badge{ background:#f3f4f6; border-color:#e5e7eb; color:#111827; }
-
-    .card2{ position:relative; border-radius:5px; background:var(--elevated-bg,#141518); border:1px solid var(--elevated-border,#24262b); box-shadow:var(--elevated-shadow,0 10px 24px rgba(0,0,0,.35)); padding:14px 16px; transition:transform .12s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease; will-change:transform,box-shadow; }
-    .card2::before{ content:""; position:absolute; inset:0 auto 0 0; width:0; background:var(--accent,#2a84ff); border-radius:16px 0 0 16px; transition:width .15s ease; }
-    .card2:hover{ transform:translateY(-1px); box-shadow:0 14px 30px rgba(0,0,0,.4); border-color:color-mix(in oklab, var(--accent,#2a84ff) 28%, var(--elevated-border,#24262b)); }
-    .card2:hover::before{ width:3px; }
-    html[data-theme="light"] .card2{ background:#fff; border-color:#e5e7eb; box-shadow:0 10px 24px rgba(0,0,0,.12); }
-    html[data-theme="light"] .card2:hover{ border-color:color-mix(in oklab, var(--accent,#2a84ff) 35%, #e5e7eb); box-shadow:0 16px 36px rgba(0,0,0,.16); }
-
-    .pill--reject, .status.reject{ color:#ef4444; }
-    .status{ text-align:center; font-weight:400; }
-    .status.pending   { color:#ffc107; }
-    .status.completed,
-    .status.success   { color:#10b981; }   /* สำเร็จ */
-    .status.rejected,
-    .status.reject    { color:#ef4444; }   /* ถูกปฏิเสธ */
-    .status.failed,
-    .status.error     { color:#f87171; }   /* ล้มเหลว */
-    .status.canceled,
-    .status.cancelled { color:#94a3b8; }   /* ยกเลิก */
-    .perpage-control{ position:relative; display:inline-block; }
-    .pp-chip{
-        height:28px; padding:0 10px; border-radius:999px; cursor:pointer;
-        background:var(--pick-chip-bg, rgba(255,255,255,.06));
-        border:1px solid var(--pick-chip-border, #24262b);
-        color:var(--text-primary,#f2f4f8);
-        font-size:12px; line-height:26px;
-        align-items: center;
-        font-family: Prompt;
-    }
-    .pp-menu{
-        position:absolute; right:0; margin-top:6px; min-width:120px; padding:6px;
-        background:var(--card,#1c1f24); border:1px solid var(--border,#2a2f36);
-        border-radius:10px; box-shadow:0 14px 30px rgba(0,0,0,.35); z-index:30;
-        font-family: Prompt;
-    }
-    .pp-item{
-        display:block; width:100%; text-align:left; border:0; background:transparent;
-        color:var(--text-primary,#f2f4f8); padding:8px 10px; border-radius:8px; font-size:13px; cursor:pointer;
-        font-family: Prompt;
-    }
-    .pp-item:hover{ background:rgba(255,255,255,.06); }
-    .pp-item.active{ outline:1px solid var(--accent,#2a84ff); }
-    html[data-theme="light"] .pp-chip{
-        background:#f3f4f6; border-color:#e5e7eb; color:#111827;
-    }
-    html[data-theme="light"] .pp-menu{
-        background:#fff; border-color:#e5e7eb; box-shadow:0 16px 36px rgba(0,0,0,.16);
-    }
-    html[data-theme="light"] .pp-item:hover{ background:#f3f4f6; }
-    /* ===== Pager layout ===== */
-    .pager-wrap{
-    display:flex; align-items:center; justify-content:space-between;
-    gap:12px; margin-top:14px; flex-wrap:wrap;
-    }
-    .pager-left{ text-align: end; font-size:13px; }
-    .pager-right{
-    display:flex; align-items:center; gap:10px; margin-left:auto;
-    }
-
-    /* ปุ่มเพจให้พอดี ไม่เทอะทะ */
-    .pages{ display:flex; gap:6px; align-items:center; }
-    .pages .btn.small{
-    height:32px; min-width:36px; padding:0 12px; border-radius:12px;
-    }
-
-    /* ===== Per-page chip + menu (รองรับธีม + ลอยหน้าสุด) ===== */
-    .perpage-control{
-    position:relative; display:inline-block; z-index:50; /* เหนือหัวตาราง (z:5) */
-    }
-    .pp-chip{
-    height:32px; padding:0 12px; border-radius:999px; cursor:pointer;
-    background:var(--pick-chip-bg, rgba(255,255,255,.06));
-    border:1px solid var(--pick-chip-border, #24262b);
-    color:var(--text-primary,#f2f4f8);
-    font-size:13px; line-height:30px;
-    display:inline-flex; align-items:center; gap:6px;
-    }
-    .pp-menu{
-    position:absolute; right:0; top:calc(100% + 6px);
-    min-width:120px; padding:6px;
-    background:var(--card,#1c1f24); border:1px solid var(--border,#2a2f36);
-    border-radius:10px; box-shadow:0 18px 48px rgba(0,0,0,.45);
-    z-index:1000; /* ลอยสุดไม่โดนตารางบัง */
-    }
-    .pp-item{
-    display:block; width:100%; text-align:left; border:0; background:transparent;
-    color:var(--text-primary,#f2f4f8); padding:8px 10px; border-radius:8px; font-size:13px; cursor:pointer;
-    }
-    .pp-item:hover{ background:rgba(255,255,255,.06); }
-    .pp-item.active{ outline:1px solid var(--accent,#2a84ff); }
-
-    /* Light theme */
-    html[data-theme="light"] .pp-chip{
-    background:#f3f4f6; border-color:#e5e7eb; color:#111827;
-    }
-    html[data-theme="light"] .pp-menu{
-    background:#fff; border-color:#e5e7eb; box-shadow:0 18px 48px rgba(0,0,0,.16);
-    }
-    html[data-theme="light"] .pp-item:hover{ background:#f3f4f6; }
-
-    /* ===== Mobile tuning (ไม่ใหญ่ไป + เรียงบรรทัดเดียวติดกัน) ===== */
-    @media (max-width:768px){
-    .pager-wrap{ gap:8px; }
-    .pager-left{ text-align: start; font-size:12px; order:1; width:100%; }
-    .pager-right{ justify-content:flex-end; order:2; width:100%; justify-content:flex-end; gap:8px; }
-    .pages{ gap:6px; }
-    .pages .btn.small{ height:30px; padding:0 10px; font-size:12px; border-radius:10px; }
-    .pp-chip{ height:30px; line-height:28px; font-size:12px; padding:0 10px; }
-    .pp-menu{ top:calc(100% + 4px); } /* เมนูยังลอยหน้าสุด */
-    }
-    /* User cell with avatar */
-    .user-cell{
-    display:inline-flex; align-items:center; gap:10px; min-width:0;
-    }
-    .avatar-sm{
-    width:28px; height:28px; border-radius:50%;
-    object-fit:cover; flex:0 0 28px;
-    border:1px solid var(--border,#2a2f36);
-    background:var(--card,#1a1d22);
-    }
-    .user-meta{ display:flex; align-items:center; gap:6px; min-width:0; }
-    .user-name{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-
-    /* light theme tune */
-    html[data-theme="light"] .avatar-sm{
-    border-color:#e5e7eb; background:#fff;
-    }
-    /* desktop: แสดงชื่อกับอีเมลต่อบรรทัดเดียวคั่นด้วยจุด */
-    .user-meta{ display:inline-flex; align-items:center; gap:6px; max-width:100%; }
-    .user-meta .user-name{
-    max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-    }
-    .user-meta .user-email{ white-space:nowrap; }
-    .user-meta .user-email::before{ content:' · '; }
-    /* mobile: อีเมลย้ายลงบรรทัดใหม่ และตัด prefix จุดออก */
-    @media (max-width:768px){
-    .user-meta{ display:block; }
-    .user-meta .user-email{
-        display:block; margin-top:2px; white-space:normal;
-        overflow:hidden; text-overflow:ellipsis;
-    }
-    .user-meta .user-email::before{ content:''; }
-    }
-    /* ─────────────────────────────────────────
-   Per-page dropdown (เล็ก กระทัดรัด รองรับธีม)
-   ───────────────────────────────────────── */
-    .perpage-control{
-    position:relative;
-    display:inline-block;
-    z-index:60;                 /* สูงกว่าหัวตาราง (th:z-index:5) */
-    font-family: Prompt, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    }
-
-    /* ปุ่มชิปขนาดกะทัดรัด */
-    .pp-chip{
-    display:inline-flex;
-    align-items:center;
-    gap:6px;
-    height:32px;
-    padding:0 12px;
-    line-height:30px;
-    font-size:13px;
-    font-weight:500;
-    border-radius:999px;
-    cursor:pointer;
-
-    /* ธีมมืด (อิง token เดิม) */
-    background:var(--pick-chip-bg, rgba(255,255,255,.06));
-    border:1px solid var(--pick-chip-border, #24262b);
-    color:var(--text-primary,#f2f4f8);
-
-    transition:background .15s ease, border-color .15s ease, box-shadow .15s ease, color .15s ease;
-    }
-    .pp-chip:hover{
-    background:color-mix(in oklab, var(--pick-chip-bg, rgba(255,255,255,.06)) 60%, #ffffff 10%);
-    }
-    .pp-chip:active{ transform:translateY(0.5px); }
-    .pp-chip:focus-visible{
-    outline:0;
-    box-shadow:0 0 0 3px color-mix(in oklab, var(--accent,#2a84ff) 35%, transparent);
-    }
-
-    /* เมนูดรอปดาวน์ */
-    .pp-menu{
-    position:absolute;
-    right:0;
-    top:calc(100% + 6px);
-    min-width:140px;
-    padding:6px;
-    border-radius:12px;
-
-    /* ธีมมืด */
-    background:var(--card,#1c1f24);
-    border:1px solid var(--border,#2a2f36);
-    box-shadow:0 18px 48px rgba(0,0,0,.45);
-
-    z-index:2000;               /* ลอยหน้าสุด ไม่โดนตารางบัง */
-    }
-    .pp-menu[hidden]{ display:none !important; }
-
-    /* ลูกศรเล็ก ๆ ชี้จากปุ่ม */
-    .pp-menu::before{
-    content:"";
-    position:absolute;
-    right:18px;
-    top:-6px;
-    width:10px; height:10px;
-    background:inherit;
-    border-left:inherit; border-top:inherit;
-    transform:rotate(45deg);
-    }
-
-    /* รายการตัวเลือก */
-    .pp-item{
-    display:block;
-    width:100%;
-    text-align:left;
-    border:0;
-    background:transparent;
-    color:var(--text-primary,#f2f4f8);
-    padding:8px 10px;
-    border-radius:8px;
-    font-size:13px;
-    cursor:pointer;
-    transition:background .12s ease, color .12s ease;
-    }
-    .pp-item:hover{ background:rgba(255,255,255,.06); }
-    .pp-item.active,
-    .pp-item[aria-current="true"]{
-    outline:1.5px solid var(--accent,#2a84ff);
-    background:color-mix(in oklab, var(--accent,#2a84ff) 10%, transparent);
-    }
-
-    /* ───────── Light theme (ใช้โทนเทาอย่างเดียว) ───────── */
-    html[data-theme="light"] .pp-chip{
-    background:#f5f7fb;          /* เทาอ่อน */
-    border-color:#e5e7eb;        /* เทาเส้นขอบ */
-    color:#111827;               /* ตัวอักษรเข้ม */
-    box-shadow:0 2px 0 rgba(17,24,39,.06) inset;
-    }
-    html[data-theme="light"] .pp-chip:hover{
-    background:#eef2f7;          /* hover เทาอ่อนขึ้นเล็กน้อย */
-    border-color:#d9dde5;
-    }
-    html[data-theme="light"] .pp-chip:focus-visible{
-    box-shadow:0 0 0 3px rgba(59,130,246,.25); /* วงแหวนฟ้าอ่อน */
-    }
-
-    html[data-theme="light"] .pp-menu{
-    background:#ffffff;          /* กล่องขาว */
-    border-color:#e5e7eb;
-    box-shadow:0 22px 46px rgba(15,23,42,.14);
-    }
-    html[data-theme="light"] .pp-item{ color:#111827; }
-    html[data-theme="light"] .pp-item:hover{ background:#f3f4f6; }
-    html[data-theme="light"] .pp-item.active,
-    html[data-theme="light"] .pp-item[aria-current="true"]{
-    outline:1.5px solid #9aa5b1; /* เทาไฮไลต์ */
-    background:#f1f5f9;
-    }
-
-    /* ───────── มือถือ: ขนาดคงที่ อ่านง่าย ไม่เทอะทะ ───────── */
-    @media (max-width:768px){
-    .pp-chip{
-        height:30px;
-        line-height:28px;
-        font-size:12px;
-        padding:0 10px;
-    }
-    .pp-menu{
-        top:calc(100% + 4px);
-        min-width:130px;
-        border-radius:10px;
-    }
-    }
+  /* ไม่ให้ลูก ๆ ถูกยืดกว้างตาม 100% */
+  .month-toolbar > *{
+    flex: 0 0 auto;
+  }
+}
 </style>
 
 <script>
@@ -926,18 +1148,173 @@
       });
     }
   }
+</script>
 
-  // ====== Pagination helpers ======
-  function updateQuery(params){
-    const url = new URL(location.href);
-    Object.entries(params).forEach(([k,v])=>{
-      if (v==null || v==='') url.searchParams.delete(k);
-      else url.searchParams.set(k, String(v));
-    });
-    location.href = url.toString();
+<script>
+(function(){
+  const MONTH_NAMES_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+
+  const input   = document.getElementById('monthInput');
+  const btnOpen = document.getElementById('btnOpenPicker');
+  const popup   = document.getElementById('monthPicker');
+  const yearEl  = document.getElementById('mpYear');
+  const grid    = document.getElementById('mpGrid');
+  const btnPrevY= document.getElementById('mpPrevYear');
+  const btnNextY= document.getElementById('mpNextYear');
+  const btnOK   = document.getElementById('mpOK');
+  const btnClear= document.getElementById('mpClear');
+  const btnThis = document.getElementById('mpThisMonth');
+
+  const btnPrev = document.getElementById('btnPrev');
+  const btnNext = document.getElementById('btnNext');
+  const btnThisMonth = document.getElementById('btnThisMonth');
+
+  const toolbarEl = document.querySelector('.month-toolbar');
+  const card = popup?.querySelector('.mp-card');
+
+  const now = new Date();
+  let selYear  = now.getFullYear();
+  let selMonth = now.getMonth(); // 0..11
+  let tempYear, tempMonth;
+
+  const monthStrInit = (input?.value || '').slice(0,7);
+  if (monthStrInit){
+    const [yy,mm] = monthStrInit.split('-').map(n=>+n);
+    if (yy && mm){ selYear = yy; selMonth = mm-1; }
   }
-  function gotoPage(p){ updateQuery({ page: p, perpage: document.getElementById('perpage')?.value || <%= perpage %> }); }
-  document.getElementById('perpage')?.addEventListener('change', (e)=>{
-    updateQuery({ page: 1, perpage: e.target.value });
+  tempYear = selYear; tempMonth = selMonth;
+
+  function toYYYYMM(y,m){ return `${y}-${String(m+1).padStart(2,'0')}`; }
+  function go(monthStr){
+    const u = new URL(location.href);
+    u.searchParams.set('month', monthStr);
+    location.href = u.toString();
+  }
+
+  // ── Toolbar prev/next/เดือนนี้ ──
+  btnPrev?.addEventListener('click', ()=>{
+    const d = new Date(selYear, selMonth-1, 1);
+    go(toYYYYMM(d.getFullYear(), d.getMonth()));
   });
+  btnNext?.addEventListener('click', ()=>{
+    const d = new Date(selYear, selMonth+1, 1);
+    go(toYYYYMM(d.getFullYear(), d.getMonth()));
+  });
+  btnThisMonth?.addEventListener('click', ()=>{
+    go(toYYYYMM(now.getFullYear(), now.getMonth()));
+  });
+
+  // ── วาด grid เดือน ──
+  function renderGrid(){
+    if (!yearEl || !grid) return;
+    yearEl.textContent = String(tempYear);
+    grid.innerHTML = '';
+    for (let m=0;m<12;m++){
+      const b = document.createElement('button');
+      b.type='button';
+      b.className = 'mp-m'
+        + (m===tempMonth && tempYear===selYear ? ' active' : '')
+        + (m===now.getMonth() && tempYear===now.getFullYear() ? ' current' : '');
+      b.textContent = MONTH_NAMES_TH[m];
+      b.setAttribute('role','gridcell');
+      b.addEventListener('click', ()=>{
+        tempMonth = m;
+        [...grid.children].forEach(c=>c.classList.remove('active'));
+        b.classList.add('active');
+      });
+      grid.appendChild(b);
+    }
+  }
+
+  // ── โหมดจัดวาง: center (เดสก์ท็อป) / anchor (มือถือ) ──
+  function chooseMode(){
+    return 'anchor'; // เดสก์ท็อปก็วางใต้ toolbar เสมอ
+  }
+  function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
+  function positionAnchored(){
+    if (!toolbarEl || !popup || !card) return;
+    const rect = toolbarEl.getBoundingClientRect();
+    const gap  = 8;
+    const cardW = Math.min(320, Math.round(window.innerWidth * 0.92));
+    let left = rect.left + (rect.width/2) - (cardW/2);
+    left = clamp(left, 12, window.innerWidth - cardW - 12);
+    let top  = rect.bottom + gap;
+    const cardH = card.offsetHeight || 260;
+    top = clamp(top, 12, window.innerHeight - cardH - 12);
+    card.style.setProperty('--mp-left', `${Math.round(left)}px`);
+    card.style.setProperty('--mp-top',  `${Math.round(top)}px`);
+  }
+  function applyMode(mode){
+    popup.classList.remove('center','anchor');
+    popup.classList.add(mode);
+    if (mode==='anchor') positionAnchored();
+  }
+  function onRelayout(){
+    if (!popup || popup.hasAttribute('hidden')) return;
+    if (popup.classList.contains('anchor')) positionAnchored();
+  }
+
+  // ── เปิด/ปิด ──
+  function openPicker(){
+    if (!popup || !popup.hasAttribute('hidden')===false) {/* no-op */}
+    if (!popup.hasAttribute('hidden')) return;
+
+    // sync grid state ทุกครั้ง
+    tempYear = selYear; tempMonth = selMonth;
+    renderGrid();
+
+    applyMode(chooseMode());
+    popup.removeAttribute('hidden');
+    popup.setAttribute('aria-hidden','false');
+
+    setTimeout(()=> popup.querySelector('.mp-m')?.focus(), 0);
+    window.addEventListener('resize', onRelayout, {passive:true});
+    window.addEventListener('scroll', onRelayout, {passive:true});
+  }
+  function closePicker(){
+    if (!popup) return;
+    popup.setAttribute('hidden','');
+    popup.setAttribute('aria-hidden','true');
+    popup.classList.remove('center','anchor');
+    window.removeEventListener('resize', onRelayout);
+    window.removeEventListener('scroll', onRelayout);
+  }
+
+  // ปุ่มเปิด
+  btnOpen?.addEventListener('click', openPicker);
+  input?.addEventListener('click', openPicker);
+
+  // เดินปี
+  btnPrevY?.addEventListener('click', ()=>{ tempYear--; renderGrid(); });
+  btnNextY?.addEventListener('click', ()=>{ tempYear++; renderGrid(); });
+
+  // ยืนยัน / ล้าง / เดือนนี้
+  btnOK?.addEventListener('click', ()=>{
+    selYear = tempYear; selMonth = tempMonth;
+    input.value = toYYYYMM(selYear, selMonth);
+    closePicker();
+    go(input.value);
+  });
+  btnClear?.addEventListener('click', ()=>{
+    input.value = '';
+    closePicker();
+    go(toYYYYMM(now.getFullYear(), now.getMonth()));
+  });
+  btnThis?.addEventListener('click', ()=>{
+    tempYear = now.getFullYear(); tempMonth = now.getMonth();
+    renderGrid();
+  });
+
+  // ESC ปิด
+  window.addEventListener('keydown', (e)=>{
+    if (e.key==='Escape' && !popup.hasAttribute('hidden')) closePicker();
+  });
+  // คลิกฉากทึบ (เฉพาะโหมด center) เพื่อปิด
+  popup.addEventListener('click', (e)=>{
+    if (popup.classList.contains('center') && e.target === popup) closePicker();
+  });
+
+  // เผื่อเรียกจากที่อื่น
+  window.__monthPicker__ = { openPicker, closePicker, positionAnchored };
+})();
 </script>

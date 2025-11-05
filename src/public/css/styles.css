@@ -3529,3 +3529,274 @@ html, body {
 .pill.progress.has-ico::before{
   content:none; /* ถ้ามี pseudo เดิม ให้ปิดเมื่อมี .has-ico */
 }
+
+/* ========== หน้า Admin Dashborad Modal เติมเงิน ========== */
+/* ===== Desktop-only ===== */
+@media (min-width: 769px) {
+  /* จัดแถวจำนวนเงิน + Method ให้อยู่วงเดียวกันและชิดบนเท่ากัน */
+  #manualTopupModal .row2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: start; /* ชิดบนเท่ากัน */
+  }
+}
+
+/* โทนสำหรับช่องอ่านอย่างเดียว */
+#manualTopupModal .input.readonly,
+#manualTopupModal select.readonly {
+  background: color-mix(in oklab, var(--card, #1c1f24) 85%, #000 15%);
+  border-color: color-mix(in oklab, var(--border, #2a2f36) 70%, #000 30%);
+  opacity: .85;
+  cursor: not-allowed;
+}
+
+/* ===== Manual Topup Modal — Dark theme for select & dropdown ===== */
+#manualTopupModal,
+#manualTopupModal select,
+#manualTopupModal option {
+  /* บอก browser ว่าใช้ dark form controls/popup */
+  color-scheme: dark;
+}
+
+/* ตัว select เอง (ปิดพื้นหลังขาวของธีมระบบ) */
+#manualTopupModal select#manualMethod {
+  background: var(--card, #1c1f24);
+  color: var(--text-primary, #f2f4f8);
+  border: 1px solid var(--border, #2a2f36);
+  outline: none;
+}
+
+/* โฟกัสให้เข้ากับธีม */
+#manualTopupModal select#manualMethod:focus {
+  box-shadow: var(--focus-ring, 0 0 0 3px rgba(42,132,255,.35));
+  border-color: color-mix(in oklab, var(--accent,#2a84ff) 55%, var(--border,#2a2f36));
+}
+
+/* รายการ option ในเมนูดรอปดาวน์ (Chrome/Edge/Firefox รองรับ) */
+#manualTopupModal select#manualMethod option {
+  background: var(--elevated-bg, #141518);
+  color: var(--text-primary, #f2f4f8);
+}
+
+/* ตัวเลือกที่ล็อกไว้ (disabled) ให้ซีดลง แต่มองเห็นได้ในมืด */
+#manualTopupModal select#manualMethod option:disabled {
+  color: color-mix(in oklab, var(--text-primary, #f2f4f8) 35%, var(--muted, #a7b0bb));
+  opacity: .55;
+}
+
+/* สไตล์ “อ่านอย่างเดียว/ถูกล็อก” ที่เราใช้ก่อนหน้า */
+#manualTopupModal .input.readonly,
+#manualTopupModal select.readonly {
+  background: color-mix(in oklab, var(--card, #1c1f24) 85%, #000 15%);
+  border-color: color-mix(in oklab, var(--border, #2a2f36) 70%, #000 30%);
+  color: var(--text-primary, #f2f4f8);
+  opacity: .9;
+  cursor: not-allowed;
+}
+
+/* จัดตำแหน่ง Method ให้อยู่ระดับเดียวกับจำนวนเงิน (เฉพาะ Desktop) */
+@media (min-width: 769px){
+  #manualTopupForm .row2{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:12px;
+    align-items:end; /* key */
+  }
+  #manualTopupForm .row2 label.align-top{
+    margin-top: 0; /* บังคับเสมอ */
+  }
+}
+
+/* ล็อกหน้าตา input เมื่อ readOnly/disabled */
+#manualTopupForm input.is-readonly{
+  opacity:.75;
+  background: var(--elevated-bg,#141518);
+  cursor: not-allowed;
+}
+#manualTopupForm select.is-disabled{
+  opacity:.75;
+  background: var(--elevated-bg,#141518);
+  cursor: not-allowed;
+}
+
+/* Dark theme select + options (เดสก์ท็อปเป็นหลัก) */
+#manualTopupForm select{
+  background: var(--elevated-bg,#141518);
+  color: var(--text-primary,#f2f4f8);
+  border: 1px solid var(--elevated-border,#24262b);
+}
+#manualTopupForm option{
+  background: #0f1013;
+  color: #eaeef5;
+}
+
+/* ป้องกัน dropdown/select ล้นขอบบนมือถือ */
+@media (max-width:768px){
+  .modal .dialog{ width: calc(100% - 18px); max-width: 420px; }
+  #manualTopupForm select{
+    max-width: 100%;
+  }
+  /* บังคับไม่ให้ layout กว้างเกิน */
+  .modal .body{ overflow-x: hidden; }
+}
+
+/* เพิ่ม cursor/appearance ที่สื่อว่าเลือกไม่ได้ */
+#manualTopupForm select:disabled,
+#manualTopupForm input[readonly]{
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* (เสริม) ป้องกัน Safari ซูมฟอร์มมือถือ */
+@media (max-width:768px){
+  #manualTopupForm input, #manualTopupForm select{
+    font-size: 16px;
+  }
+}
+
+/* ── Select (เข้ากับธีมมืด) ───────────────────────────────── */
+.select-wrap{
+  position: relative;
+  display: block;
+}
+.select-wrap .select-dark{
+  width: 100%;
+  appearance: none;           /* ซ่อน UI เดิม */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: var(--card, #1b1e23);
+  color: var(--text-primary, #f2f4f8);
+  border: 1px solid var(--border, #2a2f36);
+  border-radius: 10px;
+  padding: 10px 38px 10px 12px;  /* เผื่อพื้นที่ลูกศร */
+  line-height: 1.35;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.05);
+  min-height: 40px;
+  font-size: 14px;
+}
+.select-wrap .select-dark:focus{
+  outline: none;
+  border-color: color-mix(in oklab, var(--accent,#2a84ff) 55%, #2a2f36);
+  box-shadow: 0 0 0 3px rgba(42,132,255,.25);
+  background: #171a1f;
+}
+.select-wrap .select-dark:hover{
+  border-color: color-mix(in oklab, var(--accent,#2a84ff) 28%, #2a2f36);
+}
+
+/* ลูกศร */
+.select-wrap .select-caret{
+  position: absolute;
+  right: 10px; top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--muted, #a7b0bb);
+  font-size: 14px;
+  opacity: .9;
+}
+
+/* Disabled (โหมดล็อกจากรายการรอ) */
+.select-wrap .select-dark:disabled{
+  color: #9aa3ad;
+  background: #17191d;
+  border-color: #2a2f36;
+  cursor: not-allowed;
+  opacity: .85;
+}
+
+/* ทำ option ให้อ่านง่าย (เบราว์เซอร์ที่รองรับ) */
+.select-wrap .select-dark option{
+  color: #e6ebf1;
+  background: #0f1115;
+}
+html[data-theme="light"] .select-wrap .select-dark{
+  background:#fff; color:#111827; border-color:#e5e7eb;
+}
+html[data-theme="light"] .select-wrap .select-dark option{
+  color:#111827; background:#fff;
+}
+
+/* ── มือถือ: ป้องกันล้นและให้ dropdown กว้างเท่ากล่อง ───────── */
+@media (max-width: 768px){
+  .select-wrap { max-width: 100%; }
+  .select-wrap .select-dark{
+    max-width: 100%;
+    font-size: 15px;
+    padding: 12px 40px 12px 12px;
+  }
+}
+/* ซ่อนลูกศร IE (เผื่อ) */
+.select-wrap .select-dark::-ms-expand{ display:none; }
+
+.is-readonly{
+  background: #17191d !important;
+  color: #9aa3ad !important;
+  cursor: not-allowed !important;
+  border-color: #2a2f36 !important;
+}
+
+/* ============ Select: base ============ */
+.select-wrap{ position:relative; display:block; }
+.select-wrap select{ position:absolute; opacity:0; pointer-events:none; width:0; height:0; } /* ซ่อน native ทุกหน้าจอ */
+
+/* ปุ่มหลัก (ค่าที่เลือก) */
+.select-wrap .fake-select{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:10px; width:100%;
+  background:var(--card,#1b1e23);
+  color:var(--text-primary,#f2f4f8);
+  border:1px solid var(--border,#2a2f36);
+  border-radius:12px; padding:12px 12px;
+  min-height:44px; font-size:14px; line-height:1.35;
+  transition:border-color .15s, box-shadow .15s, background .15s, transform .05s;
+}
+.select-wrap .fake-select:hover{
+  border-color:color-mix(in oklab,var(--accent,#2a84ff) 28%, var(--border,#2a2f36));
+}
+.select-wrap .fake-select:focus-visible{
+  outline:none; box-shadow:0 0 0 3px rgba(42,132,255,.25);
+}
+.select-wrap .fake-select[disabled]{
+  color:#9aa3ad; background:#17191d; border-color:#2a2f36; cursor:not-allowed; opacity:.9;
+}
+
+/* ลูกศร */
+.select-wrap .fake-caret{ opacity:.85; }
+.select-wrap.open .fake-caret{ transform:rotate(180deg); transition:transform .15s; }
+
+/* เมนู */
+.select-wrap .fake-menu{
+  position:absolute; left:0; right:0; top:calc(100% + 6px);
+  background:#0f1115; color:#e6ebf1;
+  border:1px solid #2a2f36; border-radius:12px;
+  box-shadow:0 18px 60px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.02) inset;
+  overflow:auto; max-height:260px; display:none; z-index:1000;
+}
+.select-wrap.open .fake-menu{ display:block; }
+
+.select-wrap .fake-item{
+  display:flex; align-items:center; gap:8px;
+  width:100%; padding:10px 12px; border:0; background:transparent;
+  color:#e6ebf1; text-align:left; cursor:pointer; font-size:14px;
+}
+.select-wrap .fake-item:hover{ background:#1a1f27; }
+.select-wrap .fake-item[aria-selected="true"]{
+  background:linear-gradient(0deg, rgba(42,132,255,.12), rgba(42,132,255,.12));
+  border-left:3px solid var(--accent,#2a84ff);
+}
+.select-wrap .fake-item[disabled]{
+  color:#7f8791; cursor:not-allowed; background:transparent; opacity:.8;
+}
+
+/* สกรอลบาร์ (ดาร์ก) */
+.select-wrap .fake-menu{ scrollbar-width:thin; scrollbar-color:#3b4250 #121417; }
+.select-wrap .fake-menu::-webkit-scrollbar{ height:10px; width:10px; }
+.select-wrap .fake-menu::-webkit-scrollbar-thumb{ background:#3b4250; border-radius:10px; }
+.select-wrap .fake-menu::-webkit-scrollbar-track{ background:#121417; border-radius:10px; }
+
+/* มือถือ: ให้เมนูกว้างเท่ากล่องเสมอ */
+@media (max-width:768px){
+  .select-wrap .fake-menu{ max-height:240px; }
+}

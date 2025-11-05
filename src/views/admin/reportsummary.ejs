@@ -7,13 +7,10 @@
 
 <div class="month-toolbar" role="group" aria-label="เลือกเดือน">
   <button class="btn ghost" id="btnPrev" type="button" aria-label="เดือนก่อนหน้า">◀︎</button>
-
   <label class="month-ctrl">
-    <!-- ใช้ input แบบ readOnly เป็นปุ่มเปิด popup -->
     <input id="monthInput" type="text" value="<%= monthStr %>" readonly aria-label="เลือกเดือน" />
     <button class="icon-btn" id="btnOpenPicker" type="button" aria-label="เปิดตัวเลือกเดือน">📅</button>
   </label>
-
   <button class="btn ghost" id="btnNext" type="button" aria-label="เดือนถัดไป">▶︎</button>
   <button class="btn" id="btnThisMonth" type="button">เดือนนี้</button>
 </div>
@@ -181,35 +178,162 @@ html[data-theme="light"]{
   /* ไอคอนปฏิทินเล็กลงนิด */
   .icon-btn{ font-size: 15px; }
 }
+
+/* Popup โหมด: center หรือ anchor ใต้ toolbar */
+.mp-popup.center{
+  position:fixed; inset:0; display:grid; place-items:center;
+  background:rgba(0,0,0,.28); padding:0; z-index:2147483647;
+}
+.mp-popup.anchor{
+  position:fixed; inset:0; display:block;
+  background:transparent; pointer-events:none; z-index:2147483647;
+}
+.mp-popup.anchor .mp-card{
+  position:fixed; top:var(--mp-top,0px); left:var(--mp-left,0px);
+  width:min(320px,92vw); transform:none; pointer-events:auto;
+}
+@media (max-width:768px){
+  .mp-popup.anchor .mp-card{ width:min(360px,94vw); }
+}
+/* โหมด anchor: วาง popup ใต้ .month-toolbar เสมอ */
+.mp-popup.anchor{
+  position:fixed;
+  inset:0;
+  display:block;
+  background:transparent;           /* ไม่ต้องมีฉากมืด */
+  pointer-events:none;              /* ให้คลิกผ่านนอกการ์ดได้ */
+  z-index:2147483647;
+}
+.mp-popup.anchor .mp-card{
+  position:fixed;
+  top:var(--mp-top, 0px);
+  left:var(--mp-left, 0px);
+  transform:none;
+  width:min(420px, 94vw);           /* เดสก์ท็อปกว้างขึ้นหน่อย */
+  pointer-events:auto;              /* การ์ดรับคลิก */
+  border-radius:14px;
+  box-shadow:0 18px 60px rgba(0,0,0,.45);
+}
+
+/* ลูกศรชี้เล็ก ๆ (optional) */
+.mp-popup.anchor .mp-card::before{
+  content:"";
+  position:absolute;
+  top:-8px;
+  left:24px;                        /* จะถูกเลื่อนตาม calc left ที่ JS คำนวณ */
+  width:12px; height:12px;
+  background:inherit;
+  border-left:1px solid var(--pick-border,#262a32);
+  border-top:1px solid var(--pick-border,#262a32);
+  transform:rotate(45deg);
+}
+
+/* มือถือยังคุมขนาดให้พอดี */
+@media (max-width: 768px){
+  .mp-popup.anchor .mp-card{
+    width:min(360px, 94vw);
+    box-shadow:0 14px 36px rgba(0,0,0,.40);
+  }
+}
+
+/* คงสไตล์เดิมของ toolbar */
+.month-toolbar{
+  display:flex; align-items:center; gap:10px;
+  background:var(--pick-toolbar-bg,#15171b);
+  border:1px solid var(--tbl-border,#24262b);
+  border-radius:999px;
+  padding:6px 10px;
+  box-shadow:var(--elevated-shadow,0 10px 24px rgba(0,0,0,.25));
+}
+.month-ctrl{
+  display:flex; align-items:center; gap:6px;
+  background:var(--pick-chip-bg,rgba(255,255,255,.06));
+  border:1px solid var(--pick-chip-border,#24262b);
+  border-radius:999px; padding:6px 10px;
+}
+.month-ctrl input{
+  background:transparent; border:0; outline:none;
+  color:var(--pick-input,#f2f4f8);
+  font-weight:400; letter-spacing:.3px;
+  min-width:115px; text-align:center; cursor:pointer;
+}
+.month-ctrl input:focus-visible{ box-shadow:0 0 0 3px var(--pick-toolbar-ring,rgba(42,132,255,.35)); border-radius:8px; }
+.icon-btn{ background:transparent; border:0; cursor:pointer; color:var(--pick-icon,#a7b0bb); font-size:16px; }
+.icon-btn:hover{ color:var(--pick-icon-hover,#fff); }
+
+/* มือถือ: ให้กว้างพอดีจอ (เหมือนเดิม) */
+@media (max-width: 768px){
+  .month-toolbar-row{ padding: 0 12px; }
+  .month-toolbar{
+    width:100%;
+    max-width:min(92vw, 420px);
+    margin: 0 auto;
+    gap:8px;
+  }
+}
+
+/* เดสก์ท็อป: จัดกึ่งกลาง section เสมอ */
+@media (min-width: 1024px){
+  .month-toolbar-row{
+    display:grid;            /* ตัวคอนเทนเนอร์กว้างเต็มแถว */
+    place-items:center;      /* จัดลูกให้อยู่กลางทั้งแกน X/Y */
+    margin-top:10px;
+  }
+  .month-toolbar{
+    width:fit-content;       /* ให้กว้างเท่าที่จำเป็น เพื่อจัดกลางได้สวย */
+    margin:0;                /* ไม่ต้องใช้ margin auto แล้ว เพราะแถวจัดให้กลางให้ */
+  }
+}
+
+/* เดสก์ท็อป: พื้นหลังยาวเต็มแถว แต่ปุ่มอยู่กึ่งกลาง */
+@media (min-width:1024px){
+  .month-toolbar{
+    width: 100%;                 /* พื้นหลังยาวเต็มแถว */
+    margin: 10px 0 0;            /* ไม่ต้อง margin auto แล้ว */
+    display: flex;
+    justify-content: center;     /* จัด “คอนเทนต์” ไปกึ่งกลาง */
+    align-items: center;
+    gap: 10px;                   /* ระยะห่างปุ่ม ๆ */
+  }
+
+  /* ไม่ให้ลูก ๆ ถูกยืดกว้างตาม 100% */
+  .month-toolbar > *{
+    flex: 0 0 auto;
+  }
+}
 </style>
 
 <script>
 (function(){
   const MONTH_NAMES_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-  const input = document.getElementById('monthInput');
+
+  const input   = document.getElementById('monthInput');
   const btnOpen = document.getElementById('btnOpenPicker');
-  const popup = document.getElementById('monthPicker');
-  const yearEl = document.getElementById('mpYear');
-  const grid = document.getElementById('mpGrid');
-  const btnPrevY = document.getElementById('mpPrevYear');
-  const btnNextY = document.getElementById('mpNextYear');
-  const btnOK = document.getElementById('mpOK');
-  const btnClear = document.getElementById('mpClear');
+  const popup   = document.getElementById('monthPicker');
+  const yearEl  = document.getElementById('mpYear');
+  const grid    = document.getElementById('mpGrid');
+  const btnPrevY= document.getElementById('mpPrevYear');
+  const btnNextY= document.getElementById('mpNextYear');
+  const btnOK   = document.getElementById('mpOK');
+  const btnClear= document.getElementById('mpClear');
   const btnThis = document.getElementById('mpThisMonth');
 
   const btnPrev = document.getElementById('btnPrev');
   const btnNext = document.getElementById('btnNext');
   const btnThisMonth = document.getElementById('btnThisMonth');
 
-  const now = new Date();
-  let selYear = now.getFullYear();
-  let selMonth = now.getMonth(); // 0..11
-  let tempYear, tempMonth; // สำหรับใน popup
+  const toolbarEl = document.querySelector('.month-toolbar');
+  const card = popup?.querySelector('.mp-card');
 
-  const monthStrInit = (input.value || '').slice(0,7);
-  if (monthStrInit) {
+  const now = new Date();
+  let selYear  = now.getFullYear();
+  let selMonth = now.getMonth(); // 0..11
+  let tempYear, tempMonth;
+
+  const monthStrInit = (input?.value || '').slice(0,7);
+  if (monthStrInit){
     const [yy,mm] = monthStrInit.split('-').map(n=>+n);
-    selYear = yy; selMonth = (mm-1);
+    if (yy && mm){ selYear = yy; selMonth = mm-1; }
   }
   tempYear = selYear; tempMonth = selMonth;
 
@@ -220,7 +344,7 @@ html[data-theme="light"]{
     location.href = u.toString();
   }
 
-  // toolbar prev/next/เดือนนี้
+  // ── Toolbar prev/next/เดือนนี้ ──
   btnPrev?.addEventListener('click', ()=>{
     const d = new Date(selYear, selMonth-1, 1);
     go(toYYYYMM(d.getFullYear(), d.getMonth()));
@@ -233,73 +357,118 @@ html[data-theme="light"]{
     go(toYYYYMM(now.getFullYear(), now.getMonth()));
   });
 
-  // -------- Month Picker --------
+  // ── วาด grid เดือน ──
   function renderGrid(){
+    if (!yearEl || !grid) return;
     yearEl.textContent = String(tempYear);
     grid.innerHTML = '';
     for (let m=0;m<12;m++){
-      const btn = document.createElement('button');
-      btn.type='button';
-      btn.className='mp-m' + (m===tempMonth && tempYear===selYear ? ' active' : '') + (m===now.getMonth() && tempYear===now.getFullYear() ? ' current' : '');
-      btn.textContent = MONTH_NAMES_TH[m];
-      btn.setAttribute('role','gridcell');
-      btn.addEventListener('click', ()=>{
+      const b = document.createElement('button');
+      b.type='button';
+      b.className = 'mp-m'
+        + (m===tempMonth && tempYear===selYear ? ' active' : '')
+        + (m===now.getMonth() && tempYear===now.getFullYear() ? ' current' : '');
+      b.textContent = MONTH_NAMES_TH[m];
+      b.setAttribute('role','gridcell');
+      b.addEventListener('click', ()=>{
         tempMonth = m;
         [...grid.children].forEach(c=>c.classList.remove('active'));
-        btn.classList.add('active');
+        b.classList.add('active');
       });
-      grid.appendChild(btn);
+      grid.appendChild(b);
     }
   }
 
+  // ── โหมดจัดวาง: center (เดสก์ท็อป) / anchor (มือถือ) ──
+  function chooseMode(){
+    return 'anchor'; // เดสก์ท็อปก็วางใต้ toolbar เสมอ
+  }
+  function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
+  function positionAnchored(){
+    if (!toolbarEl || !popup || !card) return;
+    const rect = toolbarEl.getBoundingClientRect();
+    const gap  = 8;
+    const cardW = Math.min(320, Math.round(window.innerWidth * 0.92));
+    let left = rect.left + (rect.width/2) - (cardW/2);
+    left = clamp(left, 12, window.innerWidth - cardW - 12);
+    let top  = rect.bottom + gap;
+    const cardH = card.offsetHeight || 260;
+    top = clamp(top, 12, window.innerHeight - cardH - 12);
+    card.style.setProperty('--mp-left', `${Math.round(left)}px`);
+    card.style.setProperty('--mp-top',  `${Math.round(top)}px`);
+  }
+  function applyMode(mode){
+    popup.classList.remove('center','anchor');
+    popup.classList.add(mode);
+    if (mode==='anchor') positionAnchored();
+  }
+  function onRelayout(){
+    if (!popup || popup.hasAttribute('hidden')) return;
+    if (popup.classList.contains('anchor')) positionAnchored();
+  }
+
+  // ── เปิด/ปิด ──
   function openPicker(){
-    // ป้องกันซ้อน
+    if (!popup || !popup.hasAttribute('hidden')===false) {/* no-op */}
     if (!popup.hasAttribute('hidden')) return;
+
+    // sync grid state ทุกครั้ง
+    tempYear = selYear; tempMonth = selMonth;
+    renderGrid();
+
+    applyMode(chooseMode());
     popup.removeAttribute('hidden');
-    popup.setAttribute('aria-hidden', 'false');
-    // ใส่คลาสเพื่อแอนิเมชัน (ถ้ามี)
-    popup.classList.add('open');
-    setTimeout(()=>popup.querySelector('.mp-m')?.focus(), 0);
-  }
+    popup.setAttribute('aria-hidden','false');
 
+    setTimeout(()=> popup.querySelector('.mp-m')?.focus(), 0);
+    window.addEventListener('resize', onRelayout, {passive:true});
+    window.addEventListener('scroll', onRelayout, {passive:true});
+  }
   function closePicker(){
-    popup.classList.remove('open');
-    popup.setAttribute('aria-hidden', 'true');
-    // ใช้ hidden เพื่อให้แน่ใจว่า display:none
-    popup.setAttribute('hidden', '');
+    if (!popup) return;
+    popup.setAttribute('hidden','');
+    popup.setAttribute('aria-hidden','true');
+    popup.classList.remove('center','anchor');
+    window.removeEventListener('resize', onRelayout);
+    window.removeEventListener('scroll', onRelayout);
   }
 
+  // ปุ่มเปิด
   btnOpen?.addEventListener('click', openPicker);
   input?.addEventListener('click', openPicker);
 
+  // เดินปี
   btnPrevY?.addEventListener('click', ()=>{ tempYear--; renderGrid(); });
   btnNextY?.addEventListener('click', ()=>{ tempYear++; renderGrid(); });
 
+  // ยืนยัน / ล้าง / เดือนนี้
   btnOK?.addEventListener('click', ()=>{
     selYear = tempYear; selMonth = tempMonth;
     input.value = toYYYYMM(selYear, selMonth);
     closePicker();
     go(input.value);
   });
-
   btnClear?.addEventListener('click', ()=>{
     input.value = '';
     closePicker();
-    // กลับค่า default = เดือนปัจจุบัน
     go(toYYYYMM(now.getFullYear(), now.getMonth()));
   });
+  btnThis?.addEventListener('click', ()=>{
+    tempYear = now.getFullYear(); tempMonth = now.getMonth();
+    renderGrid();
+  });
 
-  // ปิดเมื่อคลิกนอกการ์ด
-  // ปิดเมื่อกด ESC
+  // ESC ปิด
   window.addEventListener('keydown', (e)=>{
-    if (e.key === 'Escape' && !popup.hasAttribute('hidden')) closePicker();
+    if (e.key==='Escape' && !popup.hasAttribute('hidden')) closePicker();
   });
-
-  // คลิกนอกการ์ดให้ปิด
+  // คลิกฉากทึบ (เฉพาะโหมด center) เพื่อปิด
   popup.addEventListener('click', (e)=>{
-    if (e.target === popup) closePicker();
+    if (popup.classList.contains('center') && e.target === popup) closePicker();
   });
 
+  // เผื่อเรียกจากที่อื่น
+  window.__monthPicker__ = { openPicker, closePicker, positionAnchored };
 })();
 </script>
 
