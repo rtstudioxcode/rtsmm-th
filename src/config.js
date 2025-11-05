@@ -25,6 +25,10 @@ const envConfig = {
     pass: process.env.MAIL_PASS || '',
     from: process.env.MAIL_FROM || '',
   },
+  otp24: {
+    baseUrl: ((process.env.OTP24_API_BASE || '').replace(/\/+$/, '')) || '',
+    apiKey: process.env.OTP24_API_KEY || ''
+  },
   otp: {
     ttlSec: Number(process.env.OTP_CODE_TTL || 600),
     resendCooldownSec: Number(process.env.OTP_RESEND_COOLDOWN || 60),
@@ -39,18 +43,13 @@ export const config = structuredClone(envConfig);
 /* ================= DB-backed secure config ================ */
 const secureConfigSchema = new mongoose.Schema(
   {
-    // ตัวอย่างเอกสารใน collection: secure_config
-    // {
-    //   port: 3000,
-    //   sessionSecret: "xxxx",
-    //   ipv: { apiBase: "https://api.iplusview.store", apiKey: "...." },
-    //   mail: { host, port, user, pass, from },
-    //   otp: { ttlSec, resendCooldownSec, maxAttempts },
-    //   mongoUriEnc: "<AES-GCM ciphertext>"    // (optional)
-    // }
     port: Number,
     sessionSecret: String,
     ipv: {
+      apiBase: String,
+      apiKey: String,
+    },
+    otp24: {
       apiBase: String,
       apiKey: String,
     },
@@ -67,7 +66,7 @@ const secureConfigSchema = new mongoose.Schema(
       maxAttempts: Number,
     },
     TW_GEN_LINK_SECRET: String,
-    mongoUriEnc: String, // ✅ เพิ่ม field สำหรับเก็บ Mongo URI แบบเข้ารหัส
+    mongoUriEnc: String,
   },
   { collection: 'secure_config', minimize: true }
 );
@@ -81,28 +80,30 @@ const trimBase = (u = '') => String(u).replace(/\/+$/, '');
 function applyDBToConfig(doc) {
   if (!doc) return;
 
-  // ถ้ามี mongoUriEnc จะเก็บไว้ “แยก” ไม่ทับ env โดยตรง
   if (doc.mongoUriEnc) {
     const key = process.env.CONFIG_KEY || '';
     try {
       const dec = decryptAesGcm(doc.mongoUriEnc, key);
-      if (dec) config.mongoUriFromDBDecrypted = dec; // เก็บไว้ใช้รอบถัด ๆ ไป
-    } catch {
-      // เงียบไว้: กุญแจไม่ถูก/ถอดไม่ได้
-    }
+      if (dec) config.mongoUriFromDBDecrypted = dec;
+    } catch {}
   }
 
-  // พอร์ตและ session
   if (Number.isFinite(doc.port)) config.port = Number(doc.port);
   if (doc.sessionSecret) config.sessionSecret = String(doc.sessionSecret);
 
-  // ผู้ให้บริการ (IPV)
-  const base = trimBase(doc?.ipv?.apiBase || '');
-  const key  = (doc?.ipv?.apiKey || '').trim();
-  if (base) config.provider.baseUrl = base;
-  if (key)  config.provider.apiKey  = key;
+  // iPlusView
+  const baseIpv = trimBase(doc?.ipv?.apiBase || '');
+  const keyIpv  = (doc?.ipv?.apiKey || '').trim();
+  if (baseIpv) config.provider.baseUrl = baseIpv;
+  if (keyIpv)  config.provider.apiKey  = keyIpv;
 
-  // อีเมล
+  // ✅ otp24hr
+  const baseOtp24 = trimBase(doc?.otp24?.apiBase || '');
+  const keyOtp24  = (doc?.otp24?.apiKey || '').trim();
+  if (baseOtp24) config.otp24.baseUrl = baseOtp24;
+  if (keyOtp24)  config.otp24.apiKey  = keyOtp24;
+
+  // mail
   if (doc.mail) {
     if (doc.mail.host) config.mail.host = String(doc.mail.host);
     if (Number.isFinite(doc.mail.port)) config.mail.port = Number(doc.mail.port);
@@ -126,8 +127,8 @@ export async function refreshConfigFromDB() {
   try {
     const doc = await SecureConfig.findOne().lean();
     applyDBToConfig(doc || null);
-    // ปรับ baseUrl ให้ไม่มี slash ท้าย
     config.provider.baseUrl = trimBase(config.provider.baseUrl);
+    config.otp24.baseUrl    = trimBase(config.otp24.baseUrl);
     return config;
   } catch {
     return config;
@@ -148,15 +149,16 @@ export async function getSecureConfigDoc() {
 /** เลือก URI ที่จะใช้เชื่อม (ลำดับ: ถอดรหัสจาก DB > ENV > ค่าในไฟล์นี้) */
 export function resolveMongoUri() {
   return (
-    config.mongoUriFromDBDecrypted || // ถ้ามีค่าใน DB + ถอดรหัสได้ (หลังรีเฟรช)
-    process.env.MONGO_URI ||          // .env ปัจจุบัน
-    config.mongoUri                   // ค่าดีฟอลต์ในไฟล์นี้ (สุดท้าย)
+    config.mongoUriFromDBDecrypted ||
+    process.env.MONGO_URI ||
+    config.mongoUri
   );
 }
 
 /** ต่อ MongoDB ถ้ายังไม่ต่อ หรือหลุดไปแล้ว */
+
 export async function connectMongoIfNeeded() {
-  const st = mongoose.connection.readyState; // 0=disconnected, 1=connected, 2=connecting, 3=disconnecting
+  const st = mongoose.connection.readyState;
   if (st === 1 || st === 2) return mongoose.connection;
 
   const uri = resolveMongoUri();
@@ -164,4 +166,10 @@ export async function connectMongoIfNeeded() {
 
   await mongoose.connect(uri);
   return mongoose.connection;
+}
+
+export function getOtp24Config() {
+  const baseUrl = trimBase(config.otp24?.baseUrl || '');
+  const apiKey  = (config.otp24?.apiKey || '').trim();
+  return { baseUrl, apiKey };
 }

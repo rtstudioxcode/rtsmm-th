@@ -1,0 +1,1106 @@
+<!-- //admin/otp24_dashboard.ejs -->
+<h2 style="text-align: center;">Admin Panel | OTP24</h2>
+<div class="grid cards">
+  <!-- <section class="card2">
+    <div class="card-head row-head">
+      <h3>ขายแล้ว</h3>
+      <div class="head-right">
+        <span class="metric-badge">
+          <%= (stats?.orderCount || 0).toLocaleString() %> รายการ
+        </span>
+      </div>
+    </div>
+  </section> -->
+  <section class="card2">
+    <div class="card-head row-head">
+      <h3>สมาชิกทั้งหมดในเว็บ</h3>
+      <div class="head-right">
+        <span class="metric-badge">
+          <%= (stats?.userCount || 0).toLocaleString() %> คน
+        </span>
+      </div>
+    </div>
+  </section>
+  <section class="card2">
+    <div class="card-head row-head">
+      <h3>รายงานการเติมเงิน</h3>
+      <a class="btn" href="/admin/topup-report">รายงานการเติมเงิน</a>
+    </div>
+  </section>
+</div>
+
+<div class="grid cards">
+  <section class="card">
+    <h3>เครดิตผู้ให้บริการ</h3>
+    <div id="bal" class="big"><%= (typeof balance !== 'undefined' ? balance : '—') %></div>
+    <button class="btn" onclick="refreshBal()">รีเฟรชเครดิต</button>
+  </section>
+  <section class="card">
+    <div class="card-head row-head">
+      <h3>ซิงก์บริการ</h3>
+      <div class="head-right muted">
+        บริการในปัจจุบัน:
+        <b id="svcTotal"><%= (servicesTotal ?? 0).toLocaleString() %></b> รายการ
+      </div>
+    </div>
+
+    <button class="btn" onclick="syncServices()">ดึงบริการทั้งหมด</button>
+
+    <div id="syncRes" class="mt muted">
+      ล่าสุด: <%= lastSyncAt ? new Date(lastSyncAt).toLocaleString() : '—' %>
+    </div>
+  </section>
+  <section class="card">
+    <h3>ตั้งค่าราคา</h3>
+    <a class="btn" href="/admin/pricing">ไปหน้ากฎปรับราคา</a>
+    <p class="muted mt">
+      ปรับทั้งเว็บ, รายหมวด, หมวดย่อย หรือรายบริการ | โหมด: % / +คงที่ / set
+      ราคา
+    </p>
+  </section>
+</div>
+
+<div class="grid cards">
+  <section class="card">
+    <h3>ข้อมูลผู้ใช้ทั้งหมด</h3>
+    <a class="btn" href="/admin/users">ข้อมูลผู้ใช้</a>
+    <p class="muted mt">ไปที่หน้าข้อมูลผู้ใช้</p>
+  </section>
+  <!-- <section class="card">
+    <h3>รายการสั่งซื้อบริการ</h3>
+    <a class="btn" href="/admin/orders">รายการออเดอร์</a>
+    <p class="muted mt">ไปที่หน้ารายการสั่งซื้อออบริการของผู้ใช้</p>
+  </section> -->
+  <!-- <section class="card">
+    <h3>สรุปยอดขายรายเดือน</h3>
+    <a class="btn" href="/admin/report/summary">สรุปยอดขายรายเดือน</a>
+    <p class="muted mt">ไปที่หน้าสรุปยอดขายรายเดือน</p>
+  </section> -->
+</div>
+<% const BANK_LABELS = { bbl: 'ธนาคารกรุงเทพ', kbank: 'ธนาคารกสิกรไทย', ktb:
+'ธนาคารกรุงไทย', bay: 'ธนาคารกรุงศรีอยุธยา', scb: 'ธนาคารไทยพาณิชย์', tmb:
+'ทหารไทยธนชาต (TTB)', cimb: 'ธนาคารซีไอเอ็มบีไทย', uob: 'ธนาคารยูโอบี', gsb:
+'ธนาคารออมสิน', baac: 'ธ.เพื่อการเกษตรและสหกรณ์การเกษตร', kkb:
+'ธนาคารเกียรตินาคินภัทร', lhfg: 'ธนาคารแลนด์ แอนด์ เฮ้าส์', icbc:
+'ธนาคารไอซีบีซี (ไทย)', tisco: 'ธนาคารทิสโก้', tw: 'TrueMoney Wallet' }; %>
+
+<div class="history-wrapper card soft">
+  <h3 class="title flex-between">
+    รายการเติมเงินที่รอดำเนินการ
+    <button class="btn small primary" onclick="openManualTopupModal()">
+      + เติมเงินด้วยตนเอง
+    </button>
+  </h3>
+
+  <% if (transactions && transactions.length > 0) { %>
+
+  <!-- ===== Desktop/Table view (คงของเดิม) ===== -->
+  <div class="desktop-only">
+    <table class="history-table">
+      <thead>
+        <tr>
+          <th>วันที่ / เวลา</th>
+          <th>ข้อมูลผู้โอน</th>
+          <th>ข้อมูลผู้รับ</th>
+          <th>จำนวนเงิน</th>
+          <th>สถานะ</th>
+          <th>จัดการ</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% transactions.forEach(tx => {
+             const method = tx.method?.toLowerCase() || "";
+             const wallet = (webWallets || []).find(w => w.accountCode === method);
+             const statusLabel =
+               tx.status === "completed" ? "สำเร็จ" :
+               tx.status === "pending"   ? "รอดำเนินการ" :
+               (tx.status === "reject" || tx.status === "rejected") ? "ถูกปฏิเสธ" :
+               tx.status === "failed"    ? "ล้มเหลว" : "ยกเลิก";
+        %>
+        <tr>
+          <!-- วันที่ -->
+          <td class="muted">
+            <%= new Date(tx.createdAt).toLocaleString('th-TH', {
+              year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'
+            }) %>
+          </td>
+
+          <!-- ข้อมูลผู้โอน -->
+          <td>
+            <% if (method === 'truewallet' || method === 'tw') { %>
+              <img src="/static/assets/payment/tw.webp" class="bank-logo" />
+              <div><b>TrueWallet</b></div>
+              <div class="muted">เบอร์ผู้โอน: <%= tx.senderNumber || '-' %></div>
+            <% } else { %>
+              <img src="/static/assets/payment/mobilebanking.png" class="bank-logo" />
+              <div><b><%= BANK_LABELS[tx.senderBank] || 'ไม่ระบุธนาคาร' %></b></div>
+              <div class="muted">เลขท้ายบัญชีผู้โอน: <%= tx.senderLast6 || '-' %></div>
+            <% } %>
+          </td>
+
+          <!-- ข้อมูลผู้รับ -->
+          <td>
+            <% if (wallet) { %>
+              <img src="/static/assets/payment/<%= wallet.accountCode %>.webp" class="bank-logo" />
+              <div><b><%= wallet.accountName %></b></div>
+              <div class="muted">เลขบัญชี: <%= wallet.accountNumber %></div>
+            <% } else { %>
+              <span class="muted">ไม่พบข้อมูลผู้รับ</span>
+            <% } %>
+          </td>
+
+          <!-- จำนวนเงิน -->
+          <td class="amount">
+            ฿<%= Number(tx.amount).toLocaleString(undefined,{ minimumFractionDigits: 2 }) %>
+          </td>
+
+          <!-- สถานะ -->
+          <td class="status <%= tx.status.toLowerCase() %>"><%= statusLabel %></td>
+
+          <!-- Action -->
+          <td>
+            <button
+              class="btn small success"
+              onclick="openManualTopupModal(
+                '<%= tx.transactionId %>',
+                <%= tx.amount %>,
+                '<%= (tx.user?.username||'').replace(/'/g,'\\\'') %>',
+                '<%= (tx.method || 'admin').toLowerCase() %>',
+                true   // ⬅️ ล็อกค่า
+              )">
+              เติมให้ผู้ใช้
+            </button>
+            <button
+              class="btn small danger"
+              onclick="rejectTx('<%= (tx._id || tx.transactionId) %>')">
+              ปฏิเสธ
+            </button>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===== Mobile/Card view (หุบ/ขยาย) ===== -->
+  <div class="mobile-only tx-accordion-list">
+    <% transactions.forEach(tx => {
+         const method = (tx.method||'').toLowerCase();
+         const wallet = (webWallets || []).find(w => w.accountCode === method);
+         const statusLabel =
+           tx.status === "completed" ? "สำเร็จ" :
+           tx.status === "pending"   ? "รอดำเนินการ" :
+           (tx.status === "reject" || tx.status === "rejected") ? "ถูกปฏิเสธ" :
+           tx.status === "failed"    ? "ล้มเหลว" : "ยกเลิก";
+    %>
+    <div class="tx-accordion" data-open="0">
+      <!-- แถวหัว (ปิดอยู่) -->
+      <button class="tx-accordion__head" type="button">
+        <div class="tx-accordion__title">
+          <span class="tx-id" title="<%= tx.transactionId || '' %>">
+            <%= tx.transactionId || '—' %>
+          </span>
+        </div>
+        <div class="tx-accordion__meta">
+          <span class="tx-date">
+            <%= new Date(tx.createdAt).toLocaleString('th-TH', {
+              year:'numeric', month:'2-digit', day:'2-digit',
+              hour:'2-digit', minute:'2-digit', second:'2-digit'
+            }) %>
+          </span>
+          <span class="tx-toggle"></span>
+        </div>
+      </button>
+
+      <!-- เนื้อหารายละเอียด -->
+      <div class="tx-accordion__body">
+        <div class="tx-row">
+          <div class="tx-label">ผู้โอน</div>
+          <div class="tx-value">
+            <% if (method === 'truewallet' || method === 'tw') { %>
+              <img src="/static/assets/payment/tw.webp" class="bank-logo" alt="">
+              <b>TrueWallet</b><br>
+              <span class="muted">เบอร์ผู้โอน: <%= tx.senderNumber || '-' %></span>
+            <% } else { %>
+              <img src="/static/assets/payment/<%= tx.senderBank %>.webp" class="bank-logo" alt="">
+              <b><%= BANK_LABELS[tx.senderBank] || 'ไม่ระบุธนาคาร' %></b><br>
+              <span class="muted">เลขท้ายบัญชีผู้โอน: <%= tx.senderLast6 || '-' %></span>
+            <% } %>
+          </div>
+        </div>
+
+        <div class="tx-row">
+          <div class="tx-label">ผู้รับ</div>
+          <div class="tx-value">
+            <% if (wallet) { %>
+              <img src="/static/assets/payment/<%= wallet.accountCode %>.webp" class="bank-logo" alt="">
+              <b><%= wallet.accountName %></b><br>
+              <span class="muted">เลขบัญชี: <%= wallet.accountNumber %></span>
+            <% } else { %>
+              <span class="muted">ไม่พบข้อมูลผู้รับ</span>
+            <% } %>
+          </div>
+        </div>
+
+        <div class="tx-row">
+          <div class="tx-label">จำนวนเงิน</div>
+          <div class="tx-value">
+            <b>฿<%= Number(tx.amount).toLocaleString(undefined,{minimumFractionDigits:2}) %></b>
+          </div>
+        </div>
+
+        <div class="tx-row">
+          <div class="tx-label">สถานะ</div>
+          <div class="tx-value">
+            <span class="pill pill--<%= (tx.status||'').toLowerCase() %>"><%= statusLabel %></span>
+          </div>
+        </div>
+
+        <div class="tx-actions">
+          <button class="btn small success" style="width:100%;"
+            onclick="openManualTopupModal(
+              '<%= tx.transactionId %>',
+              <%= tx.amount %>,
+              '<%= (tx.user?.username||'').replace(/'/g, "\\'") %>',
+              '<%= (tx.method || 'admin').toLowerCase() %>',
+              true   // ⬅️ ล็อกค่า
+            )">
+            เติมให้ผู้ใช้
+          </button>
+          <button class="btn small danger" style="width: 100%; margin-top: 8px;"
+            onclick="rejectTx('<%= (tx._id || tx.transactionId) %>')">
+            ปฏิเสธ
+          </button>
+        </div>
+      </div>
+    </div>
+    <% }) %>
+  </div>
+
+  <% } else { %>
+    <div class="empty-history">
+      <img src="/static/assets/emoji/empty.png" alt="ยังไม่มีรายการเติมเงิน" />
+      <p class="muted">ยังไม่มีรายการเติมเงิน</p>
+    </div>
+  <% } %>
+</div>
+
+<div id="manualTopupModal" class="hidden modal">
+  <div class="overlay" data-close="1"></div>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="manualTitle">
+    <div class="hdr">
+      <div class="title" id="manualTitle">เติมเงินให้ผู้ใช้</div>
+      <button class="icon close" id="manualTopupClose" aria-label="ปิด">×</button>
+    </div>
+    <hr class="sep" />
+
+    <div class="body">
+      <form id="manualTopupForm" onsubmit="return submitManualTopup(event)">
+        <label>
+          ชื่อผู้ใช้ (Username)
+          <input
+            type="text"
+            id="manualUsername"
+            list="userList"
+            autocomplete="off"
+            required
+            placeholder="พิมพ์ค้นหา เช่น: ad"
+            class="block input mt-sm"
+          />
+          <datalist id="userList"></datalist>
+        </label>
+
+        <div class="row2 mt">
+          <label class="grow">
+            จำนวนเงิน
+            <input
+              type="number"
+              id="manualAmount"
+              required
+              min="1"
+              step="0.01"
+              placeholder="เช่น 100.00"
+              class="block input mt-sm"
+            />
+          </label>
+
+          <label class="grow">
+            วิธีการเติม (Method)
+            <div class="select-wrap">
+              <select id="manualMethod" required class="block input mt-sm">
+                <option value="admin" selected>แอดมิน</option>
+                <option value="truewallet">True Wallet</option>
+                <option value="kbank">KBank</option>
+                <option value="scb">SCB</option>
+                <option value="manual">เติมมือ</option>
+              </select>
+            </div>
+          </label>
+        </div>
+
+        <div class="card soft mt">
+          💡 ระบบจะเพิ่มยอดเงินเข้าบัญชีของผู้ใช้ทันที และบันทึกในระบบ
+        </div>
+
+        <div class="footer d-flex justify-content-center mt">
+          <button class="block btn primary" type="submit">
+            ยืนยันเติมเงิน
+          </button>
+        </div>
+      </form>
+      <div id="manualTopupStatus" class="mt"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function refreshBal(){
+  const el = document.getElementById('bal');
+  const old = el.textContent;
+  el.textContent = 'กำลังโหลด…';
+
+  try {
+    const r = await fetch('/admin/otp24/balance/refresh', { method: 'POST' });
+    const j = await r.json();
+    if (!r.ok || !j?.ok) throw new Error(j?.error || 'refresh-failed');
+
+    const val = Number(j.balance ?? 0);
+    el.textContent = val.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+
+    const currency = j.currency || (window.__CURRENCY__ || 'THB');
+    if (typeof window.showMsg === 'function') {
+      window.showMsg({
+        variant: 'success',
+        title: 'อัปเดตเครดิตสำเร็จ',
+        text: `ยอดคงเหลือ: ${val.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2})} ${currency}`,
+        okText: 'ปิด'
+      });
+    }
+  } catch (e) {
+    el.textContent = old;
+
+    if (typeof window.showMsg === 'function') {
+      window.showMsg({
+        variant: 'danger',
+        title: 'อัปเดตเครดิตไม่สำเร็จ',
+        text: String(e?.message || e || 'เกิดข้อผิดพลาด'),
+        okText: 'ปิด'
+      });
+    } else {
+      alert('รีเฟรชเครดิตไม่สำเร็จ: ' + (e.message || e));
+    }
+  }
+}
+
+async function syncServices() {
+  try {
+    const res = await fetch('/admin/otp24/sync-services', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' }
+    });
+    const text = await res.text();
+    let data = null; try { data = JSON.parse(text); } catch {}
+    if (!res.ok || !data?.ok) throw new Error(data?.error || `${res.status} ${res.statusText}`);
+
+    const synced = Number(data.synced ?? 0);
+    const servicesTotal = Number(data.servicesTotal ?? 0);
+
+    // อัปเดตจำนวนบริการรวม (override)
+    const svcEl = document.getElementById('svcTotal');
+    if (svcEl) svcEl.textContent = servicesTotal.toLocaleString();
+
+    // อัปเดตเวลาล่าสุด
+    const el = document.getElementById('syncRes');
+    if (el) {
+      const when = data.lastSyncAt ? new Date(data.lastSyncAt).toLocaleString() : new Date().toLocaleString();
+      el.textContent = `ดึงบริการสำเร็จ ${synced.toLocaleString()} รายการ (ล่าสุด: ${when})`;
+    }
+
+    // แจ้งเตือนสวย ๆ
+    if (typeof window.showMsg === 'function') {
+      window.showMsg({
+        variant: 'success',
+        title: 'ซิงก์สำเร็จ',
+        text: `ดึงบริการสำเร็จ ${synced.toLocaleString()} รายการ`,
+        okText:'ปิด'
+      });
+    }
+  } catch (err) {
+    if (typeof window.showMsg === 'function') {
+      window.showMsg({
+        variant: 'danger',
+        title: 'ซิงก์ล้มเหลว',
+        text: String(err?.message || err),
+        okText: 'ปิด'
+      });
+    } else {
+      alert('ซิงก์ล้มเหลว: ' + (err?.message || err));
+    }
+    console.error('[syncServices] failed:', err);
+  }
+}
+</script>
+
+<script>
+  async function rejectTx(id){
+    if (!id) return alert('ไม่พบรหัสรายการ');
+
+    // 🔔 ใช้การ์ดยืนยันแบบภาพตัวอย่าง (โหมด danger)
+    const ok = await uiConfirm({
+      variant: 'danger',
+      title: 'ยืนยันปฏิเสธรายการ?',
+      sub: 'การปฏิเสธจะเปลี่ยนสถานะเป็น Reject และไม่เพิ่มยอดผู้ใช้',
+      okText: 'ปฏิเสธ',
+      cancelText: 'ยกเลิก',
+      focus: 'cancel'
+    });
+    if (!ok) return;
+
+    try {
+      const r = await fetch(`/admin/topup/${encodeURIComponent(id)}/reject`, {
+        method:'POST', headers:{'Content-Type':'application/json'}
+      });
+      const j = await r.json().catch(()=> ({}));
+      if (!r.ok || !j.ok) throw new Error(j?.error || 'ปฏิเสธไม่สำเร็จ');
+
+      // โชว์การ์ด Success
+      await uiConfirm({
+        variant:'success',
+        title:'สำเร็จ',
+        sub:'ปฏิเสธรายการเรียบร้อย',
+        okText:'ปิด',
+        cancelText:'Cancel'
+      });
+
+      location.reload();
+    } catch(err){
+      await uiConfirm({
+        variant:'danger',
+        title:'ล้มเหลว',
+        sub:String(err?.message || err),
+        okText:'ลองอีกครั้ง',
+        cancelText:'ปิด'
+      });
+    }
+  }
+</script>
+
+<script>
+  function debounce(fn, ms=250){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+
+  function renderUserDatalist(items){
+    const dl = document.getElementById('userList');
+    dl.innerHTML = '';
+    (items||[]).forEach(u=>{
+      const opt = document.createElement('option');
+      opt.value = u.username;                      // ค่าที่จะถูกกรอก
+      opt.label = `${u.username}${u.email?' · '+u.email:''}`;
+      dl.appendChild(opt);
+    });
+  }
+
+  const doUserSearch = debounce(async function(q){
+    try{
+      const url = q && q.length
+        ? `/admin/api/users/search?q=${encodeURIComponent(q)}&limit=20`
+        : `/admin/api/users/search?limit=20`;      // อนุญาต preload (q ว่าง)
+      const r = await fetch(url);
+      const j = await r.json();
+      if (j?.ok) renderUserDatalist(j.items);
+    }catch{}
+  }, 250);
+
+  function bindUsernameSearchOnce(){
+    const el = document.getElementById('manualUsername');
+    if (!el || el.__binded) return;
+    el.addEventListener('input', e => doUserSearch(e.target.value.trim()));
+    el.__binded = true;
+  }
+
+  (function makeBeautifulSelect(){
+    const sel = document.getElementById('manualMethod');
+    const wrap = sel?.closest('.select-wrap');
+    if (!sel || !wrap) return;
+
+    // ปุ่มหลัก
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'fake-select';
+    btn.innerHTML = `
+      <span class="fake-label">${sel.options[sel.selectedIndex]?.text || 'เลือกวิธีการ'}</span>
+      <span class="fake-caret">▾</span>
+    `;
+
+    // เมนู
+    const menu = document.createElement('div');
+    menu.className = 'fake-menu';
+
+    const rebuildMenu = () => {
+      menu.innerHTML = '';
+      [...sel.options].forEach((o, idx) => {
+        const it = document.createElement('button');
+        it.type = 'button';
+        it.className = 'fake-item';
+        it.textContent = o.textContent;
+        if (o.disabled) it.disabled = true;
+        if (idx === sel.selectedIndex) it.setAttribute('aria-selected', 'true');
+        it.addEventListener('click', () => {
+          if (o.disabled) return;
+          sel.value = o.value;
+          btn.querySelector('.fake-label').textContent = o.textContent;
+          wrap.classList.remove('open');
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        menu.appendChild(it);
+      });
+    };
+    rebuildMenu();
+
+    // เปิด/ปิดเมนู
+    btn.addEventListener('click', () => { if (!btn.disabled) wrap.classList.toggle('open'); });
+    document.addEventListener('click', (e) => { if (!wrap.contains(e.target)) wrap.classList.remove('open'); });
+
+    // sync disabled/selected จาก select
+    const syncState = () => {
+      btn.disabled = sel.disabled;
+      btn.querySelector('.fake-label').textContent = sel.options[sel.selectedIndex]?.text || '';
+      rebuildMenu();
+    };
+    const mo = new MutationObserver(syncState);
+    mo.observe(sel, { attributes: true, attributeFilter: ['disabled'] });
+    sel.addEventListener('change', syncState);
+
+    // ป้องกันเมนูล้นขอบจอ (คำนวณความสูงตาม viewport)
+    const fitMenu = () => {
+      const r = wrap.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - r.bottom - 16;
+      menu.style.maxHeight = Math.max(160, Math.min(320, spaceBelow)).toFixed(0) + 'px';
+    };
+    window.addEventListener('resize', fitMenu);
+    window.addEventListener('scroll', fitMenu, { passive: true });
+    btn.addEventListener('click', fitMenu);
+
+    wrap.appendChild(btn);
+    wrap.appendChild(menu);
+  })();
+
+  function openManualTopupModal(txId = null, amount = null, suggestedUsername = '', method = 'admin', lock = false){
+    const modal = document.getElementById("manualTopupModal");
+    if (!modal) return;
+    modal.classList.remove("hidden");
+
+    const form    = document.getElementById("manualTopupForm");
+    const status  = document.getElementById("manualTopupStatus");
+    const userInp = document.getElementById("manualUsername");
+    const amtInp  = document.getElementById("manualAmount");
+    const mSel    = document.getElementById("manualMethod");
+
+    if (form) form.reset();
+    if (status) status.innerHTML = "";
+
+    window.currentTxId = txId;
+
+    // จำนวนเงิน
+    if (amtInp){
+      if (amount){
+        amtInp.value = Number(amount).toFixed(2);
+        amtInp.readOnly = true;
+        amtInp.classList.add('is-readonly');
+      }else{
+        amtInp.readOnly = false;
+        amtInp.classList.remove('is-readonly');
+      }
+    }
+
+    // Username
+    if (userInp){
+      if (suggestedUsername && suggestedUsername !== 'null'){
+        userInp.value = suggestedUsername;
+        doUserSearch(suggestedUsername);
+      }else{
+        userInp.value = '';
+        doUserSearch('');
+      }
+      bindUsernameSearchOnce();
+      setTimeout(()=>{ try{ userInp.dispatchEvent(new Event('input')); }catch{} }, 50);
+      userInp.readOnly = !!lock;                 // ⬅️ ล็อกเมื่อกดจากรายการ
+      userInp.classList.toggle('is-readonly', !!lock);
+    }
+
+    // Method
+    if (mSel){
+      mSel.value = (method || 'admin').toLowerCase();
+      mSel.disabled = !!lock;                    // ⬅️ ล็อกเมื่อกดจากรายการ
+      mSel.classList.toggle('is-disabled', !!lock);
+    }
+
+    // จัด layout ให้ Method ขึ้นระดับเดียวกับจำนวนเงิน (Desktop)
+    document.getElementById('manualMethod')?.closest('label')?.classList.add('align-top');
+  }
+
+  function closeManualTopupModal(){
+    const modal  = document.getElementById("manualTopupModal");
+    const status = document.getElementById("manualTopupStatus");
+    if (!modal) return;
+    modal.classList.add("hidden");
+    if (status) status.innerHTML = "";
+  }
+
+  // ปุ่มปิด / overlay / ESC (ผูกกับของเดิม แต่กัน null)
+  document.getElementById("manualTopupClose")?.addEventListener('click', closeManualTopupModal);
+  document.getElementById("manualTopupModal")?.addEventListener("click", (e)=>{
+    if (e.target?.dataset?.close === "1") closeManualTopupModal();
+  });
+  document.addEventListener("keydown", (e)=>{
+    if (e.key === "Escape") {
+      const modal = document.getElementById("manualTopupModal");
+      if (modal && !modal.classList.contains("hidden")) closeManualTopupModal();
+    }
+  });
+  
+  async function submitManualTopup(ev) {
+    ev.preventDefault();
+
+    const form = ev.currentTarget || ev.target;
+    const username = document.getElementById("manualUsername")?.value?.trim() || "";
+    const amount = parseFloat(document.getElementById("manualAmount")?.value || 0);
+    const method = document.getElementById("manualMethod")?.value || "admin"; // ⬅️ ใหม่
+    const txId = window.currentTxId || null;
+
+    const $status = document.getElementById("manualTopupStatus");
+    const submitBtn = form.querySelector('button[type="submit"]');
+
+    // map เพื่อแสดงผลภาษาไทยสวยๆ
+    const METHOD_LABELS = {
+      admin: "แอดมิน",
+      truewallet: "True Wallet",
+      kbank: "KBank",
+      scb: "SCB",
+      manual: "เติมมือ",
+    };
+
+    // ตรวจค่าพื้นฐาน
+    if (!username || !(amount > 0)) {
+      $status.innerHTML = '<div class="card soft">❌ กรุณากรอกข้อมูลให้ครบถ้วน</div>';
+      return false;
+    }
+
+    // ป้องกันกดซ้ำ
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.dataset.keep = submitBtn.textContent;
+      submitBtn.textContent = "กำลังทำรายการ…";
+    }
+    $status.innerHTML = '<div class="muted">⏳ กำลังทำรายการ...</div>';
+
+    try {
+      const res = await fetch("/admin/manual-topup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // ⬇️ ส่ง method ไปด้วย
+        body: JSON.stringify({ username, amount, txId, method }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data?.ok) {
+        const thMethod = METHOD_LABELS[method] || method;
+        $status.innerHTML = `
+          <div class="card soft">
+            ✅ เติมเงินสำเร็จให้ผู้ใช้ <b>${username}</b><br>
+            <b>จำนวน:</b> ${amount.toLocaleString(undefined,{maximumFractionDigits:2})} บาท<br>
+            <b>วิธีการเติม:</b> ${thMethod}
+          </div>`;
+        setTimeout(() => closeManualTopupModal?.(), 1500);
+        setTimeout(() => window.location.reload(), 1700);
+      } else {
+        $status.innerHTML =
+          '<div class="card soft">❌ ' + (data?.error || "เกิดข้อผิดพลาด") + "</div>";
+      }
+    } catch (err) {
+      $status.innerHTML = '<div class="card soft">❌ ขัดข้อง: ' + (err.message || '') + "</div>";
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = submitBtn.dataset.keep || "ยืนยันเติมเงิน";
+        delete submitBtn.dataset.keep;
+      }
+    }
+    return false;
+  }
+  // Toggle หุบ/ขยายสำหรับมือถือ
+  (function initTxAccordion(){
+    document.querySelectorAll('.tx-accordion').forEach(card=>{
+      card.querySelector('.tx-accordion__head')?.addEventListener('click', ()=>{
+        card.dataset.open = (card.dataset.open === '1' ? '0' : '1');
+      });
+    });
+  })();
+</script>
+
+<style>
+  /* 🟢 Universal Table Layout (same look on PC + mobile) */
+  .history-wrapper {
+    width: 100%;
+    overflow-x: auto; /* allow scroll if too wide on mobile */
+    -webkit-overflow-scrolling: touch; /* smooth scroll on iOS */
+  }
+
+  .history-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 14px;
+    min-width: 720px; /* ensure stable width, no column squish */
+    white-space: nowrap; /* prevent text wrapping */
+  }
+
+  .history-table th,
+  .history-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #333;
+    vertical-align: middle;
+  }
+
+  .history-table th {
+    text-align: left;
+    color: var(--accent, #3bd);
+    font-weight: 400;
+    background: rgba(255, 255, 255, 0.03);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+
+  .bank-logo {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+    vertical-align: middle;
+    margin-right: 5px;
+  }
+
+  .history-table .amount {
+    text-align: right;
+    font-weight: bold;
+  }
+
+  .status {
+    font-weight: 400;
+    text-align: center;
+  }
+  .status.pending {
+    color: #ffc107;
+  }
+
+  .empty-history {
+    text-align: center;
+    padding: 40px 0;
+  }
+  .empty-history img {
+    width: 100px;
+    margin-bottom: 10px;
+    opacity: 0.6;
+  }
+
+  /* 🧭 Force Desktop View Even on Mobile */
+  @media (max-width: 768px) {
+    .history-table {
+      min-width: 700px; /* prevent table compression */
+      display: table;
+    }
+
+    .history-wrapper {
+      overflow-x: auto;
+      border-radius: 10px;
+    }
+  }
+
+  /* 🪟 Modal fix (same as QR modal) */
+  .modal.hidden {
+    display: none;
+  }
+
+  .modal {
+    position: fixed;
+    inset: 0;
+    z-index: 100; /* make sure it floats above admin cards */
+  }
+
+  .modal .overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    cursor: pointer;
+  }
+
+  .modal .dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 420px;
+    width: calc(100% - 24px);
+    background: var(--card, #1c1f24);
+    border: 1px solid var(--border, #2a2f36);
+    border-radius: 14px;
+    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.4);
+    padding: 16px 18px 18px;
+    animation: modalFadeIn 0.25s ease-out;
+    z-index: 200;
+  }
+
+  .modal .hdr {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .modal .title {
+    font-weight: 400;
+    font-size: 16px;
+  }
+
+  .modal .icon.close {
+    border: 0;
+    background: transparent;
+    font-size: 22px;
+    color: var(--text, #fff);
+    cursor: pointer;
+  }
+
+  .modal .sep {
+    border: 0;
+    border-top: 1px solid var(--border, #2a2f36);
+    margin: 12px 0;
+  }
+
+  .modal .body {
+    font-size: 14px;
+    line-height: 1.6;
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+  /* --- Desktop first: ซ่อน mobile เสมอในเดสก์ท็อป --- */
+  .mobile-only { display: none !important; }
+  .desktop-only { display: block !important; }
+
+  /* --- Mobile ≤ 768px: สลับแสดง --- */
+  @media (max-width: 768px) {
+    .desktop-only { display: none !important; }
+    .mobile-only { display: block !important; }
+  }
+
+  /* Accordion (มือถือ) */
+  .tx-accordion-list { display: grid; gap: 10px; }
+  .tx-accordion {
+    background: var(--card, #1a1d22);
+    border: 1px solid var(--border, #2a2f36);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--elevated-shadow, 0 10px 24px rgba(0,0,0,.25));
+  }
+  .tx-accordion__head {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    padding: 12px 14px;
+    background: #0f1013;
+    color: var(--text-primary, #f2f4f8);
+    border: 0;
+    cursor: pointer;
+  }
+  .tx-accordion__title .tx-id { font-weight: 400; letter-spacing: .3px; }
+  .tx-accordion__meta {
+    display: inline-grid; grid-auto-flow: column; gap: 10px; align-items: center;
+    color: var(--title,#eadfb8); font-weight: 400; font-variant-numeric: tabular-nums;
+  }
+  .tx-accordion__meta .tx-toggle {
+    width: 28px; height: 28px; border-radius: 8px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border, #2a2f36); background: #17191d;
+  }
+
+  /* body */
+  .tx-accordion__body { display: none; padding: 12px 14px 14px; background: var(--elevated-bg,#141518); }
+  .tx-accordion[data-open="1"] .tx-accordion__body { display: block; }
+  .tx-accordion[data-open="1"] .tx-accordion__meta .tx-toggle::before { content: '–'; }
+  .tx-accordion[data-open="0"] .tx-accordion__meta .tx-toggle::before { content: '+'; }
+
+  /* แถวรายละเอียด */
+  .tx-row {
+    display: grid; grid-template-columns: 110px 1fr; gap: 10px;
+    padding: 8px 0; border-bottom: 1px dashed var(--border,#2a2f36);
+  }
+  .tx-row:last-child { border-bottom: 0; }
+  .tx-label { color: var(--muted,#a7b0bb); }
+  .tx-value { color: var(--text-primary,#f2f4f8); }
+
+  .bank-logo { width: 22px; height: 22px; object-fit: contain; vertical-align: middle; margin-right: 6px; }
+
+  /* pill สถานะ */
+  .pill {
+    display: inline-block; padding: 4px 10px; border-radius: 999px;
+    font-weight: 400; font-size: 12px; background: #22262d; border: 1px solid #313641;
+  }
+  .pill--pending   { color:#ffc107; border-color:#4d3b08; background:#2a2108; }
+  .pill--completed { color:#10b981; border-color:#0b3f2e; background:#0c1f18; }
+  .pill--failed    { color:#f87171; border-color:#4a0e0e; background:#2a0a0a; }
+  .pill--canceled  { color:#94a3b8; }
+  .tx-actions { width: 100%; margin-top: 12px; display: flex; justify-content: flex-start; }
+  /* ทำให้หัวการ์ดแสดงเป็นบรรทัดเดียว และตัด ... ได้ */
+  .tx-accordion__head {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto; /* ซ้าย (ID) | ขวา (เวลา + ปุ่ม) */
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: #0f1013;
+    color: var(--text-primary, #f2f4f8);
+    border: 0;
+    cursor: pointer;
+  }
+
+  /* ต้องมี min-width:0 เพื่อให้ overflow ทำงานใน grid */
+  .tx-accordion__title { min-width: 0; }
+  .tx-accordion__title .tx-id{
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;   /* ถ้ายาวให้ ... */
+    font-weight: 400;
+    letter-spacing: .3px;
+  }
+
+  /* ให้เวลาชิดขวาและไม่ห่อบรรทัด */
+  .tx-accordion__meta {
+    display: inline-grid;
+    grid-auto-flow: column;
+    gap: 10px;
+    align-items: center;
+    color: var(--title,#eadfb8);
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;       /* กันแตกบรรทัด */
+  }
+
+  .tx-accordion__meta .tx-toggle{
+    width: 28px; height: 28px; border-radius: 8px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border, #2a2f36); background: #17191d;
+  }
+
+  /* ไอคอน + / – */
+  .tx-accordion[data-open="1"] .tx-accordion__meta .tx-toggle::before { content: '–'; }
+  .tx-accordion[data-open="0"] .tx-accordion__meta .tx-toggle::before { content: '+'; }
+
+  .row-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:8px;
+  }
+
+  .head-right{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-left:auto;
+  }
+
+  .metric-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:6px 10px;
+    border-radius:999px;
+    font-weight:400;
+    letter-spacing:.2px;
+    background:var(--pick-chip-bg, rgba(255,255,255,.06));
+    border:1px solid var(--pick-chip-border, #24262b);
+    color:var(--text-primary, #f2f4f8);
+  }
+
+  /* light theme */
+  html[data-theme="light"] .metric-badge{
+    background:var(--pick-chip-bg, #f3f4f6);
+    border-color:var(--pick-chip-border, #e5e7eb);
+    color:var(--text-primary, #111827);
+  }
+
+  /* ── Card v2 ────────────────────────────────────────── */
+  .card2{
+    position: relative;
+    border-radius: 5px;
+    background: var(--elevated-bg, #141518);
+    border: 1px solid var(--elevated-border, #24262b);
+    box-shadow: var(--elevated-shadow, 0 10px 24px rgba(0,0,0,.35));
+    padding: 14px 16px;
+    transition: transform .12s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
+    will-change: transform, box-shadow;
+  }
+
+  /* แถบเน้นซ้ายแบบบาง ๆ (ซ่อนไว้ก่อน) */
+  .card2::before{
+    content:"";
+    position:absolute; inset:0 auto 0 0; width:0;
+    background: var(--accent, #2a84ff);
+    border-radius: 16px 0 0 16px;
+    transition: width .15s ease;
+  }
+
+  /* Hover: ยกเงา + ขอบสว่างขึ้น + โชว์แถบซ้าย */
+  .card2:hover{
+    transform: translateY(-1px);
+    box-shadow: 0 14px 30px rgba(0,0,0,.4);
+    border-color: color-mix(in oklab, var(--accent,#2a84ff) 28%, var(--elevated-border,#24262b));
+  }
+  .card2:hover::before{ width: 3px; }
+
+  /* Focus (รองรับคีย์บอร์ด) */
+  .card2:focus-within{
+    box-shadow: 0 0 0 3px rgba(42,132,255,.25), 0 14px 30px rgba(0,0,0,.4);
+    outline: none;
+  }
+  .card2:active{ transform: translateY(0); }
+
+  /* Layout หัวการ์ด */
+  .row-head{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:12px; margin-bottom:2px;
+  }
+  .card-head h3{ margin:0; }
+
+  /* Metric badge (รีใช้ของเดิมได้) */
+  .metric-badge{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:6px 10px; border-radius:999px; font-weight:700; letter-spacing:.2px;
+    background: var(--pick-chip-bg, rgba(255,255,255,.06));
+    border: 1px solid var(--pick-chip-border, #24262b);
+    color: var(--text-primary, #f2f4f8);
+  }
+
+  /* Light theme tweaks */
+  html[data-theme="light"] .card2{
+    background:#fff;
+    border-color:#e5e7eb;
+    box-shadow: 0 10px 24px rgba(0,0,0,.12);
+  }
+  html[data-theme="light"] .card2:hover{
+    border-color: color-mix(in oklab, var(--accent,#2a84ff) 35%, #e5e7eb);
+    box-shadow: 0 16px 36px rgba(0,0,0,.16);
+  }
+  html[data-theme="light"] .metric-badge{
+    background:#f3f4f6; border-color:#e5e7eb; color:#111827;
+  }
+  .pill--reject, .status.reject {
+    background: rgba(239, 68, 68, .15);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, .35);
+  }
+</style>

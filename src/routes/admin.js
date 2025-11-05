@@ -10,6 +10,10 @@ import { Transaction } from "../models/Transaction.js";
 import { Topup } from "../models/Topup.js";
 import { ulid } from "ulid";
 import { Service } from '../models/Service.js';
+import { getOtp24Balance } from '../lib/otp24Adapter.js';
+import { syncOtp24All } from '../services/otp24Sync.js';
+import { Otp24Item } from '../models/Otp24Item.js';
+import { Otp24TermGame } from '../models/Otp24TermGame.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -490,76 +494,6 @@ router.post("/manual-topup", async (req, res) => {
   }
 });
 
-// router.post("/manual-topup", async (req, res) => {
-//   try {
-//     let { username, amount, txId } = req.body;
-
-//     if (!username || amount === undefined || amount === null) {
-//       return res.json({ ok: false, error: "ข้อมูลไม่ครบ" });
-//     }
-
-//     // รองรับกรณี amount เป็น string มีคอมมา
-//     const amt = Math.round(Number(String(amount).replace(/,/g, "")) * 100) / 100;
-//     if (!(amt > 0)) {
-//       return res.json({ ok: false, error: "จำนวนเงินไม่ถูกต้อง" });
-//     }
-//     const amtCents = Math.round(amt * 100);
-
-//     const user = await User.findOne({ username });
-//     if (!user) return res.json({ ok: false, error: "ไม่พบผู้ใช้" });
-
-//     // 🟢 เพิ่มยอดเข้า balance (บาท)
-//     user.balance = Number(user.balance || 0) + amt;
-//     await user.save();
-
-//     const now = new Date();
-
-//     if (txId) {
-//       // 🟣 ถ้ามี txId → อัปเดตทรานแซกชันเดิมให้ครบฟิลด์
-//       await Transaction.findOneAndUpdate(
-//         { transactionId: txId },
-//         {
-//           $set: {
-//             userId: user._id,
-//             username: user.username,
-//             method: "admin",
-//             amount: amt,            // บาท
-//             amountCents: amtCents,  // สตางค์ (required)
-//             currency: "THB",
-//             status: "completed",
-//             updatedAt: now,
-//             paidAt: now,
-//           },
-//           $setOnInsert: {
-//             createdAt: now,
-//           },
-//         },
-//         { new: true, upsert: true } // กันกรณีหาไม่เจอ ก็สร้างใหม่
-//       );
-//     } else {
-//       // 🟠 ถ้าไม่มี txId → สร้างใหม่ให้ครบฟิลด์
-//       await Transaction.create({
-//         transactionId: ulid(),
-//         userId: user._id,
-//         username: user.username,
-//         method: "admin",
-//         amount: amt,            // บาท
-//         amountCents: amtCents,  // สตางค์ (required)
-//         currency: "THB",
-//         status: "completed",
-//         createdAt: now,
-//         updatedAt: now,
-//         paidAt: now,
-//       });
-//     }
-
-//     return res.json({ ok: true, username, amount: amt, balance: user.balance });
-//   } catch (err) {
-//     console.error("admin-topup error:", err);
-//     return res.json({ ok: false, error: "เกิดข้อผิดพลาดในระบบ" });
-//   }
-// });
-
 // ปฏิเสธรายการเติมเงิน
 router.post('/topup/:id/reject', async (req, res) => {
   try {
@@ -797,56 +731,73 @@ router.get('/topup-report', async (req, res) => {
   });
 });
 
-// router.get('/topup-report', async (req, res) => {
-//   try {
-//     if (req.user?.role !== 'admin') {
-//       return res.status(403).send('Forbidden');
-//     }
+// ======= OTP24HR ======= //
+// หน้าแดชบอร์ด OTP24
+ router.get('/otp24', async (req, res) => {
+   try {
+    const [
+      balance, userCount,
+      countApp, countGame,
+      lastApp, lastGame
+     ] = await Promise.all([
+      getOtp24Balance().catch(()=>'—'),
+      User.countDocuments({}),
+      Otp24Item.countDocuments({}).catch(()=>0),
+      Otp24TermGame.countDocuments({}).catch(()=>0),
+      Otp24Item.findOne({}, { syncedAt: 1 }).sort({ syncedAt: -1 }).lean().catch(()=> null),
+      Otp24TermGame.findOne({}, { syncedAt: 1 }).sort({ syncedAt: -1 }).lean().catch(()=> null),
+    ]);
+    const servicesTotalDoc = (countApp || 0) + (countGame || 0);
+    const lastSyncAt = [lastApp?.syncedAt, lastGame?.syncedAt]
+      .filter(Boolean)
+      .sort((a,b)=>a-b)
+      .pop() || null;
 
-//     const pageRaw = parseInt(req.query.page, 10);
-//     const perRaw  = parseInt(req.query.perpage, 10);
+    res.render('admin/otp24_dashboard', {
+      title: 'OTP24HR Dashboard',
+      balance,
+      stats: { userCount },
+      servicesTotal: servicesTotalDoc,
+      lastSyncAt,
+      transactions: [],
+      webWallets: [],
+    });
+   } catch (err) {
+    console.error('OTP24 dashboard error:', err);
+    res.render('admin/otp24_dashboard', {
+      title: 'OTP24HR Dashboard',
+      balance: '—',
+      stats: { userCount: 0 },
+      servicesTotal: 0,
+      lastSyncAt: null,
+      transactions: [],
+      webWallets: [],
+    });
+  }
+});
 
-//     const page    = Math.max(1, Number.isFinite(pageRaw) ? pageRaw : 1);
-//     let   perpage = Number.isFinite(perRaw) ? perRaw : 100;
-//     perpage       = Math.max(10, Math.min(100, perpage)); // 10–100
+// ปุ่มรีเฟรชเครดิต (AJAX)
+router.post('/otp24/balance/refresh', async (req, res) => {
+  try {
+    const balance = await getOtp24Balance();
+    res.json({ ok: true, balance });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || 'fetch-failed' });
+  }
+});
 
-//     const q = {}; // โชว์ทุกรายการ
-
-//     const [total, items, aggCompleted] = await Promise.all([
-//       Transaction.countDocuments(q),
-
-//       // ✅ populate userId ให้มี avatarUrl/avatarVer ติดมาด้วย
-//       Transaction.find(q)
-//         .sort({ createdAt: -1 })
-//         .skip((page - 1) * perpage)
-//         .limit(perpage)
-//         .populate({ path: 'userId', select: 'username email avatarUrl avatarVer' })
-//         .lean(),
-
-//       // ✅ สรุปรายการที่สำเร็จ
-//       Transaction.aggregate([
-//         { $match: { status: 'completed' } },
-//         { $group: { _id: null, sum: { $sum: '$amount' }, count: { $sum: 1 } } }
-//       ])
-//     ]);
-
-//     const totalPages     = Math.max(1, Math.ceil(total / perpage));
-//     const sumCompleted   = aggCompleted?.[0]?.sum   || 0;
-//     const countCompleted = aggCompleted?.[0]?.count || 0;
-
-//     // กระเป๋ารับเงิน (มีหรือไม่มีได้)
-//     const webWallets = res.locals.webWallets || [];
-
-//     res.render('admin/topup-report', {
-//       transactions: items,
-//       page, perpage, total, totalPages,
-//       sumCompleted, countCompleted,
-//       webWallets
-//     });
-//   } catch (err) {
-//     console.error('GET /admin/topup-report error:', err);
-//     res.status(500).send('Server error');
-//   }
-// });
+ router.post('/otp24/sync-services', async (_req, res) => {
+   try {
+    const { total, syncedAt } = await syncOtp24All();
+    const [countApp, countGame] = await Promise.all([
+      Otp24Item.countDocuments({}),
+      Otp24TermGame.countDocuments({}),
+    ]);
+    const servicesTotal = (countApp || 0) + (countGame || 0);
+    res.json({ ok: true, synced: total, lastSyncAt: syncedAt, servicesTotal });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || 'sync-failed' });
+   }
+ });
 
 export default router;
