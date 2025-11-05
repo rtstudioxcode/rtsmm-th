@@ -1,0 +1,274 @@
+<% /* views/otp24/rtsmm24.ejs */ %>
+<% const pageTitle = 'OTP24 — รายการสินค้า'; %>
+
+<section class="otp24-page">
+  <header class="page-head">
+    <h1><%= pageTitle %></h1>
+    <div class="sub">รวมสินค้าแบ่ง 3 แท็บ: App Premium, TermGame, และ OTP (สดจาก API +30%)</div>
+  </header>
+
+  <!-- Tabs -->
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="apppremium">App Premium</button>
+    <button class="tab-btn" data-tab="termgame">Term Game</button>
+    <button class="tab-btn" data-tab="otp">OTP (API สด +30%)</button>
+  </nav>
+
+  <!-- Filters / Search -->
+  <div class="toolbar">
+    <input id="searchInput" class="search" placeholder="ค้นหาชื่อ/รายละเอียด…" />
+    <div class="right">
+      <button id="refreshOtp" class="btn small" data-tab-target="otp">ดึง OTP สด</button>
+    </div>
+  </div>
+
+  <!-- Panels -->
+  <div class="panels">
+
+    <!-- Panel: App Premium -->
+    <section id="panel-apppremium" class="panel active">
+      <div class="grid">
+        <% (apppremiumItems || []).forEach(it => { %>
+          <article class="card" data-name="<%= (it.name||'').toLowerCase() %>" data-desc="<%= (it.desc||'').toLowerCase() %>">
+            <div class="thumb">
+              <img src="<%= it.img || '/static/assets/img/placeholder.png' %>" alt="">
+            </div>
+            <div class="meta">
+              <h3 class="title"><%= it.name || '-' %></h3>
+              <% if (it.desc) { %><p class="desc"><%= it.desc %></p><% } %>
+              <div class="price">฿<%= Number(it.price||0).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2}) %></div>
+              <div class="muted">key: <%= it.key %></div>
+            </div>
+          </article>
+        <% }) %>
+      </div>
+      <% if (!(apppremiumItems||[]).length) { %>
+        <div class="empty">ยังไม่มีข้อมูล App Premium</div>
+      <% } %>
+    </section>
+
+    <!-- Panel: Term Game -->
+    <section id="panel-termgame" class="panel">
+      <div class="grid">
+        <% (termgameItems || []).forEach(it => { %>
+          <article class="card" data-name="<%= (it.name||'').toLowerCase() %>" data-desc="<%= (it.desc||'').toLowerCase() %>">
+            <div class="thumb">
+              <img src="<%= it.img || '/static/assets/img/placeholder.png' %>" alt="">
+            </div>
+            <div class="meta">
+              <h3 class="title"><%= it.name || '-' %></h3>
+              <% if (it.desc) { %><p class="desc"><%= it.desc %></p><% } %>
+              <div class="price">฿<%= Number(it.price||0).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2}) %></div>
+              <div class="muted">key: <%= it.key %></div>
+            </div>
+          </article>
+        <% }) %>
+      </div>
+      <% if (!(termgameItems||[]).length) { %>
+        <div class="empty">ยังไม่มีข้อมูล Term Game</div>
+      <% } %>
+    </section>
+
+    <!-- Panel: OTP (live) -->
+    <section id="panel-otp" class="panel">
+      <div class="note">
+        ดึงข้อมูลสดจาก <code>https://otp24hr.com/api/v1?action=getotp</code> แล้ว
+        “แสดงราคา +30%” เฉพาะบนหน้า (ไม่เขียนลง DB)
+      </div>
+
+      <div class="opts">
+        <label class="inline">
+          เพิ่มราคา (%):
+          <input id="otpMarkup" type="number" min="0" step="1" value="30" />
+        </label>
+        <button id="fetchOtp" class="btn">โหลด OTP สด</button>
+      </div>
+
+      <div id="otpWrap" class="grid"></div>
+      <div id="otpEmpty" class="empty" style="display:none">ยังไม่มีผลลัพธ์ — กด “โหลด OTP สด”</div>
+    </section>
+
+  </div>
+</section>
+
+<style>
+  .otp24-page { display:flex; flex-direction:column; gap:16px; }
+  .page-head h1 { margin:0; font-size:1.6rem; }
+  .page-head .sub { color:var(--text-muted,#a7b0bb); }
+  .tabs { display:flex; gap:8px; flex-wrap:wrap; }
+  .tab-btn { border:1px solid var(--elevated-border,#24262b); background:var(--elevated-bg,#141518); color:var(--text-primary,#f2f4f8); padding:8px 14px; border-radius:10px; cursor:pointer; }
+  .tab-btn.active { outline: var(--focus-ring, 0 0 0 3px rgba(42,132,255,.35)); box-shadow: var(--focus-ring, 0 0 0 3px rgba(42,132,255,.35)); }
+  .toolbar { display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+  .search { flex:1; min-width:220px; padding:10px 12px; border-radius:10px; border:1px solid var(--elevated-border,#24262b); background:var(--elevated-bg,#141518); color:var(--text-primary,#f2f4f8); }
+  .btn { border:1px solid var(--elevated-border,#24262b); background:var(--accent,#2a84ff); color:#fff; padding:10px 14px; border-radius:10px; cursor:pointer; }
+  .btn.small { padding:6px 10px; font-size:.9rem; }
+  .panels { }
+  .panel { display:none; }
+  .panel.active { display:block; }
+  .grid { display:grid; gap:14px; grid-template-columns: repeat( auto-fill, minmax(220px,1fr) ); }
+  .card { border:1px solid var(--elevated-border,#24262b); background:var(--elevated-bg,#141518); border-radius:14px; overflow:hidden; display:flex; flex-direction:column; }
+  .thumb { aspect-ratio: 16/9; background:#0b0d10; display:flex; align-items:center; justify-content:center; }
+  .thumb img { width:100%; height:100%; object-fit:contain; }
+  .meta { padding:12px; display:flex; flex-direction:column; gap:6px; }
+  .title { margin:0; font-size:1rem; color:var(--text-primary,#f2f4f8); }
+  .desc { margin:0; color:var(--text-muted,#a7b0bb); font-size:.92rem; min-height:2lh; }
+  .price { font-size:1.05rem; color:#35cc10; margin-top:6px; }
+  .muted { color:var(--text-muted,#a7b0bb); font-size:.8rem; }
+  .empty { border:1px dashed var(--elevated-border,#24262b); border-radius:12px; padding:22px; text-align:center; color:var(--text-muted,#a7b0bb); margin-top:10px; }
+  .note { color:var(--text-muted,#a7b0bb); margin-bottom:8px; }
+  .opts { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
+  .inline { display:flex; gap:6px; align-items:center; }
+  @media (max-width: 480px){
+    .grid { grid-template-columns: repeat( auto-fill, minmax(170px,1fr) ); }
+  }
+</style>
+
+<script>
+(() => {
+  const $$ = sel => Array.from(document.querySelectorAll(sel));
+  const $  = sel => document.querySelector(sel);
+
+  // Tab switching
+  $$('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const tab = btn.dataset.tab;
+      $$('.panel').forEach(p => p.classList.remove('active'));
+      $('#panel-' + tab).classList.add('active');
+
+      // focus search after switching
+      setTimeout(() => $('#searchInput')?.focus(), 0);
+    });
+  });
+
+  // Search filter for DB-backed tabs
+  const searchInput = $('#searchInput');
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      const q = searchInput.value.trim().toLowerCase();
+      // filter only visible panel cards (apppremium | termgame)
+      const activePanel = $$('.panel.active')[0];
+      if (!activePanel) return;
+
+      // OTP panel is rendered dynamically; we also support its filtering below
+      const cards = activePanel.querySelectorAll('.card');
+      if (cards.length) {
+        cards.forEach(c => {
+          const name = (c.dataset.name || '');
+          const desc = (c.dataset.desc || '');
+          c.style.display = (name.includes(q) || desc.includes(q)) ? '' : 'none';
+        });
+      } else if (activePanel.id === 'panel-otp') {
+        // OTP live cards
+        const otpCards = activePanel.querySelectorAll('.card');
+        otpCards.forEach(c => {
+          const name = (c.dataset.name || '');
+          const desc = (c.dataset.desc || '');
+          c.style.display = (name.includes(q) || desc.includes(q)) ? '' : 'none';
+        });
+      }
+    });
+  }
+
+  // ===== OTP live fetch (no DB), display +30% (or user-defined %) =====
+  const API_URL = 'https://otp24hr.com/api/v1?action=getotp'; // ไม่ใช้ per; เราจะ +% เองตอนแสดงผล
+  const otpWrap = $('#otpWrap');
+  const otpEmpty = $('#otpEmpty');
+
+  function asNumber(v, fallback=0) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fallback;
+  }
+  function pick(obj, keys, fallback='') {
+    for (const k of keys) {
+      if (obj && obj[k] != null && obj[k] !== '') return obj[k];
+    }
+    return fallback;
+  }
+  function fmtTHB(n) {
+    return '฿' + asNumber(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function renderOtp(list, percentUp = 30) {
+    otpWrap.innerHTML = '';
+    if (!Array.isArray(list) || !list.length) {
+      otpEmpty.style.display = '';
+      return;
+    }
+    otpEmpty.style.display = 'none';
+
+    const up = (n) => n * (1 + (percentUp/100));
+
+    list.forEach(item => {
+      // รองรับคีย์ที่เป็นไปได้หลายแบบ (โครงสร้างไม่ตายตัว)
+      const name  = pick(item, ['name','title','label','product','app','package','desc'], 'OTP Item');
+      const desc  = pick(item, ['desc','description','msg','detail'], '');
+      const img   = pick(item, ['img','image','icon','img_icon'], '/static/assets/img/placeholder.png');
+      const base  = asNumber(pick(item, ['price','amount','cost','rate','value'], 0));
+      const price = up(base);
+
+      const card = document.createElement('article');
+      card.className = 'card';
+      card.dataset.name = (String(name||'').toLowerCase());
+      card.dataset.desc = (String(desc||'').toLowerCase());
+
+      card.innerHTML = `
+        <div class="thumb"><img src="${img}" alt=""></div>
+        <div class="meta">
+          <h3 class="title">${name}</h3>
+          ${desc ? `<p class="desc">${desc}</p>` : ``}
+          <div class="price">${fmtTHB(price)}</div>
+          <div class="muted">ราคาต้นฉบับ: ${fmtTHB(base)} • แสดงผล +${percentUp}%</div>
+        </div>
+      `;
+      otpWrap.appendChild(card);
+    });
+  }
+
+  async function fetchOtpLive() {
+    const percentUp = asNumber($('#otpMarkup')?.value || 30, 30);
+    try {
+      $('#fetchOtp')?.setAttribute('disabled','disabled');
+      $('#fetchOtp') && ($('#fetchOtp').textContent = 'กำลังโหลด…');
+
+      const res = await fetch(API_URL, { method: 'GET' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+
+      // กรณี API ส่งเป็น array ตรง ๆ หรือ object ที่มี array ซ่อนอยู่
+      let list = [];
+      if (Array.isArray(data)) list = data;
+      else if (data && Array.isArray(data.data)) list = data.data;
+      else if (data && Array.isArray(data.items)) list = data.items;
+      else if (data && typeof data === 'object') {
+        // แผ่ค่า object -> array ของ values ถ้าดูเหมือนรายการ
+        const vals = Object.values(data);
+        if (vals.length && vals.every(v => typeof v === 'object')) list = vals;
+      }
+
+      renderOtp(list, percentUp);
+      // รีวิ่ง search filter ปัจจุบัน
+      searchInput?.dispatchEvent(new Event('input'));
+    } catch (err) {
+      otpWrap.innerHTML = '';
+      otpEmpty.style.display = '';
+      otpEmpty.textContent = 'โหลดข้อมูล OTP ไม่สำเร็จ: ' + (err.message || 'unknown');
+    } finally {
+      $('#fetchOtp')?.removeAttribute('disabled');
+      $('#fetchOtp') && ($('#fetchOtp').textContent = 'โหลด OTP สด');
+    }
+  }
+
+  // ปุ่มโหลดในแท็บ OTP + ปุ่มบน toolbar
+  $('#fetchOtp')?.addEventListener('click', fetchOtpLive);
+  $('#refreshOtp')?.addEventListener('click', () => {
+    $$('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.tab-btn[data-tab="otp"]').classList.add('active');
+    $$('.panel').forEach(p => p.classList.remove('active'));
+    $('#panel-otp').classList.add('active');
+    fetchOtpLive();
+  });
+
+})();
+</script>

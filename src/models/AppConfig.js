@@ -2,9 +2,9 @@
 import mongoose from 'mongoose';
 
 const AppConfigSchema = new mongoose.Schema({
-  key:     { type: String, required: true, unique: true, index: true }, // e.g. 'smtp', 'otp', 'session', 'ipv'
-  value:   { type: mongoose.Schema.Types.Mixed, required: true },        // โครงสร้างอิสระ (object/number/string)
-  secret:  { type: Boolean, default: false },                            // true = ซ่อนจาก UI/Log
+  key:     { type: String, required: true, unique: true, index: true },
+  value:   { type: mongoose.Schema.Types.Mixed, required: true },
+  secret:  { type: Boolean, default: false },
   updatedBy: { type: String, default: '' },
 }, { timestamps: true });
 
