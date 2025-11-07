@@ -4045,8 +4045,6 @@ html[data-theme="light"]{
 }
 
 
-/* ====== BLOG ====== */
-<style>
 /* ====== BLOG DETAIL (เท่ากับ /blog/tiktok-fyp) ====== */
 .blog-detail .title{
   font-size: clamp(22px, 2.6vw, 30px);
@@ -4162,4 +4160,3 @@ html[data-theme="dark"]{ --pv-bg: var(--page, #0b1620); --pv-border: var(--borde
   color: var(--text-muted);
   font-size: .95rem;
 }
-</style>
