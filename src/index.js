@@ -39,6 +39,8 @@ import { topupRouter } from "./routes/topup.js";
 import adminReport from './routes/admin-report.js';
 import affiliateRouter from './routes/affiliate.js';
 
+import blogRoutes from "./routes/blog.js";
+
 import cookieParser from 'cookie-parser';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -305,6 +307,7 @@ app.use("/", requireAuth, dashboardRouter);
 app.use("/otp", otpRouter);
 app.use("/api", apiPricingRouter);
 app.use(adminReport);
+app.use("/blog", blogRoutes)
 
 // Healthcheck (optional)
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
@@ -323,7 +326,7 @@ app.get("/blog", (req, res) => {
     {
       slug: "tiktok-fyp",
       title: "การเพิ่มยอดวิว TikTok: เทคนิคปั้นวิดีโอให้ไวรัลแบบมือโปร",
-      dateText: "March 15, 2019",
+      dateText: "November 1, 2025",
       author: "RTSMM - Thailand",
       thumbnail: "/static/assets/thumbnails/blog1.png",
       excerpt:
@@ -332,7 +335,7 @@ app.get("/blog", (req, res) => {
     {
       slug: "follower-ig",
       title: "รวมเหตุผลที่การ ปั้นไอจี ในปี 2025 ยังคงเป็นตัวเลือกที่ดีที่สุด",
-      dateText: "March 15, 2019",
+      dateText: "November 1, 2025",
       author: "RTSMM - Thailand",
       thumbnail: "/static/assets/thumbnails/blog2.gif",
       excerpt: "รวมเหตุผลที่การ ปั้นไอจี ในปี 2025...",
@@ -341,7 +344,7 @@ app.get("/blog", (req, res) => {
       slug: "view-youtube",
       title:
         "เผยอาชีพใหม่ที่ได้ค่าตอบแทนสุดคุ้มค่า เพียงปั้นช่อง Youtube ให้สำเร็จเท่านั้น",
-      dateText: "March 15, 2019",
+      dateText: "November 2, 2019",
       author: "RTSMM - Thailand",
       thumbnail: "/static/assets/thumbnails/blog3.gif",
       excerpt: "เผยอาชีพใหม่ที่ได้ค่าตอบแทนสุดคุ้มค่า...",
@@ -349,7 +352,7 @@ app.get("/blog", (req, res) => {
     {
       slug: "likefanpage-facebook",
       title: "แชร์เทคนิคการปั้นเฟสบุ๊ก ทำอย่างไรให้หาเงินได้จากแพลตฟอร์มนี้",
-      dateText: "March 15, 2019",
+      dateText: "November 3, 2025",
       author: "RTSMM - Thailand",
       thumbnail: "/static/assets/thumbnails/blog4.gif",
       excerpt: "แชร์เทคนิคการปั้นเฟสบุ๊ก ทำอย่างไรให้หาเงินได้...",
@@ -357,7 +360,7 @@ app.get("/blog", (req, res) => {
     {
       slug: "pumview",
       title: "วิธีปั๊มวิวง่าย ๆ แต่เป็นอะไรที่ใช้ได้จริง",
-      dateText: "March 15, 2019",
+      dateText: "November 3, 2025",
       author: "RTSMM - Thailand",
       thumbnail: "/static/assets/thumbnails/blog5.gif",
       excerpt: "วิธีปั๊มวิวง่าย ๆ แต่เป็นอะไรที่ใช้ได้จริง...",
@@ -365,7 +368,7 @@ app.get("/blog", (req, res) => {
     {
       slug: "pro-pumlike",
       title: "ปั๊มไลค์แบบนี้มืออาชีพเขาทำกัน",
-      dateText: "March 15, 2019",
+      dateText: "November 4, 2025",
       author: "RTSMM - Thailand",
       thumbnail: "/static/assets/thumbnails/blog6.gif",
       excerpt: "ปั๊มไลค์แบบนี้ มืออาชีพเขาทำกัน...",
