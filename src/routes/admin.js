@@ -10,10 +10,6 @@ import { Transaction } from "../models/Transaction.js";
 import { Topup } from "../models/Topup.js";
 import { ulid } from "ulid";
 import { Service } from '../models/Service.js';
-import { getOtp24Balance } from '../lib/otp24Adapter.js';
-import { syncOtp24All } from '../services/otp24Sync.js';
-import { Otp24Item } from '../models/Otp24Item.js';
-import { Otp24TermGame } from '../models/Otp24TermGame.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -662,12 +658,6 @@ router.get('/topup-report', async (req, res) => {
   const start = new Date(Date.UTC(yy, mm - 1, 1, 0, 0, 0));
   const end   = new Date(Date.UTC(yy, mm, 1, 0, 0, 0));
 
-  // ถ้าคุณเก็บเวลาตาม Asia/Bangkok แล้วต้องการชดเชยให้ตรงวัน
-  // สามารถเลื่อน +7 ชั่วโมงก่อน query ได้ (เลือกอย่างใดอย่างหนึ่งตามการบันทึกเวลาใน DB)
-  // const tzOffsetHours = 7;
-  // start.setUTCHours(start.getUTCHours() - tzOffsetHours);
-  // end.setUTCHours(end.getUTCHours() - tzOffsetHours);
-
   const monthStr = `${yy}-${String(mm).padStart(2, '0')}`;
 
   // เงื่อนไขหลักของเดือนนี้
@@ -730,74 +720,5 @@ router.get('/topup-report', async (req, res) => {
     sumCompleted, countCompleted,
   });
 });
-
-// ======= OTP24HR ======= //
-// หน้าแดชบอร์ด OTP24
- router.get('/otp24', async (req, res) => {
-   try {
-    const [
-      balance, userCount,
-      countApp, countGame,
-      lastApp, lastGame
-     ] = await Promise.all([
-      getOtp24Balance().catch(()=>'—'),
-      User.countDocuments({}),
-      Otp24Item.countDocuments({}).catch(()=>0),
-      Otp24TermGame.countDocuments({}).catch(()=>0),
-      Otp24Item.findOne({}, { syncedAt: 1 }).sort({ syncedAt: -1 }).lean().catch(()=> null),
-      Otp24TermGame.findOne({}, { syncedAt: 1 }).sort({ syncedAt: -1 }).lean().catch(()=> null),
-    ]);
-    const servicesTotalDoc = (countApp || 0) + (countGame || 0);
-    const lastSyncAt = [lastApp?.syncedAt, lastGame?.syncedAt]
-      .filter(Boolean)
-      .sort((a,b)=>a-b)
-      .pop() || null;
-
-    res.render('admin/otp24_dashboard', {
-      title: 'OTP24HR Dashboard',
-      balance,
-      stats: { userCount },
-      servicesTotal: servicesTotalDoc,
-      lastSyncAt,
-      transactions: [],
-      webWallets: [],
-    });
-   } catch (err) {
-    console.error('OTP24 dashboard error:', err);
-    res.render('admin/otp24_dashboard', {
-      title: 'OTP24HR Dashboard',
-      balance: '—',
-      stats: { userCount: 0 },
-      servicesTotal: 0,
-      lastSyncAt: null,
-      transactions: [],
-      webWallets: [],
-    });
-  }
-});
-
-// ปุ่มรีเฟรชเครดิต (AJAX)
-router.post('/otp24/balance/refresh', async (req, res) => {
-  try {
-    const balance = await getOtp24Balance();
-    res.json({ ok: true, balance });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: e.message || 'fetch-failed' });
-  }
-});
-
- router.post('/otp24/sync-services', async (_req, res) => {
-   try {
-    const { total, syncedAt } = await syncOtp24All();
-    const [countApp, countGame] = await Promise.all([
-      Otp24Item.countDocuments({}),
-      Otp24TermGame.countDocuments({}),
-    ]);
-    const servicesTotal = (countApp || 0) + (countGame || 0);
-    res.json({ ok: true, synced: total, lastSyncAt: syncedAt, servicesTotal });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: e.message || 'sync-failed' });
-   }
- });
 
 export default router;

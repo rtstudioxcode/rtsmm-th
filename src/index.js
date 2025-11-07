@@ -39,9 +39,6 @@ import { topupRouter } from "./routes/topup.js";
 import adminReport from './routes/admin-report.js';
 import affiliateRouter from './routes/affiliate.js';
 
-// OTP24HR
-import otp24Router from './routes/otp24.js';
-
 import cookieParser from 'cookie-parser';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -308,7 +305,6 @@ app.use("/", requireAuth, dashboardRouter);
 app.use("/otp", otpRouter);
 app.use("/api", apiPricingRouter);
 app.use(adminReport);
-app.use(requireAuth, otp24Router);
 
 // Healthcheck (optional)
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
