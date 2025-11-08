@@ -11,13 +11,23 @@ const envConfig = {
   // mongoUri: process.env.MONGO_URI,
   mongoUri: process.env.MONGO_URI || 'mongodb://mongo:UExusYQYbMpqTLSRXPKAMfHyuVaRoVnK@ballast.proxy.rlwy.net:33636/rtsmm-th?replicaSet=rs0&authSource=admin&retryWrites=true&w=majority',
   sessionSecret: process.env.SESSION_SECRET || '',
+
+  // iPlusView (คงเดิม)
   provider: {
     baseUrl: ((process.env.IPV_API_BASE || '').replace(/\/+$/, '')) || '',
     apiKey: process.env.IPV_API_KEY || ''
   },
+
+  // ✅ เพิ่ม: OTP24hr (อ่านจาก ENV เป็นค่าเริ่มต้นได้ด้วย)
+  otp24hr: {
+    apiBase: ((process.env.OTP24_API_BASE || 'https://otp24hr.com/api/v1').replace(/\/+$/, '')),
+    apiKey: process.env.OTP24_API_KEY || '',
+  },
+
   currency: 'THB',
   initialBalance: 0,
   signupBonus: 0,
+
   mail: {
     host: process.env.MAIL_HOST || '',
     port: Number(process.env.MAIL_PORT || 587),
@@ -25,11 +35,13 @@ const envConfig = {
     pass: process.env.MAIL_PASS || '',
     from: process.env.MAIL_FROM || '',
   },
+
   otp: {
     ttlSec: Number(process.env.OTP_CODE_TTL || 600),
     resendCooldownSec: Number(process.env.OTP_RESEND_COOLDOWN || 60),
     maxAttempts: Number(process.env.OTP_MAX_ATTEMPTS || 5),
   },
+
   TW_GEN_LINK_SECRET: process.env.TW_GEN_LINK_SECRET || '',
 };
 
@@ -41,10 +53,19 @@ const secureConfigSchema = new mongoose.Schema(
   {
     port: Number,
     sessionSecret: String,
+
+    // iPlusView (คงเดิม)
     ipv: {
       apiBase: String,
       apiKey: String,
     },
+
+    // ✅ เพิ่ม: OTP24hr เก็บใน DB
+    otp24hr: {
+      apiBase: String,
+      apiKey: String,
+    },
+
     mail: {
       host: String,
       port: Number,
@@ -58,6 +79,8 @@ const secureConfigSchema = new mongoose.Schema(
       maxAttempts: Number,
     },
     TW_GEN_LINK_SECRET: String,
+
+    // เก็บ mongoUri แบบเข้ารหัส (คงเดิม)
     mongoUriEnc: String,
   },
   { collection: 'secure_config', minimize: true }
@@ -72,6 +95,7 @@ const trimBase = (u = '') => String(u).replace(/\/+$/, '');
 function applyDBToConfig(doc) {
   if (!doc) return;
 
+  // ถอดรหัส mongoUri ถ้ามี
   if (doc.mongoUriEnc) {
     const key = process.env.CONFIG_KEY || '';
     try {
@@ -88,6 +112,13 @@ function applyDBToConfig(doc) {
   const keyIpv  = (doc?.ipv?.apiKey || '').trim();
   if (baseIpv) config.provider.baseUrl = baseIpv;
   if (keyIpv)  config.provider.apiKey  = keyIpv;
+
+  // ✅ OTP24hr
+  const otp24doc  = doc?.otp24hr || doc?.otp24 || null;
+  const baseOtp24 = trimBase(otp24doc?.apiBase || '');
+  const keyOtp24  = (otp24doc?.apiKey || '').trim();
+  if (baseOtp24) config.otp24hr.apiBase = baseOtp24;
+  if (keyOtp24)  config.otp24hr.apiKey  = keyOtp24;
 
   // mail
   if (doc.mail) {
@@ -113,7 +144,9 @@ export async function refreshConfigFromDB() {
   try {
     const doc = await SecureConfig.findOne().lean();
     applyDBToConfig(doc || null);
+    // tidy base URLs
     config.provider.baseUrl = trimBase(config.provider.baseUrl);
+    config.otp24hr.apiBase  = trimBase(config.otp24hr.apiBase);
     return config;
   } catch {
     return config;
@@ -141,7 +174,6 @@ export function resolveMongoUri() {
 }
 
 /** ต่อ MongoDB ถ้ายังไม่ต่อ หรือหลุดไปแล้ว */
-
 export async function connectMongoIfNeeded() {
   const st = mongoose.connection.readyState;
   if (st === 1 || st === 2) return mongoose.connection;

@@ -38,9 +38,9 @@ import { startSpendAutoRecalc } from "./services/spendWatcher.js";
 import { topupRouter } from "./routes/topup.js";
 import adminReport from './routes/admin-report.js';
 import affiliateRouter from './routes/affiliate.js';
-
 import blogRoutes from "./routes/blog.js";
-
+import otp24Routes from './routes/otp24.js';
+import { startOtp24RefundWatcher } from './jobs/otp24RefundWatcher.js';
 import cookieParser from 'cookie-parser';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -307,7 +307,8 @@ app.use("/", requireAuth, dashboardRouter);
 app.use("/otp", otpRouter);
 app.use("/api", apiPricingRouter);
 app.use(adminReport);
-app.use("/blog", blogRoutes)
+app.use("/blog", blogRoutes);
+app.use('/otp24', otp24Routes);
 
 // Healthcheck (optional)
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
@@ -462,6 +463,7 @@ app.use((req, res) => res.status(404).send("Not found"));
 })();
 
 initDailyChangeSync();
+startOtp24RefundWatcher();
 
 /* ------------------------------------------------------------------ */
 /* 5) ใช้ PORT จาก DB ก่อน ถ้าไม่มีค่อย fallback env/config           */

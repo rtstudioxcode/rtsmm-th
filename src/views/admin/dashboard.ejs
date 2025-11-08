@@ -31,6 +31,55 @@
 
 <div class="grid cards">
   <section class="card">
+    <div class="card-head row-head">
+      <h3>เครดิตผู้ให้บริการ OTP24</h3>
+      <div class="head-right">
+        <span class="metric-badge" id="otpSync">
+          ล่าสุด: <%= otp24LastSyncAt ? new Date(otp24LastSyncAt).toLocaleString() : '—' %>
+        </span>
+      </div>
+    </div>
+
+    <div id="otpBal" class="big">
+      <%= Number(otp24Bal || 0).toLocaleString(undefined,{ minimumFractionDigits: 2 }) %> THB
+    </div>
+
+    <% if (otp24LastError) { %>
+      <div class="muted" id="otpErr">⚠️ <%= otp24LastError %></div>
+    <% } else { %>
+      <div class="muted" id="otpErr"></div>
+    <% } %>
+
+    <button id="btnOtp24" class="btn" onclick="refreshOtp24()">ดึงยอด OTP24</button>
+  </section>
+  <section class="card">
+    <div class="card-head row-head">
+      <h3>ซิงก์บริการ OTP24</h3>
+
+      <div class="head-right muted">
+        บริการในปัจจุบัน:
+        <b id="otpSvcTotal"><%= (otp24ProductsTotal ?? 0).toLocaleString() %></b> รายการ
+      </div>
+    </div>
+
+    <button class="btn" onclick="syncOtpServices()">ดึงบริการ OTP</button>
+
+    <div id="otpSvcRes" class="mt muted">
+      ล่าสุด: <%= otp24ProductsLastSyncAt ? new Date(otp24ProductsLastSyncAt).toLocaleString() : '—' %>
+    </div>
+  </section>
+
+  <section class="card">
+    <h3>สรุปยอดขาย OTP</h3>
+    <a class="btn" href="/admin/otp-report">ไปหน้าสรุปยอดขาย OTP</a>
+    <p class="muted mt">
+      ประวัติการขาย OTP | สรุปยอดขาย OTP
+    </p>
+  </section>
+</div>
+
+<div class="grid cards">
+  <section class="card">
     <h3>เครดิตผู้ให้บริการ</h3>
     <div id="bal" class="big"><%= balance %></div>
     <button class="btn" onclick="refreshBal()">รีเฟรชเครดิต</button>
@@ -355,62 +404,83 @@
   </div>
 </div>
 
-<!-- <div id="manualTopupModal" class="hidden modal">
-  <div class="overlay" data-close="1"></div>
-  <div
-    class="dialog"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="manualTitle"
-  >
-    <div class="hdr">
-      <div class="title" id="manualTitle">เติมเงินให้ผู้ใช้</div>
-      <button class="icon close" id="manualTopupClose" aria-label="ปิด">
-        ×
-      </button>
-    </div>
-    <hr class="sep" />
+<script>
+async function refreshOtp24(){
+  const btn   = document.getElementById('btnOtp24');
+  const balEl = document.getElementById('otpBal');
+  const syncEl= document.getElementById('otpSync');
+  const errEl = document.getElementById('otpErr');
 
-    <div class="body">
-      <form id="manualTopupForm" onsubmit="return submitManualTopup(event)">
-        <label>
-          ชื่อผู้ใช้ (Username)
-          <input
-            type="text"
-            id="manualUsername"
-            list="userList"
-            autocomplete="off"
-            required
-            placeholder="พิมพ์ค้นหา เช่น: ad"
-            class="block input mt-sm"
-          />
-          <datalist id="userList"></datalist>
-        </label>
+  try{
+    if (btn){ btn.disabled = true; btn.dataset._label = btn.textContent; btn.textContent = 'กำลังดึง…'; }
+    if (balEl){ balEl.dataset._val = balEl.textContent; balEl.textContent = 'กำลังดึง…'; }
+    if (errEl){ errEl.textContent = ''; }
 
-        <label>
-          จำนวนเงิน
-          <input
-            type="number"
-            id="manualAmount"
-            required
-            class="block input mt-sm"
-          />
-        </label>
+    const r = await fetch('/admin/otp24hr/refresh-balance', { method: 'POST', headers:{'Accept':'application/json'} });
+    const text = await r.text();
+    let d = null; try { d = JSON.parse(text); } catch {}
 
-        <div class="card soft mt">
-          💡 ระบบจะเพิ่มยอดเงินเข้าบัญชีของผู้ใช้ทันที และบันทึกในระบบ
-        </div>
+    if (!r.ok || !d?.ok) {
+      const msg = (d && (d.error || d.message)) || text || `HTTP ${r.status}`;
+      throw new Error(msg);
+    }
 
-        <div class="footer d-flex justify-content-center mt">
-          <button class="block btn primary" type="submit">
-            ยืนยันเติมเงิน
-          </button>
-        </div>
-      </form>
-      <div id="manualTopupStatus" class="mt"></div>
-    </div>
-  </div>
-</div> -->
+    if (balEl){
+      balEl.textContent = Number(d.balance).toLocaleString(undefined,{ minimumFractionDigits: 2 }) + (d.currency?(' '+d.currency):'');
+    }
+    if (syncEl){
+      syncEl.textContent = 'ล่าสุด: ' + new Date().toLocaleString();
+    }
+    if (errEl){ errEl.textContent = ''; }
+
+    window.showMsg?.({
+      variant: 'success',
+      title: 'ดึงยอด OTP24 สำเร็จ',
+      text: `ยอดคงเหลือ: ${Number(d.balance).toLocaleString(undefined,{ minimumFractionDigits:2 })}${d.currency?(' '+d.currency):''}`,
+      okText: 'ปิด'
+    });
+  }catch(err){
+    if (balEl && balEl.dataset._val) balEl.textContent = balEl.dataset._val;
+    if (syncEl){ syncEl.textContent = 'ล่าสุด: ' + new Date().toLocaleString(); }
+    if (errEl){ errEl.textContent = String(err?.message || err); }
+
+    window.showMsg?.({
+      variant: 'danger',
+      title: 'ล้มเหลว',
+      text: String(err?.message || err),
+      okText: 'ปิด'
+    });
+    console.error('refreshOtp24 error:', err);
+  }finally{
+    if (btn){ btn.disabled = false; if (btn.dataset._label) btn.textContent = btn.dataset._label; }
+  }
+}
+
+async function syncOtpServices() {
+  try {
+    const res = await fetch('/admin/otp24hr/sync-services', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'accept': 'application/json' },
+      body: JSON.stringify({ apiPerc: 0, addPerc: 50 })
+    });
+    const data = await res.json();
+    if (!res.ok || !data?.ok) throw new Error(data?.error || 'sync failed');
+
+    notify?.success?.('ซิงก์สำเร็จ', `อัปเดตแล้ว ${data.count?.toLocaleString?.() ?? data.count} รายการ`);
+
+    // อัปเดตตัวเลขรวม
+    const totalEl = document.getElementById('otpSvcTotal');
+    if (totalEl) totalEl.textContent = (data.total ?? 0).toLocaleString();
+
+    // ✅ อัปเดต “ล่าสุด: …”
+    const lastEl = document.getElementById('otpSvcRes');
+    if (lastEl) lastEl.textContent = `ล่าสุด: ${new Date().toLocaleString()}`;
+  } catch (err) {
+    notify?.error?.('ซิงก์ล้มเหลว', String(err?.message || err));
+    console.error('[syncOtpServices] failed:', err);
+  }
+}
+</script>
 
 <script>
 async function refreshBal(){
@@ -602,54 +672,6 @@ async function syncServices() {
     wrap.appendChild(menu);
   })();
 
-  /* 🟣 Modal Controls (เหมือน QR Modal) */
-  // function openManualTopupModal(txId = null, amount = null, suggestedUsername = ''){
-  //   const modal = document.getElementById("manualTopupModal");
-  //   modal.classList.remove("hidden");
-
-  //   const form = document.getElementById("manualTopupForm");
-  //   form.reset();
-  //   document.getElementById("manualTopupStatus").innerHTML = "";
-
-  //   window.currentTxId = txId;
-
-  //   const amtInput = document.getElementById("manualAmount");
-  //   if (amount){
-  //     amtInput.value = Number(amount).toFixed(2);
-  //     amtInput.readOnly = true;
-  //     amtInput.style.opacity = "0.7";
-  //   }else{
-  //     amtInput.value = "";
-  //     amtInput.readOnly = false;
-  //     amtInput.style.opacity = "1";
-  //   }
-
-  //   const userInput = document.getElementById('manualUsername');
-  //   if (suggestedUsername && suggestedUsername !== 'null'){
-  //     userInput.value = suggestedUsername;
-  //     doUserSearch(suggestedUsername);             // preload รายการที่เกี่ยวข้อง
-  //   }else{
-  //     userInput.value = '';
-  //     doUserSearch('');                            // preload 10–20 คนแรก
-  //   }
-
-  //   bindUsernameSearchOnce();
-
-  //   // ช่วยให้ dropdown โผล่ไวขึ้นบนบาง browser: ยิง input event เบาๆ
-  //   setTimeout(()=>{ userInput.dispatchEvent(new Event('input')); }, 50);
-  // }
-
-  // function closeManualTopupModal(){
-  //   document.getElementById("manualTopupModal").classList.add("hidden");
-  //   document.getElementById("manualTopupStatus").innerHTML = "";
-  // }
-
-  // // ปุ่มปิด (×)
-  // document.getElementById("manualTopupClose").onclick = closeManualTopupModal;
-  // // คลิก overlay ปิด
-  // document.getElementById("manualTopupModal").addEventListener("click",(e)=>{ if(e.target.dataset.close==="1") closeManualTopupModal(); });
-  // // ปุ่ม Escape ปิด
-  // document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") closeManualTopupModal(); });
   function openManualTopupModal(txId = null, amount = null, suggestedUsername = '', method = 'admin', lock = false){
     const modal = document.getElementById("manualTopupModal");
     if (!modal) return;

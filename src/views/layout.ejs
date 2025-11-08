@@ -103,10 +103,14 @@
         </a>
       <% } %>
       <div class="sb-group">บริการ</div>
-      <% if (me) { %>        
+      <% if (me) { %>
+        <a class="sb-item" href="/otp24" style="text-decoration: none;">
+          <img class="ico" src="/static/assets/emoji/otp.png" alt="คำสั่งซื้อของฉัน" width="18" height="18" loading="lazy" />
+          <span class="txt">บริการ OTP</span>
+        </a>        
         <a class="sb-item" href="/orders/new" style="text-decoration: none;">
           <img class="ico" src="/static/assets/emoji/ordernew.png" alt="คำสั่งซื้อใหม่" width="18" height="18" loading="lazy" />
-          <span class="txt">คำสั่งซื้อใหม่</span>
+          <span class="txt">บริการ Social</span>
         </a>
         <a class="sb-item" href="/my/orders" style="text-decoration: none;">
           <img class="ico" src="/static/assets/emoji/history.png" alt="คำสั่งซื้อของฉัน" width="18" height="18" loading="lazy" />

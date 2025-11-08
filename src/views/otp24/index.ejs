@@ -1,0 +1,1794 @@
+<%
+// code ธงตาม ct ของ API
+const CT2CODE = {
+  52:'th',187:'us',16:'gb',6:'id',10:'vn',5:'mm',1:'ua',19:'ng',62:'tr',
+  3:'cn',4:'ph',24:'kh',25:'la',7:'my',21:'eg'
+};
+// path รูปธง
+const FLAGIMG = (id) => `/static/assets/otp24/${CT2CODE[id] || 'xx'}.png`;
+
+// (คง FLAG เดิมไว้เผื่อใช้ที่อื่น)
+const FLAG = id => ({
+  52:'🇹🇭',187:'🇺🇸',16:'🇬🇧',6:'🇮🇩',10:'🇻🇳',5:'🇲🇲',1:'🇺🇦',19:'🇳🇬',62:'🇹🇷',
+  3:'🇨🇳',4:'🇵🇭',24:'🇰🇭',25:'🇱🇦',7:'🇲🇾',21:'🇪🇬'
+}[id] || '🏳️');
+%>
+
+<section class="page container otp24">
+    <div class="tabs">
+        <button class="tab active" style="width: 100%;" data-target="shop">สั่งซื้อ OTP</button>
+        <button class="tab" style="width: 100%;" data-target="orders">ประวัติสั่งซื้อ</button>
+    </div>
+
+    <!-- ============ SECTION 1: สั่งซื้อ OTP ============ -->
+    <section id="section-shop" class="tabpane show">
+        <form method="get" class="row mt">
+        <input class="input" name="q" placeholder="ค้นหาแอพ…" value="<%= q || '' %>" />
+        <button class="btn" type="submit">ค้นหา</button>
+        </form>
+
+        <!-- เดิม: <div class="grid cards mt-lg"> ... มีปุ่มเช่าในแต่ละการ์ด -->
+        <div class="grid cards mt-lg" id="appsGrid">
+        <% (products||[]).forEach(p => { %>
+            <section class="card app"
+            data-id="<%= p._id %>"
+            data-name="<%= p.name %>"
+            data-price="<%= p.price %>"
+            role="button"
+            tabindex="0"
+            aria-label="เช่า OTP สำหรับ <%= p.name %> ราคา <%= p.price.toFixed(2) %> บาท">
+            <div class="price-badge">฿ <%= p.price.toFixed(2) %></div>
+            <div class="app-icon">
+                <% if (p.icon) { %>
+                <img src="<%= p.icon %>" alt="<%= p.name %>" loading="lazy"/>
+                <% } else { %>
+                <div class="placeholder"><%= p.name?.[0] || '?' %></div>
+                <% } %>
+            </div>
+            <div class="app-name"><%= p.name %></div>
+            <!-- ตัดปุ่มเช่าออก -->
+            </section>
+        <% }) %>
+        </div>
+    </section>
+
+    <!-- ============ SECTION 2: ประวัติ OTP (แบบภาพตัวอย่าง #3) ============ -->
+    <section id="section-orders" class="tabpane">
+        <!-- Controls: per page + pager -->
+        <div class="orders-controls" id="ordersControlsDesktop">
+            <div class="left">
+                แสดง
+                <select id="perPageSelect">
+                <option value="10">10</option>
+                <option value="20" selected>20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+                </select>
+                รายการ/หน้า
+            </div>
+            <div class="right pager">
+                <button class="pg-btn" data-act="first" aria-label="หน้าแรก">«</button>
+                <button class="pg-btn" data-act="prev" aria-label="ก่อนหน้า">‹</button>
+                <span id="pageInfo">หน้า 1/1</span>
+                <button class="pg-btn" data-act="next" aria-label="ถัดไป">›</button>
+                <button class="pg-btn" data-act="last" aria-label="หน้าสุดท้าย">»</button>
+            </div>
+        </div>
+        <div class="orders-wrap">
+        <table class="tbl">
+            <thead>
+            <tr>
+                <th>เลขออเดอร์</th>
+                <th>แอป</th>
+                <th>เบอร์</th>
+                <th>OTP / เวลา</th>
+                <th class="center">ราคา</th>
+                <th class="right">สถานะ</th>
+                <!-- <th class="right">การกระทำ</th> -->
+            </tr>
+            </thead>
+            <tbody id="ordersBody">
+            <% (orders||[]).forEach(o => {
+            const st = String(o.status || 'processing').toLowerCase();
+            const createdAtStr = new Date(o.createdAt).toISOString().replace('T',' ').slice(0,19);
+            %>
+            <tr data-orderid="<%= o.orderId %>" data-ct="<%= Number(o.countryId||0) %>" data-expires="<%= o.expiresAt ? new Date(o.expiresAt).toISOString() : '' %>">
+                <td class="mono"><%= o.orderId || '-' %></td>
+                <td>
+                <span class="badge app"><%= o.appName || '—' %></span>
+                <span class="flag"><img src="<%= FLAGIMG(Number(o.countryId||0)) %>" alt="" /></span>
+                </td>
+                <td>
+                  <div class="mono phone-cell">
+                    <% 
+                      const phoneStrTable = o.phone
+                        ? (Number(o.countryId)===52 ? String(o.phone).replace(/^\+?66/,'0') : String(o.phone))
+                        : '-';
+                    %>
+                    <span class="v"><%= phoneStrTable %></span>
+                    <% if (o.phone) { %>
+                      <button class="copy" data-copy="<%= phoneStrTable %>" aria-label="คัดลอกเบอร์">
+                        <img src="/static/assets/otp24/copy.png" alt="">
+                      </button>
+                    <% } %>
+                  </div>
+                </td>
+
+                <td>
+                <% if (o.otp) { %>
+                    <div class="otp">OTP : <b><%= o.otp %></b>
+                    <button class="copy" data-copy="<%= o.otp %>" aria-label="คัดลอก OTP">
+                        <img src="/static/assets/otp24/copy.png" alt="" />
+                    </button>
+                    </div>
+                <% } else { %>
+                    <div class="otp none">OTP : <span class="muted">ไม่พบข้อความ</span></div>
+                <% } %>
+                <div class="ts"><%= new Date(o.createdAt).toISOString().replace('T',' ').slice(0,19) %></div>
+                </td>
+
+                <td class="center">฿ <%= Number(o.salePrice||0).toFixed(2) %></td>
+
+                <td class="right">
+                <span class="pill <%= st %>">
+                    <%= st==='success'   ? 'สำเร็จ'
+                    : st==='refunded'  ? 'คืนเครดิต'
+                    : st==='timeout'   ? 'หมดเวลา'
+                    : st==='failed'    ? 'ล้มเหลว'
+                    : /* processing / อื่นๆ */ 'กำลังรอ OTP' %>
+                </span>
+                <% /* ใส่ตัวนับถอยหลังเฉพาะที่ยัง processing และมี expiresAt */ %>
+                <% if (st==='processing' && o.expiresAt) { %>
+                    <div class="countdown" data-expires="<%= new Date(o.expiresAt).toISOString() %>">
+                    เหลือเวาอีก —:— นาที หากไม่ได้รับ OTP ระบบจะคืนเงินอัตโนมัติ
+                    </div>
+                <% } %>
+                </td>
+            </tr>
+            <% }) %>
+            </tbody>
+        </table>
+        </div>
+    </section>
+
+    <div class="orders-controls mobile-only" id="ordersControlsMobile">
+        <div class="left">
+            แสดง
+            <select id="perPageSelectMobile">
+            <option value="10">10</option>
+            <option value="20" selected>20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+            </select>
+            รายการ/หน้า
+        </div>
+        <div class="right pager">
+            <button class="pg-btn" data-act="first">«</button>
+            <button class="pg-btn" data-act="prev">‹</button>
+            <span id="pageInfoMobile">หน้า 1/1</span>
+            <button class="pg-btn" data-act="next">›</button>
+            <button class="pg-btn" data-act="last">»</button>
+        </div>
+    </div>
+    <!-- ลิสต์แบบมือถือ (แสดงเฉพาะจอเล็ก) -->
+    <div id="mOrders" class="m-orders">
+    <% (orders||[]).forEach(o => { 
+        const st = String(o.status || 'processing').toLowerCase();
+        const createdStr = new Date(o.createdAt).toISOString().replace('T',' ').slice(0,19);
+        const phoneStr = o.phone
+        ? (Number(o.countryId)===52 ? String(o.phone).replace(/^\+?66/,'0') : String(o.phone))
+        : '-';
+    %>
+    <div class="m-item collapsed"
+        data-orderid="<%= o.orderId %>"
+        data-ct="<%= Number(o.countryId||0) %>"
+        data-expires="<%= o.expiresAt ? new Date(o.expiresAt).toISOString() : '' %>">
+        <!-- หัวการ์ด: แตะตรงไหนก็พับ/กาง -->
+        <div class="m-head">
+          <div class="row1">
+              <div class="oid mono"><%= o.orderId %></div>
+              <div class="when mono"><%= createdStr %></div>
+              <button class="toggle" aria-label="toggle" type="button">+</button>
+          </div>
+          <div class="row2">
+            <div class="phone mono">
+              เบอร์: <span class="v"><%= phoneStr %></span>
+              <% if (o.phone) { %>
+                <button class="copy" data-copy="<%= phoneStr %>" aria-label="คัดลอกเบอร์">
+                  <img src="/static/assets/otp24/copy.png" alt="">
+                </button>
+              <% } %>
+            </div>
+
+            <% if (o.otp) { %>
+              <div class="otp">OTP: <b class="v"><%= o.otp %></b>
+                <button class="copy" data-copy="<%= o.otp %>" aria-label="คัดลอก OTP">
+                  <img src="/static/assets/otp24/copy.png" alt="">
+                </button>
+              </div>
+            <% } else { %>
+              <div class="otp none">OTP: <span class="muted v">ไม่พบข้อความ</span></div>
+            <% } %>
+          </div>
+        </div>
+
+        <!-- เนื้อหาเมื่อกาง -->
+        <div class="m-body">
+        <div class="pair"><span>แอป</span> <span class="badge app"><%= o.appName||'—' %></span></div>
+        <div class="pair"><span>ประเทศ</span>
+            <span class="flag"><img src="<%= FLAGIMG(Number(o.countryId||0)) %>" alt=""></span>
+        </div>
+        <div class="pair"><span>ราคา</span> <span class="mono">฿ <%= Number(o.salePrice||0).toFixed(2) %></span></div>
+        <div class="pair">
+            <span>สถานะ</span>
+            <span>
+            <span class="pill <%= st %>">
+                <%= st==='success'   ? 'เสร็จสิ้น'
+                : st==='refunded'  ? 'คืนเครดิต'
+                : st==='timeout'   ? 'หมดเวลา'
+                : st==='failed'    ? 'ล้มเหลว'
+                : 'กำลังรอ OTP' %>
+            </span>
+            <% if (st==='processing' && o.expiresAt) { %>
+                <div class="countdown" data-expires="<%= new Date(o.expiresAt).toISOString() %>">
+                เหลือเวลาอีก —:— นาที
+                </div>
+            <% } %>
+            </span>
+        </div>
+        </div>
+    </div>
+    <% }) %>
+    </div>
+</section>
+
+<!-- Modal ซื้อ -->
+<dialog id="buyModal">
+  <form method="dialog" class="modal modal-otp24">
+    <h2 class="modal-title">คุณต้องการเช่าเบอร์ OTP ?</h2>
+
+    <div class="modal-sub">
+      <div id="selApp">รายการ : —</div>
+      <div id="selPrice">ราคา : — บาท</div>
+    </div>
+
+    <div class="modal-label">กรุณาเลือกประเทศ</div>
+    <div class="modal-divider"></div>
+
+    <div class="flags-grid">
+        <%
+            // จัดลำดับ: ไทย (52) ก่อน เสมอ ที่เหลือเรียงตามชื่อ
+            const FLAG_LIST = Object.entries(countries)
+            .map(([id, name]) => ({ id: Number(id), name }))
+            .sort((a, b) => (a.id === 52 ? -1 : b.id === 52 ? 1 : a.name.localeCompare(b.name, 'th')));
+
+            FLAG_LIST.forEach(c => { %>
+            <button type="button" class="flag-btn" data-ct="<%= c.id %>" title="<%= c.name %>">
+                <img src="<%= FLAGIMG(c.id) %>" alt="<%= c.name %>" loading="lazy">
+            </button>
+        <% }); %>
+    </div>
+
+    <div class="actions">
+      <button class="btn modal-primary" id="btnConfirm" disabled>ตกลง</button>
+      <button class="btn modal-secondary" style="background: rgb(231, 11, 11); box-shadow: none;" value="close">ยกเลิก</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+/* ----- Tabs ----- */
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.tabpane').forEach(x=>x.classList.remove('show'));
+    t.classList.add('active');
+    document.getElementById('section-'+t.dataset.target).classList.add('show');
+  });
+});
+
+/* ----- Buy flow ----- */
+let chosen = { productId:null, countryId:null, name:'', price:0 };
+function openBuyModal(id, name, price){
+  chosen = { productId:id, countryId:null, name, price };
+  document.getElementById('selApp').textContent   = `รายการ : ${name}`;
+  document.getElementById('selPrice').textContent = `ราคา : ${price.toFixed(2)} บาท`;
+  document.querySelectorAll('#buyModal .flag').forEach(b=>b.classList.remove('active'));
+  document.getElementById('btnConfirm').disabled = true;
+  document.getElementById('buyModal').showModal();
+}
+document.querySelectorAll('#buyModal .flag-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#buyModal .flag-btn').forEach(b=>b.classList.remove('active','selected'));
+    btn.classList.add('active','selected');       // ← ใช้คู่กับ CSS ด้านบน
+    chosen.countryId = Number(btn.dataset.ct);
+    document.getElementById('btnConfirm').disabled = false;
+  });
+});
+// สลับแท็บไป "ประวัติ"
+function goOrdersTab(){
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.tabpane').forEach(x=>x.classList.remove('show'));
+  document.querySelector('.tab[data-target="orders"]')?.classList.add('active');
+  document.getElementById('section-orders')?.classList.add('show');
+}
+
+// โพลลิ่งเช็คสถานะออเดอร์ทุก 1 วิ จนจบ
+const POLL_DONE = new Set(['success','timeout','failed','refunded']);
+const pollers = new Map();
+function startOrderPolling(orderId){
+  if (!orderId || pollers.has(orderId)) return;
+
+  const tick = async () => {
+    try{
+      const r = await fetch(`/otp24/orders/${encodeURIComponent(orderId)}/refresh`, { method:'POST' });
+      const j = await r.json();
+      if (!j?.ok) return;
+
+      const { patch } = j;
+      const tr = document.querySelector(`tr[data-orderid="${CSS.escape(orderId)}"]`);
+      if (tr && patch){
+        // อัปเดต OTP/เวลา
+        const cell = tr.children[3];
+        if (patch.otp){
+          cell.innerHTML = `
+            <div class="otp">OTP : <b>${patch.otp}</b>
+                <button class="copy" data-copy="${patch.otp}" aria-label="คัดลอก OTP">
+                    <img src="/static/assets/otp24/copy.png" alt="" />
+                </button>
+            </div>
+            <div class="ts">${new Date().toISOString().replace('T',' ').slice(0,19)}</div>`;
+        }else{
+          cell.innerHTML = `
+            <div class="otp muted">OTP : <b>ไม่พบข้อความ</b></div>
+            <div class="ts">${new Date().toISOString().replace('T',' ').slice(0,19)}</div>`;
+        }
+
+        // อัปเดตสถานะ/สีป้าย
+        const pill = tr.querySelector('.pill');
+        if (pill){
+          const st = String(patch.status||'').toLowerCase();
+          pill.className = `pill ${st}`;
+          pill.textContent =
+            st==='success'   ? 'สำเร็จ' :
+            st==='processing'? 'กำลังรอ OTP' :
+            st==='timeout'   ? 'หมดเวลา' :
+            st==='failed'    ? 'ล้มเหลว' :
+            st==='refunded'  ? 'คืนเครดิตแล้ว' : 'ล้มเหลว';
+        }
+
+        // เบอร์ (ถ้าเพิ่งได้)
+        if (patch.phone){
+          const ct = Number(tr.dataset.ct || 0);
+          const formatted = displayPhoneByCountry(patch.phone, ct);
+          const cell = tr.children[2];
+          const mono = cell.querySelector('.mono .v') || cell.querySelector('.mono');
+          if (mono) mono.textContent = formatted;
+          // ถ้ามีปุ่ม copy แล้วอัปเดตค่า ไม่มีก็สร้าง
+          let btn = cell.querySelector('.copy');
+          if (!btn){
+            btn = document.createElement('button');
+            btn.className = 'copy';
+            btn.setAttribute('aria-label','คัดลอกเบอร์');
+            btn.innerHTML = `<img src="/static/assets/otp24/copy.png" alt="">`;
+            (cell.querySelector('.mono') || cell).appendChild(btn);
+          }
+          btn.dataset.copy = formatted;
+
+          // มือถือ
+          const mCard = document.querySelector(`.m-orders .m-item[data-orderid="${orderId}"]`);
+          if (mCard){
+            const el = mCard.querySelector('.row2 .phone .v');
+            if (el) el.textContent = formatted;
+            let mBtn = mCard.querySelector('.row2 .phone .copy');
+            if (!mBtn){
+              mBtn = document.createElement('button');
+              mBtn.className = 'copy';
+              mBtn.setAttribute('aria-label','คัดลอกเบอร์');
+              mBtn.innerHTML = `<img src="/static/assets/otp24/copy.png" alt="">`;
+              el?.after(mBtn);
+            }
+            mBtn.dataset.copy = formatted;
+          }
+        }
+
+        // จบงาน → หยุดโพลลิ่ง
+        if (POLL_DONE.has(String(patch.status||'').toLowerCase())){
+          clearInterval(pollers.get(orderId));
+          pollers.delete(orderId);
+          // ตัด countdown ของ card/row นี้ด้วย
+          tr?.querySelector('.countdown')?.remove();
+          const mCard = document.querySelector(`.m-orders .m-item[data-orderid="${orderId}"]`);
+          mCard?.querySelector('.countdown')?.remove();
+
+          if (!hasProcessingRows()) stopOrdersAutoRefresh();
+        }
+      }
+    }catch{}
+  };
+
+  tick();
+  const id = setInterval(tick, 1000);
+  pollers.set(orderId, id);
+}
+
+document.getElementById('btnConfirm').addEventListener('click', async (e)=>{
+  e.preventDefault();
+  if (!chosen.productId || !chosen.countryId) return;
+  try{
+    const res = await fetch('/otp24/buy', {
+      method:'POST',
+      headers:{ 'content-type':'application/json', 'accept':'application/json' },
+      body: JSON.stringify({ productId: chosen.productId, countryId: chosen.countryId })
+    });
+    const j = await res.json();
+    if (!res.ok || !j?.ok) throw new Error(j?.error || 'สั่งซื้อไม่สำเร็จ');
+
+    // ➊ ตั้งธงให้รีไดเร็กต์ไปแท็บประวัติหลังรีเฟรชรอบเดียว
+    sessionStorage.setItem('OTP24_AFTER_BUY', j.redirect || '/otp24?tab=orders');
+
+    // ➋ รีเฟรชหน้านี้ 1 ครั้ง (ให้รายการ/ยอดคงเหลือบนแท็บ “สั่งซื้อ” อัปเดตก่อน)
+    window.location.reload();
+  }catch(err){ alert(err.message || err); }
+});
+
+/* ----- Utilities ----- */
+function setCopyIcon(btn, success) {
+  const img = btn.querySelector('img');
+  if (!img) return;
+  img.src = success
+    ? '/static/assets/otp24/copy-success.png'
+    : '/static/assets/otp24/copy.png';
+}
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.copy');
+  if (!btn) return;
+
+  navigator.clipboard.writeText(btn.dataset.copy || '').then(() => {
+    setCopyIcon(btn, true);
+    // กลับเป็นไอคอนปกติใน 900ms
+    setTimeout(() => setCopyIcon(btn, false), 900);
+  }).catch(() => {
+    // ถ้า copy ไม่ได้ อย่าค้างไอคอน success
+    setCopyIcon(btn, false);
+  });
+});
+
+/* ----- Refresh single order ----- */
+async function refreshOne(orderId){
+  try{
+    const res = await fetch(`/otp24/orders/${encodeURIComponent(orderId)}/refresh`, { method:'POST' });
+    const j = await res.json();
+    if (!res.ok || !j?.ok) throw new Error(j?.error || 'รีเฟรชไม่สำเร็จ');
+    // อัปเดตแถว
+    const tr = document.querySelector(`tr[data-orderid="${orderId}"]`);
+    if (!tr) return;
+    if (j.patch?.phone){
+      const ct = Number(tr.dataset.ct || 0);
+      const formatted = displayPhoneByCountry(j.patch.phone, ct);
+      const cell = tr.children[2];
+      const mono = cell.querySelector('.mono .v') || cell.querySelector('.mono');
+      if (mono) mono.textContent = formatted;
+      let btn = cell.querySelector('.copy');
+      if (!btn){
+        btn = document.createElement('button');
+        btn.className = 'copy';
+        btn.setAttribute('aria-label','คัดลอกเบอร์');
+        btn.innerHTML = `<img src="/static/assets/otp24/copy.png" alt="">`;
+        (cell.querySelector('.mono') || cell).appendChild(btn);
+      }
+      btn.dataset.copy = formatted;
+    }
+    if (j.patch?.otp){
+      tr.querySelector('.otp')?.remove();
+      const cell = tr.children[3];
+      const div = document.createElement('div');
+      div.className = 'otp';
+      div.innerHTML = `OTP : <b>${j.patch.otp}</b>
+        <button class="copy" data-copy="${j.patch.otp}" aria-label="คัดลอก OTP">
+            <img src="/static/assets/otp24/copy.png" alt="">
+        </button>`;
+      cell.prepend(div);
+    }
+    if (j.patch?.status){
+      const pill = tr.querySelector('.pill');
+      pill.className = `pill ${j.patch.status}`;
+      pill.textContent = j.patch.status==='success'?'สำเร็จ':
+                         j.patch.status==='processing'?'กำลังรอ':
+                         j.patch.status==='timeout'?'หมดเวลา':
+                         j.patch.status==='failed'?'ล้มเหลว':'ล้มเหลว';
+    }
+  }catch(e){ alert(e.message || e); }
+}
+(() => {
+  const u = new URL(location.href);
+  if (u.searchParams.get('tab') === 'orders' || location.hash.replace('#','') === 'orders'){
+    document.querySelector('.tab[data-target="orders"]')?.click();
+  }
+})();
+(() => {
+  const grid = document.getElementById('appsGrid');
+  if (!grid) return;
+
+  // คลิกที่การ์ด = เปิดโมดัล
+  grid.addEventListener('click', (e) => {
+    const card = e.target.closest('section.card.app');
+    if (!card) return;
+    openBuyModal(
+      card.dataset.id,
+      card.dataset.name,
+      Number(card.dataset.price || 0)
+    );
+  });
+
+  // รองรับคีย์บอร์ด (Enter/Space)
+  grid.addEventListener('keydown', (e) => {
+    if (!['Enter', ' '].includes(e.key)) return;
+    const card = e.target.closest('section.card.app');
+    if (!card) return;
+    e.preventDefault();
+    openBuyModal(
+      card.dataset.id,
+      card.dataset.name,
+      Number(card.dataset.price || 0)
+    );
+  });
+})();
+
+(() => {
+  const to = sessionStorage.getItem('OTP24_AFTER_BUY');
+  if (to) {
+    sessionStorage.removeItem('OTP24_AFTER_BUY');
+    // ไปแท็บประวัติ + เริ่มออโต้รีเฟรช (คลิกแท็บให้ CSS/JS ทำงานเหมือนผู้ใช้กด)
+    window.location.replace(to);
+  }
+})();
+
+function mmss(ms){
+  if (!Number.isFinite(ms) || ms < 0) ms = 0;
+  const s = Math.floor(ms/1000);
+  const m = String(Math.floor(s/60)).padStart(2,'0');
+  const ss = String(s%60).padStart(2,'0');
+  return `${m}:${ss}`;
+}
+
+function tickCountdowns(){
+  const now = Date.now();
+  const upd = (el) => {
+    const exp = Date.parse(el.dataset.expires || el.getAttribute('data-expires') || '');
+    if (!Number.isFinite(exp)) return;
+    const left = exp - now;
+    el.textContent = left>0 ? `เหลือเวลาอีก ${mmss(left)} นาที` : 'ระบบกำลังคืนเครดิต';
+    el.classList.toggle('warn', left>0 && left<=3*60*1000);
+    el.classList.toggle('danger', left>0 && left<=60*1000);
+  };
+  document.querySelectorAll('#ordersBody .countdown').forEach(upd);
+  document.querySelectorAll('#mOrders .countdown').forEach(upd);
+  // ปรับหมายเลขในตาราง Desktop ให้ถูกต้องตามประเทศ
+  document.querySelectorAll('#ordersBody tr').forEach(tr => {
+    const ct = Number(tr.dataset.ct || 0);
+    const box = tr.children?.[2];
+    const mono = box?.querySelector('.mono .v') || box?.querySelector('.mono');
+    if (mono){
+      const formatted = displayPhoneByCountry(mono.textContent.trim(), ct);
+      mono.textContent = formatted;
+      const btn = box.querySelector('.copy');
+      if (btn) btn.dataset.copy = formatted;
+    }
+  });
+
+  // ปรับหมายเลขในลิสต์มือถือให้ถูกต้องเหมือนกัน
+  document.querySelectorAll('#mOrders .m-item').forEach(card => {
+    const ct = Number(card.dataset.ct || 0);
+    const el = card.querySelector('.row2 .phone .v');
+    if (el){
+      const formatted = displayPhoneByCountry(el.textContent.trim(), ct);
+      el.textContent = formatted;
+      const btn = card.querySelector('.row2 .phone .copy');
+      if (btn) btn.dataset.copy = formatted;
+    }
+  });
+}
+
+// ผูกกับลูปรีเฟรชหลัก (ทุก 1 วิอยู่แล้ว)
+function startOrdersAutoRefresh(){
+  stopOrdersAutoRefresh();
+  ORD_AUTO_TIMER = setInterval(async () => {
+    await refreshAllOrdersOnce();
+    tickCountdowns();
+  }, 1000);
+}
+
+function displayPhoneByCountry(rawPhone, countryId){
+  if (!rawPhone) return '-';
+
+  // เก็บเฉพาะตัวเลขกับ "+" ไว้พอประมาณ (กันเคสมี space/dash)
+  let s = String(rawPhone).trim();
+
+  // ── ไทย: countryId = 52
+  if (Number(countryId) === 52) {
+    // รูปแบบ +66XXXXXXXX หรือ 66XXXXXXXX → แปลงเป็น 0XXXXXXXX
+    if (/^\+?66\d{8,9}$/.test(s)) return s.replace(/^\+?66/, '0');
+    // ถ้าเป็น 0XXXXXXXX อยู่แล้ว → ใช้เดิม
+    if (/^0\d{8,9}$/.test(s)) return s;
+    // รูปแบบอื่นของไทย ไม่รู้ชัดเจน → คืนค่าเดิม
+    return s;
+  }
+
+  // ── ประเทศอื่น: บังคับให้ขึ้นต้นด้วย "+"
+  // ถ้ามี "+" อยู่แล้ว → ใช้เดิม
+  if (s.startsWith('+')) return s;
+  // ถ้าเป็นรูปแบบ 00XXXXXXXX → แปลงเป็น +XXXXXXXX
+  if (s.startsWith('00')) return '+' + s.slice(2);
+  // ฟอลแบ็ก: ลบ non-digits แล้วเติม "+"
+  return '+' + s.replace(/[^\d]/g, '');
+}
+</script>
+
+<script>
+/* ===== Auto-refresh loop for orders ===== */
+let ORD_AUTO_TIMER = null;
+
+function hasProcessingRows(){
+  return !!document.querySelector('#ordersBody .pill.processing');
+}
+
+function applyOrderPatch(p){
+  // p: { orderId, status, otp, phone, message }
+  const tr = document.querySelector(`tr[data-orderid="${p.orderId}"]`);
+  if (!tr) return;
+
+  if (p.expiresAt){
+    tr.dataset.expires = p.expiresAt;
+    const cd = tr.querySelector('.countdown');
+    if (cd) cd.dataset.expires = p.expiresAt;
+  }
+
+  // อัปเดตเบอร์ (ถ้ามี)
+  if (Object.prototype.hasOwnProperty.call(p,'phone')) {
+    const cell = tr.children[2];
+    const ct = Number(tr.dataset.ct || 0);
+    const formatted = displayPhoneByCountry(p.phone || '-', ct);
+
+    // desktop
+    const mono = cell.querySelector('.mono .v') || cell.querySelector('.mono');
+    if (mono) mono.textContent = formatted;
+    let btn = cell.querySelector('.copy');
+    if (!btn && p.phone){
+      btn = document.createElement('button');
+      btn.className = 'copy';
+      btn.setAttribute('aria-label','คัดลอกเบอร์');
+      btn.innerHTML = `<img src="/static/assets/otp24/copy.png" alt="">`;
+      (cell.querySelector('.mono') || cell).appendChild(btn);
+    }
+    if (btn) btn.dataset.copy = formatted;
+
+    // mobile
+    const m = document.querySelector(`.m-orders .m-item[data-orderid="${p.orderId}"]`);
+    if (m){
+      const v = m.querySelector('.row2 .phone .v');
+      if (v) v.textContent = formatted;
+      let mBtn = m.querySelector('.row2 .phone .copy');
+      if (!mBtn && p.phone){
+        mBtn = document.createElement('button');
+        mBtn.className = 'copy';
+        mBtn.setAttribute('aria-label','คัดลอกเบอร์');
+        mBtn.innerHTML = `<img src="/static/assets/otp24/copy.png" alt="">`;
+        v?.after(mBtn);
+      }
+      if (mBtn) mBtn.dataset.copy = formatted;
+    }
+  }
+
+  // อัปเดต OTP block
+  const cell = tr.children[3]; // คอลัมน์ OTP/เวลา
+  if (p.otp){
+    // มี OTP แล้ว
+    let otpDiv = cell.querySelector('.otp');
+    if (!otpDiv){
+      otpDiv = document.createElement('div');
+      otpDiv.className = 'otp';
+      cell.prepend(otpDiv);
+    }
+    otpDiv.innerHTML = `OTP : <b>${p.otp}</b>
+        <button class="copy" data-copy="${p.otp}" aria-label="คัดลอก OTP">
+            <img src="/static/assets/otp24/copy.png" alt="">
+        </button>`;
+  } else {
+    // ยังไม่มี OTP → “ไม่พบข้อความ”
+    let otpDiv = cell.querySelector('.otp');
+    if (!otpDiv){
+      otpDiv = document.createElement('div');
+      otpDiv.className = 'otp none';
+      cell.prepend(otpDiv);
+    }
+    otpDiv.classList.add('none');
+    otpDiv.innerHTML = `OTP : <span class="muted">ไม่พบข้อความ</span>`;
+  }
+
+  // อัปเดต Pill สถานะ + ข้อความ
+  if (p.status){
+    const pill = tr.querySelector('.pill');
+    const status = String(p.status).toLowerCase();
+    pill.className = `pill ${status}`;
+    pill.textContent =
+      status==='success'   ? 'สำเร็จ' :
+      status==='refunded'  ? 'คืนเครดิต' :
+      status==='timeout'   ? 'หมดเวลา' :
+      status==='failed'    ? 'ล้มเหลว' :
+                             'กำลังรอ OTP';
+  }
+
+  // จัดการ countdown ใต้ pill
+  const status = String(p.status||'').toLowerCase();
+  let cd = tr.querySelector('.countdown');
+
+  if (status === 'processing') {
+    if (!cd) {
+      cd = document.createElement('div');
+      cd.className = 'countdown';
+      // ถ้าเซิร์ฟเวอร์ส่ง expiresAt มาใน patch ก็ใส่ด้วย (ถ้ายังไม่มี ให้ใช้ data-expires เดิม)
+      // นี่คือ display only; ถ้าไม่มี ก็ไม่เป็นไร tick จะข้าม
+      cd.dataset.expires = tr.getAttribute('data-expires') || '';
+      tr.children[5].appendChild(cd); // คอลัมน์สถานะ
+    }
+  } else {
+    cd?.remove();
+  }
+
+  // ถ้าออเดอร์นี้ success → ตัด countdown ทิ้ง และถ้าไม่เหลือ processing เลย ให้หยุด auto-refresh ทันที
+  if (status === 'success') {
+    // ตัด countdown ของแถวนี้ทิ้ง
+    tr.querySelector('.countdown')?.remove();
+    tr.removeAttribute('data-expires');
+
+    // มือถือด้วย
+    const mCard = document.querySelector(`.m-orders .m-item[data-orderid="${p.orderId}"]`);
+    mCard?.querySelector('.countdown')?.remove();
+    mCard?.removeAttribute('data-expires');
+
+    // ถ้าไม่เหลืองานสถานะ processing แล้ว → หยุดลูปทันที (ไม่ต้องรอรอบถัดไป)
+    if (!hasProcessingRows()) stopOrdersAutoRefresh();
+  }
+}
+
+async function refreshAllOrdersOnce(){
+  try{
+    const res = await fetch('/otp24/orders/refresh-all', { method:'POST' });
+    const j = await res.json();
+    if (!res.ok || !j?.ok) return;
+    (j.changes || []).forEach(applyOrderPatch);
+
+    // ถ้าไม่เหลือ processing แล้ว → หยุด
+    if (!hasProcessingRows()) stopOrdersAutoRefresh();
+  }catch{}
+}
+
+function startOrdersAutoRefresh(){
+  stopOrdersAutoRefresh();
+  ORD_AUTO_TIMER = setInterval(async () => {
+    await refreshAllOrdersOnce();
+    tickCountdowns();   // ← เรียกทุก ๆ วิ
+  }, 1000);
+}
+
+function stopOrdersAutoRefresh(){
+  if (ORD_AUTO_TIMER){ clearInterval(ORD_AUTO_TIMER); ORD_AUTO_TIMER = null; }
+}
+
+// ให้ tick ทำงานแม้ยังไม่เริ่มลูปรีเฟรช (เผื่อหน้าเปิดอยู่เฉยๆ)
+tickCountdowns();
+setInterval(tickCountdowns, 1000);
+
+/* เริ่มออโต้เมื่อเปิดแท็บ "ประวัติ" */
+document.querySelector('.tab[data-target="orders"]')
+  ?.addEventListener('click', () => {
+    startOrdersAutoRefresh();
+  });
+
+/* เริ่มออโต้ทันทีถ้าหน้าเปิดมามี processing อยู่แล้ว */
+if (hasProcessingRows()) startOrdersAutoRefresh();
+
+/* หยุด/เริ่มตาม visibility (ประหยัดโหลด) */
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) stopOrdersAutoRefresh();
+  else if (document.querySelector('#section-orders').classList.contains('show')) {
+    startOrdersAutoRefresh();
+  }
+});
+
+// แตะตรงไหนก็พับ/กาง (ใช้ event delegation)
+document.getElementById('mOrders')?.addEventListener('click', (e) => {
+  const item = e.target.closest('.m-item');
+  if (!item) return;
+  // กันปุ่ม copy
+  if (e.target.closest('.copy')) return;
+  item.classList.toggle('collapsed');
+  const btn = item.querySelector('.toggle');
+  if (btn) btn.textContent = item.classList.contains('collapsed') ? '+' : '−';
+});
+
+// ------- Mobile sync: อัปเดตการ์ดมือถือให้ตรงกับ patch -------
+const m = document.querySelector(`.m-orders .m-item[data-orderid="${p.orderId}"]`);
+if (m) {
+  // expires
+  if (p.expiresAt) {
+    m.dataset.expires = p.expiresAt;
+    m.querySelector('.countdown')?.setAttribute('data-expires', p.expiresAt);
+  }
+  // phone
+  if (Object.prototype.hasOwnProperty.call(p,'phone')) {
+    const ct = Number(m.dataset.ct || 0);
+    const phoneText = displayPhoneByCountry(p.phone || '-', ct);
+    m.querySelector('.row2 .phone .v')?.replaceChildren(document.createTextNode(phoneText));
+  }
+  // otp
+  if (Object.prototype.hasOwnProperty.call(p,'otp')) {
+    const otpBox = m.querySelector('.row2 .otp');
+    if (p.otp) {
+      otpBox?.classList.remove('none');
+      otpBox && (otpBox.innerHTML =
+        `OTP: <b class="v">${p.otp}</b>
+        <button class="copy" data-copy="${p.otp}" aria-label="คัดลอก OTP">
+            <img src="/static/assets/otp24/copy.png" alt="">
+        </button>`);
+    } else {
+      otpBox?.classList.add('none');
+      otpBox && (otpBox.innerHTML = `OTP: <span class="muted v">ไม่พบข้อความ</span>`);
+    }
+  }
+  // pill + countdown
+  if (p.status) {
+    const pill = m.querySelector('.pill');
+    const st = String(p.status).toLowerCase();
+    if (pill) {
+      pill.className = `pill ${st}`;
+      pill.textContent =
+        st==='success'   ? 'เสร็จสิ้น' :
+        st==='refunded'  ? 'คืนเครดิต' :
+        st==='timeout'   ? 'หมดเวลา' :
+        st==='failed'    ? 'ล้มเหลว'  :
+                           'กำลังรอ OTP';
+    }
+    const cd = m.querySelector('.countdown');
+    if (st === 'processing') {
+      if (!cd) {
+        const holder = m.querySelector('.m-body .pair:last-child span:last-child');
+        const div = document.createElement('div');
+        div.className = 'countdown';
+        div.dataset.expires = m.getAttribute('data-expires') || '';
+        div.textContent = 'เหลือเวลาอีก —:— นาที';
+        holder?.appendChild(div);
+      }
+    } else {
+      cd?.remove();
+    }
+  }
+}
+
+// helper: เปลี่ยนภาพไอคอน copy
+function setCopyIcon(btn, success) {
+  const img = btn.querySelector('img');
+  if (!img) return;
+  img.src = success
+    ? '/static/assets/otp24/copy-success.png'
+    : '/static/assets/otp24/copy.png';
+}
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.copy');
+  if (!btn) return;
+
+  navigator.clipboard.writeText(btn.dataset.copy || '').then(() => {
+    setCopyIcon(btn, true);
+    // กลับเป็นไอคอนปกติใน 900ms
+    setTimeout(() => setCopyIcon(btn, false), 900);
+  }).catch(() => {
+    // ถ้า copy ไม่ได้ อย่าค้างไอคอน success
+    setCopyIcon(btn, false);
+  });
+});
+</script>
+
+<script>
+/* ========= Pagination (Client-side) ========= */
+let ORDERS_PER_PAGE = Number(localStorage.getItem('OTP24_PER_PAGE')) || 20;
+let currentPage = 1;
+
+const $rows   = () => Array.from(document.querySelectorAll('#ordersBody tr'));
+const $cards  = () => Array.from(document.querySelectorAll('#mOrders .m-item'));
+const $info   = document.getElementById('pageInfo');
+const $infoM  = document.getElementById('pageInfoMobile');
+const $sel    = document.getElementById('perPageSelect');
+const $selM   = document.getElementById('perPageSelectMobile');
+const $ctrlD  = document.getElementById('ordersControlsDesktop');
+const $ctrlM  = document.getElementById('ordersControlsMobile');
+
+function totalItems(){ return (window.matchMedia('(max-width: 640px)').matches ? $cards().length : $rows().length); }
+function totalPages(){ return Math.max(1, Math.ceil(totalItems() / ORDERS_PER_PAGE)); }
+function clampPage(n){ return Math.min(Math.max(1, n), totalPages()); }
+
+function applyPagination(){
+  const isMobile = window.matchMedia('(max-width: 640px)').matches;
+  const items = isMobile ? $cards() : $rows();
+
+  const total = items.length;
+  const pages = totalPages();
+  currentPage = clampPage(currentPage);
+
+  const start = (currentPage-1) * ORDERS_PER_PAGE;
+  const end   = start + ORDERS_PER_PAGE;
+
+  items.forEach((el, i) => {
+    el.style.display = (i >= start && i < end) ? '' : 'none';
+  });
+
+  // อัปเดตตัวเลขหน้า
+  if (!isMobile && $info)  $info.textContent  = `หน้า ${currentPage}/${pages}`;
+  if (isMobile && $infoM)  $infoM.textContent = `หน้า ${currentPage}/${pages}`;
+
+  // ปุ่ม disabled
+  const setBtns = (root) => {
+    if (!root) return;
+    root.querySelector('[data-act="first"]')?.toggleAttribute('disabled', currentPage<=1);
+    root.querySelector('[data-act="prev"]') ?.toggleAttribute('disabled', currentPage<=1);
+    root.querySelector('[data-act="next"]') ?.toggleAttribute('disabled', currentPage>=pages);
+    root.querySelector('[data-act="last"]') ?.toggleAttribute('disabled', currentPage>=pages);
+  };
+  setBtns($ctrlD);
+  setBtns($ctrlM);
+}
+
+// เปลี่ยน per-page (เดสก์ท็อป & มือถือ)
+function bindPerPage(selectEl){
+  if (!selectEl) return;
+  // set ค่าเริ่มต้น
+  for (const opt of selectEl.options){
+    opt.selected = Number(opt.value) === ORDERS_PER_PAGE;
+  }
+  selectEl.addEventListener('change', () => {
+    ORDERS_PER_PAGE = Number(selectEl.value) || 20;
+    localStorage.setItem('OTP24_PER_PAGE', ORDERS_PER_PAGE);
+    currentPage = 1;
+    applyPagination();
+  });
+}
+bindPerPage($sel);
+bindPerPage($selM);
+
+// ปุ่มนำทาง (เดสก์ท็อป & มือถือ)
+function bindPager(ctrlRoot){
+  if (!ctrlRoot) return;
+  ctrlRoot.addEventListener('click', (e) => {
+    const btn = e.target.closest('.pg-btn');
+    if (!btn) return;
+    const act = btn.dataset.act;
+    if (act === 'first') currentPage = 1;
+    else if (act === 'prev') currentPage = clampPage(currentPage - 1);
+    else if (act === 'next') currentPage = clampPage(currentPage + 1);
+    else if (act === 'last') currentPage = totalPages();
+    applyPagination();
+  });
+}
+bindPager($ctrlD);
+bindPager($ctrlM);
+
+// เรียกครั้งแรกเมื่อโหลดหน้า
+applyPagination();
+
+// เมื่อรีเฟรชสถานะ/จำนวนรายการเปลี่ยน ให้คงหน้าปัจจุบันไว้ถ้าเป็นไปได้
+const _origRefreshAll = refreshAllOrdersOnce;
+refreshAllOrdersOnce = async function () {
+  const out = await _origRefreshAll(); // ดึงแพตช์สถานะจากเซิร์ฟเวอร์
+  applyPagination();                   // จัดหน้าใหม่ตามจำนวนรายการล่าสุด
+  tickCountdowns();                    // อัปเดตตัวเลขนับถอยหลังให้ตรง DOM ล่าสุด
+
+  // ถ้าไม่เหลือแถวสถานะ processing แล้ว ให้หยุดลูป auto-refresh ตอนนี้เลย
+  if (!hasProcessingRows()) stopOrdersAutoRefresh();
+
+  return out; // เผื่อที่อื่นยังใช้งานผลลัพธ์เดิม
+};
+
+// เมื่อสลับมือถือ/เดสก์ท็อป (resize) ให้ปรับหน้าให้เหมาะสม
+let _resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(applyPagination, 150);
+});
+</script>
+
+<style>
+.otp24 .tabs{ display:flex; gap:10px; }
+.otp24 .tab{ padding:10px 14px; border-radius:12px; border:1px solid #2e2f35; background:#151518; color:#fff; cursor:pointer; }
+.otp24 .tab.active{ background:#63cff0; border-color:#63cff0; }
+.tabpane{ display:none; } .tabpane.show{ display:block; }
+
+.grid.cards{ display:grid; gap:18px; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); }
+.card.app{ position:relative; text-align:center; padding:14px; border-radius:16px; background:#17181b; border:1px solid #2b2d31; }
+.price-badge{ position:absolute; top:8px; right:8px; background:#63cff0; color:#fff; padding:4px 10px; border-radius:999px; font-weight:700; font-size:12px; }
+.app-icon{ display:grid; place-items:center; height:140px; border-radius:14px; background:rgba(255,255,255,.04); overflow:hidden; }
+.app-icon img{ width:96px; height:96px; border-radius: 23px; object-fit:contain; filter: drop-shadow(0 6px 10px rgba(0,0,0,.3)); }
+.placeholder{ font-size:56px; opacity:.7; }
+.app-name{ margin-top:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; }
+
+.input{ padding:10px 12px; border-radius:12px; border:1px solid #2e2f35; flex:1; }
+.row{ display:flex; gap:12px; }
+.w-100{ width:100%; } .mt{ margin-top:12px; } .mt-sm{ margin-top:8px; } .mt-lg{ margin-top:20px; }
+.muted{ opacity:.8; }
+
+.flag.active{ outline:2px solid #63cff0; }
+.emoji{ font-size:24px; line-height:1; }
+
+/* Orders table like sample #3 */
+.orders-wrap{ margin-top:14px; }
+.tbl{ width:100%; border-collapse:separate; border-spacing:0; }
+.tbl th, .tbl td{ padding:12px 14px; border-bottom:1px solid #24262b; text-align:left; }
+.tbl th.right, .tbl td.right{ text-align:right; }
+.badge.app{ background:#ca551f; color:#fff; padding:4px 10px; border-radius:999px; font-weight:700; margin-right:6px; }
+.flag{ display:inline-grid; place-items:center; width:28px; height:28px; border-radius:6px; }
+.mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+.otp b{ font-weight:500; color: #f7d438;}
+.copy{ border:none; background:transparent; cursor:pointer; margin-left:6px; }
+.pill{ display:inline-block; padding:6px 12px; border-radius:999px; font-weight:700; }
+.pill.success{ background:#16a34a22; color:#34d399; }
+.pill.wait{ background:#f59e0b22; color:#fbbf24; }
+.pill.timeout{ background:#ef444422; color:#f87171; }
+.pill.failed{ background:#ef444422; color:#f87171; }
+
+dialog::backdrop{ background: rgba(0,0,0,.5); }
+.modal{ min-width:460px; padding:20px; border-radius:14px; border:1px solid #2e2f35; background:#17181b; }
+/* ── Tabs/Lists (ของเดิมคงไว้) ─────────────────────────── */
+.otp24 .tabs{ display:flex; gap:10px; }
+.otp24 .tab{ padding:10px 14px; border-radius:12px; border:1px solid var(--elevated-border,#2e2f35); background:var(--elevated-bg,#151518); color:var(--text-primary,#fff); cursor:pointer; }
+.otp24 .tab.active{ background:var(--accent,#63cff0); border-color:var(--accent,#63cff0); color:var(--accent-contrast,#fff); }
+.tabpane{ display:none; } .tabpane.show{ display:block; }
+
+.grid.cards{ display:grid; gap:18px; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); }
+.card.app{ position:relative; text-align:center; padding:14px; border-radius:16px; background:var(--elevated-bg,#17181b); border:1px solid var(--elevated-border,#2b2d31); }
+.price-badge{ position:absolute; top:8px; right:8px; background:var(--accent,#63cff0); color:var(--accent-contrast,#fff); padding:4px 10px; border-radius:999px; font-weight:700; font-size:12px; }
+/* .app-icon{ display:grid; place-items:center; height:140px; border-radius:14px; background:color-mix(in oklab, var(--elevated-bg,#17181b), white 6%); overflow:hidden; } */
+.app-icon img{ width:96px; height:96px; object-fit:contain; filter: drop-shadow(0 6px 10px rgba(0,0,0,.3)); }
+.placeholder{ font-size:56px; opacity:.7; }
+.app-name{ margin-top:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; }
+.btn{ padding:10px 14px; border-radius:12px; border:0; background:var(--accent,#63cff0); color:var(--accent-contrast,#fff); cursor:pointer; }
+.btn.ghost{ background:transparent; border:1px solid var(--elevated-border,#444); color:var(--text-primary,#fff); }
+.btn.small{ padding:6px 10px; border-radius:10px; }
+
+.input{ padding:10px 12px; border-radius:12px; border:1px solid var(--elevated-border,#2e2f35); flex:1; }
+.row{ display:flex; gap:12px; }
+.w-100{ width:100%; } .mt{ margin-top:12px; } .mt-sm{ margin-top:8px; } .mt-lg{ margin-top:20px; }
+.muted{ color:var(--text-muted,#a7b0bb); }
+
+/* ── Flag grid (ในโมดัล) ───────────────────────────────── */
+.flag-grid{ display:grid; grid-template-columns: repeat(5, 1fr); gap:20px; margin-top:10px; }
+.flag{
+  height:48px; border-radius:12px;
+  background: color-mix(in oklab, var(--elevated-bg,#17181b), white 4%);
+  border:1px solid var(--elevated-border,#2e2f35);
+  display:grid; place-items:center; cursor:pointer;
+  transition: transform .08s ease, box-shadow .08s ease, border-color .08s ease;
+}
+.flag:hover{ transform: translateY(-1px); }
+.flag.selected, .flag.active{
+  border-color: var(--accent,#2a84ff);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent,#2a84ff), transparent 70%);
+}
+.flag img{ width:28px; height:28px; object-fit:cover; border-radius:6px; }
+
+/* ── Orders table (ของเดิมปรับใช้ตัวแปรธีม) ───────────── */
+.orders-wrap{ margin-top:14px; }
+.tbl{ width:100%; border-collapse:separate; border-spacing:0; }
+.tbl th, .tbl td{ padding:12px 14px; border-bottom:1px solid var(--elevated-border,#24262b); text-align:left; color:var(--text-primary,#f2f4f8); }
+.tbl th.right, .tbl td.right{ text-align:right; }
+.badge.app{ background:#ca551f; color:#fff; padding:4px 10px; border-radius:999px; font-weight:700; margin-right:6px; }
+.mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+.copy{ border:none; background:transparent; cursor:pointer; margin-left:6px; }
+.pill{ display:inline-block; padding:6px 12px; border-radius:999px; font-weight:700; }
+.pill.success{ background:#16a34a22; color:#34d399; }
+.pill.wait{ background:#f59e0b22; color:#fbbf24; }
+.pill.timeout,.pill.failed{ background:#ef444422; color:#f87171; }
+
+/* ── Dialog reset: ไม่มีกรอบ/พื้นหลังขาว ─────────────── */
+dialog{ border:none; padding:0; background:transparent; }
+dialog::backdrop{ background: rgba(0,0,0,.55); backdrop-filter: blur(2px); }
+
+.modal{
+  min-width:460px; padding:20px; border-radius:16px;
+  border:1px solid var(--elevated-border,#2e2f35);
+  background: var(--elevated-bg,#17181b);
+  color: var(--text-primary,#fff);
+  box-shadow: var(--elevated-shadow, 0 12px 30px rgba(0,0,0,.4));
+}
+:root[data-theme="light"] .modal{
+  background: var(--elevated-bg,#fff);
+  color: var(--text-primary,#222);
+  border-color: var(--elevated-border,#e7e7ea);
+  box-shadow: 0 12px 26px rgba(0,0,0,.12);
+}
+/* ── Flag grid (เฉพาะในโมดัลซื้อ) ───────────────────── */
+:root{
+  /* ปรับขนาดธงได้ตรงนี้ */
+  --flag-w: 48px;
+  --flag-h: 38px; /* สัดส่วน 3:2 */
+  --flag-radius: 10px;
+}
+
+.flag-grid{
+  display:grid;
+  grid-template-columns: repeat(5, var(--flag-w));
+  gap:20px;
+  margin-top:10px;
+  justify-content: center; /* เรียงชิดซ้ายสวย ๆ */
+}
+
+/* ปุ่มธง = กรอบพอดีรูป, ไม่มี padding */
+#buyModal .flag{
+  width: var(--flag-w);
+  height: var(--flag-h);
+  padding: 0;
+  border-radius: var(--flag-radius);
+  overflow: hidden;
+  background: color-mix(in oklab, var(--elevated-bg,#17181b), white 4%);
+  border: 1px solid var(--elevated-border,#2e2f35);
+  display: inline-block;
+  line-height: 0;               /* กันช่องว่าง inline */
+  cursor: pointer;
+  transition: transform .08s ease, box-shadow .08s ease, border-color .08s ease;
+}
+#buyModal .flag:hover{ transform: translateY(-1px); }
+#buyModal .flag.active{
+  border-color: var(--accent,#2a84ff);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent,#2a84ff), transparent 70%);
+}
+
+/* รูปธงเติมเต็มกรอบพอดี */
+#buyModal .flag img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;    /* ครอบเต็ม ไม่เหลือขอบ */
+  display: block;       /* ตัดช่องว่าง inline */
+  border-radius: inherit;
+}
+/* ── ธงเล็กในตารางประวัติ (ตัวอย่างรูป #3) ─────────── */
+.orders-wrap .flag{
+  display:inline-grid;
+  place-items:center;
+  width:28px;
+  height:28px;
+  border-radius:6px;
+  background: color-mix(in oklab, var(--elevated-bg,#17181b), white 4%);
+  border:1px solid var(--elevated-border,#2e2f35);
+  overflow:hidden;
+  line-height:0;
+}
+.orders-wrap .flag img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+/* ─────────────────────────────
+   Mobile tweaks (≤ 640px)
+   ───────────────────────────── */
+@media (max-width: 640px){
+
+  /* การ์ดสินค้า: แถวละ 3 */
+  .grid.cards{
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .card.app{
+    padding: 10px;
+    border-radius: 14px;
+  }
+  .price-badge{
+    top: 6px; right: 6px;
+    font-size: 10px; padding: 2px 8px;
+  }
+  .app-icon{ height: 86px; border-radius: 12px; }
+  .app-icon img{ border-radius: 13px; width: 56px; height: 56px; }
+  .app-name{ margin-top: 8px; font-size: 12px; }
+
+  .btn{ padding: 10px 12px; font-size: 13px; }
+  .btn.small{ padding: 6px 10px; font-size: 12px; }
+  .row{ gap: 8px; }
+
+  /* โมดัลให้พอดีจอมือถือ */
+  dialog{ padding: 0; }
+  .modal{
+    min-width: unset;
+    width: 92vw;          /* กว้างพอดีจอ */
+    max-width: 92vw;
+    padding: 16px;
+    border-radius: 14px;
+  }
+  dialog::backdrop{
+    background: rgba(0,0,0,.55);
+    backdrop-filter: blur(2px);
+  }
+
+  /* ธง: แถวละ 5 */
+  .flag-grid{
+    grid-template-columns: repeat(5, 1fr);
+    gap: 20px;
+  }
+  .flag{
+    height: 40px;
+    border-radius: 10px;
+  }
+  .flag img{
+    width: 24px; height: 24px;
+    border-radius: 5px;
+  }
+}
+
+/* Desktop โมดัล: จำกัดความกว้างเล็กน้อย (ไม่กระทบมือถือ) */
+@media (min-width: 641px){
+  .modal{ max-width: 560px; }
+}
+
+/* จัดกริดให้อยู่กึ่งกลางเสมอ */
+.grid.cards{
+  justify-content: center;     /* จัดชุดคอลัมน์ให้อยู่กลางคอนเทนเนอร์ */
+  justify-items: stretch;      /* การ์ดกินพื้นที่คอลัมน์เต็ม */
+}
+
+/* ให้การ์ดขยายเต็มคอลัมน์ ไม่ล็อกความกว้างของตัวเอง */
+.card.app{ width: 100%; }
+
+/* มือถือ: ปรับคอลัมน์ + จัดกึ่งกลางให้ชัวร์ */
+@media (max-width: 640px){
+  .grid.cards{
+    grid-template-columns: repeat(3, minmax(0, 1fr)); /* ไม่มี min กวนใจ */
+    justify-content: center;
+    justify-items: stretch;
+    gap: 12px;
+  }
+  .card.app{ width: 100%; }
+}
+.card.app{
+  cursor: pointer;
+  transition: transform .08s ease, box-shadow .12s ease, border-color .12s ease;
+}
+.card.app:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0,0,0,.25);
+  border-color: color-mix(in oklab, var(--accent,#63cff0), transparent 60%);
+}
+.card.app:focus-within,
+.card.app:focus{
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent,#63cff0), transparent 70%);
+  border-color: var(--accent,#63cff0);
+}
+/* ─────────────────────────────
+   Modal: theme-aware + vivid buttons (light)
+   วางต่อท้ายไฟล์เดิม เพื่อให้ override
+   ───────────────────────────── */
+
+/* ครอบคลุมทั้ง :root และ html ที่ตั้ง data-theme */
+:root[data-theme="light"] .modal,
+html[data-theme="light"] .modal{
+  background: #fff;                     /* ขาวจริง ไม่อิงค่าดีฟอลต์มืด */
+  color: #1f2328;
+  border-color: #e7e7ea;
+  box-shadow: 0 16px 36px rgba(0,0,0,.12);
+}
+
+/* Backdrop โปร่งขึ้นนิดสำหรับธีมสว่าง */
+:root[data-theme="light"] dialog::backdrop,
+html[data-theme="light"] dialog::backdrop{
+  background: rgba(0,0,0,.35);
+  backdrop-filter: blur(2px);
+}
+
+/* ปรับกรอบ/พื้นของธงให้คมชัดในธีมสว่าง */
+:root[data-theme="light"] #buyModal .flag,
+html[data-theme="light"] #buyModal .flag{
+  background: #f7f8fa;
+  border-color: #e2e5ea;
+}
+:root[data-theme="light"] #buyModal .flag.active,
+html[data-theme="light"] #buyModal .flag.active{
+  border-color: #2a84ff;
+  box-shadow: 0 0 0 4px rgba(42,132,255,.18);
+}
+
+/* ปุ่มในโมดัล – ทำให้เด่น ไม่กลืนกับพื้นหลัง */
+.modal .btn{
+  border-radius: 12px;
+  font-weight: 700;
+  letter-spacing:.2px;
+}
+
+/* ปุ่มหลัก (ไม่ใช่ .ghost) ใช้กราเดียนท์ + เงานุ่ม */
+.modal .btn:not(.ghost){
+  background: linear-gradient(180deg, #2a84ff 0%, #1e6be0 100%);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(42,132,255,.35);
+  border: 1px solid rgba(30,107,224,.2);
+}
+.modal .btn:not(.ghost):hover{
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+}
+.modal .btn:not(.ghost):active{
+  transform: translateY(0);
+  box-shadow: 0 3px 10px rgba(42,132,255,.25);
+}
+
+/* ปุ่มรอง (.ghost) ให้มีขอบ+พื้นโปร่งสีอุ่นเล็กน้อย */
+.modal .btn.ghost{
+  background: rgba(27,31,36,.04);
+  color: #222;
+  border: 1px solid #dadde2;
+}
+:root[data-theme="dark"] .modal .btn.ghost,
+html[data-theme="dark"] .modal .btn.ghost{
+  background: rgba(255,255,255,.04);
+  color: #f2f4f8;
+  border-color: #3a3d45;
+}
+.modal .btn.ghost:hover{
+  background: rgba(27,31,36,.06);
+}
+
+/* ฟิลด์/การ์ดราคาในโมดัล (ถ้ามี) ให้คอนทราสต์ขึ้น */
+:root[data-theme="light"] .price-badge,
+html[data-theme="light"] .price-badge{
+  background: #2a84ff;
+  color:#fff;
+}
+
+/* กันกรณีบางเพจตั้ง data-theme ไว้บน body */
+body[data-theme="light"] .modal{ background:#fff; color:#1f2328; border-color:#e7e7ea; }
+body[data-theme="light"] dialog::backdrop{ background: rgba(0,0,0,.35); }
+body[data-theme="light"] #buyModal .flag{ background:#f7f8fa; border-color:#e2e5ea; }
+body[data-theme="light"] #buyModal .flag.active{ box-shadow:0 0 0 4px rgba(42,132,255,.18); border-color:#2a84ff; }
+.pill.success   { background:#16a34a22; color:#34d399; }
+.pill.processing{ background:#f59e0b22; color:#fbbf24; }
+.pill.failed,
+.pill.timeout   { background:#ef444422; color:#f87171; }
+.pill.refunded  { background:#22c5f644; color:#67e8f9; }
+.countdown{ font-size:12px; opacity:.85; margin-top:4px; color:var(--text-muted,#a7b0bb); }
+.countdown.warn{ color:#fbbf24; }
+.countdown.danger{ color:#f87171; }
+
+/* Desktop = ใช้ตารางเดิม, ซ่อนลิสต์มือถือ */
+@media (min-width: 641px){
+  .m-orders{ display:none; }
+}
+
+/* Mobile = ซ่อนไว้ตาราง, ใช้ลิสต์มือถือแทน */
+@media (max-width: 640px){
+  .orders-wrap{ display:none; }  /* ซ่อน table */
+  .m-orders{ display:grid; gap:12px; margin-top:12px; }
+
+  .m-item{
+    background: var(--elevated-bg,#151518);
+    border: 1px solid var(--elevated-border,#2e2f35);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .m-head{
+    padding: 12px 14px;
+    position: relative;
+    cursor: pointer;
+  }
+  .m-head .row1{
+    display:flex; align-items:center; gap:10px;
+  }
+  .m-head .oid{ font-weight:700; }
+  .m-head .when{ margin-left:auto; opacity:.9; }
+  .m-head .toggle{
+    width:28px; height:28px; border-radius:8px;
+    border:1px solid var(--elevated-border,#2e2f35);
+    background: transparent; color: var(--text-primary,#fff);
+    margin-left:10px;
+  }
+  .m-head .row2{
+    display:flex; gap:12px; margin-top:8px; flex-wrap:wrap;
+    font-size: 13px; color: var(--text-muted,#a7b0bb);
+  }
+  .m-head .row2 .otp b{ font-weight:500; color: var(--text-primary,#f7d438); }
+
+  .m-body{ padding: 12px 14px; border-top:1px dashed var(--elevated-border,#2e2f35); }
+  .m-item.collapsed .m-body{ display:none; }
+
+  .m-body .pair{
+    display:flex; justify-content:space-between; align-items:center;
+    padding: 8px 0; border-bottom:1px dashed var(--elevated-border,#2e2f35);
+  }
+  .m-body .pair:last-child{ border-bottom:0; }
+  .m-body .pair > span:first-child{ opacity:.9; }
+  .m-body .pair .flag{ width:28px; height:28px; border-radius:6px; overflow:hidden;
+    border:1px solid var(--elevated-border,#2e2f35); display:inline-grid; place-items:center; }
+  .m-body .pair .flag img{ width:100%; height:100%; object-fit:cover; display:block; }
+
+  .pill{ padding:6px 12px; border-radius:999px; font-weight:700; }
+  .pill.success   { background:#16a34a22; color:#34d399; }
+  .pill.processing{ background:#f59e0b22; color:#fbbf24; }
+  .pill.failed,
+  .pill.timeout   { background:#ef444422; color:#f87171; }
+  .pill.refunded  { background:#22c5f644; color:#67e8f9; }
+
+  .countdown{ font-size:12px; margin-top:6px; color: var(--text-muted,#a7b0bb); }
+  .countdown.warn{ color:#fbbf24; }
+  .countdown.danger{ color:#f87171; }
+}
+
+/* ==== Mobile: ขยายความกว้าง + บีบระยะให้พอดีจอ ==== */
+@media (max-width: 640px){
+
+  /* ให้ container กว้างเต็มจอมากขึ้น ลด padding ข้าง */
+  .page.container,
+  .otp24.container{
+    max-width: none;
+    padding-left: 0px;
+    padding-right: 0px;
+  }
+
+  /* แท็บไม่ทิ้งขอบเยอะเกิน */
+  .otp24 .tabs{
+    margin-left: -20px;
+    margin-right: -20px;
+  }
+
+  /* ลิสต์มือถือกินเต็มจอมากขึ้น */
+  .m-orders{
+    margin-left: -20px;   /* ดันออกนิดให้ดูเต็ม */
+    margin-right: -20px;
+  }
+
+  /* การ์ดให้กว้างขึ้นและกระชับขึ้น */
+  .m-item{
+    border-radius: 14px;
+  }
+  .m-head{ padding: 8px 54px; }
+  .m-body{ padding: 8px 54px; }
+
+  /* ===== หัวการ์ด: บังคับเวลาไม่ขึ้นบรรทัดใหม่ ===== */
+  .m-head .row1{
+    display:flex;
+    align-items:center;
+    gap: 8px;
+    min-width: 0;              /* ให้ flex ภายในคำนวณกว้างได้ */
+  }
+  .m-head .oid{
+    flex: 0 1 auto;            /* ยืดได้นิดหน่อยแต่ไม่กินจนล้น */
+    min-width: 0;
+  }
+  .m-head .when{
+    margin-left: auto;         /* ชิดขวา */
+    white-space: nowrap;       /* << คีย์: ไม่ตัดบรรทัด */
+    font-variant-numeric: tabular-nums;
+  }
+  .m-head .toggle{
+    margin-left: 8px;
+    flex: 0 0 auto;
+  }
+
+  /* ถ้ายังแคบจนขึ้นบรรทัด ให้ลดฟอนต์เวลาลงนิด */
+  .m-head .when{ font-size: 12.5px; }       /* ปรับได้ 12–13px ตามใจ */
+
+  /* แถวสรุปเบอร์/OTP ให้กระชับ */
+  .m-head .row2{
+    gap: 10px;
+    font-size: 12.5px;
+  }
+}
+
+.copy{
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0 4px;          /* เว้นนิดหน่อยให้คลิกง่าย */
+  line-height: 0;          /* ตัดช่องว่าง inline */
+  vertical-align: middle;  /* เรียงเสมอ baseline */
+}
+.copy img{
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+}
+
+/* ===== Flags: transparent background (override) ===== */
+
+/* ปุ่มธงในโมดัลซื้อ */
+#buyModal .flag{
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* รูปธงในโมดัลให้เต็มกรอบเหมือนเดิม แต่กรอบโปร่งใส */
+#buyModal .flag img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: var(--flag-radius, 10px);
+}
+
+/* ธงที่แสดงในตารางประวัติ */
+.orders-wrap .flag{
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* รูปธงในตาราง */
+.orders-wrap .flag img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 6px;
+}
+
+/* ธงในลิสต์มือถือ */
+.m-orders .flag{
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.m-orders .flag img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 6px;
+}
+
+/* สถานะ “เลือก” ให้เห็นชัดด้วยเส้นขอบบาง ๆ (ไม่ใส่พื้น) */
+#buyModal .flag.active,
+#buyModal .flag.selected{
+  border: 2px solid var(--accent, #2a84ff) !important;
+  box-shadow: none !important;
+}
+
+/* hover/active effect แบบไม่ใช้พื้นหลัง */
+#buyModal .flag:hover{ transform: translateY(-1px); }
+
+/* เฉพาะธงในตารางประวัติเท่านั้น */
+.orders-wrap td .badge.app{ vertical-align: middle; }
+
+.orders-wrap td .flag{
+  display: inline-block;
+  vertical-align: middle;   /* จับให้อยู่ระนาบเดียวกับป้ายแอพ */
+  margin-left: 8px;         /* ระยะห่างจากป้าย */
+  width: 24px;              /* ปรับได้ตามใจ */
+  height: 18px;
+  background: transparent !important;
+  border: none !important;
+  padding: 0;
+  line-height: 0;           /* กันเด้ง */
+  transform: translateY(1px); /* จูนตำแหน่งนิดหน่อย (0~2px) */
+}
+
+.orders-wrap td .flag img{
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.orders-controls{
+  margin-top: 10px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-primary,#f2f4f8);
+}
+.orders-controls .left{ display:flex; align-items:center; gap:8px; }
+.orders-controls .pager{ display:flex; align-items:center; gap:6px; }
+.orders-controls select{
+  padding:6px 8px; border-radius:10px;
+  background: var(--elevated-bg,#151518);
+  color: var(--text-primary,#fff);
+  border: 1px solid var(--elevated-border,#2e2f35);
+}
+.pg-btn{
+  min-width: 34px; height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--elevated-border,#2e2f35);
+  background: transparent;
+  color: var(--text-primary,#fff);
+  cursor: pointer;
+}
+.pg-btn:disabled{ opacity:.45; cursor:not-allowed; }
+
+/* ซ่อน/โชว์คอนโทรลตามอุปกรณ์ */
+.mobile-only{ display:none; }
+@media (max-width: 640px){
+  #ordersControlsDesktop{ display:none; }
+  .mobile-only{ display:flex; }
+}
+
+/* ===== OTP24 Modal (style แบบภาพตัวอย่าง) ===== */
+.modal-otp24{
+  min-width: 520px;
+  padding: 22px 22px 18px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in oklab, var(--elevated-border,#2e2f35), white 6%);
+  background: color-mix(in oklab, var(--elevated-bg,#17181b), black 6%);
+  color: var(--text-primary,#fff);
+  box-shadow: 0 16px 36px rgba(0,0,0,.45);
+  text-align: center;
+}
+@media (max-width:640px){ .modal-otp24{ min-width:unset; width:92vw; } }
+
+.modal-otp24 .modal-title{
+  margin: 0 0 12px;
+  font-size: clamp(18px, 2.4vw, 22px);
+  font-weight: 800;
+  letter-spacing: .2px;
+}
+
+.modal-otp24 .modal-sub{
+  opacity: .9;
+  line-height: 1.45;
+  margin-bottom: 12px;
+}
+.modal-otp24 .modal-label{
+  margin-top: 6px;
+  font-weight: 600;
+}
+.modal-otp24 .modal-divider{
+  height: 2px;
+  margin: 10px 0 14px;
+  background: linear-gradient(90deg, transparent 0, #ff9b50 18%, #ffa95f 50%, #ff9b50 82%, transparent 100%);
+  opacity: .9;
+  border-radius: 2px;
+}
+
+/* ธงโปร่งใส เรียงหลายคอลัมน์ */
+.modal-otp24 .flags-grid{
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  justify-items: center;
+  margin-bottom: 18px;
+}
+@media (max-width:640px){
+  .modal-otp24 .flags-grid{ grid-template-columns: repeat(5, 1fr); gap: 10px; }
+}
+
+/* ปุ่มธง = ไม่มีพื้นหลัง, มีเฉพาะรูปธงโค้ง + เงานิดๆ */
+.modal-otp24 .flag-btn{
+  width: 52px; height: 36px;
+  padding: 0; border: 0;
+  background: transparent;
+  line-height: 0; cursor: pointer;
+  position: relative; border-radius: 9px;
+}
+.modal-otp24 .flag-btn img{
+  width: 100%; height: 100%;
+  display: block; object-fit: cover;
+  border-radius: inherit;
+  box-shadow: 0 1px 0 rgba(255,255,255,.15), 0 4px 10px rgba(0,0,0,.25);
+}
+
+/* hover / selected = ขอบส้มเรืองนุ่ม */
+.modal-otp24 .flag-btn:hover,
+.modal-otp24 .flag-btn.active,
+.modal-otp24 .flag-btn.selected{
+  outline: 2px solid #ff9242;
+  box-shadow: 0 0 0 3px rgba(255,146,66,.25);
+  border-radius: 11px;
+}
+
+/* ปุ่มกด */
+.modal-otp24 .actions{
+  display: flex; gap: 14px; justify-content: center;
+}
+.modal-otp24 .btn{
+  min-width: 120px; height: 40px;
+  border-radius: 12px; font-weight: 800; letter-spacing:.2px;
+}
+.modal-otp24 .modal-primary{
+  background: linear-gradient(180deg,#ff9a55 0%, #ff7f2f 100%);
+  color: #fff;
+  border: 1px solid rgba(255,132,58,.55);
+  box-shadow: 0 6px 18px rgba(255,132,58,.35), inset 0 1px 0 rgba(255,255,255,.25);
+}
+.modal-otp24 .modal-primary:disabled{
+  filter: grayscale(.35) brightness(.85);
+  opacity: .8; cursor: not-allowed;
+}
+.modal-otp24 .modal-primary:hover{ filter: brightness(1.04); transform: translateY(-1px); }
+.modal-otp24 .modal-primary:active{ transform: translateY(0); }
+
+.modal-otp24 .modal-secondary{
+  background: transparent;
+  color: var(--text-primary,#fff);
+  border: 1px solid rgba(255,132,58,.45);
+  box-shadow: 0 0 0 2px rgba(255,132,58,.15) inset;
+}
+.modal-otp24 .modal-secondary:hover{
+  background: rgba(255,132,58,.08);
+}
+
+/* กริดธง: คอลัมน์คงที่ + จัดทั้งบล็อกให้อยู่กลาง */
+.modal-otp24 .flags-grid{
+  display: grid;
+  grid-template-columns: repeat(5, 52px); /* 6 คอลัมน์ desktop */
+  gap: 12px;
+  justify-content: center; /* ทำให้แถวสุดท้ายกึ่งกลาง */
+  justify-items: center;   /* ตัวธงอยู่กลางแต่ละคอลัมน์ */
+  margin-bottom: 18px;
+}
+@media (max-width:640px){
+  .modal-otp24 .flags-grid{
+    grid-template-columns: repeat(5, 52px); /* มือถือ 5 คอลัมน์ */
+    gap: 10px;
+  }
+}
+
+/* ขนาดปุ่มธง */
+.modal-otp24 .flag-btn{
+  width: 52px; height: 36px;
+  padding: 0; border: 0;
+  background: transparent;
+  line-height: 0; cursor: pointer;
+  border-radius: 9px;
+}
+.modal-otp24 .flag-btn img{
+  width: 100%; height: 100%;
+  object-fit: cover; display: block; border-radius: inherit;
+  box-shadow: 0 1px 0 rgba(255,255,255,.15), 0 4px 10px rgba(0,0,0,.25);
+}
+.modal-otp24 .flag-btn:hover,
+.modal-otp24 .flag-btn.active,
+.modal-otp24 .flag-btn.selected{
+  outline: 2px solid #ff9242;
+  box-shadow: 0 0 0 3px rgba(255,146,66,.25);
+  border-radius: 11px;
+}
+
+/* โมดัลเลือกประเทศ */
+#buyModal .flag-grid{
+  display: grid;
+  grid-template-columns: repeat(5, 52px); /* desktop: 6 คอลัมน์ */
+  gap: 20px;
+
+  width: min-content;     /* << บีบให้เท่าคอนเทนต์จริง */
+  margin-inline: auto;    /* << จัดกลางทั้งบล็อก */
+  justify-items: center;  /* ธงอยู่กลางคอลัมน์ */
+}
+
+@media (max-width:640px){
+  #buyModal .flag-grid{
+    grid-template-columns: repeat(5, 52px); /* mobile: 5 คอลัมน์ */
+    gap: 10px;
+  }
+}
+
+#buyModal .flag{
+  width: 52px; height: 36px;
+  padding: 0; border: 0; line-height: 0;
+  background: transparent; border-radius: 9px;
+}
+#buyModal .flag img{
+  width: 100%; height: 100%;
+  object-fit: cover; display: block; border-radius: inherit;
+}
+
+#buyModal .flag-grid{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: center;   /* แต่ละบรรทัดกึ่งกลาง */
+}
+@media (max-width:640px){
+  #buyModal .flag-grid{ gap:10px; }
+}
+#buyModal .flag{ width:52px; height:36px; padding:0; border:0; background:transparent; line-height:0; border-radius:9px; }
+#buyModal .flag img{ width:100%; height:100%; object-fit:cover; display:block; border-radius:inherit; }
+
+.phone-cell .copy { margin-left: 6px; }
+.m-head .row2 .phone .copy { margin-left: 6px; }
+</style>

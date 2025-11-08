@@ -10,6 +10,10 @@ import { Transaction } from "../models/Transaction.js";
 import { Topup } from "../models/Topup.js";
 import { ulid } from "ulid";
 import { Service } from '../models/Service.js';
+import { getOtp24Balance, getOtp24Products } from '../lib/otp24Adapter.js';
+import { Otp24Setting } from '../models/Otp24Setting.js';
+import { Otp24Product } from "../models/Otp24Product.js";
+import { Otp24Order } from '../models/Otp24Order.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -101,6 +105,16 @@ router.get("/", async (req, res) => {
     // 🟩 กระเป๋ารับเงินทั้งหมด (สำหรับแม็ปฝั่ง UI)
     const webWallets = await Topup.find({ isActive: true }).lean();
 
+    const otp24Doc = await Otp24Setting.findOne({ name: 'otp24' }).lean();
+    const {
+      lastBalance: otp24Bal = 0,
+      lastSyncAt:  otp24LastSyncAt = null,
+      lastSyncError: otp24LastError = ''
+    } = otp24Doc || {};
+
+    // จำนวนสินค้า OTP24 ปัจจุบัน
+    const otp24ProductsTotal = await Otp24Product.countDocuments({ provider: 'otp24' });
+
     // ✅ Render admin dashboard
     res.render("admin/dashboard", {
       title: "หลังบ้าน",
@@ -110,54 +124,19 @@ router.get("/", async (req, res) => {
       transactions: pendingTransactions,
       webWallets,
       stats: { orderCount, userCount },
+      // OTP24
+      otp24Bal,
+      otp24LastSyncAt,
+      otp24LastError,
+      
+      otp24ProductsTotal,
+      otp24ProductsLastSyncAt: otp24Doc?.productsLastSyncAt ?? null,
     });
   } catch (err) {
     console.error("Dashboard error:", err);
     res.status(500).send("เกิดข้อผิดพลาดในระบบ");
   }
 });
-
-// router.get("/", async (req, res) => {
-//   try {
-//     // 🟣 Get provider settings
-//     let ps = await ProviderSettings.findOne();
-//     if (!ps) ps = new ProviderSettings();
-
-//     const servicesTotal = await Service.countDocuments({});
-
-//     const orderCount = await Order.countDocuments({
-//       status: { $nin: ['canceled', 'cancelled', 'processing'] }
-//     });
-
-//     const userCount = await User.countDocuments({});
-
-//     // 🟢 Fetch all pending top-up transactions
-//     const pendingTransactions = await Transaction.find({ status: "pending" })
-//       .sort({ createdAt: -1 })
-//       .limit(100)
-//       .lean();
-
-//     // 🟩 Fetch all available web wallets (for reference / matching)
-//     const webWallets = await Topup.find({ isActive: true }).lean();
-
-//     // ✅ Render admin dashboard
-//     res.render("admin/dashboard", {
-//       title: "หลังบ้าน",
-//       balance: ps.lastBalance || 0,
-//       servicesTotal,
-//       lastSyncAt: ps.lastSyncAt || null,
-//       transactions: pendingTransactions,
-//       webWallets,
-//       stats: {
-//         orderCount,
-//         userCount,
-//       },
-//     });
-//   } catch (err) {
-//     console.error("Dashboard error:", err);
-//     res.status(500).send("เกิดข้อผิดพลาดในระบบ");
-//   }
-// });
 
 // Refresh balance
 router.post("/refresh-balance", async (req, res) => {
@@ -719,6 +698,263 @@ router.get('/topup-report', async (req, res) => {
     methodTotals,
     sumCompleted, countCompleted,
   });
+});
+
+// ─────────────────────────────────────────────────────────────
+// OTP24HR
+// ─────────────────────────────────────────────────────────────
+// Refresh OTP24 balance + save snapshot to DB (otp24setting)
+router.post('/otp24hr/refresh-balance', async (req, res) => {
+  try {
+    const r = await getOtp24Balance();
+    const rawTrim = typeof r?.raw === 'string' ? r.raw.slice(0, 2000) : r?.raw;
+
+    if (!r?.ok) {
+      await Otp24Setting.findOneAndUpdate(
+        { name: 'otp24' },
+        { $set: { lastSyncAt: new Date(), lastSyncError: String(r?.error||'fetch failed'), lastSyncResult: rawTrim ?? null },
+          $currentDate: { updatedAt: true } },
+        { upsert: true, new: true }
+      );
+      return res.status(500).json({ ok:false, error: r.error, raw: rawTrim, via: r.via });
+    }
+
+    await Otp24Setting.findOneAndUpdate(
+      { name: 'otp24' },
+      { $set: { lastBalance: Number(r.balance)||0, lastSyncAt: new Date(), lastSyncError: '', lastSyncResult: rawTrim ?? null },
+        $currentDate: { updatedAt: true } },
+      { upsert: true, new: true }
+    );
+
+    return res.json({ ok:true, balance: r.balance, currency: r.currency || 'THB', via: r.via });
+  } catch (e) {
+    return res.status(500).json({ ok:false, error: e?.message || 'internal error' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// OTP24HR: Sync Products (admin)
+// ─────────────────────────────────────────────────────────────
+router.post('/otp24hr/sync-services', async (req, res) => {
+  try {
+    // ✅ ตั้งค่าสัดส่วนการบวก
+    // - apiPerc: สั่งให้ฝั่ง API บวกเท่าไร (ควร 0)
+    // - addPerc: เราจะบวกขายเท่าไร (ดีฟอลต์ 50)
+    const apiPerc = Number.isFinite(Number(req.body?.apiPerc))
+      ? Math.max(0, Number(req.body.apiPerc))
+      : 0;
+    const addPerc = Number.isFinite(Number(req.body?.addPerc))
+      ? Math.max(0, Number(req.body.addPerc))
+      : 50;
+
+    // ✅ ดึงรายการจากผู้ให้บริการ (เรา “ขาย +50%” ที่นี่แล้ว)
+    const r = await getOtp24Products({ apiPerc, addPerc });
+    if (!r?.ok || !Array.isArray(r.items)) {
+      await Otp24Setting.findOneAndUpdate(
+        { name: 'otp24' },
+        {
+          $set: {
+            productsLastSyncAt: new Date(),
+            lastSyncError: String(r?.error || 'fetch products failed'),
+          },
+          $currentDate: { updatedAt: true },
+        },
+        { upsert: true }
+      );
+      return res.status(500).json({ ok: false, error: r?.error || 'fetch products failed' });
+    }
+
+    // ✅ เตรียม upsert แบบ bulk — ใช้ key ตามลำดับ: extId > code > name (ร่วมกับ provider)
+    const ops = [];
+    const now = new Date();
+
+    for (const it of r.items) {
+      // เลือกคีย์ตัวตน (ห้ามเป็น null/undefined)
+      const extId = [it.extId, it.itemId, it.id, it.code, it.raw?.service_id, it.raw?.id]
+        .find(v => v !== undefined && v !== null && String(v).trim() !== '');
+      const code  = [it.code, it.itemId, it.id]
+        .find(v => v !== undefined && v !== null && String(v).trim() !== '');
+      const name  = String(it.name || it.title || it.raw?.name || 'Unknown').trim();
+
+      const filter = { provider: 'otp24' };
+      if (extId)      filter.extId = String(extId);
+      else if (code)  filter.code  = String(code);
+      else            filter.name  = name || '(unnamed)';
+
+      // ใช้ราคาที่ “คำนวณแล้ว” จาก adapter:
+      // - basePrice = ราคา base จากผู้ให้บริการ (ไม่บวก)
+      // - price     = basePrice * (1 + addPerc/100)  (เช่น 1.5)
+      const $set = {
+        name: name || '(unnamed)',
+        basePrice: Number(it.basePrice || 0),
+        price: Number(it.price || 0),           // <- รวม +50% แล้ว
+        currency: it.currency || 'THB',
+        country: it.country || it.raw?.country,
+        category: (it.category || it.raw?.category || 'otp').toString().toLowerCase(),
+        raw: it.raw ?? it,
+        syncedAt: now,
+      };
+      // เก็บคีย์ก็ต่อเมื่อ “มีค่า” เท่านั้น เพื่อไม่ชน unique index ด้วย null
+      if (extId) $set.extId = String(extId);
+      if (code)  $set.code  = String(code);
+
+      ops.push({
+        updateOne: {
+          filter,
+          update: { $set, $setOnInsert: { provider: 'otp24' } },
+          upsert: true,
+        }
+      });
+    }
+
+    const bulkRes = ops.length ? await Otp24Product.bulkWrite(ops, { ordered: false }) : null;
+    const touched =
+      (bulkRes?.upsertedCount || 0) +
+      (bulkRes?.modifiedCount || 0) +
+      (bulkRes?.matchedCount || 0);
+
+    const total = await Otp24Product.countDocuments({ provider: 'otp24' });
+
+    await Otp24Setting.findOneAndUpdate(
+      { name: 'otp24' },
+      {
+        $set: {
+          productsLastSyncAt: new Date(),
+          productsLastCount: total,
+          lastSyncError: '',
+        },
+        $currentDate: { updatedAt: true },
+      },
+      { upsert: true }
+    );
+
+    return res.json({ ok: true, count: touched, total, apiPerc, addPerc });
+  } catch (e) {
+    await Otp24Setting.findOneAndUpdate(
+      { name: 'otp24' },
+      {
+        $set: {
+          productsLastSyncAt: new Date(),
+          lastSyncError: String(e?.message || e),
+        },
+        $currentDate: { updatedAt: true },
+      },
+      { upsert: true }
+    );
+    return res.status(500).json({ ok: false, error: e?.message || 'internal error' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// OTP REPORT (Admin) — หน้าเดียวมีสองแท็บ: ประวัติ / สรุปยอดขาย
+// GET /admin/otp-report?month=YYYY-MM
+// ─────────────────────────────────────────────────────────────
+router.get('/otp-report', async (req, res) => {
+  try {
+    // ----- เดือนที่เลือก (เริ่มที่เดือนปัจจุบัน) -----
+    const raw = (req.query.month || '').slice(0, 7); // 'YYYY-MM'
+    const now = new Date();
+
+    const [yy, mm] = raw && /^\d{4}-\d{2}$/.test(raw)
+      ? raw.split('-').map(Number)
+      : [now.getFullYear(), now.getMonth() + 1];
+
+    const start = new Date(Date.UTC(yy, mm - 1, 1, 0, 0, 0));
+    const end   = new Date(Date.UTC(yy, mm, 1, 0, 0, 0));
+    const monthStr = `${yy}-${String(mm).padStart(2, '0')}`;
+
+    // ---------------------------------------------
+    // แท็บ 1: ประวัติสั่งซื้อ OTP (ดึงทั้งเดือน) + เติม username
+    // ---------------------------------------------
+    const ordersRaw = await Otp24Order.find({ createdAt: { $gte: start, $lt: end } })
+      .sort({ createdAt: -1 })
+      .populate({ path: 'user', select: 'username' })   // << ใช้ฟิลด์ user ไม่ใช่ userId
+      .lean();
+
+    // ถ้าอยากให้เข้าถึงง่าย ๆ เป็น field แบน ๆ ก็เติม .username ให้แต่ละออเดอร์
+    const orders = (ordersRaw || []).map(o => ({
+      ...o,
+      username: o.user?.username || '-',   // ใช้ใน EJS ได้ทั้ง o.user?.username หรือ o.username
+    }));
+
+    // (ออปชัน) ชื่อประเทศ — ยังไม่มี source ก็ปล่อยว่างไปก่อนได้
+    const countries = {};
+
+    // ---------------------------------------------
+    // แท็บ 2: สรุปยอดขาย OTP (เฉพาะ status: success)
+    // monthTotals = รวมทั้งเดือน, rows = รายวัน
+    // ---------------------------------------------
+    const matchMonthSuccess = {
+      createdAt: { $gte: start, $lt: end },
+      status: 'success',
+    };
+
+    // รวมทั้งเดือน
+    const totalsAgg = await Otp24Order.aggregate([
+      { $match: matchMonthSuccess },
+      {
+        $group: {
+          _id: null,
+          sale:   { $sum: { $ifNull: ['$salePrice', 0] } },
+          cost:   { $sum: { $ifNull: ['$providerPrice', 0] } },
+          count:  { $sum: 1 },
+        }
+      }
+    ]);
+
+    const monthTotals = {
+      sale:  totalsAgg?.[0]?.sale  || 0,
+      cost:  totalsAgg?.[0]?.cost  || 0,
+      count: totalsAgg?.[0]?.count || 0,
+    };
+    monthTotals.profit = monthTotals.sale - monthTotals.cost;
+
+    // รายวัน (timezone Asia/Bangkok)
+    const rows = await Otp24Order.aggregate([
+      { $match: matchMonthSuccess },
+      {
+        $addFields: {
+          day: {
+            $dateToString: {
+              date: '$createdAt',
+              format: '%Y-%m-%d',
+              timezone: 'Asia/Bangkok'
+            }
+          }
+        }
+      },
+      {
+        $group: {
+          _id: '$day',
+          sale:  { $sum: { $ifNull: ['$salePrice', 0] } },
+          cost:  { $sum: { $ifNull: ['$providerPrice', 0] } },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]).then(list => list.map(r => ({
+      day: r._id,
+      sale: r.sale || 0,
+      cost: r.cost || 0,
+      count: r.count || 0,
+      profit: (r.sale || 0) - (r.cost || 0),
+    })));
+
+    // เรนเดอร์หน้าเดียวสองแท็บ (ใช้ไฟล์ EJS เดิม)
+    res.render('admin/otp-report', {
+      // แท็บประวัติ
+      orders,       // ← มีทั้ง o.user?.username และ o.username ให้เลือกใช้
+      countries,
+
+      // แท็บสรุป
+      monthStr,
+      monthTotals,
+      rows,
+    });
+  } catch (e) {
+    console.error('GET /admin/otp-report error:', e);
+    res.status(500).send('เกิดข้อผิดพลาดในระบบ');
+  }
 });
 
 export default router;

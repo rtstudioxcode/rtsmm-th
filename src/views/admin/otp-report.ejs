@@ -1,0 +1,1232 @@
+<!-- admin/otp-report.ejs -->
+<%
+// ===== Helpers: ธงประเทศ
+const CT2CODE = {52:'th',187:'us',16:'gb',6:'id',10:'vn',5:'mm',1:'ua',19:'ng',62:'tr',3:'cn',4:'ph',24:'kh',25:'la',7:'my',21:'eg'};
+const FLAGIMG = (id) => `/static/assets/otp24/${CT2CODE[id] || 'xx'}.png`;
+const USERNAME = (user) => {
+  if (!user) return '-';
+  if (typeof user === 'object') return user.username || user._id || '-';
+  // ถ้าเป็น id string และมี userMap ถูกส่งมา ก็ลอง map; ไม่งั้นแสดง id
+  return (typeof userMap !== 'undefined' && userMap && userMap[String(user)]) || String(user) || '-';
+};
+%>
+
+<section class="page container otp24 admin-otp-report">
+  <div class="tabs">
+    <button class="tab active" data-target="orders" style="width:100%;">ประวัติสั่งซื้อ OTP (ทั้งหมด)</button>
+    <button class="tab" data-target="summary" style="width:100%;">สรุปยอดขาย OTP (รายเดือน)</button>
+  </div>
+
+  <!-- ============ TAB 1: ประวัติสั่งซื้อ OTP (ADMIN) ============ -->
+  <section id="section-orders" class="tabpane show">
+    <!-- Controls: per-page + pager + ค้นหา -->
+    <div class="orders-controls" id="ordersControlsDesktop">
+      <div class="left">
+        แสดง
+        <select id="perPageSelect">
+          <option value="10">10</option>
+          <option value="20" selected>20</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+        รายการ/หน้า
+      </div>
+      <div class="left">
+        <input id="searchBox" class="input" placeholder="ค้นหา: orderId / username / app / เบอร์ / OTP">
+      </div>
+      <div class="right pager">
+        <button class="pg-btn" data-act="first">«</button>
+        <button class="pg-btn" data-act="prev">‹</button>
+        <span id="pageInfo">หน้า 1/1</span>
+        <button class="pg-btn" data-act="next">›</button>
+        <button class="pg-btn" data-act="last">»</button>
+      </div>
+    </div>
+
+    <div class="orders-wrap">
+      <table class="tbl" id="ordersTable">
+        <thead>
+        <tr>
+          <th>เลขออเดอร์</th>
+          <th>ผู้ใช้</th>
+          <th>แอป</th>
+          <th>เบอร์</th>
+          <th>OTP / เวลา</th>
+          <th class="center">ราคาขาย</th>
+          <th class="center">ต้นทุน</th>
+          <th class="center">กำไร</th>
+          <th class="right">สถานะ</th>
+        </tr>
+        </thead>
+        <tbody id="ordersBody">
+        <% (orders||[]).forEach(o => {
+             const st = String(o.status||'processing').toLowerCase();
+             const phoneStr = (() => {
+                if (!o.phone) return '-';
+                const ct = Number(o.countryId || 0);
+                let s = String(o.phone).trim();
+
+                if (ct === 52){
+                    if (/^\+?66\d{8,9}$/.test(s)) return s.replace(/^\+?66/,'0');
+                    if (/^0\d{8,9}$/.test(s))     return s;
+                    return s;
+                }
+
+                s = s.replace(/\s|-/g,'');
+                if (s.startsWith('00')) s = s.slice(2);
+                if (s.startsWith('+'))  return '+' + s.slice(1).replace(/[^\d]/g,'');
+                return '+' + s.replace(/[^\d]/g,'');
+             })();
+             const sale = Number(o.salePrice||0);
+             const cost = Number(o.providerPrice||0);
+             const profit = sale - cost;
+        %>
+          <tr data-orderid="<%= o.orderId %>"
+              data-ct="<%= Number(o.countryId||0) %>"
+              data-status="<%= st %>">
+            <td class="mono"><%= o.orderId || '-' %></td>
+            <td class="mono"><%= USERNAME(o.user) %></td>
+            <td>
+                <span class="badge app"><%= o.appName || '—' %></span>
+                <span class="flag"><img src="<%= FLAGIMG(Number(o.countryId||0)) %>" alt=""></span>
+            </td>
+            <td class="mono">
+                <span class="v"><%= phoneStr %></span>
+                <% if (o.phone) { %>
+                    <button class="copy" data-copy="<%= phoneStr %>" aria-label="คัดลอกเบอร์">
+                    <img src="/static/assets/otp24/copy.png" alt="">
+                    </button>
+                <% } %>
+            </td>
+
+            <td>
+                <% if (o.otp) { %>
+                <div class="otp">OTP : <b><%= o.otp %></b>
+                    <button class="copy" data-copy="<%= o.otp %>" aria-label="คัดลอก OTP">
+                    <img src="/static/assets/otp24/copy.png" alt="">
+                    </button>
+                </div>
+                <% } else { %>
+                <div class="otp none">OTP : <span class="muted">ไม่พบข้อความ</span></div>
+                <% } %>
+                <div class="ts"><%= new Date(o.createdAt).toISOString().replace('T',' ').slice(0,19) %></div>
+            </td>
+
+            <td class="center">฿ <%= sale.toFixed(2) %></td>
+            <td class="center muted">฿ <%= cost.toFixed(2) %></td>
+            <td class="center <%= profit>=0?'text-success':'text-danger' %>">฿ <%= profit.toFixed(2) %></td>
+
+            <td class="right">
+              <span class="pill <%= st %>">
+                <%= st==='success'   ? 'สำเร็จ'
+                  : st==='refunded'  ? 'คืนเครดิต'
+                  : st==='timeout'   ? 'หมดเวลา'
+                  : st==='failed'    ? 'ล้มเหลว'
+                  : 'กำลังรอ OTP' %>
+              </span>
+            </td>
+          </tr>
+        <% }) %>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ===== Mobile list (แสดงเฉพาะมือถือ) ===== -->
+    <div id="mOrders" class="m-orders">
+    <% (orders||[]).forEach(o => {
+    const st = String(o.status||'processing').toLowerCase();
+    const sale = Number(o.salePrice||0);
+    const cost = Number(o.providerPrice||0);
+    const profit = sale - cost;
+    const phoneStr = o.phone
+        ? (Number(o.countryId)===52 ? String(o.phone).replace(/^\+?66/,'0') : String(o.phone))
+        : '-';
+    const createdStr = new Date(o.createdAt).toISOString().replace('T',' ').slice(0,19);
+    %>
+    <div class="m-item collapsed"
+        data-orderid="<%= o.orderId %>"
+        data-ct="<%= Number(o.countryId||0) %>">
+        <!-- หัวการ์ด: แตะตรงไหนก็พับ/กาง -->
+        <div class="m-head">
+            <div class="row1">
+                <div class="oid mono"><%= o.orderId %></div>
+                <div class="when mono"><%= createdStr %></div>
+                <button class="toggle" type="button" aria-label="toggle">+</button>
+            </div>
+            <div class="row2">
+                <div class="phone mono">
+                    เบอร์: <span class="v"><%= phoneStr %></span>
+                    <% if (o.phone) { %>
+                    <button class="copy" data-copy="<%= phoneStr %>" aria-label="คัดลอกเบอร์">
+                        <img src="/static/assets/otp24/copy.png" alt="">
+                    </button>
+                    <% } %>
+                </div>
+
+                <% if (o.otp) { %>
+                <div class="otp">OTP: <b class="v"><%= o.otp %></b>
+                    <button class="copy" data-copy="<%= o.otp %>" aria-label="คัดลอก OTP">
+                    <img src="/static/assets/otp24/copy.png" alt="">
+                    </button>
+                </div>
+                <% } else { %>
+                <div class="otp none">OTP: <span class="muted v">ไม่พบข้อความ</span></div>
+                <% } %>
+            </div>
+        </div>
+
+        <!-- เนื้อหาเมื่อกาง -->
+        <div class="m-body">
+        <div class="pair"><span>ผู้ใช้</span> <span class="mono"><%= USERNAME(o.user) %></span></div>
+        <div class="pair"><span>แอป</span> <span class="badge app"><%= o.appName||'—' %></span></div>
+        <div class="pair"><span>ประเทศ</span>
+            <span class="flag"><img src="<%= FLAGIMG(Number(o.countryId||0)) %>" alt=""></span>
+        </div>
+        <div class="pair"><span>ราคาขาย</span> <span class="mono">฿ <%= sale.toFixed(2) %></span></div>
+        <div class="pair"><span>ต้นทุน</span>   <span class="mono muted">฿ <%= cost.toFixed(2) %></span></div>
+        <div class="pair"><span>กำไร</span>
+            <span class="mono <%= profit>=0?'text-success':'text-danger' %>">฿ <%= profit.toFixed(2) %></span>
+        </div>
+        <div class="pair">
+            <span>สถานะ</span>
+            <span>
+            <span class="pill <%= st %>">
+                <%= st==='success' ? 'สำเร็จ'
+                : st==='refunded' ? 'คืนเครดิต'
+                : st==='timeout'  ? 'หมดเวลา'
+                : st==='failed'   ? 'ล้มเหลว' : 'กำลังรอ OTP' %>
+            </span>
+            </span>
+        </div>
+        </div>
+    </div>
+    <% }) %>
+    </div>
+
+    <!-- Mobile controls -->
+    <div class="orders-controls mobile-only" id="ordersControlsMobile">
+      <div class="left">
+        แสดง
+        <select id="perPageSelectMobile">
+          <option value="10">10</option>
+          <option value="20" selected>20</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+        รายการ/หน้า
+      </div>
+      <div class="right pager">
+        <button class="pg-btn" data-act="first">«</button>
+        <button class="pg-btn" data-act="prev">‹</button>
+        <span id="pageInfoMobile">หน้า 1/1</span>
+        <button class="pg-btn" data-act="next">›</button>
+        <button class="pg-btn" data-act="last">»</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TAB 2: สรุปยอดขาย OTP (รายเดือน / เฉพาะ success) ============ -->
+  <section id="section-summary" class="tabpane">
+    <section class="page-head">
+      <div class="page-title">
+        <h1>สรุปยอดขาย OTP รายเดือน</h1>
+        <small class="muted">หน้าผู้ดูแล → รายงาน → OTP</small>
+      </div>
+    </section>
+
+    <!-- การ์ดสรุป -->
+    <div class="grid cards summary-cards">
+      <section class="card2">
+        <div class="card-head row-head">
+          <h3>ยอดต้นทุนรวม</h3><span class="metric-badge soft">ทั้งเดือน</span>
+        </div>
+        <div class="big muted">฿<%= Number(monthTotals?.cost||0).toLocaleString(undefined,{minimumFractionDigits:2}) %></div>
+      </section>
+      <section class="card2">
+        <div class="card-head row-head">
+          <h3>ยอดขายรวม</h3><span class="metric-badge soft">ทั้งเดือน</span>
+        </div>
+        <div class="big accent">฿<%= Number(monthTotals?.sale||0).toLocaleString(undefined,{minimumFractionDigits:2}) %></div>
+      </section>
+      <section class="card2">
+        <div class="card-head row-head">
+          <h3>ออเดอร์ที่สำเร็จ</h3><span class="metric-badge soft">ทั้งเดือน</span>
+        </div>
+        <div class="big info"><%= Number(monthTotals?.count||0).toLocaleString() %> รายการ</div>
+      </section>
+      <section class="card2">
+        <div class="card-head row-head">
+          <h3>กำไรรวม</h3><span class="metric-badge soft">ทั้งเดือน</span>
+        </div>
+        <div class="big <%= (monthTotals?.profit||0)>=0?'success':'danger' %>">
+          ฿<%= Number(monthTotals?.profit||0).toLocaleString(undefined,{minimumFractionDigits:2}) %>
+        </div>
+      </section>
+    </div>
+
+    <!-- ตัวเลือกเดือน (ยกมาจากหน้าเดิม + ปรับ) -->
+    <div class="month-toolbar" role="group" aria-label="เลือกเดือน">
+      <button class="btn ghost" id="btnPrev" type="button">◀︎</button>
+      <label class="month-ctrl">
+        <input id="monthInput" type="text" value="<%= monthStr %>" readonly aria-label="เลือกเดือน" />
+        <button class="icon-btn" id="btnOpenPicker" type="button" aria-label="เปิดตัวเลือกเดือน">📅</button>
+      </label>
+      <button class="btn ghost" id="btnNext" type="button">▶︎</button>
+      <button class="btn" id="btnThisMonth" type="button">เดือนนี้</button>
+    </div>
+
+    <!-- Popup: Month Picker -->
+    <div id="monthPicker" class="mp-popup" hidden>
+      <div class="mp-card" role="dialog" aria-modal="true" aria-label="เลือกเดือน">
+        <div class="mp-head">
+          <button class="mp-nav" id="mpPrevYear">‹</button>
+          <div class="mp-year" id="mpYear">2025</div>
+          <button class="mp-nav" id="mpNextYear">›</button>
+        </div>
+        <div class="mp-grid" id="mpGrid" role="grid" aria-label="รายชื่อเดือน"></div>
+        <div class="mp-actions">
+          <button class="btn ghost" id="mpClear">ล้าง</button>
+          <div class="spacer"></div>
+          <button class="btn ghost" id="mpThisMonth">เดือนนี้</button>
+          <button class="btn primary" id="mpOK">ตกลง</button>
+        </div>
+      </div>
+    </div>
+
+    <% const [yy, mm] = (monthStr||'').split('-').map(Number);
+       const MONTHS_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+       const headMonthLabel = `${MONTHS_TH[(mm||1)-1]} ${yy}`;
+    %>
+
+    <section class="card">
+      <div class="table-wrap">
+        <table class="tbl zebra">
+          <thead>
+            <tr class="tbl-head-month">
+              <th style="color:#f3a71a; text-align:center;" colspan="5"><%= headMonthLabel %></th>
+            </tr>
+            <tr>
+              <th style="text-align:start; width:141px">วันที่</th>
+              <th class="center">ต้นทุน</th>
+              <th class="center">ยอดขาย</th>
+              <th class="center">ออเดอร์สำเร็จ</th>
+              <th class="center">กำไร</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% 
+                // เตรียม map หาแถวตามวันได้เร็ว
+                const rowsByDay = Object.fromEntries((rows||[]).map(r => [String(r.day), r]));
+                const daysInMonth = new Date(yy, mm, 0).getDate(); // mm เป็นเลขเดือน 1-12 อยู่แล้ว
+                for (let i = 1; i <= daysInMonth; i++) {
+                const dayKey = `${yy}-${String(mm).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+                const r = rowsByDay[dayKey] || { day: dayKey, cost: 0, sale: 0, count: 0, profit: 0 };
+            %>
+                <tr>
+                <td style="text-align:start;"><%= r.day %></td>
+                <td class="center muted"><%= Number(r.cost||0).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2}) %></td>
+                <td class="center" style="color:#43cf43;"><%= Number(r.sale||0).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2}) %></td>
+                <td class="center" style="color:#0ea9e6;"><%= Number(r.count||0).toLocaleString() %></td>
+                <td class="center <%= (r.profit||0)>=0?'text-success':'text-danger' %>">
+                    <%= Number(r.profit||0).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2}) %>
+                </td>
+                </tr>
+            <% } %>
+            </tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+</section>
+
+<script>
+// ───────── Tabs ─────────
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.tabpane').forEach(x=>x.classList.remove('show'));
+    t.classList.add('active');
+    document.getElementById('section-'+t.dataset.target).classList.add('show');
+  });
+});
+
+// ───────── Admin Orders: pagination + search ─────────
+let ORDERS_PER_PAGE = Number(localStorage.getItem('OTP24_ADMIN_PER_PAGE')) || 20;
+let currentPage = 1;
+
+const $rows   = () => Array.from(document.querySelectorAll('#ordersBody tr'))
+  .filter(tr => tr.style.display !== 'none' || true); // always included; filtering handled separately
+const $info   = document.getElementById('pageInfo');
+const $infoM  = document.getElementById('pageInfoMobile');
+const $sel    = document.getElementById('perPageSelect');
+const $selM   = document.getElementById('perPageSelectMobile');
+const $ctrlD  = document.getElementById('ordersControlsDesktop');
+const $ctrlM  = document.getElementById('ordersControlsMobile');
+const $search = document.getElementById('searchBox');
+
+let filterText = '';
+
+function totalItems(){ return $rows().filter(matchFilter).length; }
+function totalPages(){ return Math.max(1, Math.ceil(totalItems() / ORDERS_PER_PAGE)); }
+function clampPage(n){ return Math.min(Math.max(1, n), totalPages()); }
+
+function matchFilter(tr){
+  if (!filterText) return true;
+  const t = filterText;
+  const cells = Array.from(tr.children).map(td => td.textContent?.toLowerCase() || '');
+  return cells.some(v => v.includes(t));
+}
+
+function applyPagination(){
+  const rows = $rows();
+  const items = rows.filter(matchFilter);
+
+  const pages = totalPages();
+  currentPage = clampPage(currentPage);
+  const start = (currentPage-1) * ORDERS_PER_PAGE;
+  const end   = start + ORDERS_PER_PAGE;
+
+  rows.forEach(el => { el.style.display = 'none'; });
+  items.forEach((el, i) => {
+    if (i >= start && i < end) el.style.display = '';
+  });
+
+  if ($info)  $info.textContent  = `หน้า ${currentPage}/${pages}`;
+  if ($infoM) $infoM.textContent = `หน้า ${currentPage}/${pages}`;
+
+  const setBtns = (root) => {
+    if (!root) return;
+    root.querySelector('[data-act="first"]')?.toggleAttribute('disabled', currentPage<=1);
+    root.querySelector('[data-act="prev"]') ?.toggleAttribute('disabled', currentPage<=1);
+    root.querySelector('[data-act="next"]') ?.toggleAttribute('disabled', currentPage>=pages);
+    root.querySelector('[data-act="last"]') ?.toggleAttribute('disabled', currentPage>=pages);
+  };
+  setBtns($ctrlD); setBtns($ctrlM);
+}
+
+function bindPerPage(selectEl){
+  if (!selectEl) return;
+  Array.from(selectEl.options).forEach(opt => { opt.selected = Number(opt.value) === ORDERS_PER_PAGE; });
+  selectEl.addEventListener('change', () => {
+    ORDERS_PER_PAGE = Number(selectEl.value) || 20;
+    localStorage.setItem('OTP24_ADMIN_PER_PAGE', ORDERS_PER_PAGE);
+    currentPage = 1;
+    applyPagination();
+  });
+}
+bindPerPage($sel); bindPerPage($selM);
+
+function bindPager(ctrlRoot){
+  if (!ctrlRoot) return;
+  ctrlRoot.addEventListener('click', (e) => {
+    const btn = e.target.closest('.pg-btn'); if (!btn) return;
+    const act = btn.dataset.act;
+    if (act==='first') currentPage = 1;
+    else if (act==='prev') currentPage = clampPage(currentPage-1);
+    else if (act==='next') currentPage = clampPage(currentPage+1);
+    else if (act==='last') currentPage = totalPages();
+    applyPagination();
+  });
+}
+bindPager($ctrlD); bindPager($ctrlM);
+
+// ค้นหา
+$search?.addEventListener('input', ()=>{
+  filterText = ($search.value || '').trim().toLowerCase();
+  currentPage = 1;
+  applyPagination();
+});
+
+// เริ่มต้น
+applyPagination();
+
+// copy OTP icon feedback
+function setCopyIcon(btn, ok){
+  const img = btn.querySelector('img');
+  if (!img) return;
+  img.src = ok ? '/static/assets/otp24/copy-success.png' : '/static/assets/otp24/copy.png';
+}
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.copy');
+  if (!btn) return;
+  navigator.clipboard.writeText(btn.dataset.copy||'')
+    .then(()=>{ setCopyIcon(btn,true); setTimeout(()=>setCopyIcon(btn,false),900); })
+    .catch(()=> setCopyIcon(btn,false));
+});
+
+// ───────── Month Picker (อัปเดต) ─────────
+(function(){
+  const MONTH_NAMES_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const input   = document.getElementById('monthInput');
+  const btnOpen = document.getElementById('btnOpenPicker');
+  const popup   = document.getElementById('monthPicker');
+  const yearEl  = document.getElementById('mpYear');
+  const grid    = document.getElementById('mpGrid');
+  const btnPrevY= document.getElementById('mpPrevYear');
+  const btnNextY= document.getElementById('mpNextYear');
+  const btnOK   = document.getElementById('mpOK');
+  const btnClear= document.getElementById('mpClear');
+  const btnThis = document.getElementById('mpThisMonth');
+  const btnPrev = document.getElementById('btnPrev');
+  const btnNext = document.getElementById('btnNext');
+  const btnThisMonth = document.getElementById('btnThisMonth');
+
+  const now = new Date();
+  let selYear  = now.getFullYear();
+  let selMonth = now.getMonth();
+  let tempYear = selYear, tempMonth = selMonth;
+
+  const monthStrInit = (input?.value || '').slice(0,7);
+  if (monthStrInit){
+    const [yy,mm] = monthStrInit.split('-').map(n=>+n);
+    if (yy && mm){ selYear = yy; selMonth = mm-1; tempYear=yy; tempMonth=mm-1; }
+  }
+
+  function toYYYYMM(y,m){ return `${y}-${String(m+1).padStart(2,'0')}`; }
+
+  // ===== เก็บ/คงแท็บเดิม =====
+  const TAB_KEY = 'OTP24_LAST_TAB';
+  document.querySelectorAll('.tab').forEach(t=>{
+    t.addEventListener('click', ()=> localStorage.setItem(TAB_KEY, t.dataset.target || 'orders'));
+  });
+
+  function currentTab(){
+    return localStorage.getItem(TAB_KEY)
+      || document.querySelector('.tab.active')?.dataset.target
+      || 'summary';
+  }
+
+  // ===== go(): เปลี่ยนเดือนโดยคงแท็บเดิม =====
+  function go(monthStr){
+    const u = new URL(location.href);
+    const tab = currentTab();
+    u.searchParams.set('month', monthStr);
+    u.searchParams.set('tab', tab); // ใส่พารามิเตอร์
+    u.hash = `#${tab}`;             // เผื่อฝั่งอื่นอ่านจาก hash
+    location.href = u.toString();
+  }
+
+  // ===== สร้าง Grid เดือน =====
+  function renderGrid(){
+    if (!yearEl || !grid) return;
+    yearEl.textContent = String(tempYear);
+    grid.innerHTML = '';
+    for (let m=0;m<12;m++){
+      const b = document.createElement('button');
+      b.type='button';
+      b.className = 'mp-m'
+        + (m===tempMonth && tempYear===selYear ? ' active' : '')
+        + (m===now.getMonth() && tempYear===now.getFullYear() ? ' current' : '');
+      b.textContent = MONTH_NAMES_TH[m];
+      b.setAttribute('role','gridcell');
+      b.addEventListener('click', ()=>{
+        tempMonth = m;
+        [...grid.children].forEach(c=>c.classList.remove('active'));
+        b.classList.add('active');
+        positionPicker(); // ขนาดการ์ดอาจเปลี่ยนเล็กน้อย — จัดตำแหน่งซ้ำ
+      });
+      grid.appendChild(b);
+    }
+  }
+
+  // ===== จัดตำแหน่งป็อปอัพไว้ใต้ .month-ctrl เสมอ =====
+  function positionPicker(){
+    if (!popup) return;
+    const anchor = document.querySelector('.month-toolbar .month-ctrl') || document.querySelector('.month-toolbar');
+    const card = popup.querySelector('.mp-card');
+    if (!anchor || !card){ return; }
+
+    popup.classList.add('anchor');      // ใช้โหมด anchor
+    popup.classList.remove('center');
+
+    const r = anchor.getBoundingClientRect();
+    const vpW = window.innerWidth, vpH = window.innerHeight;
+
+    // ค่าเริ่มต้น: วางใต้ anchor 8px
+    let top  = Math.min(r.bottom + 8, vpH - 12);
+    let left = Math.max(12, Math.min(r.left, vpW - card.offsetWidth - 12));
+
+    // ถ้าล้นขวา ให้เลื่อนไปชิดขวาของ anchor
+    if (left + card.offsetWidth > vpW - 12) left = Math.max(12, r.right - card.offsetWidth);
+
+    // ถ้าพื้นที่ด้านล่างไม่พอ แต่ด้านบนพอ ให้สลับไปวางเหนือ
+    const needH = card.offsetHeight + 12;
+    if (vpH - r.bottom < needH && r.top > needH){
+      top = Math.max(12, r.top - needH);
+    }
+
+    Object.assign(card.style, { top: `${top}px`, left: `${left}px` });
+  }
+
+  function openPicker(){
+    tempYear = selYear; tempMonth = selMonth;
+    renderGrid();
+    popup?.removeAttribute('hidden');
+    popup?.setAttribute('aria-hidden','false');
+    positionPicker();
+    setTimeout(()=> grid?.querySelector('.mp-m.active')?.focus(),0);
+
+    window.addEventListener('resize', positionPicker, { passive:true });
+    window.addEventListener('scroll', positionPicker, { passive:true });
+  }
+  function closePicker(){
+    popup?.setAttribute('hidden','');
+    popup?.setAttribute('aria-hidden','true');
+    window.removeEventListener('resize', positionPicker);
+    window.removeEventListener('scroll', positionPicker);
+  }
+
+  // คลิกนอกการ์ดเพื่อปิด (เฉพาะ anchor mode)
+  popup?.addEventListener('click', (e)=>{
+    if (e.target === popup) closePicker();
+  });
+
+  // ปุ่มเลื่อนเดือน (ซ้าย/ขวา/เดือนนี้)
+  btnPrev?.addEventListener('click', ()=>{
+    const d = new Date(selYear, selMonth-1, 1);
+    go(toYYYYMM(d.getFullYear(), d.getMonth()));
+  });
+  btnNext?.addEventListener('click', ()=>{
+    const d = new Date(selYear, selMonth+1, 1);
+    go(toYYYYMM(d.getFullYear(), d.getMonth()));
+  });
+  btnThisMonth?.addEventListener('click', ()=> go(toYYYYMM(now.getFullYear(), now.getMonth())));
+
+  // เปิด/ปิด + เดินปี
+  btnOpen?.addEventListener('click', openPicker);
+  input?.addEventListener('click', openPicker);
+  btnPrevY?.addEventListener('click', ()=>{ tempYear--; renderGrid(); positionPicker(); });
+  btnNextY?.addEventListener('click', ()=>{ tempYear++; renderGrid(); positionPicker(); });
+  btnThis?.addEventListener('click', ()=>{ tempYear = now.getFullYear(); tempMonth = now.getMonth(); renderGrid(); positionPicker(); });
+
+  btnOK?.addEventListener('click', ()=>{
+    selYear = tempYear; selMonth = tempMonth;
+    input.value = toYYYYMM(selYear, selMonth);
+    closePicker();
+    go(input.value);
+  });
+  btnClear?.addEventListener('click', ()=>{
+    input.value = '';
+    closePicker();
+    go(toYYYYMM(now.getFullYear(), now.getMonth()));
+  });
+
+  // ===== คืนค่าแท็บเดิมหลังโหลดหน้า =====
+  window.addEventListener('DOMContentLoaded', ()=>{
+    const params = new URLSearchParams(location.search);
+    const fromUrl = params.get('tab') || (location.hash||'').replace('#','');
+    const last = fromUrl || localStorage.getItem(TAB_KEY);
+    if (last){
+      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+      document.querySelectorAll('.tabpane').forEach(x=>x.classList.remove('show'));
+      document.querySelector(`.tab[data-target="${last}"]`)?.classList.add('active');
+      document.getElementById(`section-${last}`)?.classList.add('show');
+    }
+  });
+})();
+
+function mmss(ms){ const s=Math.max(0,Math.floor(ms/1000)); const m=String(Math.floor(s/60)).padStart(2,'0'); const ss=String(s%60).padStart(2,'0'); return `${m}:${ss}`; }
+function tickCountdowns(){
+  const now = Date.now();
+  document.querySelectorAll('.countdown').forEach(el=>{
+    const exp = Date.parse(el.dataset.expires||''); if (!Number.isFinite(exp)) return;
+    const left = exp - now;
+    el.textContent = left>0 ? `เหลือเวลาอีก ${mmss(left)} นาที` : 'ระบบกำลังคืนเครดิต';
+    el.classList.toggle('warn', left>0 && left<=180000);
+    el.classList.toggle('danger', left>0 && left<=60000);
+  });
+}
+setInterval(tickCountdowns,1000); tickCountdowns();
+</script>
+
+<script>
+// ── helper: แสดงเบอร์ตามประเทศ (ไทย 52 → 0XXXXXXXX)
+function displayPhoneByCountry(rawPhone, countryId){
+  if (!rawPhone) return '-';
+  let s = String(rawPhone).trim();
+
+  // ── ไทย: countryId = 52 → 0XXXXXXXX
+  if (Number(countryId) === 52){
+    if (/^\+?66\d{8,9}$/.test(s)) return s.replace(/^\+?66/, '0'); // +66... → 0...
+    if (/^0\d{8,9}$/.test(s))     return s;                         // 0XXXXXXXX → ใช้เดิม
+    return s; // เคสพิเศษอื่น ๆ ของไทย
+  }
+
+  // ── ประเทศอื่น: บังคับให้ขึ้นต้นด้วย "+"
+  s = s.replace(/\s|-/g, '');          // ตัดช่องว่าง/ขีด
+  if (s.startsWith('00')) s = s.slice(2); // 00XXXXXXXX → +XXXXXXXX
+  if (s.startsWith('+'))  s = '+' + s.slice(1).replace(/[^\d]/g,''); // ทำให้เหลือ +digits
+  else                    s = '+' + s.replace(/[^\d]/g,'');           // เติม + ถ้าไม่มี
+  return s;
+}
+
+// แตะตรงไหนบนการ์ดก็พับ/กาง (กันปุ่ม/ลิงก์ไม่ให้พับ)
+document.getElementById('mOrders')?.addEventListener('click', (e) => {
+  if (e.target.closest('.copy,button,a,input,textarea,select,label')) return;
+  const item = e.target.closest('.m-item');
+  if (!item) return;
+  item.classList.toggle('collapsed');
+  const btn = item.querySelector('.toggle');
+  if (btn) btn.textContent = item.classList.contains('collapsed') ? '+' : '−';
+});
+
+// copy OTP พร้อมไอคอน feedback (ใช้ setCopyIcon เดิม)
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.copy');
+  if (!btn) return;
+  navigator.clipboard.writeText(btn.dataset.copy||'')
+    .then(()=>{ setCopyIcon(btn,true); setTimeout(()=>setCopyIcon(btn,false),900); })
+    .catch(()=> setCopyIcon(btn,false));
+});
+
+// ====== รวม pagination เดสก์ท็อป + มือถือ ======
+const $cards = () => Array.from(document.querySelectorAll('#mOrders .m-item'));
+
+function totalItems(){
+  const isMobile = window.matchMedia('(max-width: 640px)').matches;
+  const rows = isMobile ? $cards() : $rows();
+  return rows.filter(el => elMatchesFilter(el)).length;
+}
+function elMatchesFilter(el){
+  if (!filterText) return true;
+  const t = filterText;
+  const text = (el.textContent || '').toLowerCase();
+  return text.includes(t);
+}
+
+function applyPagination(){
+  const isMobile = window.matchMedia('(max-width: 640px)').matches;
+  const items = (isMobile ? $cards() : $rows());
+
+  const filtered = items.filter(el => elMatchesFilter(el));
+  const pages = Math.max(1, Math.ceil(filtered.length / ORDERS_PER_PAGE));
+  currentPage = Math.min(Math.max(1, currentPage), pages);
+  const start = (currentPage-1) * ORDERS_PER_PAGE;
+  const end   = start + ORDERS_PER_PAGE;
+
+  items.forEach(el => { el.style.display = 'none'; });
+  filtered.forEach((el,i) => { if (i>=start && i<end) el.style.display = ''; });
+
+  if (!isMobile && $info)  $info.textContent  = `หน้า ${currentPage}/${pages}`;
+  if ( isMobile && $infoM) $infoM.textContent = `หน้า ${currentPage}/${pages}`;
+
+  const setBtns = (root) => {
+    if (!root) return;
+    root.querySelector('[data-act="first"]')?.toggleAttribute('disabled', currentPage<=1);
+    root.querySelector('[data-act="prev"]') ?.toggleAttribute('disabled', currentPage<=1);
+    root.querySelector('[data-act="next"]') ?.toggleAttribute('disabled', currentPage>=pages);
+    root.querySelector('[data-act="last"]') ?.toggleAttribute('disabled', currentPage>=pages);
+  };
+  setBtns($ctrlD); setBtns($ctrlM);
+}
+
+// ค้นหา: ใช้กับทั้ง table & mobile
+$search?.addEventListener('input', ()=>{
+  filterText = ($search.value || '').trim().toLowerCase();
+  currentPage = 1;
+  applyPagination();
+});
+
+// ปรับเมื่อ resize (สลับโหมด)
+let _resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(applyPagination, 150);
+});
+
+// เริ่มต้น
+applyPagination();
+
+// อัปเดตเบอร์ให้ถูกต้องบนมือถือเมื่อโหลด
+document.querySelectorAll('#mOrders .m-item').forEach(card=>{
+  const ct = Number(card.dataset.ct || 0);
+  const el = card.querySelector('.row2 .phone .v');
+  if (el) el.textContent = displayPhoneByCountry(el.textContent.trim(), ct);
+});
+</script>
+
+<script>
+/* ====== ค่าพื้นฐานให้ตรง otp24 ====== */
+let ORD_AUTO_TIMER = null;
+const POLL_DONE = new Set(['success','timeout','failed','refunded']);
+
+/* มีแถวกำลังรออยู่ไหม */
+function hasProcessingRows(){
+  return !!document.querySelector('#ordersBody .pill.processing');
+}
+
+/* แปลงเบอร์ตามประเทศ (เหมือน otp24) */
+function displayPhoneByCountry(rawPhone, countryId){
+  if (!rawPhone) return '-';
+  let s = String(rawPhone).trim();
+
+  // ไทย: countryId = 52  →  0XXXXXXXX
+  if (Number(countryId) === 52) {
+    if (/^\+?66\d{8,9}$/.test(s)) return s.replace(/^\+?66/, '0');
+    if (/^0\d{8,9}$/.test(s)) return s;
+    return s;
+  }
+
+  // ประเทศอื่น: แสดง "ตัวเลขล้วน" ไม่มีเครื่องหมาย +
+  if (s.startsWith('+')) s = s.slice(1);
+  if (s.startsWith('00')) s = s.slice(2);
+  return s.replace(/[^\d]/g, '');
+}
+
+/* นับถอยหลังใต้สถานะ */
+function mmss(ms){
+  if (!Number.isFinite(ms) || ms < 0) ms = 0;
+  const s = Math.floor(ms/1000);
+  const m = String(Math.floor(s/60)).padStart(2,'0');
+  const ss = String(s%60).padStart(2,'0');
+  return `${m}:${ss}`;
+}
+function tickCountdowns(){
+  const now = Date.now();
+  const upd = (el) => {
+    const exp = Date.parse(el.dataset.expires || el.getAttribute('data-expires') || '');
+    if (!Number.isFinite(exp)) return;
+    const left = exp - now;
+    el.textContent = left>0 ? `เหลือเวลาอีก ${mmss(left)} นาที` : 'ระบบกำลังคืนเครดิต';
+    el.classList.toggle('warn',   left>0 && left<=3*60*1000);
+    el.classList.toggle('danger', left>0 && left<=60*1000);
+  };
+  document.querySelectorAll('#ordersBody .countdown').forEach(upd);
+  document.querySelectorAll('#mOrders .countdown').forEach(upd);
+
+  // ซิงค์รูปแบบเบอร์ตามประเทศ (เดสก์ท็อป)
+  document.querySelectorAll('#ordersBody tr').forEach(tr => {
+    const ct = Number(tr.dataset.ct || 0);
+    const tdPhone = tr.children?.[3];
+    if (tdPhone) {
+    const v = tdPhone.querySelector('.v');
+    if (v) v.textContent = displayPhoneByCountry(v.textContent.trim(), ct);
+    }
+  });
+  // มือถือ
+  document.querySelectorAll('#mOrders .m-item').forEach(card => {
+    const ct = Number(card.dataset.ct || 0);
+    const el = card.querySelector('.row2 .phone .v');
+    if (el) el.textContent = displayPhoneByCountry(el.textContent.trim(), ct);
+  });
+}
+
+/* อัปเดต DOM จาก patch เดียวกับ otp24 */
+function applyOrderPatch(p){
+  const tr = document.querySelector(`tr[data-orderid="${p.orderId}"]`);
+  if (!tr) return;
+
+  if (p.expiresAt){
+    tr.dataset.expires = p.expiresAt;
+    tr.querySelector('.countdown')?.setAttribute('data-expires', p.expiresAt);
+  }
+
+  // เบอร์
+  if (Object.prototype.hasOwnProperty.call(p,'phone')) {
+    const tdPhone = tr.children[3];
+    if (tdPhone){
+        const ct = Number(tr.dataset.ct || 0);
+        const v = tdPhone.querySelector('.v') || tdPhone;
+        v.textContent = displayPhoneByCountry((p.phone || '-'), ct);
+    }
+  }
+
+  // OTP/เวลา
+  const cell = tr.children[4];
+  if (Object.prototype.hasOwnProperty.call(p,'otp')){
+    let otpDiv = cell.querySelector('.otp');
+    if (!otpDiv){
+      otpDiv = document.createElement('div');
+      otpDiv.className = 'otp';
+      cell.prepend(otpDiv);
+    }
+    if (p.otp){
+      otpDiv.classList.remove('none');
+      otpDiv.innerHTML = `OTP : <b>${p.otp}</b>
+        <button class="copy" data-copy="${p.otp}" aria-label="คัดลอก OTP">
+          <img src="/static/assets/otp24/copy.png" alt="">
+        </button>`;
+    }else{
+      otpDiv.classList.add('none');
+      otpDiv.innerHTML = `OTP : <span class="muted">ไม่พบข้อความ</span>`;
+    }
+    const ts = cell.querySelector('.ts') || cell.appendChild(document.createElement('div'));
+    ts.className = 'ts';
+    ts.textContent = new Date().toISOString().replace('T',' ').slice(0,19);
+  }
+
+  // Pill สถานะ
+  if (p.status){
+    const pill = tr.querySelector('.pill');
+    const st = String(p.status).toLowerCase();
+    pill.className = `pill ${st}`;
+    pill.textContent =
+      st==='success'   ? 'สำเร็จ' :
+      st==='refunded'  ? 'คืนเครดิต' :
+      st==='timeout'   ? 'หมดเวลา' :
+      st==='failed'    ? 'ล้มเหลว' :
+                         'กำลังรอ OTP';
+
+    // จัดการ countdown ตามสถานะ
+    const cd = tr.querySelector('.countdown');
+    if (st === 'processing'){
+      if (!cd){
+        const d = document.createElement('div');
+        d.className = 'countdown';
+        d.dataset.expires = tr.getAttribute('data-expires') || '';
+        tr.children[8]?.appendChild(d);
+      }
+    }else{
+      cd?.remove();
+    }
+
+    // ***** จุดสำคัญ: ถ้า success ให้ “หยุดทันที” *****
+    if (st === 'success'){
+      tr.querySelector('.countdown')?.remove();
+      tr.removeAttribute('data-expires');
+
+      // มือถือ
+      const m = document.querySelector(`.m-orders .m-item[data-orderid="${p.orderId}"]`);
+      m?.querySelector('.countdown')?.remove();
+      m?.removeAttribute('data-expires');
+
+      // ถ้าไม่เหลือ processing ใด ๆ แล้ว ให้หยุดลูปเดี๋ยวนี้
+      if (!hasProcessingRows()) stopOrdersAutoRefresh();
+    }
+  }
+}
+
+/* ดึง patch ทั้งหน้า แล้วอัปเดตทุกแถว */
+async function refreshAllOrdersOnce(){
+  try{
+    const res = await fetch('/otp/orders/refresh-all', { method:'POST' });
+    const j = await res.json();
+    if (!res.ok || !j?.ok) return;
+    (j.changes || []).forEach(applyOrderPatch);
+
+    // ไม่มี processing แล้ว → หยุดลูปทันที
+    if (!hasProcessingRows()) stopOrdersAutoRefresh();
+  }catch{}
+}
+
+/* ลูปออโต้เหมือน otp24 */
+function startOrdersAutoRefresh(){
+  stopOrdersAutoRefresh();
+  ORD_AUTO_TIMER = setInterval(async () => {
+    await refreshAllOrdersOnce();
+    tickCountdowns();
+  }, 1000);
+}
+function stopOrdersAutoRefresh(){
+  if (ORD_AUTO_TIMER){ clearInterval(ORD_AUTO_TIMER); ORD_AUTO_TIMER = null; }
+}
+
+/* copy OTP ไอคอนแบบ otp24 */
+function setCopyIcon(btn, success){
+  const img = btn.querySelector('img');
+  if (!img) return;
+  img.src = success ? '/static/assets/otp24/copy-success.png' : '/static/assets/otp24/copy.png';
+}
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.copy');
+  if (!btn) return;
+  navigator.clipboard.writeText(btn.dataset.copy || '').then(() => {
+    setCopyIcon(btn, true);
+    setTimeout(() => setCopyIcon(btn, false), 900);
+  }).catch(() => setCopyIcon(btn, false));
+});
+
+/* เริ่มทำงานให้เหมือนหน้า otp24 */
+tickCountdowns();
+setInterval(tickCountdowns, 1000);
+
+// เปิดแท็บ "ประวัติ" แล้วค่อยเริ่มลูป
+document.querySelector('.tab[data-target="orders"]')
+  ?.addEventListener('click', () => startOrdersAutoRefresh());
+
+// ถ้าเปิดหน้ามาแล้วมี processing อยู่ ให้เริ่มเลย
+if (hasProcessingRows()) startOrdersAutoRefresh();
+
+// พักเมื่อแท็บไม่โฟกัส
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) stopOrdersAutoRefresh();
+  else if (document.querySelector('#section-orders')?.classList.contains('show')) {
+    startOrdersAutoRefresh();
+  }
+});
+</script>
+
+<style>
+/* ——— โทนเดียวกับหน้า OTP เดิม ——— */
+.otp24 .tabs{ display:flex; gap:10px; margin-bottom:8px; }
+.otp24 .tab{ padding:10px 14px; border-radius:12px; border:1px solid var(--elevated-border,#2e2f35); background:var(--elevated-bg,#151518); color:var(--text-primary,#ffffff); cursor:pointer; }
+.otp24 .tab.active{ background:var(--accent,#63cff0); border-color:var(--accent,#63cff0); color:var(--accent-contrast,#fff); }
+.tabpane{ display:none; } .tabpane.show{ display:block; }
+
+.orders-wrap{ margin-top:10px; }
+.tbl{ width:100%; border-collapse:separate; border-spacing:0; }
+.tbl th, .tbl td{ padding:12px 14px; border-bottom:1px solid var(--elevated-border,#24262b); text-align:left; color:var(--text-primary,#f2f4f8); }
+.tbl th.right, .tbl td.right{ text-align:right; }
+.badge.app{ background:#ca551f; color:#fff; padding:4px 10px; border-radius:999px; font-weight:700; margin-right:6px; }
+.flag{ display:inline-grid; place-items:center; width:28px; height:20px; border-radius:6px; overflow:hidden; line-height:0; }
+.flag img{ width:100%; height:100%; object-fit:cover; display:block; }
+.mono{ font-family: ui-monospace, SFMono, Menlo, Monaco, Consolas, "Courier New", monospace; }
+
+.pill{ display:inline-block; padding:6px 12px; border-radius:999px; font-weight:700; }
+.pill.success{ background:#16a34a22; color:#34d399; }
+.pill.processing{ background:#f59e0b22; color:#fbbf24; }
+.pill.timeout,.pill.failed{ background:#ef444422; color:#f87171; }
+.pill.refunded{ background:#22c5f644; color:#67e8f9; }
+
+.orders-controls{
+  margin: 8px 0;
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+}
+.orders-controls .left{ display:flex; align-items:center; gap:8px; }
+.orders-controls .pager{ display:flex; align-items:center; gap:6px; }
+.orders-controls select{
+  padding:6px 8px; border-radius:10px;
+  background: var(--elevated-bg,#151518);
+  color: var(--text-primary,#fff);
+  border: 1px solid var(--elevated-border,#2e2f35);
+}
+.input{ padding:10px 12px; border-radius:12px; border:1px solid var(--elevated-border,#2e2f35); }
+.pg-btn{ min-width:34px; height:32px; border-radius:8px; border:1px solid var(--elevated-border,#2e2f35); background:transparent; color:var(--text-primary,#fff); cursor:pointer; }
+.pg-btn:disabled{ opacity:.45; cursor:not-allowed; }
+.mobile-only{ display:none; }
+@media (max-width: 640px){ #ordersControlsDesktop{ display:none; } .mobile-only{ display:flex; } }
+
+/* การ์ดสรุป */
+.summary-cards { margin: 8px 0 12px; grid-template-columns: repeat(4, minmax(0,1fr)); gap:12px; }
+.summary-cards .card2 { padding:12px 14px; }
+.summary-cards .big{ font-size: clamp(20px, 2.2vw, 28px); font-weight:600; padding:6px 2px; }
+.summary-cards .big.muted{ color: var(--text-muted,#a7b0bb); }
+.summary-cards .big.accent{ color: var(--accent,#2a84ff); }
+.summary-cards .big.info{ color: #4fb6ff; }
+.summary-cards .big.success{ color: var(--success,#10b981); }
+.summary-cards .big.danger{ color: var(--danger,#ef4444); }
+.metric-badge.soft{ color:var(--text-muted,#a7b0bb); background:transparent; border:1px dashed var(--elevated-border,#24262b); border-radius:999px; padding:2px 10px; font-size:12px; }
+
+.table-wrap{ overflow:auto; }
+.tbl.zebra tbody tr:nth-child(odd)  td{ background:var(--tbl-row,#13161b) }
+.tbl.zebra tbody tr:nth-child(even) td{ background:var(--tbl-row-alt,#181c22) }
+.tbl.zebra tbody tr:hover td{ background:var(--tbl-hover,#212633) }
+.tbl.zebra tbody tr:hover td:first-child{ box-shadow:inset 3px 0 0 0 var(--accent,#2a84ff) }
+
+.month-toolbar{ display:flex; align-items:center; gap:8px; margin:10px 0 12px; }
+.month-ctrl{ display:flex; align-items:center; gap:6px; }
+.month-ctrl input{ padding:8px 10px; border-radius:10px; border:1px solid var(--elevated-border,#2e2f35); width:120px; background:var(--elevated-bg,#151518); color:var(--text-primary,#fff); }
+.icon-btn{ padding:6px 8px; border-radius:10px; border:1px solid var(--elevated-border,#2e2f35); background:transparent; color:var(--text-primary,#fff); }
+
+.mp-popup.center{ position:fixed; inset:0; background:rgba(0,0,0,.45); display:grid; place-items:center; }
+.mp-popup.anchor{ position:fixed; inset:0; pointer-events:none; }
+.mp-popup[hidden]{ display:none !important; }
+.mp-card{ pointer-events:auto; background:var(--elevated-bg,#151518); color:var(--text-primary,#fff); border:1px solid var(--elevated-border,#2e2f35); border-radius:14px; padding:12px; width:min(92vw,320px); box-shadow:0 16px 36px rgba(0,0,0,.45); }
+.mp-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.mp-year{ font-weight:700; }
+.mp-nav{ border:1px solid var(--elevated-border,#2e2f35); background:transparent; color:var(--text-primary,#fff); border-radius:8px; width:32px; height:32px; }
+.mp-grid{ display:grid; grid-template-columns: repeat(4,1fr); gap:8px; margin-bottom:10px; }
+.mp-m{ padding:8px 10px; border:1px solid var(--elevated-border,#2e2f35); background:transparent; color:var(--text-primary,#fff); border-radius:10px; }
+.mp-m.active{ outline:2px solid var(--accent,#2a84ff); }
+.mp-m.current{ box-shadow: inset 0 0 0 1px var(--accent,#2a84ff); }
+.mp-actions{ display:flex; align-items:center; gap:8px; }
+.spacer{ flex:1; }
+
+/* ธงในตารางประวัติ */
+.orders-wrap td .flag{
+  display:inline-block; vertical-align:middle; margin-left:8px;
+  width:24px; height:18px; line-height:0;
+  background: transparent !important; border:none !important; padding:0;
+}
+.orders-wrap td .flag img{
+  width:100%; height:100%; object-fit:cover; display:block; border-radius:4px;
+}
+/* กันเคสรูป “บาน” กลางตาราง (เช่นไอคอนแอปหลุดมา) */
+.orders-wrap td img{ max-height:28px; height:auto; }
+
+/* ปุ่มคัดลอก */
+.copy{ border:none; background:transparent; cursor:pointer; padding:0 4px; line-height:0; vertical-align:middle; }
+.copy img{ width:18px; height:18px; display:inline-block; }
+
+/* โมดัลเลือกประเทศ: กริดกึ่งกลาง + ธงโปร่งใส */
+#buyModal .flag-grid{ display:flex; flex-wrap:wrap; gap:20px; justify-content:center; }
+@media (max-width:640px){ #buyModal .flag-grid{ gap:10px; } }
+#buyModal .flag{ width:52px; height:36px; padding:0; border:2px solid transparent; border-radius:9px; background:transparent !important; box-shadow:none !important; }
+#buyModal .flag img{ width:100%; height:100%; object-fit:cover; display:block; border-radius:inherit; }
+#buyModal .flag.active,#buyModal .flag.selected{ border-color:var(--accent,#2a84ff) !important; }
+
+/* pill สถานะ (ให้ตรงกับคลาสในโค้ด: success/processing/failed/timeout/refunded) */
+.pill{ display:inline-block; padding:6px 12px; border-radius:999px; font-weight:700; }
+.pill.success{ background:#16a34a22; color:#34d399; }
+.pill.processing{ background:#f59e0b22; color:#fbbf24; }
+.pill.failed,.pill.timeout{ background:#ef444422; color:#f87171; }
+.pill.refunded{ background:#22c5f644; color:#67e8f9; }
+.orders-wrap td .tbl-img-lg{ max-height:none; }
+
+/* Desktop แสดงตาราง, ซ่อน mobile list */
+@media (min-width: 641px){
+  .m-orders{ display:none; }
+}
+
+/* Mobile แสดงลิสต์, ซ่อนตาราง */
+@media (max-width: 640px){
+  .orders-wrap{ display:none; }
+  .m-orders{ display:grid; gap:12px; margin-top:12px; }
+
+  .m-item{
+    background: var(--elevated-bg,#151518);
+    border: 1px solid var(--elevated-border,#2e2f35);
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .m-head{ padding:12px 14px; position:relative; }
+  .m-head .row1{ display:flex; align-items:center; gap:10px; }
+  .m-head .oid{ font-weight:700; }
+  .m-head .when{ margin-left:auto; opacity:.9; white-space:nowrap; font-variant-numeric: tabular-nums; }
+  .m-head .toggle{
+    width:28px; height:28px; border-radius:8px;
+    border:1px solid var(--elevated-border,#2e2f35);
+    background: transparent; color: var(--text-primary,#fff);
+    margin-left:10px;
+  }
+  .m-head .row2{
+    display:flex; gap:12px; margin-top:8px; flex-wrap:wrap;
+    font-size:13px; color: var(--text-muted,#a7b0bb);
+  }
+  .m-head .row2 .otp b{ font-weight:500; color: #f7d438; }
+
+  .m-body{ padding: 12px 14px; border-top:1px dashed var(--elevated-border,#2e2f35); }
+  .m-item.collapsed .m-body{ display:none; }
+
+  .m-body .pair{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:8px 0; border-bottom:1px dashed var(--elevated-border,#2e2f35);
+  }
+  .m-body .pair:last-child{ border-bottom:0; }
+  .m-body .pair .flag{
+    width:28px; height:20px; border-radius:6px; overflow:hidden; line-height:0;
+    display:inline-grid; place-items:center;
+    border:1px solid var(--elevated-border,#2e2f35);
+  }
+  .m-body .pair .flag img{ width:100%; height:100%; object-fit:cover; display:block; }
+
+  .pill{ padding:6px 12px; border-radius:999px; font-weight:700; }
+  .pill.success   { background:#16a34a22; color:#34d399; }
+  .pill.processing{ background:#f59e0b22; color:#fbbf24; }
+  .pill.failed,
+  .pill.timeout   { background:#ef444422; color:#f87171; }
+  .pill.refunded  { background:#22c5f644; color:#67e8f9; }
+
+  .copy{ border:none; background:transparent; cursor:pointer; padding:0 4px; line-height:0; vertical-align:middle; }
+  .copy img{ width:18px; height:18px; display:inline-block; }
+}
+
+/* ===== Summary cards: ให้เรียงลงมาในมือถือ ===== */
+.summary-cards{
+  display:grid;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  gap:12px;
+}
+@media (max-width: 1024px){
+  .summary-cards{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+@media (max-width: 640px){
+  .summary-cards{ grid-template-columns: 1fr; }
+}
+
+/* ===== Month toolbar: ไม่เบียดกันในมือถือ ===== */
+.month-toolbar{
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+}
+.month-toolbar .month-ctrl{ flex: 0 0 auto; }
+@media (max-width: 640px){
+  .month-toolbar{
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .month-toolbar .btn,
+  .month-toolbar .btn.ghost,
+  .month-toolbar .month-ctrl{
+    width:100%;
+  }
+  .month-ctrl input{
+    width:100%;
+  }
+}
+
+/* ===== ตาราง: ให้กว้างขึ้น + เลื่อนลื่นบนมือถือ ===== */
+.table-wrap{
+  overflow:auto;
+  -webkit-overflow-scrolling: touch;
+}
+.tbl{
+  width:100%;
+  border-collapse:separate; 
+  border-spacing:0;
+  /* เพิ่มความกว้างขั้นต่ำของตารางเพื่อไม่ให้อัดแคบเกิน */
+  min-width: clamp(640px, 88vw, 960px);
+}
+.tbl th, .tbl td{
+  padding:12px 14px;
+  text-wrap: nowrap;
+}
+@media (max-width: 640px){
+  .tbl{
+    min-width: 720px;     /* มือถือให้กว้างกว่าหน่อย เลื่อนได้ */
+  }
+  .tbl th, .tbl td{
+    padding:10px 12px;
+  }
+}
+
+/* หัวตารางเดือน: ให้เห็นชัดเจนและไม่แตกบรรทัด */
+.tbl-head-month th{
+  white-space: nowrap;
+  letter-spacing:.2px;
+}
+
+/* ปรับช่องว่างรอบ Section ให้ไม่ซ้อนกันในมือถือ */
+#section-summary .card,
+#section-summary .summary-cards,
+#section-summary .month-toolbar{
+  margin-bottom: 12px;
+}
+
+.tbl thead tr:first-child th{
+  font-weight:700;
+  font-size: clamp(14px, 2.5vw, 16px);
+  text-align:center !important;
+}
+
+/* วางป็อปอัพแบบ anchor ใต้ตัวเลือกเดือนเสมอ */
+.mp-popup.anchor{ position:fixed; inset:0; pointer-events:none; z-index:70; }
+.mp-card{
+  pointer-events:auto;
+  position:fixed;            /* สำคัญ: ให้จัดตำแหน่งด้วย JS */
+  z-index:71;
+  background:var(--elevated-bg,#151518);
+  color:var(--text-primary,#fff);
+  border:1px solid var(--elevated-border,#2e2f35);
+  border-radius:14px;
+  padding:12px;
+  width:min(92vw,320px);
+  box-shadow:0 16px 36px rgba(0,0,0,.45);
+}
+
+/* มือถือ: ให้การ์ดสรุปเรียงลงมา + ตารางกว้างขึ้นเลื่อนข้างได้ */
+@media (max-width:640px){
+  .summary-cards{ grid-template-columns:1fr; }
+  .month-toolbar{ flex-wrap:wrap; gap:6px; }
+  .table-wrap{ overflow:auto; }
+  .tbl{ min-width:560px; }
+}
+
+.otp b{ font-weight:500; color: #f7d438;}
+
+/* ระยะปุ่มคัดลอกเบอร์/OTP */
+.m-head .row2 .phone .copy,
+td .copy {
+  margin-left: 6px;
+}
+</style>
