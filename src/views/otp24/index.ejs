@@ -26,10 +26,20 @@ const FLAG = id => ({
         <input class="input" name="q" placeholder="ค้นหาแอพ…" value="<%= q || '' %>" />
         <button class="btn" type="submit">ค้นหา</button>
         </form>
-
+        
+        <%
+          // key ที่ใช้ตัดสินใจว่า “ถือว่าอันเดียวกัน”
+          const keyOf = p => `${(p.alias || p.name || '').trim().toLowerCase()}|${Number(p.price||0)}`;
+          const seen = new Set();
+          const uniqueProducts = [];
+          (products || []).forEach(p => {
+            const k = keyOf(p);
+            if (!seen.has(k)) { seen.add(k); uniqueProducts.push(p); }
+          });
+        %>
         <!-- เดิม: <div class="grid cards mt-lg"> ... มีปุ่มเช่าในแต่ละการ์ด -->
         <div class="grid cards mt-lg" id="appsGrid">
-        <% (products||[]).forEach(p => { %>
+        <% uniqueProducts.forEach(p => { %>
             <section class="card app"
             data-id="<%= p._id %>"
             data-name="<%= p.name %>"
