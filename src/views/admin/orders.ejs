@@ -39,6 +39,34 @@ function decideDisplaySSR(o){
     : { label: `ดำเนินการ ~ ${donePct.toFixed(2)}%`, donePct, showPct: true, isDone: false };
 }
 %>
+<%
+// helper แปลงวันเวลาไทย (พ.ศ.)
+function fmtTH(d){
+  try {
+    return new Date(d).toLocaleString('th-TH', {
+      timeZone: 'Asia/Bangkok',
+      year: 'numeric',      // พ.ศ.
+      month: 'long',        // เดือนภาษาไทย
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  } catch { return '-'; }
+}
+
+// เฉพาะวันที่ (ไม่เอาเวลา)
+function fmtTHDate(d){
+  try {
+    return new Date(d).toLocaleDateString('th-TH', {
+      timeZone: 'Asia/Bangkok',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  } catch { return '-'; }
+}
+%>
 
 <section class="orders-history page-head">
   <div class="page-title">
@@ -120,7 +148,7 @@ function decideDisplaySSR(o){
               <%= o.providerOrderId || '-' %>
             </a>
           </td>
-          <td class="mono"><%= new Date(o.createdAt).toLocaleString() %></td>
+          <td class="mono"><%= fmtTH(o.createdAt) %></td>
 
           <!-- ผู้ใช้ -->
           <td class="usercell">
@@ -258,7 +286,7 @@ function decideDisplaySSR(o){
             <%= o.providerOrderId || '-' %>
           </a>
         </div>
-        <div class="o-date mono"><%= new Date(o.createdAt).toLocaleString() %></div>
+        <div class="o-date mono"><%= fmtTH(o.createdAt) %></div>
         <button class="o-toggle" aria-label="toggle">＋</button>
       </header>
 
