@@ -377,42 +377,6 @@ function renderServicesList(){
   container.appendChild(frag);
 }
 
-// function renderServicesList(){
-//   const container = $('#servicesContainer');
-//   const list = computeFiltered();
-//   $('#listTitle').textContent = CURRENT_PLATFORM ? `บริการทั้งหมดใน ${CURRENT_PLATFORM}` : 'บริการทั้งหมด';
-
-//   const byProvCat = list.reduce((m,s)=>{
-//     (m[s.providerCategoryName||s.categoryName||'ทั่วไป'] ??= []).push(s); return m;
-//   },{});
-
-//   // สร้างเฉพาะ “หัวกลุ่ม + placeholder”
-//   const frag = document.createDocumentFragment();
-//   groupState.clear();
-
-//   Object.keys(byProvCat).sort().forEach(cat=>{
-//     groupState.set(cat, { rows: byProvCat[cat], rendered:false });
-
-//     const wrap = document.createElement('div');
-//     wrap.className = 'group';
-//     wrap.dataset.cat = enc(cat);
-//     wrap.innerHTML = `
-//       <div class="head" role="button" tabindex="0">
-//         <h4>${cat}</h4>
-//         <div class="meta"><span class="badge">${byProvCat[cat].length} รายการ</span></div>
-//       </div>
-//       <div class="body"><div class="placeholder muted">คลิกเพื่อแสดงรายการ…</div></div>
-//     `;
-//     frag.appendChild(wrap);
-//   });
-
-//   container.innerHTML = '';
-//   container.appendChild(frag);
-//   if (io) io.disconnect();
-//   io = new IntersectionObserver(onIntersect, { root:null, rootMargin:'200px 0px', threshold:0 });
-//   $$('#servicesContainer .group').forEach(g => io.observe(g));
-// }
-
 function onGroupIntersect(entries){
   for (const en of entries){
     if (!en.isIntersecting) continue;
@@ -459,45 +423,6 @@ function renderGroupBody(cat){
     }
   })();
 }
-
-// function onIntersect(entries){
-//   entries.forEach(en=>{
-//     if (!en.isIntersecting) return;
-//     const cat = dec(en.target.dataset.cat || '');
-//     renderGroupBody(cat);
-//     io.unobserve(en.target);         // เรนเดอร์ครั้งเดียวพอ
-//     en.target.classList.add('open'); // เปิดโชว์ทันที
-//   });
-// }
-
-// function renderGroupBody(cat){
-//   const st = groupState.get(cat);
-//   if (!st || st.rendered) return;
-
-//   const rows = st.rows;
-//   const body = $(`.group[data-cat="${enc(cat)}"] .body`);
-//   if (!body) return;
-//   body.innerHTML = ''; // clear placeholder
-
-//   // แบ่งเรนเดอร์เป็นก้อนเพื่อลด jank
-//   const CHUNK = 60;                    // ปรับตามสเป็กเครื่อง
-//   let i = 0;
-
-//   const frag = document.createDocumentFragment();
-//   (function build(){
-//     const slice = rows.slice(i, i+CHUNK);
-//     const wrap = document.createElement('div');
-//     wrap.innerHTML = buildTableAndCards(slice);
-//     frag.appendChild(wrap);
-//     i += CHUNK;
-//     if (i < rows.length) {
-//       schedule(build);
-//     } else {
-//       body.appendChild(frag);
-//       st.rendered = true;
-//     }
-//   })();
-// }
 
 /* ========= build rows (desktop table + mobile cards) ========= */
 function buildTableAndCards(rows){

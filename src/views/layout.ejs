@@ -157,8 +157,16 @@
           <img class="ico" src="/static/assets/emoji/register.png" alt="สมัครสมาชิก" width="18" height="18" loading="lazy" />
           <span class="txt">สมัครสมาชิก</span>
         </a>
+        <div class="sb-group">ติดต่อ</div>
+        <a class="sb-item" href="https://lin.ee/D48MNJu" style="text-decoration: none;">
+          <img class="ico" src="/static/assets/emoji/line.png" alt="ติดต่อไลน์" width="18" height="18" loading="lazy" />
+          <span class="txt">Line Official</span>
+        </a>
+        <a class="sb-item" href="https://t.me/rtstudioxcode168" style="text-decoration: none;">
+          <img class="ico" src="/static/assets/emoji/telegram.png" alt="ติดต่อTelegram" width="18" height="18" loading="lazy" />
+          <span class="txt">Telegram</span>
+        </a>
       <% } %>
-      
     </nav>
   </aside>
 
@@ -732,5 +740,23 @@
     window.uiConfirm = show;
   })();
   </script>
+  <!-- <% if (me) { %>
+  <script>
+  (function otp24BackgroundPersist(){
+    const PING_MS = 5000;
+    async function ping(){ try{
+      await fetch('/otp24/refresh-processing', { method:'POST', keepalive:true });
+    }catch{} }
+    ping(); setInterval(ping, PING_MS);
+
+    document.addEventListener('visibilitychange', ()=>{
+      if (document.hidden) { try { navigator.sendBeacon('/otp24/refresh-processing', new Blob([])); } catch{} }
+    });
+    window.addEventListener('beforeunload', ()=>{
+      try { navigator.sendBeacon('/otp24/refresh-processing', new Blob([])); } catch{}
+    });
+  })();
+  </script>
+  <% } %> -->
 </body>
 </html>

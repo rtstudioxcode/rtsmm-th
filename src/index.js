@@ -40,7 +40,7 @@ import adminReport from './routes/admin-report.js';
 import affiliateRouter from './routes/affiliate.js';
 import blogRoutes from "./routes/blog.js";
 import otp24Routes from './routes/otp24.js';
-import { startOtp24RefundWatcher } from './jobs/otp24RefundWatcher.js';
+import { startOtp24ProcessingSweeper } from './jobs/otp24ProcessingSweeper.js';
 import cookieParser from 'cookie-parser';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -463,7 +463,7 @@ app.use((req, res) => res.status(404).send("Not found"));
 })();
 
 initDailyChangeSync();
-startOtp24RefundWatcher();
+startOtp24ProcessingSweeper();
 
 /* ------------------------------------------------------------------ */
 /* 5) ใช้ PORT จาก DB ก่อน ถ้าไม่มีค่อย fallback env/config           */

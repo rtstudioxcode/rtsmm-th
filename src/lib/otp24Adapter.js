@@ -20,6 +20,13 @@ function parseMaybeJson(text) {
   try { return JSON.parse(text); } catch { return null; }
 }
 
+function parseLoose(text) {
+  const t = (text || '').trim();
+  const j = parseMaybeJson(t);
+  if (j) return j;
+  try { return Object.fromEntries(new URLSearchParams(t)); } catch { return null; }
+}
+
 function pickNumber(str) {
   // ดึงเลขทศนิยมแรกที่ดู “เหมือนจำนวนเงิน”
   const m = String(str).match(/([\d]{1,3}(?:[.,]\d{3})*[.,]\d+|\d+(?:[.,]\d+)?)/);
@@ -283,7 +290,7 @@ async function tryBuy_PostUrlEncoded(base, key, { type, ct }) {
     20000
   );
   const text = await res.text();
-  const json = parseMaybeJson(text) ?? undefined;
+  const json = parseLoose(text) ?? undefined;
   return { ok: res.ok, text, json, via: 'POST-urlencoded' };
 }
 
@@ -299,7 +306,7 @@ async function tryBuy_PostMultipart(base, key, { type, ct }) {
 
   const res  = await fetchWithTimeout(url, { method: 'POST', body: fd }, 20000);
   const text = await res.text();
-  const json = parseMaybeJson(text) ?? undefined;
+  const json = parseLoose(text) ?? undefined;
   return { ok: res.ok, text, json, via: 'POST-multipart' };
 }
 
@@ -316,7 +323,7 @@ async function tryBuy_Get(base, key, { type, ct }) {
   const url  = `${base}?${qs}`;
   const res  = await fetchWithTimeout(url, { method: 'GET' }, 20000);
   const text = await res.text();
-  const json = parseMaybeJson(text) ?? undefined;
+  const json = parseLoose(text) ?? undefined;
   return { ok: res.ok, text, json, via: 'GET' };
 }
 
@@ -351,14 +358,28 @@ export async function buyOtp({ type, ct }) {
   const pick = (...vals) => vals.find(v => v != null && String(v).trim() !== '');
 
   const src = best?.json ?? {};
+  // normalise key-name เผื่อมีเว้นวรรค/ตัวพิมพ์ใหญ่
+  const normalise = (obj) => {
+    if (!obj || typeof obj !== 'object') return obj;
+    const out = {};
+    for (const [k,v] of Object.entries(obj)) {
+      out[String(k).trim().toLowerCase()] = v;
+    }
+    return out;
+  };
+  const nx = normalise(src);
+  const nxData = normalise(src?.data);
+  const nxPayload = normalise(src?.payload);
+
   let orderId = pick(
-    src?.order_id, src?.orderId, src?.id, src?.order,
-    src?.result?.order_id, src?.data?.order_id, src?.data?.id,
-    src?.payload?.order_id, src?.payload?.id
+    nx?.order_id, nx?.orderid, nx?.id, nx?.order,
+    nxData?.order_id, nxData?.id,
+    nxPayload?.order_id, nxPayload?.id
   );
   let phone = pick(
-    src?.number, src?.phone, src?.msisdn, src?.mobile,
-    src?.data?.number, src?.data?.phone, src?.payload?.number
+    nx?.number, nx?.phone, nx?.msisdn, nx?.mobile,
+    nxData?.number, nxData?.phone,
+    nxPayload?.number
   );
 
   // สำรอง: regex จากข้อความล้วน
@@ -382,6 +403,139 @@ export async function buyOtp({ type, ct }) {
     textSample: (a.text || '').slice(0, 220)
   }));
   return { ok:false, error:'No order_id in response', rawText: best?.text, raw: best?.json, attempts: compact };
+}
+
+/* ------------------------------------------------------------------
+ * ซื้อ OTP โดยใช้ "เบอร์เดิม" (action=buyotpagain)
+ * payload: { orderId }
+ * คืน: { ok, status, msg, id, order_id, number, price_ori, app, credit_total, rawText, raw }
+ * ------------------------------------------------------------------ */
+export async function buyOtpAgain({ orderId }) {
+  await refreshConfigFromDB();
+  const { base: rawBase, key } = assertConfigured();
+  const base = rawBase.replace(/\?.*$/, '').replace(/\/+$/, '');
+
+  if (!orderId) return { ok:false, status:'error', msg:'missing orderId' };
+
+  // ---- helpers (3 ทางเหมือน buyOtp) ----
+  const tryUrlEncoded = async () => {
+    const url  = `${base}?action=buyotpagain`;
+    const body = new URLSearchParams({
+      action:   'buyotpagain',
+      keyapi:   key,
+      key:      key,           // กันบางระบบที่ตรวจ 'key'
+      order_id: String(orderId),
+    }).toString();
+
+    const res  = await fetchWithTimeout(
+      url,
+      { method:'POST', headers:{ 'content-type':'application/x-www-form-urlencoded' }, body },
+      20000
+    );
+    const text = await res.text();
+    const json = parseLoose(text) ?? undefined;
+    return { ok: res.ok, text, json, via:'POST-urlencoded' };
+  };
+
+  const tryMultipart = async () => {
+    const url = `${base}?action=buyotpagain`;
+    const fd  = new FormData();
+    fd.set('action',   'buyotpagain');
+    fd.set('keyapi',   key);
+    fd.set('key',      key);
+    fd.set('order_id', String(orderId));
+
+    const res  = await fetchWithTimeout(url, { method:'POST', body:fd }, 20000);
+    const text = await res.text();
+    const json = parseLoose(text) ?? undefined;
+    return { ok: res.ok, text, json, via:'POST-multipart' };
+  };
+
+  const tryGet = async () => {
+    const qs  = new URLSearchParams({
+      action:   'buyotpagain',
+      keyapi:   key,
+      key:      key,
+      order_id: String(orderId),
+    }).toString();
+    const url  = `${base}?${qs}`;
+    const res  = await fetchWithTimeout(url, { method:'GET' }, 20000);
+    const text = await res.text();
+    const json = parseLoose(text) ?? undefined;
+    return { ok: res.ok, text, json, via:'GET' };
+  };
+
+  // ---- พยายามตามลำดับ ----
+  const attempts = [];
+  try { attempts.push(await tryUrlEncoded()); }
+  catch (e) { attempts.push({ ok:false, text:String(e?.message||e), json:undefined, via:'POST-urlencoded' }); }
+
+  if (!attempts.at(-1).ok) {
+    try { attempts.push(await tryMultipart()); }
+    catch (e) { attempts.push({ ok:false, text:String(e?.message||e), json:undefined, via:'POST-multipart' }); }
+  }
+
+  if (!attempts.at(-1).ok) {
+    try { attempts.push(await tryGet()); }
+    catch (e) { attempts.push({ ok:false, text:String(e?.message||e), json:undefined, via:'GET' }); }
+  }
+
+  const best = attempts.slice().reverse().find(a => a.ok) ?? attempts.at(-1);
+
+  // normalize keys (รองรับตัวพิมพ์/ช่องว่างต่างกัน)
+  const norm = (obj) => {
+    if (!obj || typeof obj !== 'object') return {};
+    const out = {};
+    for (const [k, v] of Object.entries(obj)) out[String(k).trim().toLowerCase()] = v;
+    return out;
+  };
+  const j  = norm(best?.json ?? {});
+  const jd = norm((best?.json && best.json.data) || {});
+  const jp = norm((best?.json && best.json.payload) || {});
+
+  const pick = (...vals) => vals.find(v => v != null && String(v).trim() !== '');
+
+  const status  = String(pick(j.status, jd.status, jp.status, '') || '').toLowerCase();
+  const msg     = pick(j.msg, j.message, jd.msg, jp.msg) || '';
+  const id      = pick(j.id, jd.id, jp.id);
+  const order_id= pick(j.order_id, j.orderid, jd.order_id, jp.order_id, id);
+  const number  = pick(j.number, j.phone, jd.number, jp.number);
+  const price   = pick(j.price_ori, j.price, jd.price_ori);
+  const app     = pick(j.app, jd.app, j.name, jd.name);
+  const credit  = pick(j.credit_total, j.credit_toltal, j.balance, jd.credit_total);
+
+  const ok = !!best?.ok && !!order_id && (status === 'success' || status === 'ok' || status === 'successfully');
+
+  if (ok) {
+    return {
+      ok: true,
+      status: 'success',
+      msg: msg || 'buyotpagain success',
+      id: id ?? order_id,
+      order_id: String(order_id),
+      number: number || null,
+      price_ori: price != null ? Number(String(price).replace(/,/g,'')) : null,
+      app: app || null,
+      credit_total: credit != null ? Number(String(credit).replace(/,/g,'')) : null,
+      rawText: best.text,
+      raw: best.json
+    };
+  }
+
+  // กรณี error
+  return {
+    ok: false,
+    status: status || 'error',
+    msg: msg || 'buyotpagain failed',
+    id: id ?? null,
+    order_id: order_id ?? null,
+    number: number ?? null,
+    price_ori: price ?? null,
+    app: app ?? null,
+    credit_total: credit ?? null,
+    rawText: best?.text,
+    raw: best?.json
+  };
 }
 
 /** เช็คสถานะ OTP 

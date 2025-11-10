@@ -11,6 +11,7 @@ import { Topup } from "../models/Topup.js";
 import { ulid } from "ulid";
 import { Service } from '../models/Service.js';
 import { getOtp24Balance, getOtp24Products } from '../lib/otp24Adapter.js';
+import { refreshOtp24BalanceOnce } from '../lib/otp24BalanceUtil.js';
 import { Otp24Setting } from '../models/Otp24Setting.js';
 import { Otp24Product } from "../models/Otp24Product.js";
 import { Otp24Order } from '../models/Otp24Order.js';
@@ -139,24 +140,31 @@ router.get("/", async (req, res) => {
 });
 
 // Refresh balance
-router.post("/refresh-balance", async (req, res) => {
-  try {
-    const balRaw = await getBalance();
-    const candidates = ["balance", "credit", "credits", "amount"];
-    const val = Number(
-      candidates.map((k) => balRaw?.[k]).find((v) => v !== undefined)
-    );
-    let ps = await ProviderSettings.findOne();
-    if (!ps) ps = new ProviderSettings();
-    ps.lastBalance = Number.isFinite(val) ? val : 0;
-    if (!ps.lastSyncAt) ps.lastSyncAt = new Date();
-    await ps.save();
-    res.json({ ok: true, balance: ps.lastBalance, raw: balRaw });
-  } catch (e) {
-    console.error("refresh-balance error:", e?.response?.data || e);
-    res.status(500).json({ ok: false, error: e.message || "refresh failed" });
-  }
-});
+ router.post('/otp24hr/refresh-balance', async (req, res) => {
+   try {
+    const r = await refreshOtp24BalanceOnce(); // ← ยังใช้ getOtp24Balance ภายใน
+    const doc = await Otp24Setting.findOne({ name: 'otp24' })
+      .select({ _id:0, lastBalance:1, currency:1, lastSyncAt:1, lastSyncOk:1, lastSyncVia:1, lastSyncError:1 })
+      .lean();
+    if (!r?.ok) {
+      return res.status(500).json({
+        ok:false,
+        error: r?.error || 'fetch failed',
+        last: doc
+      });
+    }
+    return res.json({
+      ok:true,
+      balance: doc?.lastBalance ?? 0,
+     currency: doc?.currency ?? 'THB',
+      via: doc?.lastSyncVia ?? '',
+      syncedAt: doc?.lastSyncAt ?? new Date(),
+      okFlag: !!doc?.lastSyncOk,
+    });
+   } catch (e) {
+     return res.status(500).json({ ok:false, error: e?.message || 'internal error' });
+   }
+ });
 
 // Sync services
 router.post('/sync-services', requireAuth, async (req, res) => {

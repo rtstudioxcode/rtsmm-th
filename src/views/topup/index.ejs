@@ -394,52 +394,52 @@
 </dialog>
 
 <script>
-  (function(){
-    const KEY = 'topup_notice_suppress_until_v1'; // localStorage key
-    const modal = document.getElementById('topupNoticeModal');
-    const chk = document.getElementById('topupNoticeDontShow');
-    const btnClose = document.getElementById('topupNoticeClose');
+(function(){
+  const KEY = 'topup_notice_suppress_until_v1'; // localStorage key
+  const modal = document.getElementById('topupNoticeModal');
+  const chk = document.getElementById('topupNoticeDontShow');
+  const btnClose = document.getElementById('topupNoticeClose');
 
-    function shouldShow(){
-      try {
-        const v = localStorage.getItem(KEY);
-        if (!v) return true;
-        const ts = Number(v);
-        if (!Number.isFinite(ts)) return true;
-        return Date.now() > ts; // show if now past expiry
-      } catch(e){
-        return true;
+  function shouldShow(){
+    try {
+      const v = localStorage.getItem(KEY);
+      if (!v) return true;
+      const ts = Number(v);
+      if (!Number.isFinite(ts)) return true;
+      return Date.now() > ts; // show if now past expiry
+    } catch(e){
+      return true;
+    }
+  }
+
+  function setSuppressFor1Day(){
+    const until = Date.now() + 1 * 24 * 60 * 60 * 1000;
+    try { localStorage.setItem(KEY, String(until)); } catch(e){ /* ignore */ }
+  }
+
+  // show modal on DOM ready if needed
+  document.addEventListener('DOMContentLoaded', ()=>{
+    try {
+      if (shouldShow()) {
+        // wait a tick so dialog styles/backdrop applied nicely
+        setTimeout(()=> {
+          if (!modal.open) modal.showModal();
+        }, 120);
       }
-    }
+    } catch(e){}
+  });
 
-    function setSuppressFor1Day(){
-      const until = Date.now() + 1 * 24 * 60 * 60 * 1000;
-      try { localStorage.setItem(KEY, String(until)); } catch(e){ /* ignore */ }
-    }
+  btnClose?.addEventListener('click', ()=>{
+    if (chk && chk.checked) setSuppressFor1Day();
+    try { if (modal.open) modal.close(); } catch(e){}
+  });
 
-    // show modal on DOM ready if needed
-    document.addEventListener('DOMContentLoaded', ()=>{
-      try {
-        if (shouldShow()) {
-          // wait a tick so dialog styles/backdrop applied nicely
-          setTimeout(()=> {
-            if (!modal.open) modal.showModal();
-          }, 120);
-        }
-      } catch(e){}
-    });
-
-    btnClose?.addEventListener('click', ()=>{
-      if (chk && chk.checked) setSuppressFor1Day();
-      try { if (modal.open) modal.close(); } catch(e){}
-    });
-
-    // allow Escape/cancel to close as well but don't set suppression
-    modal?.addEventListener('cancel', (ev)=> {
-      ev.preventDefault();
-      try { modal.close(); } catch(e){}
-    });
-  })();
+  // allow Escape/cancel to close as well but don't set suppression
+  modal?.addEventListener('cancel', (ev)=> {
+    ev.preventDefault();
+    try { modal.close(); } catch(e){}
+  });
+})();
 </script>
 
 <script>
@@ -632,20 +632,6 @@
 
   // ผูกทุกฟอร์มที่มีคลาส .topupForm
   document.querySelectorAll('.topupForm').forEach(bindTopupSummary);
-
-  /* 💰 Handle amount input (+3%) */
-  // document.querySelectorAll(".topupForm").forEach((form) => {
-  //   const amt = form.querySelector('input[name="amount"]');
-  //   const sum = form.querySelector('[id^="summaryAmount-"]');
-  //   if (amt && sum) {
-  //     amt.addEventListener("input", () => {
-  //       const base = Number(amt.value || 0);
-  //       sum.textContent = base > 0
-  //         ? Number((base * 1.03).toFixed(2)).toLocaleString(undefined, { minimumFractionDigits: 2 })
-  //         : '—';
-  //     });
-  //   }
-  // });
 
   /* ================= QR MODAL (single source of truth) ================= */
   let qrTimerId = null;

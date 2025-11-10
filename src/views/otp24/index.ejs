@@ -4,6 +4,9 @@ const CT2CODE = {
   52:'th',187:'us',16:'gb',6:'id',10:'vn',5:'mm',1:'ua',19:'ng',62:'tr',
   3:'cn',4:'ph',24:'kh',25:'la',7:'my',21:'eg'
 };
+const HAS_FLAG = id => !!CT2CODE[id];
+const FLAGURL  = id => HAS_FLAG(id) ? `/static/assets/otp24/${CT2CODE[id]}.png` : '';
+
 // path รูปธง
 const FLAGIMG = (id) => `/static/assets/otp24/${CT2CODE[id] || 'xx'}.png`;
 
@@ -106,7 +109,6 @@ const FLAG = id => ({
                 <td class="mono"><%= o.orderId || '-' %></td>
                 <td>
                 <span class="badge app"><%= o.appName || '—' %></span>
-                <span class="flag"><img src="<%= FLAGIMG(Number(o.countryId||0)) %>" alt="" /></span>
                 </td>
                 <td>
                   <div class="mono phone-cell">
@@ -115,6 +117,7 @@ const FLAG = id => ({
                         ? (Number(o.countryId)===52 ? String(o.phone).replace(/^\+?66/,'0') : String(o.phone))
                         : '-';
                     %>
+                    <span class="flag"><img src="<%= FLAGIMG(Number(o.countryId||0)) %>" alt="" /></span>
                     <span class="v"><%= phoneStrTable %></span>
                     <% if (o.phone) { %>
                       <button class="copy" data-copy="<%= phoneStrTable %>" aria-label="คัดลอกเบอร์">
@@ -140,19 +143,33 @@ const FLAG = id => ({
                 <td class="center">฿ <%= Number(o.salePrice||0).toFixed(2) %></td>
 
                 <td class="right">
-                <span class="pill <%= st %>">
-                    <%= st==='success'   ? 'สำเร็จ'
-                    : st==='refunded'  ? 'คืนเครดิต'
-                    : st==='timeout'   ? 'หมดเวลา'
-                    : st==='failed'    ? 'ล้มเหลว'
-                    : /* processing / อื่นๆ */ 'กำลังรอ OTP' %>
-                </span>
-                <% /* ใส่ตัวนับถอยหลังเฉพาะที่ยัง processing และมี expiresAt */ %>
-                <% if (st==='processing' && o.expiresAt) { %>
-                    <div class="countdown" data-expires="<%= new Date(o.expiresAt).toISOString() %>">
-                    เหลือเวาอีก —:— นาที หากไม่ได้รับ OTP ระบบจะคืนเงินอัตโนมัติ
-                    </div>
-                <% } %>
+                  <div class="status-stack">
+                    <span class="pill <%= st %>">
+                      <%= st==='success'   ? 'สำเร็จ'
+                      : st==='refunded'  ? 'คืนเครดิต'
+                      : st==='timeout'   ? 'คืนเครดิต'
+                      : st==='failed'    ? 'คืนเครดิต'
+                      : 'กำลังรอ OTP' %>
+                    </span>
+
+                    <% if (st==='success') { %>
+                      <button
+                        class="pill warn btn-reuse"
+                        data-orderid="<%= o.orderId %>"
+                        data-app="<%= o.appName %>"
+                        data-number="<%= o.phone %>"
+                        data-price="<%= (Number(o.providerPrice || 0) * 2.7).toFixed(2) %>"
+                        data-ct="<%= Number(o.countryId||0) %>">
+                        ใช้เบอร์เดิม
+                      </button>
+                    <% } %>
+
+                    <% if (st==='processing' && o.expiresAt) { %>
+                      <div class="countdown" data-expires="<%= new Date(o.expiresAt).toISOString() %>">
+                        หากไม่ได้รับ OTP ระบบจะคืนเงินอัตโนมัติ
+                      </div>
+                    <% } %>
+                  </div>
                 </td>
             </tr>
             <% }) %>
@@ -224,33 +241,70 @@ const FLAG = id => ({
 
         <!-- เนื้อหาเมื่อกาง -->
         <div class="m-body">
-        <div class="pair"><span>แอป</span> <span class="badge app"><%= o.appName||'—' %></span></div>
-        <div class="pair"><span>ประเทศ</span>
-            <span class="flag"><img src="<%= FLAGIMG(Number(o.countryId||0)) %>" alt=""></span>
-        </div>
-        <div class="pair"><span>ราคา</span> <span class="mono">฿ <%= Number(o.salePrice||0).toFixed(2) %></span></div>
-        <div class="pair">
+          <div class="pair">
             <span>สถานะ</span>
             <span>
-            <span class="pill <%= st %>">
-                <%= st==='success'   ? 'เสร็จสิ้น'
-                : st==='refunded'  ? 'คืนเครดิต'
-                : st==='timeout'   ? 'หมดเวลา'
-                : st==='failed'    ? 'ล้มเหลว'
-                : 'กำลังรอ OTP' %>
+              <div class="status-stack">
+                <span class="pill <%= st %>">
+                  <%= st==='success'   ? 'เสร็จสิ้น'
+                  : st==='refunded'  ? 'คืนเครดิต'
+                  : st==='timeout'   ? 'คืนเครดิต'
+                  : st==='failed'    ? 'คืนเครดิต'
+                  : 'กำลังรอ OTP' %>
+                </span>
+
+                <% if (st==='success') { %>
+                  <button
+                    class="pill warn btn-reuse"
+                    data-orderid="<%= o.orderId %>"
+                    data-app="<%= o.appName %>"
+                    data-number="<%= o.phone %>"
+                    data-price="<%= (Number(o.providerPrice || 0) * 2.7).toFixed(2) %>"
+                    data-ct="<%= Number(o.countryId||0) %>">
+                    ใช้เบอร์เดิม
+                  </button>
+                <% } %>
+
+                <% if (st==='processing' && o.expiresAt) { %>
+                  <div class="countdown" data-expires="<%= new Date(o.expiresAt).toISOString() %>">
+                    เหลือเวลาอีก —:— นาที
+                  </div>
+                <% } %>
+              </div>
             </span>
-            <% if (st==='processing' && o.expiresAt) { %>
-                <div class="countdown" data-expires="<%= new Date(o.expiresAt).toISOString() %>">
-                เหลือเวลาอีก —:— นาที
-                </div>
-            <% } %>
-            </span>
-        </div>
+          </div>
         </div>
     </div>
     <% }) %>
     </div>
 </section>
+
+<dialog id="reuseModal">
+  <form method="dialog" class="modal modal-reuse">
+    <h2 class="modal-title">คุณขอ OTP เบอร์เดิม อีกครั้ง ?</h2>
+    <div class="modal-divider"></div>
+
+    <div class="kv">
+      <div class="k">APP :</div>
+      <div class="v" id="reuseApp">—</div>
+
+      <div class="k">เบอร์ :</div>
+      <div class="v mono phone-line">
+          <span id="reuseNumber">—</span>
+          <img id="reuseFlag" alt="" style="width:20px;height:14px;border-radius:3px;vertical-align:middle;display:none;">
+        </span>
+      </div>
+
+      <div class="k">ราคา :</div>
+      <div class="v"><span id="reusePrice">—</span> บาท</div>
+    </div>
+
+    <div class="actions">
+      <button id="btnReuseConfirm" class="btn modal-primary" style="box-shadow: none;" value="ok">ตกลง</button>
+      <button class="btn modal-secondary" style="background: #e01616; box-shadow: none;" value="cancel">ยกเลิก</button>
+    </div>
+  </form>
+</dialog>
 
 <!-- Modal ซื้อ -->
 <dialog id="buyModal">
@@ -286,7 +340,95 @@ const FLAG = id => ({
   </form>
 </dialog>
 
+<!-- Notice Modal -->
+<dialog id="otpNoticeModal" class="toast-modal" aria-labelledby="otpNoticeTitle" aria-describedby="otpNoticeText">
+  <div class="toast-card" role="alertdialog">
+    <div class="toast-headbar" style="--th-bg: linear-gradient(135deg,#8b5cf6,#6d5dfc);">
+      <div class="toast-badge" aria-hidden="true">⚠️</div>
+      <div class="toast-headtxt">
+        <h3 class="toast-title" id="otpNoticeTitle">แจ้งเตือน</h3>
+        <div class="muted" style="font-weight:400;font-size:13px">โปรดอ่านข้อมูลต่อไปนี้ก่อนเติมเงิน</div>
+      </div>
+    </div>
+
+    <div class="toast-body">
+      <ul style="margin:0 0 0 18px; padding:10px 0; color:var(--t-muted); line-height:1.5">
+        <li>การคืนเงินจะคืนเมื่อไม่ได้รับข้อความ OTP ในเวลา 10 นาที</li>
+        <li>เบอร์สามารถซื้อซ้ำได้หากเบอร์นั้นยังอยู่ในระบบ</li>
+        <li style="color: #e0bb16;">หากมีปัญหาการใช้งานให้ติดต่อแอดมินทันที</li>
+      </ul>
+
+      <label style="display:flex; gap:10px; align-items:center; margin-top:12px; color:var(--t-muted)">
+        <input id="otpNoticeDontShow" type="checkbox" style="width:18px; height:18px;"/>
+        <span>ไม่แสดงอีกในวันนี้</span>
+      </label>
+    </div>
+
+    <div class="toast-actions" style="padding-top:8px;">
+      <button class="pill" id="otpNoticeCloseCancel" hidden>ยกเลิก</button>
+      <button class="pill primary" id="otpNoticeClose">ปิดและยอมรับ</button>
+    </div>
+  </div>
+</dialog>
+
 <script>
+// helper: notify
+function notify(title, text, variant='error'){
+  if (window.showMsg) {
+    window.showMsg({ variant, title, text });
+  } else {
+    alert(`${title}\n${text}`);
+  }
+}
+
+// Modal แจ้งเตือนตอนเข้าหน้าสั่งซื้อ
+(function(){
+  const KEY = 'otp_notice_suppress_until_v1'; // localStorage key
+  const modal = document.getElementById('otpNoticeModal');
+  const chk = document.getElementById('otpNoticeDontShow');
+  const btnClose = document.getElementById('otpNoticeClose');
+
+  function shouldShow(){
+    try {
+      const v = localStorage.getItem(KEY);
+      if (!v) return true;
+      const ts = Number(v);
+      if (!Number.isFinite(ts)) return true;
+      return Date.now() > ts; // show if now past expiry
+    } catch(e){
+      return true;
+    }
+  }
+
+  function setSuppressFor1Day(){
+    const until = Date.now() + 1 * 24 * 60 * 60 * 1000;
+    try { localStorage.setItem(KEY, String(until)); } catch(e){ /* ignore */ }
+  }
+
+  // show modal on DOM ready if needed
+  document.addEventListener('DOMContentLoaded', ()=>{
+    try {
+      if (shouldShow()) {
+        // wait a tick so dialog styles/backdrop applied nicely
+        setTimeout(()=> {
+          if (!modal.open) modal.showModal();
+        }, 120);
+      }
+    } catch(e){}
+  });
+
+  btnClose?.addEventListener('click', ()=>{
+    if (chk && chk.checked) setSuppressFor1Day();
+    try { if (modal.open) modal.close(); } catch(e){}
+  });
+
+  // allow Escape/cancel to close as well but don't set suppression
+  modal?.addEventListener('cancel', (ev)=> {
+    ev.preventDefault();
+    try { modal.close(); } catch(e){}
+  });
+})();
+
 /* ----- Tabs ----- */
 document.querySelectorAll('.tab').forEach(t=>{
   t.addEventListener('click', ()=>{
@@ -324,10 +466,103 @@ function goOrdersTab(){
 }
 
 // โพลลิ่งเช็คสถานะออเดอร์ทุก 1 วิ จนจบ
-const POLL_DONE = new Set(['success','timeout','failed','refunded']);
+const POLL_DONE = new Set(['success']);
 const pollers = new Map();
+
 function startOrderPolling(orderId){
   if (!orderId || pollers.has(orderId)) return;
+
+  // ป้องกันกระพริบ DOM เมื่อได้ OTP แล้ว
+  let lastOtp = null;
+  let lastStatus = null;
+
+  const updateOtpCell = (tr, patch) => {
+    const cell = tr.children[3];
+    const nowText = new Date().toISOString().replace('T',' ').slice(0,19);
+
+    if (patch.otp && patch.otp !== lastOtp) {
+      lastOtp = patch.otp;
+      cell.innerHTML = `
+        <div class="otp">OTP : <b>${patch.otp}</b>
+          <button class="copy" data-copy="${patch.otp}" aria-label="คัดลอก OTP">
+            <img src="/static/assets/otp24/copy.png" alt="" />
+          </button>
+        </div>
+        <div class="ts">${nowText}</div>`;
+      // ไฮไลต์ครั้งเดียวตอนเพิ่งได้รหัส
+      cell.classList.remove('flash');
+      void cell.offsetWidth; // reflow
+      cell.classList.add('flash');
+    } else if (!patch.otp && lastOtp == null) {
+      cell.innerHTML = `
+        <div class="otp muted">OTP : <b>ไม่พบข้อความ</b></div>
+        <div class="ts">${nowText}</div>`;
+    }
+  };
+
+  const updateStatusPill = (tr, patch) => {
+    const pill = tr.querySelector('.pill');
+    if (!pill) return;
+    const st = String(patch.status || '').toLowerCase();
+    if (st === lastStatus) return;
+    lastStatus = st;
+
+    pill.className = `pill ${st}`;
+    pill.textContent =
+      st==='success'    ? 'สำเร็จ' :
+      st==='processing' ? 'กำลังรอ OTP' :
+      st==='timeout'    ? 'คืนเครดิต' :
+      st==='failed'     ? 'คืนเครดิต' :
+      st==='refunded'   ? 'คืนเครดิต' : 'คืนเครดิต';
+  };
+
+  const updatePhoneCells = (tr, patch) => {
+    if (!patch.phone) return;
+
+    const ct = Number(tr.dataset.ct || 0);
+    const formatted = displayPhoneByCountry(patch.phone, ct);
+
+    // desktop cell
+    const cell = tr.children[2];
+    const mono = cell.querySelector('.mono .v') || cell.querySelector('.mono');
+    if (mono) mono.textContent = formatted;
+
+    let btn = cell.querySelector('.copy');
+    if (!btn){
+      btn = document.createElement('button');
+      btn.className = 'copy';
+      btn.setAttribute('aria-label','คัดลอกเบอร์');
+      btn.innerHTML = `<img src="/static/assets/otp24/copy.png" alt="">`;
+      (cell.querySelector('.mono') || cell).appendChild(btn);
+    }
+    btn.dataset.copy = formatted;
+
+    // mobile card
+    const mCard = document.querySelector(`.m-orders .m-item[data-orderid="${orderId}"]`);
+    if (mCard){
+      const el = mCard.querySelector('.row2 .phone .v');
+      if (el) el.textContent = formatted;
+      let mBtn = mCard.querySelector('.row2 .phone .copy');
+      if (!mBtn){
+        mBtn = document.createElement('button');
+        mBtn.className = 'copy';
+        mBtn.setAttribute('aria-label','คัดลอกเบอร์');
+        mBtn.innerHTML = `<img src="/static/assets/otp24/copy.png" alt="">`;
+        el?.after(mBtn);
+      }
+      mBtn.dataset.copy = formatted;
+    }
+  };
+
+  const stopThisPolling = () => {
+    clearInterval(pollers.get(orderId));
+    pollers.delete(orderId);
+    const tr = document.querySelector(`tr[data-orderid="${CSS.escape(orderId)}"]`);
+    tr?.querySelector('.countdown')?.remove();
+    const mCard = document.querySelector(`.m-orders .m-item[data-orderid="${orderId}"]`);
+    mCard?.querySelector('.countdown')?.remove();
+    if (!hasProcessingRows()) stopOrdersAutoRefresh();
+  };
 
   const tick = async () => {
     try{
@@ -337,86 +572,27 @@ function startOrderPolling(orderId){
 
       const { patch } = j;
       const tr = document.querySelector(`tr[data-orderid="${CSS.escape(orderId)}"]`);
-      if (tr && patch){
-        // อัปเดต OTP/เวลา
-        const cell = tr.children[3];
-        if (patch.otp){
-          cell.innerHTML = `
-            <div class="otp">OTP : <b>${patch.otp}</b>
-                <button class="copy" data-copy="${patch.otp}" aria-label="คัดลอก OTP">
-                    <img src="/static/assets/otp24/copy.png" alt="" />
-                </button>
-            </div>
-            <div class="ts">${new Date().toISOString().replace('T',' ').slice(0,19)}</div>`;
-        }else{
-          cell.innerHTML = `
-            <div class="otp muted">OTP : <b>ไม่พบข้อความ</b></div>
-            <div class="ts">${new Date().toISOString().replace('T',' ').slice(0,19)}</div>`;
-        }
+      if (!tr || !patch) return;
 
-        // อัปเดตสถานะ/สีป้าย
-        const pill = tr.querySelector('.pill');
-        if (pill){
-          const st = String(patch.status||'').toLowerCase();
-          pill.className = `pill ${st}`;
-          pill.textContent =
-            st==='success'   ? 'สำเร็จ' :
-            st==='processing'? 'กำลังรอ OTP' :
-            st==='timeout'   ? 'หมดเวลา' :
-            st==='failed'    ? 'ล้มเหลว' :
-            st==='refunded'  ? 'คืนเครดิตแล้ว' : 'ล้มเหลว';
-        }
+      // 1) อัปเดต OTP ทันทีที่มี
+      updateOtpCell(tr, patch);
 
-        // เบอร์ (ถ้าเพิ่งได้)
-        if (patch.phone){
-          const ct = Number(tr.dataset.ct || 0);
-          const formatted = displayPhoneByCountry(patch.phone, ct);
-          const cell = tr.children[2];
-          const mono = cell.querySelector('.mono .v') || cell.querySelector('.mono');
-          if (mono) mono.textContent = formatted;
-          // ถ้ามีปุ่ม copy แล้วอัปเดตค่า ไม่มีก็สร้าง
-          let btn = cell.querySelector('.copy');
-          if (!btn){
-            btn = document.createElement('button');
-            btn.className = 'copy';
-            btn.setAttribute('aria-label','คัดลอกเบอร์');
-            btn.innerHTML = `<img src="/static/assets/otp24/copy.png" alt="">`;
-            (cell.querySelector('.mono') || cell).appendChild(btn);
-          }
-          btn.dataset.copy = formatted;
+      // 2) อัปเดตสถานะ
+      updateStatusPill(tr, patch);
 
-          // มือถือ
-          const mCard = document.querySelector(`.m-orders .m-item[data-orderid="${orderId}"]`);
-          if (mCard){
-            const el = mCard.querySelector('.row2 .phone .v');
-            if (el) el.textContent = formatted;
-            let mBtn = mCard.querySelector('.row2 .phone .copy');
-            if (!mBtn){
-              mBtn = document.createElement('button');
-              mBtn.className = 'copy';
-              mBtn.setAttribute('aria-label','คัดลอกเบอร์');
-              mBtn.innerHTML = `<img src="/static/assets/otp24/copy.png" alt="">`;
-              el?.after(mBtn);
-            }
-            mBtn.dataset.copy = formatted;
-          }
-        }
+      // 3) อัปเดตเบอร์ถ้ายังไม่เคยโชว์
+      updatePhoneCells(tr, patch);
 
-        // จบงาน → หยุดโพลลิ่ง
-        if (POLL_DONE.has(String(patch.status||'').toLowerCase())){
-          clearInterval(pollers.get(orderId));
-          pollers.delete(orderId);
-          // ตัด countdown ของ card/row นี้ด้วย
-          tr?.querySelector('.countdown')?.remove();
-          const mCard = document.querySelector(`.m-orders .m-item[data-orderid="${orderId}"]`);
-          mCard?.querySelector('.countdown')?.remove();
+      // 4) หยุดเมื่อ success (ตามสเปคใหม่)
+      const st = String(patch.status||'').toLowerCase();
+      if (POLL_DONE.has(st)) stopThisPolling();
 
-          if (!hasProcessingRows()) stopOrdersAutoRefresh();
-        }
-      }
-    }catch{}
+    }catch{
+      // เงียบ ๆ ไป ไม่ให้ user สะดุด
+    }
   };
 
+  // เริ่มยิงทันที แล้วค่อยทุก 1 วินาที
   tick();
   const id = setInterval(tick, 1000);
   pollers.set(orderId, id);
@@ -464,52 +640,6 @@ document.addEventListener('click', (e) => {
   });
 });
 
-/* ----- Refresh single order ----- */
-async function refreshOne(orderId){
-  try{
-    const res = await fetch(`/otp24/orders/${encodeURIComponent(orderId)}/refresh`, { method:'POST' });
-    const j = await res.json();
-    if (!res.ok || !j?.ok) throw new Error(j?.error || 'รีเฟรชไม่สำเร็จ');
-    // อัปเดตแถว
-    const tr = document.querySelector(`tr[data-orderid="${orderId}"]`);
-    if (!tr) return;
-    if (j.patch?.phone){
-      const ct = Number(tr.dataset.ct || 0);
-      const formatted = displayPhoneByCountry(j.patch.phone, ct);
-      const cell = tr.children[2];
-      const mono = cell.querySelector('.mono .v') || cell.querySelector('.mono');
-      if (mono) mono.textContent = formatted;
-      let btn = cell.querySelector('.copy');
-      if (!btn){
-        btn = document.createElement('button');
-        btn.className = 'copy';
-        btn.setAttribute('aria-label','คัดลอกเบอร์');
-        btn.innerHTML = `<img src="/static/assets/otp24/copy.png" alt="">`;
-        (cell.querySelector('.mono') || cell).appendChild(btn);
-      }
-      btn.dataset.copy = formatted;
-    }
-    if (j.patch?.otp){
-      tr.querySelector('.otp')?.remove();
-      const cell = tr.children[3];
-      const div = document.createElement('div');
-      div.className = 'otp';
-      div.innerHTML = `OTP : <b>${j.patch.otp}</b>
-        <button class="copy" data-copy="${j.patch.otp}" aria-label="คัดลอก OTP">
-            <img src="/static/assets/otp24/copy.png" alt="">
-        </button>`;
-      cell.prepend(div);
-    }
-    if (j.patch?.status){
-      const pill = tr.querySelector('.pill');
-      pill.className = `pill ${j.patch.status}`;
-      pill.textContent = j.patch.status==='success'?'สำเร็จ':
-                         j.patch.status==='processing'?'กำลังรอ':
-                         j.patch.status==='timeout'?'หมดเวลา':
-                         j.patch.status==='failed'?'ล้มเหลว':'ล้มเหลว';
-    }
-  }catch(e){ alert(e.message || e); }
-}
 (() => {
   const u = new URL(location.href);
   if (u.searchParams.get('tab') === 'orders' || location.hash.replace('#','') === 'orders'){
@@ -561,7 +691,6 @@ function mmss(ms){
   const ss = String(s%60).padStart(2,'0');
   return `${m}:${ss}`;
 }
-
 function tickCountdowns(){
   const now = Date.now();
   const upd = (el) => {
@@ -604,7 +733,7 @@ function tickCountdowns(){
 function startOrdersAutoRefresh(){
   stopOrdersAutoRefresh();
   ORD_AUTO_TIMER = setInterval(async () => {
-    await refreshAllOrdersOnce();
+    await refreshProcessingOrdersOnce();
     tickCountdowns();
   }, 1000);
 }
@@ -724,8 +853,8 @@ function applyOrderPatch(p){
     pill.textContent =
       status==='success'   ? 'สำเร็จ' :
       status==='refunded'  ? 'คืนเครดิต' :
-      status==='timeout'   ? 'หมดเวลา' :
-      status==='failed'    ? 'ล้มเหลว' :
+      status==='timeout'   ? 'คืนเครดิต' :
+      status==='failed'    ? 'คืนเครดิต' :
                              'กำลังรอ OTP';
   }
 
@@ -762,22 +891,60 @@ function applyOrderPatch(p){
   }
 }
 
-async function refreshAllOrdersOnce(){
-  try{
-    const res = await fetch('/otp24/orders/refresh-all', { method:'POST' });
-    const j = await res.json();
-    if (!res.ok || !j?.ok) return;
-    (j.changes || []).forEach(applyOrderPatch);
+// ดึง orderId ที่ยังอยู่สถานะ processing (รองรับทั้งจาก state และจาก DOM)
+function getProcessingOrderIds() {
+  const ids = new Set();
 
-    // ถ้าไม่เหลือ processing แล้ว → หยุด
-    if (!hasProcessingRows()) stopOrdersAutoRefresh();
-  }catch{}
+  // Desktop table rows
+  document.querySelectorAll('#ordersBody tr[data-orderid]').forEach(tr => {
+    const pill = tr.querySelector('.pill');
+    const st = (pill?.className || '').toLowerCase();
+    if (st.includes('processing')) {
+      ids.add(tr.getAttribute('data-orderid'));
+    }
+  });
+
+  // Mobile cards
+  document.querySelectorAll('#mOrders .m-item[data-orderid]').forEach(card => {
+    const pill = card.querySelector('.pill');
+    const st = (pill?.className || '').toLowerCase();
+    if (st.includes('processing')) {
+      ids.add(card.getAttribute('data-orderid'));
+    }
+  });
+
+  return Array.from(ids).filter(Boolean);
+}
+
+// เรียกรีเฟรชเฉพาะรายการที่ยัง processing ทีละรอบ
+async function refreshProcessingOrdersOnce() {
+  try {
+    const ids = getProcessingOrderIds();
+    if (!ids.length) {
+      stopOrdersAutoRefresh?.();
+      return;
+    }
+
+    const results = await Promise.allSettled(
+      ids.map(async (orderId) => {
+        const res = await fetch(`/otp24/orders/${encodeURIComponent(orderId)}/refresh`, { method: 'POST' });
+        const j = await res.json().catch(() => ({}));
+        if (res.ok && j?.ok && j?.patch) applyOrderPatch?.(j.patch);
+        return j;
+      })
+    );
+
+    // หลังอัปเดตทุกรายการแล้ว — ถ้าไม่เหลือ processing เลยให้หยุด
+    if (!hasProcessingRows?.()) stopOrdersAutoRefresh?.();
+  } catch {
+    // เงียบไว้ตามสไตล์เดิม
+  }
 }
 
 function startOrdersAutoRefresh(){
   stopOrdersAutoRefresh();
   ORD_AUTO_TIMER = setInterval(async () => {
-    await refreshAllOrdersOnce();
+    await refreshProcessingOrdersOnce();
     tickCountdowns();   // ← เรียกทุก ๆ วิ
   }, 1000);
 }
@@ -817,64 +984,6 @@ document.getElementById('mOrders')?.addEventListener('click', (e) => {
   const btn = item.querySelector('.toggle');
   if (btn) btn.textContent = item.classList.contains('collapsed') ? '+' : '−';
 });
-
-// ------- Mobile sync: อัปเดตการ์ดมือถือให้ตรงกับ patch -------
-const m = document.querySelector(`.m-orders .m-item[data-orderid="${p.orderId}"]`);
-if (m) {
-  // expires
-  if (p.expiresAt) {
-    m.dataset.expires = p.expiresAt;
-    m.querySelector('.countdown')?.setAttribute('data-expires', p.expiresAt);
-  }
-  // phone
-  if (Object.prototype.hasOwnProperty.call(p,'phone')) {
-    const ct = Number(m.dataset.ct || 0);
-    const phoneText = displayPhoneByCountry(p.phone || '-', ct);
-    m.querySelector('.row2 .phone .v')?.replaceChildren(document.createTextNode(phoneText));
-  }
-  // otp
-  if (Object.prototype.hasOwnProperty.call(p,'otp')) {
-    const otpBox = m.querySelector('.row2 .otp');
-    if (p.otp) {
-      otpBox?.classList.remove('none');
-      otpBox && (otpBox.innerHTML =
-        `OTP: <b class="v">${p.otp}</b>
-        <button class="copy" data-copy="${p.otp}" aria-label="คัดลอก OTP">
-            <img src="/static/assets/otp24/copy.png" alt="">
-        </button>`);
-    } else {
-      otpBox?.classList.add('none');
-      otpBox && (otpBox.innerHTML = `OTP: <span class="muted v">ไม่พบข้อความ</span>`);
-    }
-  }
-  // pill + countdown
-  if (p.status) {
-    const pill = m.querySelector('.pill');
-    const st = String(p.status).toLowerCase();
-    if (pill) {
-      pill.className = `pill ${st}`;
-      pill.textContent =
-        st==='success'   ? 'เสร็จสิ้น' :
-        st==='refunded'  ? 'คืนเครดิต' :
-        st==='timeout'   ? 'หมดเวลา' :
-        st==='failed'    ? 'ล้มเหลว'  :
-                           'กำลังรอ OTP';
-    }
-    const cd = m.querySelector('.countdown');
-    if (st === 'processing') {
-      if (!cd) {
-        const holder = m.querySelector('.m-body .pair:last-child span:last-child');
-        const div = document.createElement('div');
-        div.className = 'countdown';
-        div.dataset.expires = m.getAttribute('data-expires') || '';
-        div.textContent = 'เหลือเวลาอีก —:— นาที';
-        holder?.appendChild(div);
-      }
-    } else {
-      cd?.remove();
-    }
-  }
-}
 
 // helper: เปลี่ยนภาพไอคอน copy
 function setCopyIcon(btn, success) {
@@ -987,8 +1096,8 @@ bindPager($ctrlM);
 applyPagination();
 
 // เมื่อรีเฟรชสถานะ/จำนวนรายการเปลี่ยน ให้คงหน้าปัจจุบันไว้ถ้าเป็นไปได้
-const _origRefreshAll = refreshAllOrdersOnce;
-refreshAllOrdersOnce = async function () {
+const _origRefreshAll = refreshProcessingOrdersOnce;
+refreshProcessingOrdersOnce = async function () {
   const out = await _origRefreshAll(); // ดึงแพตช์สถานะจากเซิร์ฟเวอร์
   applyPagination();                   // จัดหน้าใหม่ตามจำนวนรายการล่าสุด
   tickCountdowns();                    // อัปเดตตัวเลขนับถอยหลังให้ตรง DOM ล่าสุด
@@ -998,6 +1107,150 @@ refreshAllOrdersOnce = async function () {
 
   return out; // เผื่อที่อื่นยังใช้งานผลลัพธ์เดิม
 };
+
+
+
+/* ====== ซื้อเบอร์เดิม (buyotpagain) ====== */
+window.CT2CODE = window.CT2CODE || {
+  52:'th',187:'us',16:'gb',6:'id',10:'vn',5:'mm',1:'ua',19:'ng',62:'tr',3:'cn',4:'ph',24:'kh',25:'la',7:'my',21:'eg'
+};
+function displayPhoneByCountry(raw, ct){ return raw || '—'; }
+
+async function asJson(r){ const j = await r.json().catch(()=>({})); return { ok:r.ok, status:r.status, data:j }; }
+
+window.FLAGIMG_BY_ID = function(id){
+  const code = (window.CT2CODE || {})[Number(id)];
+  return code ? '/static/assets/otp24/' + code + '.png' : null;
+};
+
+let REUSE_CTX = {};
+
+// ─────────────────────────────────────────────
+// คลิกปุ่ม “ใช้เบอร์เดิม”
+// ─────────────────────────────────────────────
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.btn-reuse');
+  if (!btn) return;
+
+  // ทำ ctx จาก data-* ของปุ่ม ไว้เป็น fallback
+  const ctx = {
+    orderId: btn.dataset.orderid,
+    app:     btn.dataset.app || '',
+    number:  btn.dataset.number || '',
+    price:   Number(btn.dataset.price || 0),
+    ct:      Number(btn.dataset.ct || 0),
+  };
+
+  // 1) ลองเรียก PREVIEW (GET)
+  let r = await fetch(`/otp24/buy-again/preview?orderId=${encodeURIComponent(ctx.orderId)}`, {
+    headers:{ accept:'application/json' }
+  }).catch(()=>null);
+  let res = r ? await asJson(r) : { ok:false, status:0, data:{} };
+
+  // 2) ถ้าไม่มี endpoint preview ให้ลอง POST preview:true
+  if (!res.ok && (res.status === 404 || res.status === 405)) {
+    r = await fetch('/otp24/buy-again', {
+      method:'POST',
+      headers:{ 'content-type':'application/json', accept:'application/json' },
+      body: JSON.stringify({ orderId: ctx.orderId, preview:true })
+    }).catch(()=>null);
+    res = r ? await asJson(r) : { ok:false, status:0, data:{} };
+  }
+
+  // 3) ตีความผลลัพธ์ผิดพลาด → แจ้งเหตุผลที่ถูกต้อง
+  if (!res.ok){
+    const code = res.data?.code || res.data?.reason;
+    if (res.status===409 || res.status===423 || code==='ACTIVE_ORDER' || code==='STILL_PROCESSING' || res.data?.active===true){
+      return (window.showMsg||alert)({ variant:'error', title:'สั่งซื้อไม่สำเร็จ', text:'เบอร์ของคุณยังอยู่ในสถานะกำลังทำงานอยู่' });
+    }
+    if (res.status===410 || code==='REMOVED' || code==='NOT_REUSABLE'){
+      return (window.showMsg||alert)({ variant:'error', title:'สั่งซื้อไม่สำเร็จ', text:'เบอร์นี้ถูกนำออกจากระบบไปแล้ว' });
+    }
+    return (window.showMsg||alert)({ variant:'error', title:'สั่งซื้อไม่สำเร็จ', text: res.data?.error || 'ระบบผู้ให้บริการขัดข้อง กรุณาลองใหม่' });
+  }
+
+  // 4) ผ่านเงื่อนไข → เปิดโมดัลยืนยัน
+  const info = res.data?.preview || res.data || {};
+  REUSE_CTX = {
+    orderId: ctx.orderId,
+    app:     info.appName   || ctx.app,
+    number:  info.phone     || ctx.number,
+    price:   Number(info.price ?? ctx.price),
+    ct:      Number(info.countryId ?? ctx.ct),
+  };
+
+  document.getElementById('reuseApp').textContent    = REUSE_CTX.app || '—';
+  document.getElementById('reuseNumber').textContent = displayPhoneByCountry(REUSE_CTX.number, REUSE_CTX.ct);
+
+  const flagEl = document.getElementById('reuseFlag');
+  const fcode  = (window.CT2CODE && window.CT2CODE[REUSE_CTX.ct]) || null;
+  if (fcode){ flagEl.src = `/static/assets/otp24/${fcode}.png`; flagEl.style.display='inline-block'; }
+  else { flagEl.removeAttribute('src'); flagEl.style.display='none'; }
+
+  document.getElementById('reusePrice').textContent = REUSE_CTX.price.toFixed(2);
+  document.getElementById('reuseModal').showModal();
+});
+
+// ─────────────────────────────────────────────
+// ปุ่มยืนยันซื้อซ้ำ
+// ─────────────────────────────────────────────
+document.getElementById('btnReuseConfirm')?.addEventListener('click', async (e) => {
+  e.preventDefault();
+  if (!REUSE_CTX?.orderId) return;
+
+  try{
+    const r = await fetch('/otp24/buy-again', {
+      method:'POST',
+      headers:{ 'content-type':'application/json', accept:'application/json' },
+      body: JSON.stringify({ orderId: REUSE_CTX.orderId })
+    });
+    const j = await r.json().catch(()=> ({}));
+    if (!r.ok || !j?.ok){
+      const code = j?.code || j?.reason || '';
+      (window.showMsg || alert)({
+        variant:'error',
+        title:'สั่งซื้อไม่สำเร็จ',
+        text: (code==='ACTIVE_ORDER' || code==='STILL_PROCESSING')
+              ? 'เบอร์ของคุณยังอยู่ในสถานะกำลังทำงานอยู่'
+              : (j?.error || 'เบอร์นี้ถูกนำออกจากระบบไปแล้ว')
+      });
+      return;
+    }
+    sessionStorage.setItem('OTP24_AFTER_BUY', j.redirect || '/otp24?tab=orders');
+    window.location.reload();
+  } catch {
+    (window.showMsg || alert)({ variant:'error', title:'สั่งซื้อไม่สำเร็จ', text:'เครือข่ายมีปัญหา' });
+  } finally {
+    document.getElementById('reuseModal')?.close();
+  }
+});
+
+/* ========== Background persist for processing orders ========== */
+/* ยิงเบาๆ ทุก 5 วินาที เพื่อให้ฝั่งเซิร์ฟเวอร์อัปเดตสถานะลง DB เสมอ
+   ทำงานแม้ผู้ใช้จะไม่อยู่แท็บ "orders" */
+// (function otp24BackgroundPersist(){
+//   const PING_MS = 5000;
+
+//   async function ping() {
+//     try {
+//       await fetch('/otp24/refresh-processing', { method: 'POST', keepalive: true });
+//     } catch {}
+//   }
+
+//   // เริ่มทันที + เข็มทุก 5 วิ
+//   ping();
+//   setInterval(ping, PING_MS);
+
+//   // ตอนสลับแท็บ/ปิดหน้า ยิงปิดท้ายอีกที
+//   document.addEventListener('visibilitychange', () => {
+//     if (document.hidden) {
+//       try { navigator.sendBeacon('/otp24/refresh-processing', new Blob([])); } catch {}
+//     }
+//   });
+//   window.addEventListener('beforeunload', () => {
+//     try { navigator.sendBeacon('/otp24/refresh-processing', new Blob([])); } catch {}
+//   });
+// })();
 
 // เมื่อสลับมือถือ/เดสก์ท็อป (resize) ให้ปรับหน้าให้เหมาะสม
 let _resizeTimer = null;
@@ -1042,8 +1295,8 @@ window.addEventListener('resize', () => {
 .pill{ display:inline-block; padding:6px 12px; border-radius:999px; font-weight:700; }
 .pill.success{ background:#16a34a22; color:#34d399; }
 .pill.wait{ background:#f59e0b22; color:#fbbf24; }
-.pill.timeout{ background:#ef444422; color:#f87171; }
-.pill.failed{ background:#ef444422; color:#f87171; }
+.pill.timeout{ background:#22c5f644; color:#67e8f9; }
+.pill.failed{ background:#22c5f644; color:#67e8f9; }
 
 dialog::backdrop{ background: rgba(0,0,0,.5); }
 .modal{ min-width:460px; padding:20px; border-radius:14px; border:1px solid #2e2f35; background:#17181b; }
@@ -1096,7 +1349,7 @@ dialog::backdrop{ background: rgba(0,0,0,.5); }
 .pill{ display:inline-block; padding:6px 12px; border-radius:999px; font-weight:700; }
 .pill.success{ background:#16a34a22; color:#34d399; }
 .pill.wait{ background:#f59e0b22; color:#fbbf24; }
-.pill.timeout,.pill.failed{ background:#ef444422; color:#f87171; }
+.pill.timeout,.pill.failed{ background:#22c5f644; color:#67e8f9; }
 
 /* ── Dialog reset: ไม่มีกรอบ/พื้นหลังขาว ─────────────── */
 dialog{ border:none; padding:0; background:transparent; }
@@ -1358,7 +1611,7 @@ body[data-theme="light"] #buyModal .flag.active{ box-shadow:0 0 0 4px rgba(42,13
 .pill.success   { background:#16a34a22; color:#34d399; }
 .pill.processing{ background:#f59e0b22; color:#fbbf24; }
 .pill.failed,
-.pill.timeout   { background:#ef444422; color:#f87171; }
+.pill.timeout   { background:#22c5f644; color:#67e8f9; }
 .pill.refunded  { background:#22c5f644; color:#67e8f9; }
 .countdown{ font-size:12px; opacity:.85; margin-top:4px; color:var(--text-muted,#a7b0bb); }
 .countdown.warn{ color:#fbbf24; }
@@ -1419,7 +1672,7 @@ body[data-theme="light"] #buyModal .flag.active{ box-shadow:0 0 0 4px rgba(42,13
   .pill.success   { background:#16a34a22; color:#34d399; }
   .pill.processing{ background:#f59e0b22; color:#fbbf24; }
   .pill.failed,
-  .pill.timeout   { background:#ef444422; color:#f87171; }
+  .pill.timeout   { background:#22c5f644; color:#67e8f9; }
   .pill.refunded  { background:#22c5f644; color:#67e8f9; }
 
   .countdown{ font-size:12px; margin-top:6px; color: var(--text-muted,#a7b0bb); }
@@ -1801,4 +2054,239 @@ body[data-theme="light"] #buyModal .flag.active{ box-shadow:0 0 0 4px rgba(42,13
 
 .phone-cell .copy { margin-left: 6px; }
 .m-head .row2 .phone .copy { margin-left: 6px; }
+
+.status-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.status-stack .pill { display: inline-block; }
+.status-stack .reuse-btn { margin: 0; } /* กัน margin เริ่มต้นของปุ่มบางธีม */
+@media (max-width: 640px){
+  .status-stack { gap: 6px; }
+}
+
+/* ===== Reuse Modal (เหมือนภาพตัวอย่าง) ===== */
+.modal-reuse{
+  min-width: 520px;
+  padding: 22px 22px 18px;
+  border-radius: 14px;
+  /* border: 1px solid color-mix(in oklab, var(--elevated-border,#2e2f35), white 6%); */
+  background: var(--elevated-bg,#17181b);
+  color: var(--text-primary,#fff);
+  box-shadow: 0 16px 36px rgba(0,0,0,.45);
+  text-align: center;
+}
+@media (max-width:640px){ .modal-reuse{ min-width:unset; width:92vw; } }
+
+.modal-reuse .modal-title{
+  margin: 2px 0 10px;
+  font-size: clamp(20px, 2.6vw, 24px);
+  font-weight: 800;
+  letter-spacing:.2px;
+}
+
+.modal-reuse .modal-divider{
+  height: 1px;
+  background: color-mix(in oklab, var(--text-muted,#b6beca), transparent 40%);
+  margin: 8px 0 14px;
+}
+
+/* ตารางคีย์–ค่า 2 คอลัมน์ ตรงกลาง */
+.modal-reuse .kv{
+  display:grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 10px;
+  justify-items: center;
+  align-items: center;
+  margin: 4px auto 16px;
+  width: max(260px, 70%);
+}
+.modal-reuse .kv .k{
+  font-weight: 800;
+  opacity:.95;
+  text-align:center;
+}
+.modal-reuse .kv .v{ text-align:center; }
+.modal-reuse .kv .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Courier New", monospace; }
+
+.modal-reuse .phone-line{
+  display:inline-flex; gap:8px; align-items:center;
+}
+.modal-reuse .flag-ic{
+  width: 28px; height: 20px;
+  border-radius: 4px; object-fit: cover;
+  display: inline-block;
+  transform: translateY(1px);
+}
+
+/* ปุ่มคู่ล่าง: ซ้าย = primary, ขวา = เส้นขอบอุ่น */
+.modal-reuse .actions{
+  display:flex; gap:16px; justify-content:center;
+}
+.modal-reuse .btn{
+  min-width:120px; height:42px;
+  border-radius:12px; font-weight:800; letter-spacing:.2px;
+}
+.modal-reuse .modal-primary{
+  background: linear-gradient(180deg, #ff9a55 0%, #ff7f2f 100%);
+  color:#fff;
+  border:1px solid rgba(255,132,58,.55);
+  box-shadow: 0 6px 18px rgba(255,132,58,.35), inset 0 1px 0 rgba(255,255,255,.25);
+}
+.modal-reuse .modal-primary:hover{ filter:brightness(1.04); transform:translateY(-1px); }
+.modal-reuse .modal-primary:active{ transform:translateY(0); }
+
+.modal-reuse .modal-secondary{
+  background: transparent;
+  color: var(--text-primary,#fff);
+  border: 1px solid rgba(255,132,58,.45);
+  box-shadow: 0 0 0 2px rgba(255,132,58,.15) inset;
+}
+.modal-reuse .modal-secondary:hover{ background: rgba(255,132,58,.08); }
+
+/* Theme: light mode */
+:root[data-theme="light"] .modal-reuse,
+html[data-theme="light"] .modal-reuse{
+  background:#1b1d22;           /* ใช้กล่องมืดเพื่อคอนทราสต์ตามภาพ */
+  color:#f5f7fb;
+  border-color:#2c2f37;
+}
+:root[data-theme="light"] dialog::backdrop,
+html[data-theme="light"] dialog::backdrop{
+  background: rgba(0,0,0,.35);
+  backdrop-filter: blur(2px);
+}
+
+.status-stack { display:flex; flex-direction:column; align-items:center; gap:8px; }
+@media (max-width:640px){ .status-stack{ gap:6px; } }
+
+/* ===== Reuse Modal – จัดวางกลางเป๊ะ ===== */
+.modal-reuse{
+  min-width: 520px;
+  padding: 22px 22px 18px;
+  border-radius: 14px;
+  /* border: 1px solid color-mix(in oklab, var(--elevated-border,#2e2f35), white 6%); */
+  background: var(--elevated-bg,#17181b);
+  color: var(--text-primary,#fff);
+  box-shadow: 0 16px 36px rgba(0,0,0,.45);
+  text-align: center;
+}
+@media (max-width:640px){ .modal-reuse{ min-width:unset; width:92vw; } }
+
+.modal-reuse .modal-title{
+  margin: 2px 0 10px;
+  font-size: clamp(20px, 2.6vw, 24px);
+  font-weight: 800;
+  letter-spacing: .2px;
+}
+.modal-reuse .modal-divider{
+  height: 1px;
+  background: color-mix(in oklab, var(--text-muted,#b6beca), transparent 40%);
+  margin: 8px 0 14px;
+}
+
+/* ตารางคีย์–ค่าอยู่กึ่งกลางจริง ทั้งบล็อกและข้อความ */
+.modal-reuse .kv{
+  display: grid;
+  grid-template-columns: auto auto;    /* 2 คอลัมน์กะทัดรัด */
+  gap: 10px 12px;
+  margin: 4px auto 16px;
+  width: fit-content;                   /* กว้างเท่าคอนเทนต์ */
+  justify-items: center;                /* จัดแต่ละช่องให้อยู่กลาง */
+  text-align: center;                   /* จัดข้อความให้อยู่กลาง */
+}
+.modal-reuse .kv .k{
+  font-weight: 800;
+  opacity: .95;
+  min-width: 78px;                      /* ความกว้าง label ใกล้เคียงภาพ */
+}
+.modal-reuse .kv .v{ white-space: nowrap; }
+
+.modal-reuse .phone-line{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;              /* เบอร์+ธงกึ่งกลางแนวนอน */
+  gap: 8px;
+}
+
+.flag-ic-wrap{ display: inline-flex; align-items: center; }
+.flag-ic{
+  width: 28px; height: 20px;
+  border-radius: 4px; object-fit: cover;
+  display: inline-block;
+  transform: translateY(1px);
+}
+.flag-emoji{ font-size: 18px; line-height: 1; transform: translateY(1px); }
+
+/* ปุ่มคู่ล่าง */
+.modal-reuse .actions{ display:flex; gap:16px; justify-content:center; }
+.modal-reuse .btn{
+  min-width:120px; height:42px;
+  border-radius:12px; font-weight:800; letter-spacing:.2px;
+}
+.modal-reuse .modal-primary{
+  background: linear-gradient(180deg, #ff9a55 0%, #ff7f2f 100%);
+  color:#fff; border:1px solid rgba(255,132,58,.55);
+  box-shadow: 0 6px 18px rgba(255,132,58,.35), inset 0 1px 0 rgba(255,255,255,.25);
+}
+.modal-reuse .modal-primary:hover{ filter:brightness(1.04); transform:translateY(-1px); }
+.modal-reuse .modal-secondary{
+  background: transparent;
+  color: var(--text-primary,#fff);
+  border: 1px solid rgba(255,132,58,.45);
+  box-shadow: 0 0 0 2px rgba(255,132,58,.15) inset;
+}
+.modal-reuse .modal-secondary:hover{ background: rgba(255,132,58,.08); }
+
+/* รองรับธีมสว่าง */
+:root[data-theme="light"] .modal-reuse,
+html[data-theme="light"] .modal-reuse{
+  background:#1b1d22;   /* คอนทราสต์แบบภาพตัวอย่าง */
+  color:#f5f7fb;
+  border-color:#2c2f37;
+}
+:root[data-theme="light"] dialog::backdrop,
+html[data-theme="light"] dialog::backdrop{
+  background: rgba(0,0,0,.35);
+  backdrop-filter: blur(2px);
+}
+#reuseFlag:not([src]){ display:none; }
+/* ===== Mobile: สถานะ + ใช้เบอร์เดิม อยู่บรรทัดเดียวกัน ===== */
+@media (max-width:640px){
+  /* เปลี่ยน status-stack จากคอลัมน์ → แถว */
+  .m-orders .status-stack{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;          /* ถ้าพื้นที่แคบ ให้ตกรางสวยๆ */
+  }
+
+  /* ปุ่มใช้เบอร์เดิมให้กะทัดรัดขึ้น */
+  .m-orders .status-stack .btn-reuse{
+    margin: 0;
+    padding: 6px 10px;
+    line-height: 1.1;
+  }
+
+  /* ตัวนับถอยหลังให้อยู่บรรทัดถัดไปใต้แถวเดียวกัน */
+  .m-orders .status-stack + .countdown{
+    width: 100%;
+    margin-top: 6px;
+  }
+}
+
+/* เดสก์ท็อปยังคงเรียงเป็นคอลัมน์เหมือนเดิม */
+@media (min-width:641px){
+  .status-stack{
+    display: flex;
+    flex-direction: column;
+    align-items: end;
+    gap: 8px;
+  }
+}
+
+.flash { animation: otpFlash 800ms ease-in-out 1; }
+@keyframes otpFlash {
+  0% { background: transparent; }
+  25% { background: rgba(16,185,129,.22); }
+  100% { background: transparent; }
+}
 </style>

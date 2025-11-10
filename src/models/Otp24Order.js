@@ -26,9 +26,11 @@ const Otp24OrderSchema = new mongoose.Schema({
   message:    { type:String },
 
   // เส้นตาย & การคืนเงิน
-  expiresAt:  { type: Date, index:true },   // สร้าง +10 นาที
-  refundedAt: { type: Date },
-  refundNote: { type: String },
+  createdAt:  { type: Date, index:true },
+  expiresAt:  { type: Date, index:true },
+  refundApplied: { type: Boolean, default: false, index: true },
+  refundedAt:    { type: Date },
+  refundNote:    { type: String },
 }, { timestamps:true, collection:'otp24orders' });
 
 export const Otp24Order =

@@ -1,4 +1,5 @@
 <!-- admin/otp-report.ejs -->
+<% const COUNTDOWN = (typeof COUNTDOWN_ENABLED !== 'undefined') ? COUNTDOWN_ENABLED : true; %>
 <%
 // ===== Helpers: ธงประเทศ
 const CT2CODE = {52:'th',187:'us',16:'gb',6:'id',10:'vn',5:'mm',1:'ua',19:'ng',62:'tr',3:'cn',4:'ph',24:'kh',25:'la',7:'my',21:'eg'};
@@ -60,56 +61,72 @@ const USERNAME = (user) => {
         </thead>
         <tbody id="ordersBody">
         <% (orders||[]).forEach(o => {
-             const st = String(o.status||'processing').toLowerCase();
-             const phoneStr = (() => {
-                if (!o.phone) return '-';
-                const ct = Number(o.countryId || 0);
-                let s = String(o.phone).trim();
+          const st = String(o.status||'processing').toLowerCase();
 
-                if (ct === 52){
-                    if (/^\+?66\d{8,9}$/.test(s)) return s.replace(/^\+?66/,'0');
-                    if (/^0\d{8,9}$/.test(s))     return s;
-                    return s;
-                }
+          // ===== คำนวณเวลาหมดอายุแบบ fallback =====
+          const expISO = (() => {
+            try {
+              if (o.expiresAt) return new Date(o.expiresAt).toISOString();
+              const base = new Date(o.createdAt).getTime();
+              if (!Number.isFinite(base)) return '';
+              const ttlMs =
+                (o.timeoutMs && Number(o.timeoutMs)) ||
+                (o.timeoutSec && Number(o.timeoutSec)*1000) ||
+                20*60*1000; // ดีฟอลต์ 20 นาที
+              return new Date(base + ttlMs).toISOString();
+            } catch { return ''; }
+          })();
 
-                s = s.replace(/\s|-/g,'');
-                if (s.startsWith('00')) s = s.slice(2);
-                if (s.startsWith('+'))  return '+' + s.slice(1).replace(/[^\d]/g,'');
-                return '+' + s.replace(/[^\d]/g,'');
-             })();
-             const sale = Number(o.salePrice||0);
-             const cost = Number(o.providerPrice||0);
-             const profit = sale - cost;
+          // ===== คำนวณราคา/กำไร (ประกาศครั้งเดียวพอ) =====
+          const sale   = Number(o.salePrice||0);
+          const cost   = Number(o.providerPrice||0);
+          const profit = sale - cost;
+
+          // ===== ฟอร์แมตเบอร์ =====
+          const phoneStr = (() => {
+            if (!o.phone) return '-';
+            const ct = Number(o.countryId || 0);
+            let s = String(o.phone).trim();
+
+            if (ct === 52){
+              if (/^\+?66\d{8,9}$/.test(s)) return s.replace(/^\+?66/,'0');
+              if (/^0\d{8,9}$/.test(s))     return s;
+              return s;
+            }
+
+            s = s.replace(/\s|-/g,'');
+            if (s.startsWith('00')) s = s.slice(2);
+            if (s.startsWith('+'))  return '+' + s.slice(1).replace(/[^\d]/g,'');
+            return '+' + s.replace(/[^\d]/g,'');
+          })();
         %>
-          <tr data-orderid="<%= o.orderId %>"
-              data-ct="<%= Number(o.countryId||0) %>"
-              data-status="<%= st %>">
+          <tr data-orderid="<%= o.orderId %>" data-ct="<%= Number(o.countryId||0) %>" data-expires="<%= expISO %>">
             <td class="mono"><%= o.orderId || '-' %></td>
             <td class="mono"><%= USERNAME(o.user) %></td>
             <td>
-                <span class="badge app"><%= o.appName || '—' %></span>
-                <span class="flag"><img src="<%= FLAGIMG(Number(o.countryId||0)) %>" alt=""></span>
+              <span class="badge app"><%= o.appName || '—' %></span>
             </td>
             <td class="mono">
-                <span class="v"><%= phoneStr %></span>
-                <% if (o.phone) { %>
-                    <button class="copy" data-copy="<%= phoneStr %>" aria-label="คัดลอกเบอร์">
-                    <img src="/static/assets/otp24/copy.png" alt="">
-                    </button>
-                <% } %>
+              <span class="flag"><img src="<%= FLAGIMG(Number(o.countryId||0)) %>" alt=""></span>
+              <span class="v"><%= phoneStr %></span>
+              <% if (o.phone) { %>
+                <button class="copy" data-copy="<%= phoneStr %>" aria-label="คัดลอกเบอร์">
+                  <img src="/static/assets/otp24/copy.png" alt="">
+                </button>
+              <% } %>
             </td>
 
             <td>
-                <% if (o.otp) { %>
+              <% if (o.otp) { %>
                 <div class="otp">OTP : <b><%= o.otp %></b>
-                    <button class="copy" data-copy="<%= o.otp %>" aria-label="คัดลอก OTP">
+                  <button class="copy" data-copy="<%= o.otp %>" aria-label="คัดลอก OTP">
                     <img src="/static/assets/otp24/copy.png" alt="">
-                    </button>
+                  </button>
                 </div>
-                <% } else { %>
+              <% } else { %>
                 <div class="otp none">OTP : <span class="muted">ไม่พบข้อความ</span></div>
-                <% } %>
-                <div class="ts"><%= new Date(o.createdAt).toISOString().replace('T',' ').slice(0,19) %></div>
+              <% } %>
+              <div class="ts"><%= new Date(o.createdAt).toISOString().replace('T',' ').slice(0,19) %></div>
             </td>
 
             <td class="center">฿ <%= sale.toFixed(2) %></td>
@@ -119,11 +136,16 @@ const USERNAME = (user) => {
             <td class="right">
               <span class="pill <%= st %>">
                 <%= st==='success'   ? 'สำเร็จ'
-                  : st==='refunded'  ? 'คืนเครดิต'
-                  : st==='timeout'   ? 'หมดเวลา'
-                  : st==='failed'    ? 'ล้มเหลว'
-                  : 'กำลังรอ OTP' %>
+                : st==='refunded'  ? 'คืนเครดิต'
+                : st==='timeout'   ? 'คืนเครดิต'
+                : st==='failed'    ? 'คืนเครดิต'
+                : 'กำลังรอ OTP' %>
               </span>
+              <% if (COUNTDOWN && st==='processing') { %>
+                <div class="countdown" data-expires="<%= expISO %>">
+                  เหลือเวลาอีก —:— นาที หากไม่ได้รับ OTP ระบบจะคืนเงินอัตโนมัติ
+                </div>
+              <% } %>
             </td>
           </tr>
         <% }) %>
@@ -193,9 +215,14 @@ const USERNAME = (user) => {
             <span class="pill <%= st %>">
                 <%= st==='success' ? 'สำเร็จ'
                 : st==='refunded' ? 'คืนเครดิต'
-                : st==='timeout'  ? 'หมดเวลา'
-                : st==='failed'   ? 'ล้มเหลว' : 'กำลังรอ OTP' %>
+                : st==='timeout'  ? 'คืนเครดิต'
+                : st==='failed'   ? 'คืนเครดิต' : 'กำลังรอ OTP' %>
             </span>
+            <% if (COUNTDOWN && st==='processing') { %>
+                <div class="countdown" data-expires="<%= o.expiresAt ? new Date(o.expiresAt).toISOString() : '' %>">
+                เหลือเวลาอีก —:— นาที
+                </div>
+            <% } %>
             </span>
         </div>
         </div>
@@ -340,6 +367,12 @@ const USERNAME = (user) => {
 </section>
 
 <script>
+const COUNTDOWN_ENABLED = <%= COUNTDOWN ? 'true' : 'false' %>;
+
+const PHONE_COL_INDEX  = 3;
+const OTP_COL_INDEX    = 4;
+const STATUS_COL_INDEX = 8;
+
 // ───────── Tabs ─────────
 document.querySelectorAll('.tab').forEach(t=>{
   t.addEventListener('click', ()=>{
@@ -625,18 +658,50 @@ document.addEventListener('click', (e) => {
   });
 })();
 
-function mmss(ms){ const s=Math.max(0,Math.floor(ms/1000)); const m=String(Math.floor(s/60)).padStart(2,'0'); const ss=String(s%60).padStart(2,'0'); return `${m}:${ss}`; }
+function mmss(ms){
+  if (!Number.isFinite(ms) || ms < 0) ms = 0;
+  const s = Math.floor(ms/1000);
+  const m = String(Math.floor(s/60)).padStart(2,'0');
+  const ss = String(s%60).padStart(2,'0');
+  return `${m}:${ss}`;
+}
 function tickCountdowns(){
   const now = Date.now();
-  document.querySelectorAll('.countdown').forEach(el=>{
-    const exp = Date.parse(el.dataset.expires||''); if (!Number.isFinite(exp)) return;
+  const upd = (el) => {
+    const exp = Date.parse(el.dataset.expires || el.getAttribute('data-expires') || '');
+    if (!Number.isFinite(exp)) return;
     const left = exp - now;
     el.textContent = left>0 ? `เหลือเวลาอีก ${mmss(left)} นาที` : 'ระบบกำลังคืนเครดิต';
-    el.classList.toggle('warn', left>0 && left<=180000);
-    el.classList.toggle('danger', left>0 && left<=60000);
+    el.classList.toggle('warn', left>0 && left<=3*60*1000);
+    el.classList.toggle('danger', left>0 && left<=60*1000);
+  };
+  document.querySelectorAll('#ordersBody .countdown').forEach(upd);
+  document.querySelectorAll('#mOrders .countdown').forEach(upd);
+  // ปรับหมายเลขในตาราง Desktop ให้ถูกต้องตามประเทศ
+  document.querySelectorAll('#ordersBody tr').forEach(tr => {
+    const ct = Number(tr.dataset.ct || 0);
+    const box = tr.children?.[PHONE_COL_INDEX];
+    const mono = box?.querySelector('.mono .v') || box?.querySelector('.mono');
+    if (mono){
+      const formatted = displayPhoneByCountry(mono.textContent.trim(), ct);
+      mono.textContent = formatted;
+      const btn = box.querySelector('.copy');
+      if (btn) btn.dataset.copy = formatted;
+    }
+  });
+
+  // ปรับหมายเลขในลิสต์มือถือให้ถูกต้องเหมือนกัน
+  document.querySelectorAll('#mOrders .m-item').forEach(card => {
+    const ct = Number(card.dataset.ct || 0);
+    const el = card.querySelector('.row2 .phone .v');
+    if (el){
+      const formatted = displayPhoneByCountry(el.textContent.trim(), ct);
+      el.textContent = formatted;
+      const btn = card.querySelector('.row2 .phone .copy');
+      if (btn) btn.dataset.copy = formatted;
+    }
   });
 }
-setInterval(tickCountdowns,1000); tickCountdowns();
 </script>
 
 <script>
@@ -662,9 +727,10 @@ function displayPhoneByCountry(rawPhone, countryId){
 
 // แตะตรงไหนบนการ์ดก็พับ/กาง (กันปุ่ม/ลิงก์ไม่ให้พับ)
 document.getElementById('mOrders')?.addEventListener('click', (e) => {
-  if (e.target.closest('.copy,button,a,input,textarea,select,label')) return;
   const item = e.target.closest('.m-item');
   if (!item) return;
+  // กันปุ่ม copy
+  if (e.target.closest('.copy')) return;
   item.classList.toggle('collapsed');
   const btn = item.querySelector('.toggle');
   if (btn) btn.textContent = item.classList.contains('collapsed') ? '+' : '−';
@@ -674,9 +740,15 @@ document.getElementById('mOrders')?.addEventListener('click', (e) => {
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('.copy');
   if (!btn) return;
-  navigator.clipboard.writeText(btn.dataset.copy||'')
-    .then(()=>{ setCopyIcon(btn,true); setTimeout(()=>setCopyIcon(btn,false),900); })
-    .catch(()=> setCopyIcon(btn,false));
+
+  navigator.clipboard.writeText(btn.dataset.copy || '').then(() => {
+    setCopyIcon(btn, true);
+    // กลับเป็นไอคอนปกติใน 900ms
+    setTimeout(() => setCopyIcon(btn, false), 900);
+  }).catch(() => {
+    // ถ้า copy ไม่ได้ อย่าค้างไอคอน success
+    setCopyIcon(btn, false);
+  });
 });
 
 // ====== รวม pagination เดสก์ท็อป + มือถือ ======
@@ -736,19 +808,14 @@ window.addEventListener('resize', () => {
 
 // เริ่มต้น
 applyPagination();
-
-// อัปเดตเบอร์ให้ถูกต้องบนมือถือเมื่อโหลด
-document.querySelectorAll('#mOrders .m-item').forEach(card=>{
-  const ct = Number(card.dataset.ct || 0);
-  const el = card.querySelector('.row2 .phone .v');
-  if (el) el.textContent = displayPhoneByCountry(el.textContent.trim(), ct);
-});
 </script>
 
 <script>
 /* ====== ค่าพื้นฐานให้ตรง otp24 ====== */
 let ORD_AUTO_TIMER = null;
 const POLL_DONE = new Set(['success','timeout','failed','refunded']);
+const pollers   = new Map();  
+let countdownTimer = null;
 
 /* มีแถวกำลังรออยู่ไหม */
 function hasProcessingRows(){
@@ -777,9 +844,7 @@ function displayPhoneByCountry(rawPhone, countryId){
 function mmss(ms){
   if (!Number.isFinite(ms) || ms < 0) ms = 0;
   const s = Math.floor(ms/1000);
-  const m = String(Math.floor(s/60)).padStart(2,'0');
-  const ss = String(s%60).padStart(2,'0');
-  return `${m}:${ss}`;
+  return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
 }
 function tickCountdowns(){
   const now = Date.now();
@@ -793,133 +858,339 @@ function tickCountdowns(){
   };
   document.querySelectorAll('#ordersBody .countdown').forEach(upd);
   document.querySelectorAll('#mOrders .countdown').forEach(upd);
-
-  // ซิงค์รูปแบบเบอร์ตามประเทศ (เดสก์ท็อป)
-  document.querySelectorAll('#ordersBody tr').forEach(tr => {
-    const ct = Number(tr.dataset.ct || 0);
-    const tdPhone = tr.children?.[3];
-    if (tdPhone) {
-    const v = tdPhone.querySelector('.v');
-    if (v) v.textContent = displayPhoneByCountry(v.textContent.trim(), ct);
-    }
-  });
-  // มือถือ
-  document.querySelectorAll('#mOrders .m-item').forEach(card => {
-    const ct = Number(card.dataset.ct || 0);
-    const el = card.querySelector('.row2 .phone .v');
-    if (el) el.textContent = displayPhoneByCountry(el.textContent.trim(), ct);
-  });
 }
 
 /* อัปเดต DOM จาก patch เดียวกับ otp24 */
 function applyOrderPatch(p){
+  // p: { orderId, status, otp, phone, message }
   const tr = document.querySelector(`tr[data-orderid="${p.orderId}"]`);
   if (!tr) return;
 
   if (p.expiresAt){
     tr.dataset.expires = p.expiresAt;
-    tr.querySelector('.countdown')?.setAttribute('data-expires', p.expiresAt);
+    const cd = tr.querySelector('.countdown');
+    if (cd) cd.dataset.expires = p.expiresAt;
   }
 
-  // เบอร์
+  // อัปเดตเบอร์ (ถ้ามี)
   if (Object.prototype.hasOwnProperty.call(p,'phone')) {
-    const tdPhone = tr.children[3];
-    if (tdPhone){
-        const ct = Number(tr.dataset.ct || 0);
-        const v = tdPhone.querySelector('.v') || tdPhone;
-        v.textContent = displayPhoneByCountry((p.phone || '-'), ct);
+    const cell = tr.children[2];
+    const ct = Number(tr.dataset.ct || 0);
+    const formatted = displayPhoneByCountry(p.phone || '-', ct);
+
+    // desktop
+    const mono = cell.querySelector('.mono .v') || cell.querySelector('.mono');
+    if (mono) mono.textContent = formatted;
+    let btn = cell.querySelector('.copy');
+    if (!btn && p.phone){
+      btn = document.createElement('button');
+      btn.className = 'copy';
+      btn.setAttribute('aria-label','คัดลอกเบอร์');
+      btn.innerHTML = `<img src="/static/assets/otp24/copy.png" alt="">`;
+      (cell.querySelector('.mono') || cell).appendChild(btn);
+    }
+    if (btn) btn.dataset.copy = formatted;
+
+    // mobile
+    const m = document.querySelector(`.m-orders .m-item[data-orderid="${p.orderId}"]`);
+    if (m){
+      const v = m.querySelector('.row2 .phone .v');
+      if (v) v.textContent = formatted;
+      let mBtn = m.querySelector('.row2 .phone .copy');
+      if (!mBtn && p.phone){
+        mBtn = document.createElement('button');
+        mBtn.className = 'copy';
+        mBtn.setAttribute('aria-label','คัดลอกเบอร์');
+        mBtn.innerHTML = `<img src="/static/assets/otp24/copy.png" alt="">`;
+        v?.after(mBtn);
+      }
+      if (mBtn) mBtn.dataset.copy = formatted;
     }
   }
 
-  // OTP/เวลา
-  const cell = tr.children[4];
-  if (Object.prototype.hasOwnProperty.call(p,'otp')){
+  // อัปเดต OTP block
+  const cell = tr.children[3]; // คอลัมน์ OTP/เวลา
+  if (p.otp){
+    // มี OTP แล้ว
     let otpDiv = cell.querySelector('.otp');
     if (!otpDiv){
       otpDiv = document.createElement('div');
       otpDiv.className = 'otp';
       cell.prepend(otpDiv);
     }
-    if (p.otp){
-      otpDiv.classList.remove('none');
-      otpDiv.innerHTML = `OTP : <b>${p.otp}</b>
+    otpDiv.innerHTML = `OTP : <b>${p.otp}</b>
         <button class="copy" data-copy="${p.otp}" aria-label="คัดลอก OTP">
-          <img src="/static/assets/otp24/copy.png" alt="">
+            <img src="/static/assets/otp24/copy.png" alt="">
         </button>`;
-    }else{
-      otpDiv.classList.add('none');
-      otpDiv.innerHTML = `OTP : <span class="muted">ไม่พบข้อความ</span>`;
+  } else {
+    // ยังไม่มี OTP → “ไม่พบข้อความ”
+    let otpDiv = cell.querySelector('.otp');
+    if (!otpDiv){
+      otpDiv = document.createElement('div');
+      otpDiv.className = 'otp none';
+      cell.prepend(otpDiv);
     }
-    const ts = cell.querySelector('.ts') || cell.appendChild(document.createElement('div'));
-    ts.className = 'ts';
-    ts.textContent = new Date().toISOString().replace('T',' ').slice(0,19);
+    otpDiv.classList.add('none');
+    otpDiv.innerHTML = `OTP : <span class="muted">ไม่พบข้อความ</span>`;
   }
 
-  // Pill สถานะ
+  // อัปเดต Pill สถานะ + ข้อความ
   if (p.status){
     const pill = tr.querySelector('.pill');
-    const st = String(p.status).toLowerCase();
-    pill.className = `pill ${st}`;
+    const status = String(p.status).toLowerCase();
+    pill.className = `pill ${status}`;
     pill.textContent =
-      st==='success'   ? 'สำเร็จ' :
-      st==='refunded'  ? 'คืนเครดิต' :
-      st==='timeout'   ? 'หมดเวลา' :
-      st==='failed'    ? 'ล้มเหลว' :
-                         'กำลังรอ OTP';
-
-    // จัดการ countdown ตามสถานะ
-    const cd = tr.querySelector('.countdown');
-    if (st === 'processing'){
-      if (!cd){
-        const d = document.createElement('div');
-        d.className = 'countdown';
-        d.dataset.expires = tr.getAttribute('data-expires') || '';
-        tr.children[8]?.appendChild(d);
-      }
-    }else{
-      cd?.remove();
-    }
-
-    // ***** จุดสำคัญ: ถ้า success ให้ “หยุดทันที” *****
-    if (st === 'success'){
-      tr.querySelector('.countdown')?.remove();
-      tr.removeAttribute('data-expires');
-
-      // มือถือ
-      const m = document.querySelector(`.m-orders .m-item[data-orderid="${p.orderId}"]`);
-      m?.querySelector('.countdown')?.remove();
-      m?.removeAttribute('data-expires');
-
-      // ถ้าไม่เหลือ processing ใด ๆ แล้ว ให้หยุดลูปเดี๋ยวนี้
-      if (!hasProcessingRows()) stopOrdersAutoRefresh();
-    }
+      status==='success'   ? 'สำเร็จ' :
+      status==='refunded'  ? 'คืนเครดิต' :
+      status==='timeout'   ? 'คืนเครดิต' :
+      status==='failed'    ? 'คืนเครดิต' :
+                             'กำลังรอ OTP';
   }
+
+  // จัดการ countdown ใต้ pill
+  const status = String(p.status||'').toLowerCase();
+  let cd = tr.querySelector('.countdown');
+
+  if (status === 'processing') {
+    if (!cd) {
+      cd = document.createElement('div');
+      cd.className = 'countdown';
+      // ถ้าเซิร์ฟเวอร์ส่ง expiresAt มาใน patch ก็ใส่ด้วย (ถ้ายังไม่มี ให้ใช้ data-expires เดิม)
+      // นี่คือ display only; ถ้าไม่มี ก็ไม่เป็นไร tick จะข้าม
+      cd.dataset.expires = tr.getAttribute('data-expires') || '';
+      tr.children[5].appendChild(cd); // คอลัมน์สถานะ
+    }
+  } else {
+    cd?.remove();
+  }
+
+  // ถ้าออเดอร์นี้ success → ตัด countdown ทิ้ง และถ้าไม่เหลือ processing เลย ให้หยุด auto-refresh ทันที
+  if (status === 'success') {
+    // ตัด countdown ของแถวนี้ทิ้ง
+    tr.querySelector('.countdown')?.remove();
+    tr.removeAttribute('data-expires');
+
+    // มือถือด้วย
+    const mCard = document.querySelector(`.m-orders .m-item[data-orderid="${p.orderId}"]`);
+    mCard?.querySelector('.countdown')?.remove();
+    mCard?.removeAttribute('data-expires');
+
+    // ถ้าไม่เหลืองานสถานะ processing แล้ว → หยุดลูปทันที (ไม่ต้องรอรอบถัดไป)
+    if (!hasProcessingRows()) stopOrdersAutoRefresh();
+  }
+}
+
+function getProcessingOrderIds() {
+  const ids = new Set();
+
+  // Desktop table rows
+  document.querySelectorAll('#ordersBody tr[data-orderid]').forEach(tr => {
+    const pill = tr.querySelector('.pill');
+    const st = (pill?.className || '').toLowerCase();
+    if (st.includes('processing')) {
+      ids.add(tr.getAttribute('data-orderid'));
+    }
+  });
+
+  // Mobile cards
+  document.querySelectorAll('#mOrders .m-item[data-orderid]').forEach(card => {
+    const pill = card.querySelector('.pill');
+    const st = (pill?.className || '').toLowerCase();
+    if (st.includes('processing')) {
+      ids.add(card.getAttribute('data-orderid'));
+    }
+  });
+
+  return Array.from(ids).filter(Boolean);
 }
 
 /* ดึง patch ทั้งหน้า แล้วอัปเดตทุกแถว */
-async function refreshAllOrdersOnce(){
-  try{
-    const res = await fetch('/otp/orders/refresh-all', { method:'POST' });
-    const j = await res.json();
-    if (!res.ok || !j?.ok) return;
-    (j.changes || []).forEach(applyOrderPatch);
+async function refreshProcessingOrdersOnce() {
+  try {
+    const ids = getProcessingOrderIds();
+    if (!ids.length) {
+      stopOrdersAutoRefresh?.();
+      return;
+    }
 
-    // ไม่มี processing แล้ว → หยุดลูปทันที
-    if (!hasProcessingRows()) stopOrdersAutoRefresh();
-  }catch{}
+    const results = await Promise.allSettled(
+      ids.map(async (orderId) => {
+        const res = await fetch(`/otp24/orders/${encodeURIComponent(orderId)}/refresh`, { method: 'POST' });
+        const j = await res.json().catch(() => ({}));
+        if (res.ok && j?.ok && j?.patch) applyOrderPatch?.(j.patch);
+        return j;
+      })
+    );
+
+    // หลังอัปเดตทุกรายการแล้ว — ถ้าไม่เหลือ processing เลยให้หยุด
+    if (!hasProcessingRows?.()) stopOrdersAutoRefresh?.();
+  } catch {
+    // เงียบไว้ตามสไตล์เดิม
+  }
 }
 
 /* ลูปออโต้เหมือน otp24 */
+function startOrderPolling(orderId){
+  if (!orderId || pollers.has(orderId)) return;
+
+  // ป้องกันกระพริบ DOM เมื่อได้ OTP แล้ว
+  let lastOtp = null;
+  let lastStatus = null;
+
+  const updateOtpCell = (tr, patch) => {
+    const cell = tr.children[3];
+    const nowText = new Date().toISOString().replace('T',' ').slice(0,19);
+
+    if (patch.otp && patch.otp !== lastOtp) {
+      lastOtp = patch.otp;
+      cell.innerHTML = `
+        <div class="otp">OTP : <b>${patch.otp}</b>
+          <button class="copy" data-copy="${patch.otp}" aria-label="คัดลอก OTP">
+            <img src="/static/assets/otp24/copy.png" alt="" />
+          </button>
+        </div>
+        <div class="ts">${nowText}</div>`;
+      // ไฮไลต์ครั้งเดียวตอนเพิ่งได้รหัส
+      cell.classList.remove('flash');
+      void cell.offsetWidth; // reflow
+      cell.classList.add('flash');
+    } else if (!patch.otp && lastOtp == null) {
+      cell.innerHTML = `
+        <div class="otp muted">OTP : <b>ไม่พบข้อความ</b></div>
+        <div class="ts">${nowText}</div>`;
+    }
+  };
+
+  const updateStatusPill = (tr, patch) => {
+    const pill = tr.querySelector('.pill');
+    if (!pill) return;
+    const st = String(patch.status || '').toLowerCase();
+    if (st === lastStatus) return;
+    lastStatus = st;
+
+    pill.className = `pill ${st}`;
+    pill.textContent =
+      st==='success'    ? 'สำเร็จ' :
+      st==='processing' ? 'กำลังรอ OTP' :
+      st==='timeout'    ? 'คืนเครดิต' :
+      st==='failed'     ? 'คืนเครดิต' :
+      st==='refunded'   ? 'คืนเครดิต' : 'คืนเครดิต';
+  };
+
+  const updatePhoneCells = (tr, patch) => {
+    if (!patch.phone) return;
+
+    const ct = Number(tr.dataset.ct || 0);
+    const formatted = displayPhoneByCountry(patch.phone, ct);
+
+    // desktop cell
+    const cell = tr.children[2];
+    const mono = cell.querySelector('.mono .v') || cell.querySelector('.mono');
+    if (mono) mono.textContent = formatted;
+
+    let btn = cell.querySelector('.copy');
+    if (!btn){
+      btn = document.createElement('button');
+      btn.className = 'copy';
+      btn.setAttribute('aria-label','คัดลอกเบอร์');
+      btn.innerHTML = `<img src="/static/assets/otp24/copy.png" alt="">`;
+      (cell.querySelector('.mono') || cell).appendChild(btn);
+    }
+    btn.dataset.copy = formatted;
+
+    // mobile card
+    const mCard = document.querySelector(`.m-orders .m-item[data-orderid="${orderId}"]`);
+    if (mCard){
+      const el = mCard.querySelector('.row2 .phone .v');
+      if (el) el.textContent = formatted;
+      let mBtn = mCard.querySelector('.row2 .phone .copy');
+      if (!mBtn){
+        mBtn = document.createElement('button');
+        mBtn.className = 'copy';
+        mBtn.setAttribute('aria-label','คัดลอกเบอร์');
+        mBtn.innerHTML = `<img src="/static/assets/otp24/copy.png" alt="">`;
+        el?.after(mBtn);
+      }
+      mBtn.dataset.copy = formatted;
+    }
+  };
+
+  const stopThisPolling = () => {
+    clearInterval(pollers.get(orderId));
+    pollers.delete(orderId);
+    const tr = document.querySelector(`tr[data-orderid="${CSS.escape(orderId)}"]`);
+    tr?.querySelector('.countdown')?.remove();
+    const mCard = document.querySelector(`.m-orders .m-item[data-orderid="${orderId}"]`);
+    mCard?.querySelector('.countdown')?.remove();
+    if (!hasProcessingRows()) stopOrdersAutoRefresh();
+  };
+
+  const tick = async () => {
+    try{
+      const r = await fetch(`/otp24/orders/${encodeURIComponent(orderId)}/refresh`, { method:'POST' });
+      const j = await r.json();
+      if (!j?.ok) return;
+
+      const { patch } = j;
+      const tr = document.querySelector(`tr[data-orderid="${CSS.escape(orderId)}"]`);
+      if (!tr || !patch) return;
+
+      // 1) อัปเดต OTP ทันทีที่มี
+      updateOtpCell(tr, patch);
+
+      // 2) อัปเดตสถานะ
+      updateStatusPill(tr, patch);
+
+      // 3) อัปเดตเบอร์ถ้ายังไม่เคยโชว์
+      updatePhoneCells(tr, patch);
+
+      // 4) หยุดเมื่อ success (ตามสเปคใหม่)
+      const st = String(patch.status||'').toLowerCase();
+      if (POLL_DONE.has(st)) stopThisPolling();
+
+    }catch{
+      // เงียบ ๆ ไป ไม่ให้ user สะดุด
+    }
+  };
+
+  // เริ่มยิงทันที แล้วค่อยทุก 1 วินาที
+  tick();
+  const id = setInterval(tick, 1000);
+  pollers.set(orderId, id);
+}
+
 function startOrdersAutoRefresh(){
   stopOrdersAutoRefresh();
   ORD_AUTO_TIMER = setInterval(async () => {
-    await refreshAllOrdersOnce();
-    tickCountdowns();
+    await refreshProcessingOrdersOnce();
+    tickCountdowns();   // ← เรียกทุก ๆ วิ
   }, 1000);
 }
+
 function stopOrdersAutoRefresh(){
   if (ORD_AUTO_TIMER){ clearInterval(ORD_AUTO_TIMER); ORD_AUTO_TIMER = null; }
 }
+
+/* เริ่มทำงานให้เหมือนหน้า otp24 */
+tickCountdowns();
+setInterval(tickCountdowns, 1000);
+
+// เปิดแท็บ "ประวัติ" แล้วค่อยเริ่มลูป
+document.querySelector('.tab[data-target="orders"]')
+  ?.addEventListener('click', () => {
+    startOrdersAutoRefresh();
+  });
+
+// เปิดหน้ามาแล้วพบว่ามี processing → เริ่มเลย
+if (hasProcessingRows()) startOrdersAutoRefresh();
+
+/* หยุด/เริ่มตาม visibility (ประหยัดโหลด) */
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) stopOrdersAutoRefresh();
+  else if (document.querySelector('#section-orders').classList.contains('show')) {
+    startOrdersAutoRefresh();
+  }
+});
 
 /* copy OTP ไอคอนแบบ otp24 */
 function setCopyIcon(btn, success){
@@ -936,24 +1207,10 @@ document.addEventListener('click', (e) => {
   }).catch(() => setCopyIcon(btn, false));
 });
 
-/* เริ่มทำงานให้เหมือนหน้า otp24 */
-tickCountdowns();
-setInterval(tickCountdowns, 1000);
-
-// เปิดแท็บ "ประวัติ" แล้วค่อยเริ่มลูป
-document.querySelector('.tab[data-target="orders"]')
-  ?.addEventListener('click', () => startOrdersAutoRefresh());
-
-// ถ้าเปิดหน้ามาแล้วมี processing อยู่ ให้เริ่มเลย
-if (hasProcessingRows()) startOrdersAutoRefresh();
-
-// พักเมื่อแท็บไม่โฟกัส
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) stopOrdersAutoRefresh();
-  else if (document.querySelector('#section-orders')?.classList.contains('show')) {
-    startOrdersAutoRefresh();
-  }
-});
+if (COUNTDOWN_ENABLED) {
+  tickCountdowns();
+  setInterval(tickCountdowns, 1000);
+}
 </script>
 
 <style>
@@ -975,7 +1232,7 @@ document.addEventListener('visibilitychange', () => {
 .pill{ display:inline-block; padding:6px 12px; border-radius:999px; font-weight:700; }
 .pill.success{ background:#16a34a22; color:#34d399; }
 .pill.processing{ background:#f59e0b22; color:#fbbf24; }
-.pill.timeout,.pill.failed{ background:#ef444422; color:#f87171; }
+.pill.timeout,.pill.failed{ background:#22c5f644; color:#67e8f9; }
 .pill.refunded{ background:#22c5f644; color:#67e8f9; }
 
 .orders-controls{
@@ -1059,9 +1316,13 @@ document.addEventListener('visibilitychange', () => {
 .pill{ display:inline-block; padding:6px 12px; border-radius:999px; font-weight:700; }
 .pill.success{ background:#16a34a22; color:#34d399; }
 .pill.processing{ background:#f59e0b22; color:#fbbf24; }
-.pill.failed,.pill.timeout{ background:#ef444422; color:#f87171; }
+.pill.failed,.pill.timeout{ background:#22c5f644; color:#67e8f9; }
 .pill.refunded{ background:#22c5f644; color:#67e8f9; }
 .orders-wrap td .tbl-img-lg{ max-height:none; }
+
+.countdown{ font-size:12px; opacity:.85; margin-top:4px; color:var(--text-muted,#a7b0bb); }
+.countdown.warn{ color:#fbbf24; }
+.countdown.danger{ color:#f87171; }
 
 /* Desktop แสดงตาราง, ซ่อน mobile list */
 @media (min-width: 641px){
@@ -1115,11 +1376,15 @@ document.addEventListener('visibilitychange', () => {
   .pill.success   { background:#16a34a22; color:#34d399; }
   .pill.processing{ background:#f59e0b22; color:#fbbf24; }
   .pill.failed,
-  .pill.timeout   { background:#ef444422; color:#f87171; }
+  .pill.timeout   { background:#22c5f644; color:#67e8f9; }
   .pill.refunded  { background:#22c5f644; color:#67e8f9; }
 
   .copy{ border:none; background:transparent; cursor:pointer; padding:0 4px; line-height:0; vertical-align:middle; }
   .copy img{ width:18px; height:18px; display:inline-block; }
+
+  .countdown{ font-size:12px; margin-top:6px; color: var(--text-muted,#a7b0bb); }
+  .countdown.warn{ color:#fbbf24; }
+  .countdown.danger{ color:#f87171; }
 }
 
 /* ===== Summary cards: ให้เรียงลงมาในมือถือ ===== */
