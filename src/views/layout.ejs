@@ -758,5 +758,185 @@
   })();
   </script>
   <% } %> -->
+  
+  <script>
+  /* ==========================================================
+    Universal Image Manager (UIM) — One-drop for all pages
+    - Lazy load <img> และ [data-bg]
+    - Auto pick best format (avif/webp) ถ้ามีข้อมูลให้
+    - GIF support + optional restart on click
+    - Robust fallback chain
+    Usage (ตัวเลือกเสริมบน <img>):
+      data-src-avif="..."   data-src-webp="..."
+      data-fallback="a.webp,b.jpg,/static/assets/placeholder.png"
+      data-nolazy           (ยกเลิก lazy)
+      data-norestart        (ไม่ผูกรีสตาร์ท GIF เมื่อคลิก)
+    Global placeholder: ตั้งบน <html data-image-fallback="/static/assets/placeholder.png">
+    ========================================================== */
+  (() => {
+    const DOC = document;
+    const GLB_FALLBACK = DOC.documentElement.getAttribute('data-image-fallback') || '/static/assets/img-placeholder.png';
+
+    // Detect format support (AVIF/WEBP)
+    const support = { avif: false, webp: false };
+    function testFormat(type, dataURI){
+      return new Promise(res => {
+        const img = new Image();
+        img.onload = () => res(img.width > 0 && img.height > 0);
+        img.onerror = () => res(false);
+        img.src = dataURI;
+      });
+    }
+    // Minimal data URIs
+    const AVIF_DATA = "data:image/avif;base64,AAAAIGZ0eXBhdmlmAAAAAG1pZjFhdmlmAAABAG1ldGEAAAAQaWRpZgAAABxtZGF0AAAAAA==";
+    const WEBP_DATA = "data:image/webp;base64,UklGRiIAAABXRUJQVlA4ICAAAADQAgCdASoCAAIAAkA0JaQAA3AA/vuUAAA=";
+
+    // Helpers
+    const isGif = (src) => /\.gif(\?|#|$)/i.test(src || "");
+    const ensureAttr = (el, k, v) => { if (!el.getAttribute(k)) el.setAttribute(k, v); };
+    const nextTick = (fn) => setTimeout(fn, 0);
+
+    function buildFallbackChain(img){
+      const chain = [];
+      const avif = img.getAttribute('data-src-avif');
+      const webp = img.getAttribute('data-src-webp');
+      const src  = img.getAttribute('src') || img.getAttribute('data-src');
+      const list = (img.getAttribute('data-fallback') || '').split(',').map(s=>s.trim()).filter(Boolean);
+
+      // Best-first depending on support
+      if (support.avif && avif) chain.push(avif);
+      if (support.webp && webp) chain.push(webp);
+      if (src) chain.push(src);
+      chain.push(...list);
+      // Always end with global placeholder
+      if (!chain.includes(GLB_FALLBACK)) chain.push(GLB_FALLBACK);
+
+      // De-dup
+      return chain.filter((v, i, a) => v && a.indexOf(v) === i);
+    }
+
+    function applySrc(img, url){
+      if (!url) return;
+      // ทำให้เบา: lazy+async (เว้นแต่สั่ง data-nolazy)
+      if (!img.hasAttribute('loading') && !img.hasAttribute('data-nolazy')) img.setAttribute('loading', 'lazy');
+      ensureAttr(img, 'decoding', 'async');
+      img.src = url;
+    }
+
+    function wireGifRestart(img){
+      if (img.hasAttribute('data-norestart')) return;
+      if (!isGif(img.currentSrc || img.src)) return;
+      img.style.cursor = img.style.cursor || 'pointer';
+      img.title = img.title || 'คลิกเพื่อเล่นใหม่';
+      img.addEventListener('click', () => {
+        try {
+          const u = img.src;
+          img.src = ''; // reset decode
+          nextTick(() => { img.src = u; });
+        } catch {}
+      }, { passive: true });
+    }
+
+    // Lazy load core
+    const io = ('IntersectionObserver' in window)
+      ? new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (!entry.isIntersecting) return;
+            const el = entry.target;
+            io.unobserve(el);
+            if (el.tagName === 'IMG'){
+              hydrateImg(el);
+            } else if (el.hasAttribute('data-bg')){
+              el.style.backgroundImage = `url("${el.getAttribute('data-bg')}")`;
+              el.removeAttribute('data-bg');
+            }
+          });
+        }, { rootMargin: '200px 0px 200px 0px' })
+      : null;
+
+    function observe(el){
+      if (io) io.observe(el);
+      else {
+        // Fallback: load immediately
+        if (el.tagName === 'IMG') hydrateImg(el);
+        else if (el.hasAttribute('data-bg')) {
+          el.style.backgroundImage = `url("${el.getAttribute('data-bg')}")`;
+          el.removeAttribute('data-bg');
+        }
+      }
+    }
+
+    // Main image enhancer
+    function hydrateImg(img){
+      if (img.__uimReady) return;
+      img.__uimReady = true;
+
+      const chain = buildFallbackChain(img);
+      let idx = 0;
+
+      function tryLoad(i){
+        if (i >= chain.length) return; // give up
+        const url = chain[i];
+        applySrc(img, url);
+      }
+
+      function onErr(){
+        idx++;
+        if (idx < chain.length) tryLoad(idx);
+      }
+
+      img.addEventListener('error', onErr, { passive: true });
+      img.addEventListener('load', () => wireGifRestart(img), { passive: true });
+
+      tryLoad(idx);
+    }
+
+    // Scan all existing nodes
+    async function boot(){
+      // detect format support in parallel
+      const [avifOK, webpOK] = await Promise.all([
+        testFormat('avif', AVIF_DATA),
+        testFormat('webp', WEBP_DATA)
+      ]);
+      support.avif = !!avifOK;
+      support.webp = !!webpOK;
+
+      // Process <img> and [data-bg]
+      DOC.querySelectorAll('img').forEach(img => {
+        // ถ้าไม่อยาก lazy: ใส่ data-nolazy
+        if (!img.hasAttribute('data-nolazy')) observe(img);
+        else hydrateImg(img);
+      });
+      DOC.querySelectorAll('[data-bg]').forEach(el => observe(el));
+    }
+
+    // Keep watching images added later (SPA-ish)
+    const mo = new MutationObserver(muts => {
+      muts.forEach(m => {
+        m.addedNodes && m.addedNodes.forEach(n => {
+          if (n.nodeType !== 1) return;
+          if (n.tagName === 'IMG') {
+            if (!n.hasAttribute('data-nolazy')) observe(n);
+            else hydrateImg(n);
+          } else {
+            n.querySelectorAll && n.querySelectorAll('img,[data-bg]').forEach(el => {
+              if (el.tagName === 'IMG'){
+                if (!el.hasAttribute('data-nolazy')) observe(el);
+                else hydrateImg(el);
+              } else observe(el);
+            });
+          }
+        });
+      });
+    });
+
+    if (DOC.readyState === 'loading') {
+      DOC.addEventListener('DOMContentLoaded', boot, { once: true });
+    } else {
+      boot();
+    }
+    mo.observe(DOC.documentElement, { childList: true, subtree: true });
+  })();
+  </script>
 </body>
 </html>

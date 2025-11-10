@@ -1322,4 +1322,97 @@ img, video, canvas, table, pre, code, .static-input { max-width: 100%; }
 })();
 </script>
 
+<script>
+(() => {
+  // ดึงค่าลิงก์จาก #aff-link (รองรับ data-href หรือ textContent)
+  function getAffLink() {
+    const el = document.getElementById('aff-link');
+    if (!el) return '';
+    return (el.dataset.href || el.textContent || '').trim();
+  }
+
+  // คัดลอกด้วย Clipboard API พร้อม fallback execCommand
+  async function copyToClipboard(text) {
+    if (!text) return false;
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        const ok = document.execCommand('copy');
+        ta.remove();
+        return ok;
+      } catch {
+        return false;
+      }
+    }
+  }
+
+  // แสดงผลลัพธ์ + feedback ปุ่ม
+  function showFeedback(ok, btn) {
+    if (window.showMsg) {
+      window.showMsg({
+        variant: ok ? 'success' : 'error',
+        title: ok ? 'คัดลอกแล้ว' : 'คัดลอกไม่สำเร็จ',
+        text: ok ? 'ลิงก์ถูกคัดลอกไปยังคลิปบอร์ดเรียบร้อย' : 'โปรดลองอีกครั้ง'
+      });
+    } else {
+      alert(ok ? 'คัดลอกแล้ว' : 'คัดลอกไม่สำเร็จ');
+    }
+
+    if (btn) {
+      const old = btn.textContent;
+      btn.textContent = ok ? 'คัดลอกแล้ว ✓' : 'คัดลอกลิงก์';
+      btn.disabled = true;
+      setTimeout(() => { btn.textContent = old; btn.disabled = false; }, 1200);
+    }
+  }
+
+  // จัดการคลิกคัดลอกจากปุ่ม
+  async function handleCopyClick(e) {
+    e.preventDefault();
+    const link = getAffLink();
+    const ok = await copyToClipboard(link);
+    showFeedback(ok, e.currentTarget);
+  }
+
+  // ติดตั้ง event ให้ปุ่มและช่องลิงก์ (รองรับกรณี UI เพิ่งถูกสลับมาแสดง)
+  function bindCopyHandlers() {
+    const btn = document.getElementById('btnCopyAff');
+    if (btn && !btn.__copyBound) {
+      btn.addEventListener('click', handleCopyClick);
+      btn.__copyBound = true;
+    }
+    const field = document.getElementById('aff-link');
+    if (field && !field.__copyBound) {
+      field.addEventListener('click', async () => {
+        const ok = await copyToClipboard(getAffLink());
+        showFeedback(ok);
+      });
+      field.title = field.title || 'คลิกเพื่อคัดลอก';
+      field.style.cursor = field.style.cursor || 'pointer';
+      field.__copyBound = true;
+    }
+  }
+
+  // ผูกครั้งแรก
+  bindCopyHandlers();
+
+  // เฝ้าดู #aff-link-area เผื่อส่วนลิงก์ถูกเปลี่ยน DOM ภายหลัง (เช่น หลัง "สร้างลิงก์")
+  const area = document.getElementById('aff-link-area');
+  if (area) {
+    const mo = new MutationObserver(bindCopyHandlers);
+    mo.observe(area, { childList: true, subtree: true });
+  }
+})();
+</script>
+
 

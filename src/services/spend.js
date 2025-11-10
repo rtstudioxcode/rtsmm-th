@@ -206,7 +206,11 @@ export async function reconcileOrderSpend(orderId, { session } = {}) {
   const delta      = round2(currentNet - accounted);
 
   if (delta !== 0) {
-    await User.updateOne({ _id: o.userId }, { $inc: { totalSpentRaw: delta } }, { session });
+    await User.updateOne(
+      { _id: o.userId || o.user },
+      { $inc: { totalSpentRaw: delta } },
+      { session }
+    );
     o.spentAccounted   = currentNet;
     o.spentAccountedAt = new Date();
     await o.save({ session });
