@@ -2310,4 +2310,216 @@ html[data-theme="light"] dialog::backdrop{
   25% { background: rgba(16,185,129,.22); }
   100% { background: transparent; }
 }
+
+/* =========================
+   THEME TOKENS (Light / Dark)
+   วางต่อท้ายไฟล์เดิม
+   ========================= */
+
+/* Dark (คงโทนเดิม แต่รวม token เพิ่มให้ครบ) */
+html[data-theme="dark"] {
+  --page-bg:          #0f1115;
+  --page-text:        #f2f4f8;
+
+  --elevated-bg:      #141518;
+  --elevated-bg-2:    #17181b;  /* การ์ด/กล่อง */
+  --elevated-border:  #24262b;
+  --elevated-shadow:  0 12px 30px rgba(0,0,0,.40);
+
+  --text-primary:     #f2f4f8;
+  --text-muted:       #a7b0bb;
+
+  --accent:           #2a84ff;
+  --accent-contrast:  #ffffff;
+
+  --brand-warm:       #ff8a3d;   /* ป้ายส้ม / ปุ่มรอง */
+  --brand-warm-ink:   #fff;
+
+  --success:          #10b981;
+  --warn:             #f59e0b;
+  --danger:           #ef4444;
+
+  --pill-success-bg:  color-mix(in oklab, #10b981 20%, transparent);
+  --pill-warn-bg:     color-mix(in oklab, #f59e0b 20%, transparent);
+  --pill-info-bg:     color-mix(in oklab, #22c5f6 26%, transparent);
+}
+
+/* Light — โทน “ไม่ขาวล้วน” นุ่มตา + คอนทราสต์ชัด */
+html[data-theme="light"] {
+  --page-bg:          #f6f8fc;   /* พื้นหลังทั้งหน้า */
+  --page-text:        #1f2328;
+
+  /* การ์ด/กล่อง: ขาวอมฟ้าเล็กน้อย + เงาบาง */
+  --elevated-bg:      #ffffff;
+  --elevated-bg-2:    color-mix(in oklab, #ffffff, #e9f0ff 7%);
+  --elevated-border:  #e3e8f3;
+  --elevated-shadow:  0 12px 26px rgba(15,32,75,.10);
+
+  --text-primary:     #1f2328;
+  --text-muted:       #687284;
+
+  /* น้ำเงินสด + ตัดกับพื้นอ่อน */
+  --accent:           #2a84ff;
+  --accent-contrast:  #ffffff;
+
+  /* วอร์มโทนสำหรับ badge/pill */
+  --brand-warm:       #ff8a3d;
+  --brand-warm-ink:   #ffffff;
+
+  --success:          #12a86b;
+  --warn:             #b36500;
+  --danger:           #d92b2b;
+
+  /* พื้น pill แบบทินท์สี อ่านง่ายในพื้นสว่าง */
+  --pill-success-bg:  color-mix(in oklab, #12a86b 18%, #ffffff 88%);
+  --pill-warn-bg:     color-mix(in oklab, #ffb955 26%, #ffffff 84%);
+  --pill-info-bg:     color-mix(in oklab, #2a84ff 24%, #ffffff 84%);
+}
+
+/* พื้นหลัง/ตัวหนังสือรวมหน้า */
+body, .page, .otp24 {
+  background: var(--page-bg);
+  color: var(--text-primary);
+}
+
+/* การ์ด/กล่องหลัก */
+.card,
+.card2,
+.card.app,
+.m-item,
+.modal,
+.modal-otp24,
+.modal-reuse {
+  background: var(--elevated-bg-2);
+  border: 1px solid var(--elevated-border);
+  box-shadow: var(--elevated-shadow);
+  color: var(--text-primary);
+}
+
+/* หัวการ์ด/แถบหัวตาราง (ให้ดูไม่กลืนในธีมสว่าง) */
+.tbl thead th {
+  background: color-mix(in oklab, var(--elevated-bg), #e9f0ff 10%);
+  color: var(--text-primary);
+  border-bottom-color: var(--elevated-border);
+}
+
+/* ตาราง/คอนโทรลทั่วไป */
+.tbl th, .tbl td {
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--elevated-border);
+}
+.orders-controls select,
+.pg-btn {
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--elevated-border);
+}
+
+/* ป้ายราคา/แอป (badge อุ่น ๆ) */
+.price-badge,
+.badge.app {
+  background: var(--brand-warm);
+  color: var(--brand-warm-ink);
+  border: 1px solid color-mix(in oklab, var(--brand-warm), black 12%);
+}
+
+/* ปุ่มหลัก/รอง — เคารพธีมสว่าง/มืด */
+.btn {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border: 1px solid color-mix(in oklab, var(--accent), black 18%);
+}
+.btn:hover { filter: brightness(1.04); }
+.btn:active { filter: none; }
+
+.btn.ghost {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--elevated-border);
+}
+html[data-theme="light"] .btn.ghost:hover {
+  background: color-mix(in oklab, var(--page-bg), black 4%);
+}
+
+/* ปุ่มใน .modal-otp24 / .modal-reuse — ใช้โทนอุ่น-น้ำเงินให้อ่านชัดใน Light */
+.modal-otp24 .modal-primary,
+.modal-reuse .modal-primary {
+  background: linear-gradient(180deg, #ff9a55 0%, #ff7f2f 100%);
+  color: #fff;
+  border: 1px solid rgba(255,132,58,.55);
+  box-shadow: 0 6px 18px rgba(255,132,58,.30);
+}
+.modal-otp24 .modal-secondary,
+.modal-reuse  .modal-secondary {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid color-mix(in oklab, var(--brand-warm), #ffffff 40%);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--brand-warm), transparent 85%) inset;
+}
+
+/* Dialog / Backdrop */
+dialog { border: none; background: transparent; }
+dialog::backdrop {
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(2px);
+}
+html[data-theme="light"] dialog::backdrop {
+  background: rgba(0,0,0,.35);
+}
+
+/* Pill สถานะ — ผูกกับตัวแปรให้ดูเด้งใน Light */
+.pill.success   { background: var(--pill-success-bg); color: var(--success); }
+.pill.processing{ background: var(--pill-warn-bg);    color: var(--warn); }
+.pill.failed,
+.pill.timeout,
+.pill.refunded  { background: var(--pill-info-bg);    color: #087ea4; }
+
+/* Countdown สีเตือนใน Light ให้ชัดขึ้น */
+.countdown       { color: var(--text-muted); }
+.countdown.warn  { color: color-mix(in oklab, var(--warn), black 10%); }
+.countdown.danger{ color: color-mix(in oklab, var(--danger), black 5%); }
+
+/* ธง (table/mobile) โปร่งใส + คมใน Light */
+.orders-wrap .flag,
+.m-orders .flag {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.orders-wrap .flag img,
+.m-orders .flag img { border-radius: 6px; }
+
+/* แท็บ OTP24 ให้ตัดฉากใน Light */
+.otp24 .tab {
+  background: var(--elevated-bg);
+  border: 1px solid var(--elevated-border);
+  color: var(--text-primary);
+}
+.otp24 .tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+/* โฟกัส/โฮเวอร์การ์ดแอปให้ชัดเจนใน Light */
+.card.app {
+  transition: transform .08s ease, box-shadow .12s ease, border-color .12s ease;
+}
+.card.app:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(30,107,224,.18);
+  border-color: color-mix(in oklab, var(--accent), transparent 60%);
+}
+
+/* ตารางประวัติ: ชื่อ/ป้าย + ธง จูน baseline ให้เนียน */
+.orders-wrap td .badge.app { vertical-align: middle; }
+.orders-wrap td .flag {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 8px;
+  width: 24px; height: 18px;
+  line-height: 0;
+  transform: translateY(1px);
+}
+
 </style>
