@@ -516,50 +516,44 @@ router.post("/account/email/verify", async (req, res) => {
 router.post("/account/points/redeem", async (req, res) => {
   try {
     const uid = getAuthUserId(req);
-    if (!uid)
-      return res
-        .status(401)
-        .json({ ok: false, error: "⛔️คุณไม่ได้รับอนุญาต" });
+    if (!uid) return res.status(401).json({ ok:false, error:"⛔️คุณไม่ได้รับอนุญาต" });
 
-    // sync before
-    const snap = await recalcUserTotalSpent(me._id, { force: true, fullRescan: false });
-    if (!snap?.ok)
-      return res.status(500).json({ ok: false, error: "คำนวณยอดไม่สำเร็จ" });
+    // ✅ ใช้ uid (ไม่ใช่ me)
+    const snap = await recalcUserTotalSpent(uid, { force:true, fullRescan:false });
+    if (!snap?.ok) return res.status(500).json({ ok:false, error:"คำนวณยอดไม่สำเร็จ" });
 
     const u = await User.findById(uid);
-    if (!u) return res.status(404).json({ ok: false, error: "⛔️ไม่พบผู้ใช้" });
+    if (!u) return res.status(404).json({ ok:false, error:"⛔️ไม่พบผู้ใช้" });
 
     const pointsNow = Number(snap.points ?? u.points ?? 0);
     if (!Number.isFinite(pointsNow) || pointsNow < 100) {
-      return res
-        .status(400)
-        .json({ ok: false, error: "ต้องมีอย่างน้อย 100 แต้มจึงจะแลกได้" });
+      return res.status(400).json({ ok:false, error:"ต้องมีอย่างน้อย 100 แต้มจึงจะแลกได้" });
     }
 
-    // แลกทั้งหมด (คง step 0.5)
+    // แลกทั้งจำนวน (step 0.5)
     const redeemPoints = Math.floor(pointsNow * 2) / 2;
 
-    // เรท ณ ขณะแลก
+    // เรท ณ ตอนแลก
     const levelIdx = Number(snap?.levelInfo?.index ?? u.levelIndex ?? 0);
     const rate = Number(snap?.pointRateTHB) || getRateForLevelIndex(levelIdx);
     const addTHB = round2(redeemPoints * rate);
 
-    // จำนวนยอดสดที่ต้องหักออกจาก totalSpentRaw เพื่อปรับ effectiveSpent
+    // ปรับยอดที่นำไปหักจาก effectiveSpent (100 บาทต่อ 100 แต้ม)
     const decSpent = redeemPoints * 100;
 
-    const totalSpentRaw = Number(snap.totalSpentRaw ?? u.totalSpentRaw ?? 0);
-    const redeemedSpent = Number(u.redeemedSpent || 0);
-    const newRedeemedSpent = Math.min(
-      round2(redeemedSpent + decSpent),
-      totalSpentRaw
-    );
+    const totalSpentRaw   = Number(snap.totalSpentRaw ?? u.totalSpentRaw ?? 0);
+    const redeemedSpent   = Number(u.redeemedSpent || 0);
+    const newRedeemedSpent = Math.min(round2(redeemedSpent + decSpent), totalSpentRaw);
+
+    // ✅ อัปเดตยอด
     await User.updateOne(
       { _id: uid },
       { $set: { redeemedSpent: newRedeemedSpent }, $inc: { balance: addTHB } }
     );
 
-    // recalc หลังแลก เพื่อคืนค่าหน้า UI ที่อัปเดตแล้ว
-    const after = await recalcUserTotalSpent(uid, { force: true });
+    // ✅ คำนวณใหม่หลังแลก + โหลดยอดกระเป๋าปัจจุบัน
+    const after  = await recalcUserTotalSpent(uid, { force:true });
+    const freshU = await User.findById(uid).select('balance').lean();
 
     return res.json({
       ok: true,
@@ -567,7 +561,7 @@ router.post("/account/points/redeem", async (req, res) => {
       addedBalance: addTHB,
       rate,
       remainPoints: after.points ?? 0,
-      balance: after?.balance ?? undefined,
+      balance: Number(freshU?.balance ?? u.balance ?? 0), // ← มีกระเป๋าปัจจุบันแน่นอน
       totalSpent: after.totalSpent,
       level: after.level,
       levelInfo: after.levelInfo,
@@ -576,7 +570,7 @@ router.post("/account/points/redeem", async (req, res) => {
     });
   } catch (e) {
     console.error("redeem points", e);
-    res.status(500).json({ ok: false, error: "แลกแต้มไม่สำเร็จ" });
+    res.status(500).json({ ok:false, error:"แลกแต้มไม่สำเร็จ" });
   }
 });
 
