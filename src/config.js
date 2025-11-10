@@ -20,7 +20,7 @@ const envConfig = {
 
   // ✅ เพิ่ม: OTP24hr (อ่านจาก ENV เป็นค่าเริ่มต้นได้ด้วย)
   otp24hr: {
-    apiBase: ((process.env.OTP24_API_BASE || 'https://otp24hr.com/api/v1').replace(/\/+$/, '')),
+    apiBase: ((process.env.OTP24_API_BASE || '').replace(/\/+$/, '')),
     apiKey: process.env.OTP24_API_KEY || '',
   },
 
