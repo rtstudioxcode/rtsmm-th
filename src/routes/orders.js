@@ -499,7 +499,7 @@ router.get('/my/orders', requireAuth, async (req, res, next) => {
       list: listWithSvc,
       from, to, q,
       pillClass, thStatus,
-      title: 'ประวัติ ออเดอร์',
+      title: 'ประวัติการใช้บริการ Social',
       bodyClass: 'orders-wide',
       syncError: req.flash?.('syncError')?.[0] || '',
 

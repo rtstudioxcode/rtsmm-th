@@ -42,6 +42,7 @@ import blogRoutes from "./routes/blog.js";
 import otp24Routes from './routes/otp24.js';
 import { startOtp24ProcessingSweeper } from './jobs/otp24ProcessingSweeper.js';
 import cookieParser from 'cookie-parser';
+import { startOrderStatusJob } from './jobs/orderStatusJob.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -464,6 +465,7 @@ app.use((req, res) => res.status(404).send("Not found"));
 
 initDailyChangeSync();
 startOtp24ProcessingSweeper();
+startOrderStatusJob();
 
 /* ------------------------------------------------------------------ */
 /* 5) ใช้ PORT จาก DB ก่อน ถ้าไม่มีค่อย fallback env/config           */

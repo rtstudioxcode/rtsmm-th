@@ -20,8 +20,8 @@ import { LEVELS, getRateForLevelIndex } from "../services/loyalty.js";
 import { recalcUserTotalSpent } from "../services/spend.js";
 
 import crypto from 'crypto';
-import { Order } from '../models/Order.js';
-import { getAffRateForUser, computeAffiliateTotals, PAID_STATUSES } from '../lib/affiliate.js';
+
+import { computeAffiliateTotals } from '../lib/affiliate.js';
 
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
@@ -147,8 +147,15 @@ router.get("/account", async (req, res, next) => {
     let me = await User.findById(uid).lean();
     if (!me) return res.redirect("/login");
 
-    // (2) รีคำนวณยอด/เลเวล/แต้ม แบบสด ๆ ครั้งเดียว
-    const snap = await recalcUserTotalSpent(me._id, { force: true });
+    // (2) รีคำนวณยอด/เลเวล/แต้ม + คำนวณรายได้แนะนำเพื่อน แบบสด ๆ
+    const [snap, affTotals] = await Promise.all([
+      recalcUserTotalSpent(me._id, { force: true }),
+      computeAffiliateTotals(me._id).catch(e => {
+        console.error("Affiliate calc failed:", e);
+        return null;
+      }),
+    ]);
+
     const {
       totalSpent,
       totalSpentRaw,
@@ -161,7 +168,7 @@ router.get("/account", async (req, res, next) => {
     } = snap || {};
 
     // sync ค่าให้ฝั่งมุมมอง (กำหนดค่า fallback เผื่อไม่คืนมา)
-    const levelNum = Math.max(1, Number(level || me.level || 1));
+    const levelNum  = Math.max(1, Number(level || me.level || 1));
     const levelName =
       levelInfo?.name || LEVELS[levelNum - 1]?.name || `เลเวล ${levelNum}`;
 
@@ -180,10 +187,14 @@ router.get("/account", async (req, res, next) => {
       emailVerified: !!me.emailVerified,
     };
 
+    // เรตแนะนำเพื่อน (ให้ใช้ของที่คำนวณล่าสุดถ้ามี)
     const affRatePct =
-      (me?.affiliate?.rateLockedPct ?? me?.affiliate?.ratePct ?? 5);
+      (affTotals?.ratePct ??
+       me?.affiliate?.rateLockedPct ??
+       me?.affiliate?.ratePct ??
+       5);
 
-    // (3) ส่งค่าให้หน้า view (agg ใช้กับการ์ดสรุปด้านบน)
+    // (3) ส่งค่าให้หน้า view
     res.render("account/index", {
       title: "ตั้งค่าข้อมูลส่วนตัว",
       userDoc: viewUser,
@@ -194,6 +205,16 @@ router.get("/account", async (req, res, next) => {
         points: viewUser.points,
         pointRateTHB: viewUser.pointRateTHB,
         pointValueTHB: viewUser.pointValueTHB,
+      },
+      // ส่งสรุปรายได้แนะนำเพื่อนไปด้วย (เผื่อ view ใช้แสดงการ์ด)
+      affiliateSummary: {
+        ratePct:           affTotals?.ratePct ?? affRatePct ?? 5,
+        referredCount:     affTotals?.referredCount ?? 0,
+        orders:            affTotals?.orders ?? 0,
+        spentTHB:          affTotals?.spentTHB ?? 0,
+        earningsTHB:       affTotals?.earningsTHB ?? 0,
+        paidTHB:           affTotals?.paidTHB ?? 0,
+        withdrawableTHB:   affTotals?.withdrawableTHB ?? 0,
       },
       affRatePct,
       levels: LEVELS,
@@ -501,7 +522,7 @@ router.post("/account/points/redeem", async (req, res) => {
         .json({ ok: false, error: "⛔️คุณไม่ได้รับอนุญาต" });
 
     // sync before
-    const snap = await recalcUserTotalSpent(uid, { force: true });
+    const snap = await recalcUserTotalSpent(me._id, { force: true, fullRescan: false });
     if (!snap?.ok)
       return res.status(500).json({ ok: false, error: "คำนวณยอดไม่สำเร็จ" });
 

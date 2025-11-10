@@ -5,37 +5,25 @@ import { Order } from '../models/Order.js';
 import { Otp24Order } from '../models/Otp24Order.js';
 import { LEVELS as LV_LOYALTY, getRateForLevelIndex as _getRate } from './loyalty.js';
 
-
-// ─────────────────────────────────────────────────────────────
-// helper: reconcile ใบนี้ แล้วสรุปรวมให้ user (ใช้ใน routes ต่าง ๆ )
 // ─────────────────────────────────────────────────────────────
 export async function reconcileUserByOrderEvent(orderId, { force = true } = {}) {
   if (!orderId) return { ok:false, error:'orderId is required' };
-
-  // อ่าน userId จากออเดอร์ใบนี้
   const o = await Order.findById(orderId).select('_id user userId').lean();
   if (!o) return { ok:false, error:'order not found' };
-
-  // ซ่อมยอดของออเดอร์ใบนี้ด้วย delta
   await reconcileOrderSpend(orderId);
-
-  // สรุปรวมให้ผู้ใช้ (เลเวล/แต้ม/ยอดโชว์)
   await recalcUserTotals(o.userId || o.user, { force, reason:'order_event' });
-
   return { ok:true, userId: String(o.userId || o.user) };
 }
 
 // ─────────────────────────────────────────────────────────────
-// Config
+// กติกาใหม่:
+// - SMM: นับเฉพาะ 'completed' เต็มจำนวน และ 'partial' ตามสัดส่วนสำเร็จ
+// - OTP24: นับเฉพาะ 'success' และใช้ salePrice เท่านั้น
 // ─────────────────────────────────────────────────────────────
-export const PAID_STATUSES = [
-  'inprogress','partial','completed','success','done','refilled'
-];
+export const PAID_STATUSES = ['completed','partial'];
 const COUNTABLE = new Set(PAID_STATUSES.map(s => String(s).toLowerCase()));
 
-export const OTP24_PAID_STATUSES = [
-  'success','completed','done' // ปรับเพิ่มได้ตามที่ API ส่งจริง
-];
+export const OTP24_PAID_STATUSES = ['success'];
 const OTP24_COUNTABLE = new Set(OTP24_PAID_STATUSES.map(s => String(s).toLowerCase()));
 
 export const LEVELS = Object.freeze([
@@ -51,9 +39,6 @@ export const LEVELS = Object.freeze([
   { name:'Legendary', need:5_000_000 },
 ]);
 
-// ─────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────
 const nz = (v) => (Number.isFinite(+v) ? +v : 0);
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
@@ -62,15 +47,7 @@ export function calcOtp24NetTHB(doc) {
   const st = String(doc.status || '').toLowerCase();
   if (!OTP24_COUNTABLE.has(st)) return 0;
 
-  // แหล่งยอด (เลือกได้หลายทาง เผื่อ provider ให้มาไม่เหมือนกัน)
-  let gross =
-    nz(doc.cost) ||
-    nz(doc.priceTHB) ||
-    nz(doc.price) ||
-    nz(doc.amountTHB) ||
-    nz(doc.salePrice) ||
-    nz(doc.providerPrice);
-
+  const gross  = nz(doc.salePrice);
   const refund = nz(doc.refundAmount);
   return Math.max(0, round2(gross - refund));
 }
@@ -80,6 +57,7 @@ export function calcPoints(totalSpentEff = 0) {
   const earned = Math.floor(spent / 50) * 0.5;
   return Math.max(0, Math.round(earned * 100) / 100);
 }
+
 function getRateForLevelIndex(idx = 0) {
   if (typeof _getRate === 'function') return _getRate(idx);
   const lv = LV_LOYALTY?.[idx];
@@ -87,6 +65,7 @@ function getRateForLevelIndex(idx = 0) {
   const n = Number(String(lv.rate).replace(/[^\d.]/g, ''));
   return Number.isFinite(n) ? n : 0;
 }
+
 const lastRunAt = new Map();
 const COOLDOWN_MS = 5_000;
 
@@ -104,14 +83,9 @@ export function decideLevel(total = 0) {
   }
   const lv = LEVELS[idx];
   const next = LEVELS[idx + 1] || null;
-  return {
-    index: idx,
-    name: lv.name,
-    need: lv.need,
-    nextName: next?.name || null,
-    toNext: next ? Math.max(0, next.need - total) : 0,
-  };
+  return { index: idx, name: lv.name, need: lv.need, nextName: next?.name || null, toNext: next ? Math.max(0, next.need - total) : 0 };
 }
+
 function buildUserMatch(userId) {
   const idStr = String(userId || '');
   const oid = mongoose.Types.ObjectId.isValid(idStr)
@@ -119,13 +93,52 @@ function buildUserMatch(userId) {
   return { $or: [ ...(oid? [{user:oid},{userId:oid}] : []), {user:idStr},{userId:idStr} ] };
 }
 
-/**
- * คำนวณ "ยอดสุทธิที่ควรนับตอนนี้" ของออเดอร์ (THB)
- * - ใช้ cost/estCost/charged ถ้ามี
- * - ถ้าไม่มีให้คำนวณจาก rate × qty / 1000 (พิจารณา rateAtOrder/service)
- * - หัก refundAmount/partialRefunds
- * - ถ้าสถานะไม่อยู่ใน COUNTABLE → คืน 0
- */
+// ─────────────────────────────────────────────────────────────
+// คำนวณสุทธิ SMM
+// ─────────────────────────────────────────────────────────────
+export function calcOrderNetTHB(order) {
+  if (!order) return 0;
+
+  const st = String(order.status || '').toLowerCase();
+  if (!COUNTABLE.has(st)) return 0;
+
+  const qty  = nz(order.quantity);
+  const rate = nz(order.rateAtOrder) || nz(order.rate);
+  const baseCost =
+    nz(order.cost) || nz(order.estCost) || nz(order.charged) ||
+    (qty ? (rate * qty) / 1000 : 0);
+
+  if (st === 'completed') {
+    let refund = nz(order.refundAmount);
+    if (!refund && Array.isArray(order.partialRefunds)) {
+      refund = order.partialRefunds.reduce((s, r) => s + nz(r.amount), 0);
+    }
+    return Math.max(0, round2(baseCost - refund));
+  }
+
+  // partial → คิดตามสัดส่วนที่สำเร็จ
+  let delivered = 0;
+  if (qty > 0) {
+    const remains = nz(order.remains);
+    if (remains > 0) {
+      delivered = Math.max(0, Math.min(qty, qty - remains));
+    } else {
+      const d1 = nz(order.currentCount) - nz(order.startCount);
+      if (d1 > 0) delivered = Math.min(qty, d1);
+      else {
+        const pr = order?.providerResponse?.lastStatus;
+        const r2 = nz(pr?.remains);
+        if (r2 > 0) delivered = Math.max(0, Math.min(qty, qty - r2));
+      }
+    }
+  }
+  const ratio = (qty > 0) ? Math.max(0, Math.min(1, delivered / qty)) : 0;
+  return round2(baseCost * ratio); // partial ไม่ต้องหัก refund เพิ่ม
+}
+
+// ─────────────────────────────────────────────────────────────
+// Reconcile ต่อใบ (delta-based)
+// ─────────────────────────────────────────────────────────────
 export async function reconcileOtp24OrderSpend(orderId, { session } = {}) {
   const q = Otp24Order.findById(orderId);
   if (session) q.session(session);
@@ -142,12 +155,10 @@ export async function reconcileOtp24OrderSpend(orderId, { session } = {}) {
       { $inc: { totalSpentRaw: delta } },
       { session }
     );
-
     o.otpSpentAccounted   = currentNet;
     o.otpSpentAccountedAt = new Date();
     await o.save({ session });
   }
-
   return { ok:true, changed: delta !== 0, delta, newAccounted: currentNet };
 }
 
@@ -155,8 +166,7 @@ export async function reconcileAllOtp24ForUser(userId) {
   const match = buildUserMatch(userId);
   const list = await Otp24Order.find(
     { ...match },
-    { status:1, cost:1, priceTHB:1, price:1, amountTHB:1, salePrice:1, providerPrice:1,
-      refundAmount:1, otpSpentAccounted:1, updatedAt:1 }
+    { status:1, salePrice:1, otpSpentAccounted:1, updatedAt:1 }
   ).lean();
 
   let sumDelta = 0;
@@ -185,43 +195,6 @@ export async function reconcileAllOtp24ForUser(userId) {
   return { ok:true, sumDelta, changed: bulk.length };
 }
 
-export function calcOrderNetTHB(order) {
-  if (!order) return 0;
-
-  // สถานะยังไม่นับ → 0
-  const st = String(order.status || '').toLowerCase();
-  if (!COUNTABLE.has(st)) return 0;
-
-  // ยอดรวมก่อนหักคืน
-  let gross = nz(order.cost) || nz(order.estCost) || nz(order.charged);
-  if (!gross) {
-    const rate =
-      nz(order.rate) ||
-      nz(order.rateAtOrder) ||
-      nz(order?.service?.rateTHB) ||
-      nz(order?.service?.baseRateTHB) ||
-      nz(order?.service?.rate);
-    const qty = nz(order.quantity);
-    // สมมติหน่วยเป็น "บาท/1000"
-    gross = (rate * qty) / 1000;
-  }
-
-  // ยอดคืนรวม
-  let refund = nz(order.refundAmount);
-  if (!refund && Array.isArray(order.partialRefunds)) {
-    refund = order.partialRefunds.reduce((s, r) => s + nz(r.amount), 0);
-  }
-
-  return Math.max(0, round2(gross - refund));
-}
-
-
-/**
- * ปรับยอดผู้ใช้ด้วย "ส่วนต่าง (delta)" ของออเดอร์ใบเดียว (idempotent)
- * - delta = currentNet - spentAccounted
- * - อัปเดต User.totalSpentRaw += delta
- * - เซฟ snapshot ลง order.spentAccounted / spentAccountedAt
- */
 export async function reconcileOrderSpend(orderId, { session } = {}) {
   const q = Order.findById(orderId).populate('service');
   if (session) q.session(session);
@@ -233,29 +206,21 @@ export async function reconcileOrderSpend(orderId, { session } = {}) {
   const delta      = round2(currentNet - accounted);
 
   if (delta !== 0) {
-    await User.updateOne(
-      { _id: o.userId },
-      { $inc: { totalSpentRaw: delta } },
-      { session }
-    );
-
+    await User.updateOne({ _id: o.userId }, { $inc: { totalSpentRaw: delta } }, { session });
     o.spentAccounted   = currentNet;
     o.spentAccountedAt = new Date();
     await o.save({ session });
   }
-
   return { ok:true, changed: delta !== 0, delta, newAccounted: currentNet };
 }
 
-/**
- * batch ทั้ง user: เดินทุกออเดอร์ของผู้ใช้ แล้วปรับส่วนต่างให้ครบ
- * ใช้กรณี CRON ซ่อมยอด หรือเวลาต้องการรีคอนซายล์ทั้ง user
- */
 export async function reconcileAllOrdersForUser(userId) {
   const match = buildUserMatch(userId);
   const list = await Order.find(match, {
     status:1, quantity:1, rate:1, rateAtOrder:1, cost:1, estCost:1, charged:1,
-    refundAmount:1, partialRefunds:1, service:1, spentAccounted:1
+    refundAmount:1, partialRefunds:1, service:1, spentAccounted:1,
+    remains:1, startCount:1, currentCount:1,
+    'providerResponse.lastStatus.remains':1
   }).populate('service').lean();
 
   let sumDelta = 0;
@@ -285,10 +250,10 @@ export async function reconcileAllOrdersForUser(userId) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// main recalculation (รวมเลเวล/แต้ม + ซ่อมยอดแบบ delta)
+// Recalc รวม (เลเวล/แต้ม/ยอด)
 // ─────────────────────────────────────────────────────────────
 export async function recalcUserTotals(userId, opts = {}) {
-  const { force = false } = opts;
+  const { force = false, fullRescan = false } = opts;
   if (!userId) return { ok:false, error:'userId is required' };
 
   const now = Date.now();
@@ -300,7 +265,6 @@ export async function recalcUserTotals(userId, opts = {}) {
 
   const userMatch = buildUserMatch(userId);
 
-  // 1) นับจำนวนออเดอร์ (เดิม)
   const [ordAll, ordPaid, otpAll, otpPaid] = await Promise.all([
     Order.countDocuments({ ...userMatch }),
     Order.countDocuments({ ...userMatch, status: { $in: PAID_STATUSES } }),
@@ -311,21 +275,23 @@ export async function recalcUserTotals(userId, opts = {}) {
   const totalOrders = ordAll + otpAll;
   const totalOrdersPaid = ordPaid + otpPaid;
 
-  // 2) ซ่อมยอดรวมด้วย delta ของทุกออเดอร์ (เดิม) + ⬇️ NEW: OTP24
-  const [{ sumDelta: smmDelta }, { sumDelta: otpDelta }] = await Promise.all([
-    reconcileAllOrdersForUser(userId),
-    reconcileAllOtp24ForUser(userId),
-  ]);
+  let smmDelta = 0, otpDelta = 0;
+  if (fullRescan) {
+    const r = await Promise.allSettled([
+      reconcileAllOrdersForUser(userId),
+      reconcileAllOtp24ForUser(userId),
+    ]);
+    smmDelta = (r[0].status === 'fulfilled' ? (r[0].value?.sumDelta || 0) : 0);
+    otpDelta = (r[1].status === 'fulfilled' ? (r[1].value?.sumDelta || 0) : 0);
+  }
   const sumDelta = round2(nz(smmDelta) + nz(otpDelta));
 
-  // 3) อ่าน user ปัจจุบัน (หลัง inc แล้ว)
   const u = await User.findById(userId).select('totalSpentRaw redeemedSpent pointsRedeemed').lean();
 
   const totalSpentRaw = round2(nz(u?.totalSpentRaw));
   const redeemedSpent = round2(nz(u?.redeemedSpent));
   const effectiveSpent = round2(Math.max(0, totalSpentRaw - redeemedSpent));
 
-  // 4) คำนวณเลเวล/แต้ม (เดิม)
   const level = computeLevel(effectiveSpent);
   const lvMeta = decideLevel(effectiveSpent);
   const pointsAccrued = calcPoints(effectiveSpent);
@@ -334,7 +300,6 @@ export async function recalcUserTotals(userId, opts = {}) {
   const pointRateTHB = getRateForLevelIndex(lvMeta.index);
   const pointValueTHB = round2(points * pointRateTHB);
 
-  // 5) lastSpentAt: ล่าสุดจากทั้ง Orders + Otp24Orders  ⬇️ NEW
   const [ lastPaidOrd, lastPaidOtp ] = await Promise.all([
     Order.findOne(
       { ...userMatch, status: { $in: PAID_STATUSES } },
@@ -350,20 +315,17 @@ export async function recalcUserTotals(userId, opts = {}) {
   const lastPaidAt = new Date(Math.max(
     lastPaidAtOrd ? +new Date(lastPaidAtOrd) : 0,
     lastPaidAtOtp ? +new Date(lastPaidAtOtp) : 0,
-    Date.now() // กันกรณีไม่มีเลย
+    Date.now()
   ));
 
-  // 6) update user fields
   await User.updateOne(
     { _id: userId },
     {
       $set: {
         totalOrders,
         totalOrdersPaid,
-
         totalSpentRaw,
         totalSpent: effectiveSpent,
-
         level,
         levelIndex: lvMeta.index,
         levelName: lvMeta.name,
@@ -371,7 +333,6 @@ export async function recalcUserTotals(userId, opts = {}) {
         nextLevelName: lvMeta.nextName,
         toNextLevel: lvMeta.toNext,
         lastSpentAt: lastPaidAt,
-
         points,
         pointsAccrued,
         pointRateTHB,
@@ -382,9 +343,9 @@ export async function recalcUserTotals(userId, opts = {}) {
 
   return {
     ok: true,
-    deltaApplied: sumDelta,            // รวมทั้งสองฝั่ง
+    deltaApplied: sumDelta,
     smmDelta,
-    otpDelta,                          // ⬅️ รีพอร์ตแยกไว้ให้ด้วย
+    otpDelta,
     totalOrders,
     totalOrdersPaid,
     totalSpentRaw,

@@ -6,12 +6,10 @@ import { Otp24Order } from '../models/Otp24Order.js';
 import { User } from '../models/User.js';
 import { buyOtp, getOtpStatus, OTP24_COUNTRIES, buyOtpAgain } from '../lib/otp24Adapter.js';
 import { refreshOtp24BalanceAsync } from '../lib/otp24BalanceUtil.js';
+import { reconcileOtp24OrderSpend, recalcUserTotals } from '../services/spend.js';
 
 const router = Router();
 const ACTIVE_STATUSES = ['processing','pending','waiting','purchased'];
-
-const BKK_OFFSET_MS = 7 * 60 * 60 * 1000;
-
 function round2(n){ return Math.round((Number(n)||0)*100)/100; }
 
 
@@ -48,7 +46,6 @@ router.get('/', requireAuth, async (req, res) => {
     countries: OTP24_COUNTRIES,
     q,
     orders,
-    COUNTDOWN_ENABLED: false,
   });
 });
 
@@ -110,6 +107,7 @@ router.post('/buy', requireAuth, async (req, res) => {
       status: 'processing',
       createdAt,
       message: 'ระบบกำลังรอ OTP…',
+      otpSpentAccounted: 0
     });
 
     refreshOtp24BalanceAsync();
@@ -233,7 +231,8 @@ router.post('/buy-again', requireAuth, async (req, res) => {
       phone: r.number || old.phone,
       status: 'processing',
       createdAt,
-      message: 'ระบบกำลังรอ OTP… (เบอร์เดิม)'
+      message: 'ระบบกำลังรอ OTP… (เบอร์เดิม)',
+      otpSpentAccounted: 0
     });
 
     try { refreshOtp24BalanceAsync?.(); } catch {}
@@ -310,6 +309,9 @@ router.post('/orders/:orderId/refresh', requireAuth, async (req, res) => {
       const r = await getOtpStatus(orderId).catch(() => null);
 
       if (r?.ok) {
+        const beforeStatus = String(ord.status || '').toLowerCase();
+        const beforeOtp    = ord.otp;
+
         // 1) OTP ได้แล้ว
         if (r.otp && !ord.otp) {
           ord.otp = String(r.otp);
@@ -331,6 +333,20 @@ router.post('/orders/:orderId/refresh', requireAuth, async (req, res) => {
         if (r.msg && r.msg !== ord.message) ord.message = r.msg;
 
         await ord.save();
+
+        // 4) ถ้า “เพิ่ง” เสร็จ (หรือเพิ่งได้ OTP ที่ทำให้เปลี่ยนเป็น success) → บันทึกยอดแบบ delta-safe
+        const afterStatus = String(ord.status || '').toLowerCase();
+        const justCompleted =
+          (beforeStatus !== 'success' && afterStatus === 'success') ||
+          (!beforeOtp && !!ord.otp && afterStatus === 'success');
+        if (justCompleted) {
+          try {
+            await reconcileOtp24OrderSpend(ord._id);                // จะอัปเดต otpSpentAccounted และบวกเข้ายอดผู้ใช้เฉพาะส่วนที่ยังไม่คิด
+            await recalcUserTotals(ord.user, { force:true, reason:'otp24_refresh_success' });
+          } catch (e) {
+            console.error('[otp24/refresh] reconcile/recalc failed:', e?.message || e);
+          }
+        }
       }
     }
 

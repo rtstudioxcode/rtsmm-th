@@ -9,7 +9,7 @@
         <div class="prof-avatar">
           <img
             id="avatarPreview"
-            src="<%= userDoc.avatarUrl %>?v=<%= (me && me.avatarVer) || Date.now() %>"
+            src="<%= userDoc.avatarUrl %>?v=<%= (userDoc && userDoc.avatarVer) || Date.now() %>"
             loading="lazy"
             decoding="async"
             onerror="this.onerror=null;this.src='/static/assets/logortsmmgif2.gif';"
@@ -76,8 +76,8 @@
               <% if (userDoc.name) { %><small class="muted sm">ตั้งแล้ว หากต้องการเปลี่ยนให้ติดต่อผู้ดูแล</small><% } %>
             </label>
 
-            <label>Username
-              <div class="static-input" aria-readonly="true"><%= me?.username || '-' %></div>
+            <label>Username  
+              <div class="static-input" aria-readonly="true"><%= userDoc.username || '-' %></div>
             </label>
 
             <label>Email Address
@@ -111,7 +111,7 @@
             </label>
 
             <label>สกุลเงิน
-              <div class="static-input" aria-readonly="true"><%= me?.currency || 'THB' %></div>
+              <div class="static-input" aria-readonly="true"><%= userDoc.currency || 'THB' %></div>
             </label>
           </div>
 
@@ -244,11 +244,14 @@
                   <div class="bignum">฿<%= __spent.toFixed(2) %></div>
                   <div class="subcap">ใช้จ่ายไปแล้ว</div>
                   <!-- (ออปชัน) breakdown -->
-                  <div class="subcap" style="margin-top:6px">
+                  <div class="muted">ยอดทั้งหมด: ฿<%= __raw.toLocaleString(undefined,{maximumFractionDigits:2}) %></div>
+                  <div class="muted">· แลกไปแล้ว: ฿<%= __redeemed.toLocaleString(undefined,{maximumFractionDigits:2}) %></div>
+                  <div class="muted">· ใช้คำนวณเลเวล: ฿<%= __spent.toLocaleString(undefined,{maximumFractionDigits:2}) %></div>
+                  <!-- <div class="subcap" style="margin-top:6px">
                     ยอดดิบทั้งหมด: ฿<%= __raw.toLocaleString(undefined,{maximumFractionDigits:2}) %>
                     · แลกไปแล้ว: ฿<%= __redeemed.toLocaleString(undefined,{maximumFractionDigits:2}) %>
                     · ใช้คำนวณเลเวล: ฿<%= __spent.toLocaleString(undefined,{maximumFractionDigits:2}) %>
-                  </div>
+                  </div> -->
                 </div>
                 <div>
                   <div class="prog"><div class="fill" style="width:<%= __pct %>%"></div></div>
@@ -296,45 +299,49 @@
         <!-- Section: สรุปรายได้ -->
         <div class="card" style="margin-top:14px">
           <div class="card-header aff-header">
-            <div class="title">สรุปรายได้จากการแนะนำ</div>
+            <div class="title">
+              สรุปรายได้จากการแนะนำ
+            </div>
 
-            <!-- หลอดความคืบหน้า (อยู่บรรทัดเดียวกัน) -->
+            <!-- หลอดความคืบหน้าระดับ -->
             <div class="aff-progress" aria-label="Affiliate tier progress">
               <div class="bar"><div class="fill" id="aff-tier-fill" style="width:0%"></div></div>
               <div class="note muted" id="aff-tier-note"></div>
             </div>
 
             <span class="pill clickable" id="aff-tier-pill">
-              <span id="aff-refcount">0</span> คนที่คุณแนะนำ
+              <span id="aff-refcount"><%= (affiliateSummary?.referredCount ?? 0).toLocaleString() %></span> คนที่คุณแนะนำ
             </span>
           </div>
 
-          <!-- ▼ เปลี่ยนตรงนี้ -->
           <div class="card-stack" id="aff-kpis">
             <div class="summary-kpi">
               <div class="rt-title">จำนวนออเดอร์ทั้งหมด</div>
-              <div class="bignum" id="aff-orders">0</div>
+              <div class="bignum" id="aff-orders"><%= (affiliateSummary?.orders ?? 0).toLocaleString() %></div>
             </div>
             <div class="summary-kpi">
               <div class="rt-title">ยอดใช้จ่ายรวมของเพื่อน</div>
-              <div class="bignum">฿<span id="aff-spent">0.00</span></div>
+              <div class="bignum">฿<span id="aff-spent"><%= Number(affiliateSummary?.spentTHB ?? 0).toLocaleString(undefined,{minimumFractionDigits:2}) %></span></div>
             </div>
             <div class="summary-kpi">
               <div class="rt-title">
-                รายได้สะสมของคุณ (<span id="aff-rate-inline-2"><%= (typeof affRatePct === 'number' ? affRatePct : 5) %></span>%)
+                รายได้สะสมของคุณ (<span id="aff-rate-inline-2"><%= (typeof affRatePct === 'number' ? affRatePct : (affiliateSummary?.ratePct ?? 5)) %></span>%)
               </div>
 
               <div class="bignum" style="color:#31d810">
-                ฿<span id="aff-earn">0.00</span>
+                ฿<span id="aff-earn"><%= Number(affiliateSummary?.earningsTHB ?? 0).toLocaleString(undefined,{minimumFractionDigits:2}) %></span>
               </div>
 
               <div class="kpi-actions">
-                <div class="muted small">ยอดที่ถอนได้ตอนนี้: ฿<span id="aff-withdrawable">0.00</span></div>
-                <button class="btn success" id="btnAffWithdraw" disabled>ถอนรายได้</button>
+                <div class="muted small">ยอดที่ถอนได้ตอนนี้: ฿
+                  <span id="aff-withdrawable"><%= Number(affiliateSummary?.withdrawableTHB ?? 0).toLocaleString(undefined,{minimumFractionDigits:2}) %></span>
+                </div>
+                <button class="btn success" id="btnAffWithdraw" <%= (affiliateSummary?.withdrawableTHB ?? 0) > 0 ? '' : 'disabled' %>>
+                  ถอนรายได้
+                </button>
               </div>
             </div>
           </div>
-          <!-- ▲ เปลี่ยนตรงนี้ -->
         </div>
 
         <!-- Section: สร้าง/แสดงลิงก์ -->
@@ -733,7 +740,6 @@ html[data-theme="light"] .static-input{
 }
 img, video, canvas, table, pre, code, .static-input { max-width: 100%; }
 .card{ overflow: hidden; }     
-* header ของการ์ดสรุป affiliate */
 .aff-header{
   display:flex; align-items:center; gap:14px; flex-wrap:wrap;
   justify-content: space-between;               /* เว้นพื้นที่ซ้ายหน่อย ตามที่ขอ */

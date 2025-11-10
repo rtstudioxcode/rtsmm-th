@@ -3,12 +3,12 @@ import mongoose from 'mongoose';
 
 const POKE_FIELDS = new Set([
   'status','cost','estCost','charged','refundAmount',
-  'quantity','rateAtOrder','rate','partialRefunds'
+  'quantity','rateAtOrder','rate','partialRefunds',
+  'remains','startCount','currentCount','progress'
 ]);
 
-const OTP24_POKE_FIELDS = new Set([
-  'status','cost','price','priceTHB','amountTHB','refundAmount','salePrice'
-]);
+// OTP24: เรานับเฉพาะ success + salePrice
+const OTP24_POKE_FIELDS = new Set(['status','salePrice','refundAmount']);
 
 const userQueue = new Map();
 function scheduleUser(userId, fn) {
@@ -18,7 +18,9 @@ function scheduleUser(userId, fn) {
   userQueue.set(key, t);
 }
 
-// NEW: ตัวช่วย fallback แบบ polling
+// ─────────────────────────────────────────────────────────────
+// Polling fallback (ไม่มี/หลุด change streams)
+// ─────────────────────────────────────────────────────────────
 async function startPollingFallback(mongooseConn, intervalMs = 5000) {
   console.warn('[spendWatcher] using polling fallback (no replica set).');
   const Order = mongooseConn.model('Order');
@@ -33,18 +35,21 @@ async function startPollingFallback(mongooseConn, intervalMs = 5000) {
         Otp24Order.find({ updatedAt: { $gt: last } }, { _id:1, userId:1, user:1, updatedAt:1 }).lean(),
       ]);
 
+      const otpSet = new Set(changedOtp.map(d => String(d._id)));
       const all = [...changedOrd, ...changedOtp];
+
       if (all.length) {
-        last = all.reduce((m, d) => (d.updatedAt > m ? d.updatedAt : m), last);
+        // ปรับ last ให้ขยับไปข้างหน้าเสมอ กัน timestamp ย้อน
+        const newest = all.reduce((m, d) => (d.updatedAt > m ? d.updatedAt : m), last);
+        last = new Date(Math.max(+last, +newest));
 
         for (const doc of all) {
           const uid = doc.userId || doc.user;
           if (!uid) continue;
 
-          // reconcile ต่อใบ (เด้งถูกประเภท)
           (async () => {
             try {
-              if (doc._id && changedOtp.find(x => String(x._id) === String(doc._id))) {
+              if (otpSet.has(String(doc._id))) {
                 const { reconcileOtp24OrderSpend } = await import('./spend.js');
                 await reconcileOtp24OrderSpend(doc._id);
               } else {
@@ -56,7 +61,6 @@ async function startPollingFallback(mongooseConn, intervalMs = 5000) {
             }
           })();
 
-          // debounce ต่อ user
           scheduleUser(uid, async () => {
             try {
               const { recalcUserTotals } = await import('./spend.js');
@@ -75,6 +79,9 @@ async function startPollingFallback(mongooseConn, intervalMs = 5000) {
   return () => clearInterval(timer);
 }
 
+// ─────────────────────────────────────────────────────────────
+// Change streams (ตัวจริง เสียบเมื่อ replica set พร้อม)
+// ─────────────────────────────────────────────────────────────
 export function startSpendAutoRecalc(mongooseConn = mongoose.connection) {
   const collOrders = mongooseConn.collection('orders');
   const collOtp24  = mongooseConn.collection('otp24orders');
@@ -102,9 +109,12 @@ export function startSpendAutoRecalc(mongooseConn = mongoose.connection) {
 
         if (chg.operationType === 'update') {
           const updated = Object.keys(chg.updateDescription?.updatedFields || {});
-          const touched = kind === 'orders'
-            ? updated.some(k => POKE_FIELDS.has(k))
-            : updated.some(k => OTP24_POKE_FIELDS.has(k));
+          // รองรับคีย์ซ้อน เช่น 'providerResponse.lastStatus.remains'
+          const pickSet = (kind === 'orders') ? POKE_FIELDS : OTP24_POKE_FIELDS;
+          const touched = updated.some(k => {
+            const leaf = k.split('.').pop();
+            return pickSet.has(k) || pickSet.has(leaf);
+          });
           if (!touched) return;
         }
 

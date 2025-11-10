@@ -85,8 +85,10 @@ const OTP_REFUNDS = { $ifNull: ['$refundAmount', 0] };
 const OTP_NET = { $max: [0, { $subtract: [ OTP_GROSS, OTP_REFUNDS ] }] };
 
 /** ---------------- main ---------------- */
-export async function computeAffiliateTotals(uid){
-  // 🔎 ใครเราแนะนำมา (ตามที่โปรเจกต์ใช้: User.referredBy)
+export async function computeAffiliateTotals(uid) {
+  const num = v => Number.isFinite(+v) ? +v : 0;
+
+  // 🔎 ดึงผู้ใช้ที่ถูกแนะนำ
   const referred = await User.find({ referredBy: uid })
     .select('_id username createdAt')
     .lean();
@@ -98,104 +100,108 @@ export async function computeAffiliateTotals(uid){
 
     // 1) รวมฝั่ง SMM Orders
     const aggSmm = await Order.aggregate([
-      { $match: { userId: { $in: refIds }, status: { $in: PAID_STATUSES } } },
-      { $group: {
-        _id: '$userId',
-        orders: { $sum: 1 },
-        spentTHB: { $sum: SMM_NET }
-      }}
+      {
+        $match: {
+          userId: { $in: refIds },
+          status: { $in: PAID_STATUSES },
+          charged: { $gt: 0 }
+        }
+      },
+      {
+        $group: {
+          _id: '$userId',
+          orders: { $sum: 1 },
+          spentTHB: { $sum: SMM_NET }
+        }
+      }
     ]);
 
     // 2) รวมฝั่ง OTP24 Orders
     const aggOtp = await Otp24Order.aggregate([
-      { $match: { user: { $in: refIds }, status: { $in: OTP24_PAID_STATUSES } } },
-      { $group: { _id: '$user', orders: { $sum: 1 },
-        spentTHB: { $sum: { $ifNull: ['$salePrice', { $ifNull: ['$priceTHB', { $ifNull: ['$price', 0] }] }] } } } }
+      {
+        $match: {
+          user: { $in: refIds },
+          status: { $in: OTP24_PAID_STATUSES },
+          $or: [
+            { salePrice: { $gt: 0 } },
+            { priceTHB: { $gt: 0 } },
+            { price: { $gt: 0 } },
+            { amountTHB: { $gt: 0 } }
+          ]
+        }
+      },
+      {
+        $group: {
+          _id: '$user',
+          orders: { $sum: 1 },
+          spentTHB: {
+            $sum: {
+              $ifNull: [
+                '$salePrice',
+                { $ifNull: ['$priceTHB', { $ifNull: ['$price', 0] }] }
+              ]
+            }
+          }
+        }
+      }
     ]);
 
-    // 3) รวมผลตามผู้ใช้
+    // 3) รวมผลทั้งสองแหล่ง
     const byUser = new Map();
-    // จาก SMM orders
     for (const a of aggSmm) {
       const k = String(a._id);
-      byUser.set(k, {
-        orders: num(a.orders),
-        spentTHB: num(a.spentTHB),
-      });
+      byUser.set(k, { orders: num(a.orders), spentTHB: num(a.spentTHB) });
     }
-    // จาก OTP24 orders (บวกทับ)
     for (const b of aggOtp) {
       const k = String(b._id);
       const cur = byUser.get(k) || { orders: 0, spentTHB: 0 };
-      cur.orders  = num(cur.orders)  + num(b.orders);
-      cur.spentTHB = num(cur.spentTHB) + num(b.spentTHB);
+      cur.orders += num(b.orders);
+      cur.spentTHB += num(b.spentTHB);
       byUser.set(k, cur);
     }
 
+    // 4) รวมยอดรวมทั้งหมด
     for (const r of referred) {
       const a = byUser.get(String(r._id));
-      if (a) { orders += (a.orders || 0); spentTHB += (a.spentTHB || 0); }
+      if (a) {
+        orders += a.orders;
+        spentTHB += a.spentTHB;
+      }
     }
   }
 
-  // cache ที่เคยจ่าย
+  // 5) ดึงค่า affiliate เดิม
   const u = await User.findById(uid).select('affiliate').lean();
   const paidTHB = Number(u?.affiliate?.paidTHB || 0);
 
-  // rate จาก tier + admin override (ขั้นต่ำ 5%)
+  // 6) คำนวณเรต & ยอดใหม่
   const refCount = referred.length;
   const tierRate = tierRateFor(refCount, spentTHB);
   const adminRate = Number(u?.affiliate?.ratePct ?? NaN);
-  const ratePct  = Math.max(tierRate, Number.isFinite(adminRate) ? adminRate : 0, 5);
+  const ratePct = Math.max(tierRate, Number.isFinite(adminRate) ? adminRate : 0, 5);
 
   const earnings = +(spentTHB * (ratePct / 100));
   const withdrawableTHB = Math.max(0, earnings - paidTHB);
 
-  // หา "ระดับถัดไป"
-  const idxNow = AFF_TIERS.findIndex(t => t.rate === tierRate);
-  const atMax  = (idxNow >= AFF_TIERS.length - 1) || ratePct >= 40;
-  let next = null, progressPct = 100;
-
-  if (!atMax) {
-    const tNext = AFF_TIERS[idxNow + 1];
-    next = { rate: tNext.rate, refs: tNext.refs, earn: tNext.earn };
-
-    const pRefs = Math.min(1, refCount / Math.max(1, tNext.refs));
-    const pEarn = Math.min(1, spentTHB / Math.max(1, tNext.earn || 0.00001));
-    // ความคืบหน้า = เงื่อนไขที่ต่ำกว่า (ต้องครบทั้งคู่)
-    progressPct = Math.round(Math.min(pRefs, pEarn) * 100);
-  } else {
-    progressPct = 100;
-  }
-
-  // อัปเดต cache เบาๆ
+  // 7) อัปเดต cache
   await User.updateOne(
     { _id: uid },
     {
       $set: {
         'affiliate.referredCount': refCount,
         'affiliate.earningsTHB': +earnings.toFixed(2),
-        'affiliate.lastCalcAt': new Date()
-      }
+        'affiliate.lastCalcAt': new Date(),
+      },
     }
   );
 
   return {
-    // สำหรับหัวการ์ด + KPI
-    ratePct,                         // เรตใช้งานจริง (เปอร์เซ็นต์)
+    ratePct,
     referredCount: refCount,
     orders,
     spentTHB: +(+spentTHB).toFixed(2),
     earningsTHB: +(+earnings).toFixed(2),
     paidTHB: +(+paidTHB).toFixed(2),
     withdrawableTHB: +(+withdrawableTHB).toFixed(2),
-
-    // สำหรับหลอด + โมดัล
-    tier: {
-      currentRate: tierRate,
-      atMax: ratePct >= 40,
-      progressPct,
-      next, // {rate, refs, earn} | null
-    }
   };
 }

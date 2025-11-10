@@ -31,6 +31,9 @@ const Otp24OrderSchema = new mongoose.Schema({
   refundApplied: { type: Boolean, default: false, index: true },
   refundedAt:    { type: Date },
   refundNote:    { type: String },
+
+  // นับยอดใช้จ่ายรวม
+  otpSpentAccounted: { type:Number, default:0 },
 }, { timestamps:true, collection:'otp24orders' });
 
 export const Otp24Order =
