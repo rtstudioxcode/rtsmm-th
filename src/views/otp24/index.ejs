@@ -137,7 +137,14 @@ const FLAG = id => ({
                 <% } else { %>
                     <div class="otp none">OTP : <span class="muted">ไม่พบข้อความ</span></div>
                 <% } %>
-                <div class="ts"><%= new Date(o.createdAt).toISOString().replace('T',' ').slice(0,19) %></div>
+                <div class="ts">
+                  <%= new Intl.DateTimeFormat('sv-SE', {
+                        timeZone: 'Asia/Bangkok',
+                        year: 'numeric', month: '2-digit', day: '2-digit',
+                        hour: '2-digit', minute: '2-digit', second: '2-digit',
+                        hour12: false
+                      }).format(new Date(o.createdAt)) %>
+                </div>
                 </td>
 
                 <td class="center">฿ <%= Number(o.salePrice||0).toFixed(2) %></td>
@@ -164,9 +171,9 @@ const FLAG = id => ({
                       </button>
                     <% } %>
 
-                    <% if (st==='processing' && o.expiresAt) { %>
-                      <div class="countdown" data-expires="<%= new Date(o.expiresAt).toISOString() %>">
-                        หากไม่ได้รับ OTP ระบบจะคืนเงินอัตโนมัติ
+                    <% if (st==='processing') { %>
+                      <div class="countdown">
+                        ไม่ได้รับ OTP ใน 10 นาที ระบบคืนเครดิตอัตโนมัติ
                       </div>
                     <% } %>
                   </div>
@@ -201,7 +208,12 @@ const FLAG = id => ({
     <div id="mOrders" class="m-orders">
     <% (orders||[]).forEach(o => { 
         const st = String(o.status || 'processing').toLowerCase();
-        const createdStr = new Date(o.createdAt).toISOString().replace('T',' ').slice(0,19);
+        const createdStr = new Intl.DateTimeFormat('sv-SE', {
+          timeZone: 'Asia/Bangkok',
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', second: '2-digit',
+          hour12: false
+        }).format(new Date(o.createdAt));
         const phoneStr = o.phone
         ? (Number(o.countryId)===52 ? String(o.phone).replace(/^\+?66/,'0') : String(o.phone))
         : '-';
@@ -265,9 +277,9 @@ const FLAG = id => ({
                   </button>
                 <% } %>
 
-                <% if (st==='processing' && o.expiresAt) { %>
-                  <div class="countdown" data-expires="<%= new Date(o.expiresAt).toISOString() %>">
-                    เหลือเวลาอีก —:— นาที
+                <% if (st==='processing') { %>
+                  <div class="countdown">
+                    ไม่ได้รับ OTP ใน 10 นาที ระบบคืนเครดิตอัตโนมัติ
                   </div>
                 <% } %>
               </div>
