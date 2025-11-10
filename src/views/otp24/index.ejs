@@ -105,7 +105,6 @@ const HAS_OTP = (v) => {
                 <th>OTP / เวลา</th>
                 <th class="center">ราคา</th>
                 <th class="right">สถานะ</th>
-                <!-- <th class="right">การกระทำ</th> -->
             </tr>
             </thead>
             <tbody id="ordersBody">
@@ -359,6 +358,88 @@ const HAS_OTP = (v) => {
     </div>
   </form>
 </dialog>
+
+<!-- otp Notice Modal -->
+<dialog id="otpNoticeModal" class="toast-modal" aria-labelledby="otpNoticeTitle" aria-describedby="otpNoticeText">
+  <div class="toast-card" role="alertdialog">
+    <div class="toast-headbar" style="--th-bg: linear-gradient(135deg,#8b5cf6,#6d5dfc);">
+      <div class="toast-badge" aria-hidden="true">⚠️</div>
+      <div class="toast-headtxt">
+        <h3 class="toast-title" id="otpNoticeTitle">แจ้งเตือน</h3>
+        <div class="muted" style="font-weight:400;font-size:13px">โปรดอ่านข้อมูลต่อไปนี้ก่อนเติมเงิน</div>
+      </div>
+    </div>
+
+    <div class="toast-body">
+      <ul style="margin:0 0 0 18px; padding:10px 0; color:var(--t-muted); line-height:1.5">
+        <li>ในส่วนการเติมเงินแบบแสกน QR Code ของธนาคาร</li>
+        <li>ผู้ใช้งานต้องกรอกจำนวนให้ตรงกับหน้าเว็บ</li>
+        <li>หากกรอกจำนวนไม่ตรงระบบจะไม่สามารถเติมเครดิตให้อัตโนมัติ</li>
+        <li>หลีกเลี่ยงการโอนเงินช่วง 23:30 - 01:30 น. เพราะระบบธนาคารอัปเดตข้อมูลช้า</li>
+        <li>หากเติมเงินไม่เข้าเกิน 1 ชั่วโมงให้ติดต่อไลน์แจ้งแอดมินทันที</li>
+      </ul>
+
+      <label style="display:flex; gap:10px; align-items:center; margin-top:12px; color:var(--t-muted)">
+        <input id="otpNoticeDontShow" type="checkbox" style="width:18px; height:18px;"/>
+        <span>ไม่แสดงอีกในวันนี้</span>
+      </label>
+    </div>
+
+    <div class="toast-actions" style="padding-top:8px;">
+      <button class="pill" id="otpNoticeCloseCancel" hidden>ยกเลิก</button>
+      <button class="pill primary" id="otpNoticeClose">ปิดและยอมรับ</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+(function(){
+  const KEY = 'otp_notice_suppress_until_v1'; // localStorage key
+  const modal = document.getElementById('otpNoticeModal');
+  const chk = document.getElementById('otpNoticeDontShow');
+  const btnClose = document.getElementById('otpNoticeClose');
+
+  function shouldShow(){
+    try {
+      const v = localStorage.getItem(KEY);
+      if (!v) return true;
+      const ts = Number(v);
+      if (!Number.isFinite(ts)) return true;
+      return Date.now() > ts; // show if now past expiry
+    } catch(e){
+      return true;
+    }
+  }
+
+  function setSuppressFor1Day(){
+    const until = Date.now() + 1 * 24 * 60 * 60 * 1000;
+    try { localStorage.setItem(KEY, String(until)); } catch(e){ /* ignore */ }
+  }
+
+  // show modal on DOM ready if needed
+  document.addEventListener('DOMContentLoaded', ()=>{
+    try {
+      if (shouldShow()) {
+        // wait a tick so dialog styles/backdrop applied nicely
+        setTimeout(()=> {
+          if (!modal.open) modal.showModal();
+        }, 120);
+      }
+    } catch(e){}
+  });
+
+  btnClose?.addEventListener('click', ()=>{
+    if (chk && chk.checked) setSuppressFor1Day();
+    try { if (modal.open) modal.close(); } catch(e){}
+  });
+
+  // allow Escape/cancel to close as well but don't set suppression
+  modal?.addEventListener('cancel', (ev)=> {
+    ev.preventDefault();
+    try { modal.close(); } catch(e){}
+  });
+})();
+</script>
 
 <script>
 // helper: notify
@@ -1227,7 +1308,7 @@ window.addEventListener('resize', () => {
 .tbl{ width:100%; border-collapse:separate; border-spacing:0; }
 .tbl th, .tbl td{ padding:12px 14px; border-bottom:1px solid #24262b; text-align:left; }
 .tbl th.right, .tbl td.right{ text-align:right; }
-.badge.app{ background:#ca551f; color:#fff; padding:4px 10px; border-radius:999px; font-weight:700; margin-right:6px; }
+.badge.app{ background:#f38200; color:#fff; padding:4px 10px; border-radius:999px; font-weight:700; margin-right:6px; }
 .flag{ display:inline-grid; place-items:center; width:28px; height:28px; border-radius:6px; }
 .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 .otp b{ font-weight:500; color: #f7d438;}
@@ -1283,7 +1364,7 @@ dialog::backdrop{ background: rgba(0,0,0,.5); }
 .tbl{ width:100%; border-collapse:separate; border-spacing:0; }
 .tbl th, .tbl td{ padding:12px 14px; border-bottom:1px solid var(--elevated-border,#24262b); text-align:left; color:var(--text-primary,#f2f4f8); }
 .tbl th.right, .tbl td.right{ text-align:right; }
-.badge.app{ background:#ca551f; color:#fff; padding:4px 10px; border-radius:999px; font-weight:700; margin-right:6px; }
+.badge.app{  color:#fff; padding:4px 10px; border-radius:999px; font-weight:700; margin-right:6px; }
 .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 .copy{ border:none; background:transparent; cursor:pointer; margin-left:6px; }
 .pill{ display:inline-block; padding:6px 12px; border-radius:999px; font-weight:700; }
