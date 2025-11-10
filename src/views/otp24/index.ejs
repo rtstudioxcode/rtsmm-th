@@ -105,7 +105,7 @@ const FLAG = id => ({
             const st = String(o.status || 'processing').toLowerCase();
             const createdAtStr = new Date(o.createdAt).toISOString().replace('T',' ').slice(0,19);
             %>
-            <tr data-orderid="<%= o.orderId %>" data-ct="<%= Number(o.countryId||0) %>" data-created="<%= new Date(o.createdAt).toISOString() %>">
+            <tr data-orderid="<%= o.orderId %>" data-ct="<%= Number(o.countryId||0) %>" data-expires="<%= o.expiresAt ? new Date(o.expiresAt).toISOString() : '' %>">
                 <td class="mono"><%= o.orderId || '-' %></td>
                 <td>
                 <span class="badge app"><%= o.appName || '—' %></span>
@@ -137,14 +137,7 @@ const FLAG = id => ({
                 <% } else { %>
                     <div class="otp none">OTP : <span class="muted">ไม่พบข้อความ</span></div>
                 <% } %>
-                <div class="ts">
-                  <%= new Intl.DateTimeFormat('sv-SE', {
-                        timeZone: 'Asia/Bangkok',
-                        year: 'numeric', month: '2-digit', day: '2-digit',
-                        hour: '2-digit', minute: '2-digit', second: '2-digit',
-                        hour12: false
-                      }).format(new Date(o.createdAt)) %>
-                </div>
+                <div class="ts"><%= new Date(o.createdAt).toISOString().replace('T',' ').slice(0,19) %></div>
                 </td>
 
                 <td class="center">฿ <%= Number(o.salePrice||0).toFixed(2) %></td>
@@ -170,9 +163,10 @@ const FLAG = id => ({
                         ใช้เบอร์เดิม
                       </button>
                     <% } %>
-                    <% if (st==='processing') { %>
-                      <div class="countdown">
-                        เหลือเวลาอีก —:— นาที
+
+                    <% if (st==='processing' && o.expiresAt) { %>
+                      <div class="countdown" data-expires="<%= new Date(o.expiresAt).toISOString() %>">
+                        หากไม่ได้รับ OTP ระบบจะคืนเงินอัตโนมัติ
                       </div>
                     <% } %>
                   </div>
@@ -207,12 +201,7 @@ const FLAG = id => ({
     <div id="mOrders" class="m-orders">
     <% (orders||[]).forEach(o => { 
         const st = String(o.status || 'processing').toLowerCase();
-        const createdStr = new Intl.DateTimeFormat('sv-SE', {
-          timeZone: 'Asia/Bangkok',
-          year: 'numeric', month: '2-digit', day: '2-digit',
-          hour: '2-digit', minute: '2-digit', second: '2-digit',
-          hour12: false
-        }).format(new Date(o.createdAt));
+        const createdStr = new Date(o.createdAt).toISOString().replace('T',' ').slice(0,19);
         const phoneStr = o.phone
         ? (Number(o.countryId)===52 ? String(o.phone).replace(/^\+?66/,'0') : String(o.phone))
         : '-';
@@ -220,7 +209,7 @@ const FLAG = id => ({
     <div class="m-item collapsed"
         data-orderid="<%= o.orderId %>"
         data-ct="<%= Number(o.countryId||0) %>"
-        data-created="<%= new Date(o.createdAt).toISOString() %>">
+        data-expires="<%= o.expiresAt ? new Date(o.expiresAt).toISOString() : '' %>">
         <!-- หัวการ์ด: แตะตรงไหนก็พับ/กาง -->
         <div class="m-head">
           <div class="row1">
@@ -276,8 +265,8 @@ const FLAG = id => ({
                   </button>
                 <% } %>
 
-                <% if (st==='processing') { %>
-                  <div class="countdown">
+                <% if (st==='processing' && o.expiresAt) { %>
+                  <div class="countdown" data-expires="<%= new Date(o.expiresAt).toISOString() %>">
                     เหลือเวลาอีก —:— นาที
                   </div>
                 <% } %>
@@ -351,37 +340,6 @@ const FLAG = id => ({
   </form>
 </dialog>
 
-<!-- Notice Modal -->
-<dialog id="otpNoticeModal" class="toast-modal" aria-labelledby="otpNoticeTitle" aria-describedby="otpNoticeText">
-  <div class="toast-card" role="alertdialog">
-    <div class="toast-headbar" style="--th-bg: linear-gradient(135deg,#8b5cf6,#6d5dfc);">
-      <div class="toast-badge" aria-hidden="true">⚠️</div>
-      <div class="toast-headtxt">
-        <h3 class="toast-title" id="otpNoticeTitle">แจ้งเตือน</h3>
-        <div class="muted" style="font-weight:400;font-size:13px">โปรดอ่านข้อมูลต่อไปนี้ก่อนเติมเงิน</div>
-      </div>
-    </div>
-
-    <div class="toast-body">
-      <ul style="margin:0 0 0 18px; padding:10px 0; color:var(--t-muted); line-height:1.5">
-        <li>การคืนเงินจะคืนเมื่อไม่ได้รับข้อความ OTP ในเวลา 10 นาที</li>
-        <li>เบอร์สามารถซื้อซ้ำได้หากเบอร์นั้นยังอยู่ในระบบ</li>
-        <li style="color: #e0bb16;">หากมีปัญหาการใช้งานให้ติดต่อแอดมินทันที</li>
-      </ul>
-
-      <label style="display:flex; gap:10px; align-items:center; margin-top:12px; color:var(--t-muted)">
-        <input id="otpNoticeDontShow" type="checkbox" style="width:18px; height:18px;"/>
-        <span>ไม่แสดงอีกในวันนี้</span>
-      </label>
-    </div>
-
-    <div class="toast-actions" style="padding-top:8px;">
-      <button class="pill" id="otpNoticeCloseCancel" hidden>ยกเลิก</button>
-      <button class="pill primary" id="otpNoticeClose">ปิดและยอมรับ</button>
-    </div>
-  </div>
-</dialog>
-
 <script>
 // helper: notify
 function notify(title, text, variant='error'){
@@ -391,54 +349,6 @@ function notify(title, text, variant='error'){
     alert(`${title}\n${text}`);
   }
 }
-
-// Modal แจ้งเตือนตอนเข้าหน้าสั่งซื้อ
-(function(){
-  const KEY = 'otp_notice_suppress_until_v1'; // localStorage key
-  const modal = document.getElementById('otpNoticeModal');
-  const chk = document.getElementById('otpNoticeDontShow');
-  const btnClose = document.getElementById('otpNoticeClose');
-
-  function shouldShow(){
-    try {
-      const v = localStorage.getItem(KEY);
-      if (!v) return true;
-      const ts = Number(v);
-      if (!Number.isFinite(ts)) return true;
-      return Date.now() > ts; // show if now past expiry
-    } catch(e){
-      return true;
-    }
-  }
-
-  function setSuppressFor1Day(){
-    const until = Date.now() + 1 * 24 * 60 * 60 * 1000;
-    try { localStorage.setItem(KEY, String(until)); } catch(e){ /* ignore */ }
-  }
-
-  // show modal on DOM ready if needed
-  document.addEventListener('DOMContentLoaded', ()=>{
-    try {
-      if (shouldShow()) {
-        // wait a tick so dialog styles/backdrop applied nicely
-        setTimeout(()=> {
-          if (!modal.open) modal.showModal();
-        }, 120);
-      }
-    } catch(e){}
-  });
-
-  btnClose?.addEventListener('click', ()=>{
-    if (chk && chk.checked) setSuppressFor1Day();
-    try { if (modal.open) modal.close(); } catch(e){}
-  });
-
-  // allow Escape/cancel to close as well but don't set suppression
-  modal?.addEventListener('cancel', (ev)=> {
-    ev.preventDefault();
-    try { modal.close(); } catch(e){}
-  });
-})();
 
 /* ----- Tabs ----- */
 document.querySelectorAll('.tab').forEach(t=>{
@@ -705,41 +615,40 @@ function mmss(ms){
 
 function tickCountdowns(){
   const now = Date.now();
-  const CD_WINDOW_MS = 10 * 60 * 1000; // 10 นาที
-
   const upd = (el) => {
-    // อัปเดตเฉพาะของที่ยัง processing เท่านั้น
-    const host = el.closest('[data-created]');
-    if (!host) return;
-
-    // ตรวจว่า pill ยังเป็น processing อยู่ไหม
-    const pill = host.querySelector('.pill');
-    const isProcessing = pill && /\bprocessing\b/.test(pill.className);
-    if (!isProcessing) { el.remove(); return; }
-
-    // ใช้เวลาเริ่มจาก data-created
-    const created = Date.parse(host.dataset.created || '');
-    if (!Number.isFinite(created)) return;
-
-    const exp  = created + CD_WINDOW_MS;
+    const exp = Date.parse(el.dataset.expires || el.getAttribute('data-expires') || '');
+    if (!Number.isFinite(exp)) return;
     const left = exp - now;
-
-    if (left > 0){
-      el.textContent = `เหลือเวลาอีก ${mmss(left)} นาที`;
-    } else {
-      el.textContent = 'ระบบกำลังคืนเครดิต';
-      el.classList.remove('warn','danger');
-      return;
-    }
-
-    // สีเตือนตามเวลา
-    el.classList.toggle('warn',   left <= 3*60*1000 && left > 60*1000);
-    el.classList.toggle('danger', left <= 60*1000);
+    el.textContent = left>0 ? `เหลือเวลาอีก ${mmss(left)} นาที` : 'ระบบกำลังคืนเครดิต';
+    el.classList.toggle('warn', left>0 && left<=3*60*1000);
+    el.classList.toggle('danger', left>0 && left<=60*1000);
   };
-
-  // อัปเดตทุก countdown (เดสก์ท็อป + มือถือ)
   document.querySelectorAll('#ordersBody .countdown').forEach(upd);
   document.querySelectorAll('#mOrders .countdown').forEach(upd);
+  // ปรับหมายเลขในตาราง Desktop ให้ถูกต้องตามประเทศ
+  document.querySelectorAll('#ordersBody tr').forEach(tr => {
+    const ct = Number(tr.dataset.ct || 0);
+    const box = tr.children?.[2];
+    const mono = box?.querySelector('.mono .v') || box?.querySelector('.mono');
+    if (mono){
+      const formatted = displayPhoneByCountry(mono.textContent.trim(), ct);
+      mono.textContent = formatted;
+      const btn = box.querySelector('.copy');
+      if (btn) btn.dataset.copy = formatted;
+    }
+  });
+
+  // ปรับหมายเลขในลิสต์มือถือให้ถูกต้องเหมือนกัน
+  document.querySelectorAll('#mOrders .m-item').forEach(card => {
+    const ct = Number(card.dataset.ct || 0);
+    const el = card.querySelector('.row2 .phone .v');
+    if (el){
+      const formatted = displayPhoneByCountry(el.textContent.trim(), ct);
+      el.textContent = formatted;
+      const btn = card.querySelector('.row2 .phone .copy');
+      if (btn) btn.dataset.copy = formatted;
+    }
+  });
 }
 
 // ผูกกับลูปรีเฟรชหลัก (ทุก 1 วิอยู่แล้ว)
@@ -1109,8 +1018,9 @@ bindPager($ctrlM);
 applyPagination();
 
 // เมื่อรีเฟรชสถานะ/จำนวนรายการเปลี่ยน ให้คงหน้าปัจจุบันไว้ถ้าเป็นไปได้
+const _origRefreshAll = refreshProcessingOrdersOnce;
 refreshProcessingOrdersOnce = async function () {
-  const out = await refreshProcessingOrdersOnce(); // ดึงแพตช์สถานะจากเซิร์ฟเวอร์
+  const out = await _origRefreshAll(); // ดึงแพตช์สถานะจากเซิร์ฟเวอร์
   applyPagination();                   // จัดหน้าใหม่ตามจำนวนรายการล่าสุด
   tickCountdowns();                    // อัปเดตตัวเลขนับถอยหลังให้ตรง DOM ล่าสุด
 
@@ -1119,6 +1029,8 @@ refreshProcessingOrdersOnce = async function () {
 
   return out; // เผื่อที่อื่นยังใช้งานผลลัพธ์เดิม
 };
+
+
 
 /* ====== ซื้อเบอร์เดิม (buyotpagain) ====== */
 window.CT2CODE = window.CT2CODE || {
