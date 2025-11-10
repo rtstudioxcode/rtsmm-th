@@ -17,7 +17,7 @@ import { Transaction } from '../models/Transaction.js';
 
 /* ==== NEW: loyalty & spend services (ไม่แตะ Order.js) ==== */
 import { LEVELS, getRateForLevelIndex } from "../services/loyalty.js";
-import { recalcUserTotalSpent } from "../services/spend.js";
+import { recalcUserTotals } from "../services/spend.js";
 
 import crypto from 'crypto';
 
@@ -149,7 +149,7 @@ router.get("/account", async (req, res, next) => {
 
     // (2) รีคำนวณยอด/เลเวล/แต้ม + คำนวณรายได้แนะนำเพื่อน แบบสด ๆ
     const [snap, affTotals] = await Promise.all([
-      recalcUserTotalSpent(me._id, { force: true }),
+      recalcUserTotals(me._id, { force: true }),
       computeAffiliateTotals(me._id).catch(e => {
         console.error("Affiliate calc failed:", e);
         return null;
@@ -205,6 +205,7 @@ router.get("/account", async (req, res, next) => {
         points: viewUser.points,
         pointRateTHB: viewUser.pointRateTHB,
         pointValueTHB: viewUser.pointValueTHB,
+        pointsRedeemed: Number(me.pointsRedeemed || 0),
       },
       // ส่งสรุปรายได้แนะนำเพื่อนไปด้วย (เผื่อ view ใช้แสดงการ์ด)
       affiliateSummary: {
@@ -263,10 +264,7 @@ router.post("/account/profile", upload.single("avatar"), async (req, res) => {
     await u.save();
     // ให้ระบบ delta-based สรุปทุกอย่างให้เอง (orders/level/points…)
     try {
-      await recalcUserTotalSpent(u._id, {
-        force: true,
-        reason: "profile_update",
-      });
+      await recalcUserTotals(u._id, { force: true, reason: "profile_update" });
     } catch {}
 
     // --- อัปเดต session/res.locals และคืน URL แบบกันแคชสำหรับแสดงผลทันที ---
@@ -518,8 +516,8 @@ router.post("/account/points/redeem", async (req, res) => {
     const uid = getAuthUserId(req);
     if (!uid) return res.status(401).json({ ok:false, error:"⛔️คุณไม่ได้รับอนุญาต" });
 
-    // ✅ ใช้ uid (ไม่ใช่ me)
-    const snap = await recalcUserTotalSpent(uid, { force:true, fullRescan:false });
+    // คำนวณปัจจุบัน
+    const snap = await recalcUserTotals(uid, { force:true, fullRescan:false });
     if (!snap?.ok) return res.status(500).json({ ok:false, error:"คำนวณยอดไม่สำเร็จ" });
 
     const u = await User.findById(uid);
@@ -538,22 +536,18 @@ router.post("/account/points/redeem", async (req, res) => {
     const rate = Number(snap?.pointRateTHB) || getRateForLevelIndex(levelIdx);
     const addTHB = round2(redeemPoints * rate);
 
-    // ปรับยอดที่นำไปหักจาก effectiveSpent (100 บาทต่อ 100 แต้ม)
-    const decSpent = redeemPoints * 100;
-
-    const totalSpentRaw   = Number(snap.totalSpentRaw ?? u.totalSpentRaw ?? 0);
-    const redeemedSpent   = Number(u.redeemedSpent || 0);
-    const newRedeemedSpent = Math.min(round2(redeemedSpent + decSpent), totalSpentRaw);
-
-    // ✅ อัปเดตยอด
+    // ✅ อัปเดต: เติมกระเป๋า + สะสม pointsRedeemed และรีเซ็ตยอดใช้จ่าย
     await User.updateOne(
       { _id: uid },
-      { $set: { redeemedSpent: newRedeemedSpent }, $inc: { balance: addTHB } }
+      {
+        $inc: { balance: addTHB, pointsRedeemed: addTHB },
+        $set: { totalSpentRaw: 0, totalSpent: 0, redeemedSpent: 0 }
+      }
     );
 
-    // ✅ คำนวณใหม่หลังแลก + โหลดยอดกระเป๋าปัจจุบัน
-    const after  = await recalcUserTotalSpent(uid, { force:true });
-    const freshU = await User.findById(uid).select('balance').lean();
+    // ✅ คำนวณใหม่หลังแลก (คะแนนควรเป็น 0 เพราะยอดใช้จ่ายถูกรีเซ็ต)
+    const after  = await recalcUserTotals(uid, { force:true });
+    const freshU = await User.findById(uid).select('balance pointsRedeemed').lean();
 
     return res.json({
       ok: true,
@@ -561,12 +555,13 @@ router.post("/account/points/redeem", async (req, res) => {
       addedBalance: addTHB,
       rate,
       remainPoints: after.points ?? 0,
-      balance: Number(freshU?.balance ?? u.balance ?? 0), // ← มีกระเป๋าปัจจุบันแน่นอน
+      balance: Number(freshU?.balance ?? 0),
       totalSpent: after.totalSpent,
       level: after.level,
       levelInfo: after.levelInfo,
       pointRateTHB: after.pointRateTHB,
       pointValueTHB: after.pointValueTHB,
+      pointsRedeemed: Number(freshU?.pointsRedeemed || 0),
     });
   } catch (e) {
     console.error("redeem points", e);

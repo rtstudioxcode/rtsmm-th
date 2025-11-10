@@ -171,7 +171,7 @@ async function forceCheckProviderAndUpdate(order) {
         order.updatedAt = new Date();
         await order.save();
         // อัปเดตยอด/รีคอนซายล์เครดิต ฯลฯ
-        await reconcileUserByOrderEvent(order._id, { force: true });
+        await reconcileUserByOrderEvent(order, 'cancel_confirmed');
         return true;
       }
     } catch { /* เงียบไว้ แล้วไป fallback ต่อ */ }
@@ -189,7 +189,7 @@ async function forceCheckProviderAndUpdate(order) {
       }
       order.updatedAt = new Date();
       await order.save();
-      await reconcileUserByOrderEvent(order._id, { force: true });
+      await reconcileUserByOrderEvent(order, 'cancel_confirmed');
       return true;
     }
   } catch { /* ผ่าน */ }
@@ -206,7 +206,7 @@ async function forceCheckProviderAndUpdate(order) {
       }
       order.updatedAt = new Date();
       await order.save();
-      await reconcileUserByOrderEvent(order, 'cancel_confirmed');
+      await reconcileUserByOrderEvent(order._id, { reason: 'cancel_confirmed', force: true });
       return true;
     }
   } catch { /* ผ่าน */ }

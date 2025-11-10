@@ -142,7 +142,7 @@ async function recountForUser(u) {
   const totalOrdersPaid =
     (smmList || []).filter(o => {
       const s = String(o.status || '').toLowerCase();
-      return s === 'completed' || s === 'partial';      // <- รวม partial
+      return s === 'completed' || s === 'partial';
     }).length +
     (otpList || []).filter(o => String(o.status || '').toLowerCase() === 'success').length;
 

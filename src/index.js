@@ -136,6 +136,8 @@ console.log('🔐 secure_config loaded from DB');
 /* ------------------------------------------------------------------ */
 /* 3) ตัวช่วย re-calc แต้ม/เลเวล background                           */
 /* ------------------------------------------------------------------ */
+startOrderStatusJob();
+
 let stopSpendWatcher = null;
 mongoose.connection.once("open", () => {
   if (!stopSpendWatcher) {
@@ -465,7 +467,6 @@ app.use((req, res) => res.status(404).send("Not found"));
 
 initDailyChangeSync();
 startOtp24ProcessingSweeper();
-startOrderStatusJob();
 
 /* ------------------------------------------------------------------ */
 /* 5) ใช้ PORT จาก DB ก่อน ถ้าไม่มีค่อย fallback env/config           */

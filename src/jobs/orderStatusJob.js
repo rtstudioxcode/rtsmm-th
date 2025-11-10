@@ -4,12 +4,13 @@ import pLimit from 'p-limit';
 import { Order } from '../models/Order.js';
 import { getOrderStatus } from '../lib/iplusviewAdapter.js';
 import { connectMongoIfNeeded } from '../config.js';
+import { reconcileUserByOrderEvent, recalcUserTotals } from '../services/spend.js';
 
 const TICK_MS       = Number(process.env.ORDER_STATUS_TICK_MS || 60_000);
 const CONCURRENCY   = Number(process.env.ORDER_STATUS_CONCURRENCY || 100);
 const BATCH_LIMIT   = Number(process.env.ORDER_STATUS_BATCH_LIMIT || 1_000);
 
-const VERBOSE = String(process.env.ORDER_STATUS_VERBOSE || '1') !== '0'; // เปิด log ไว้เป็นค่าเริ่มต้น
+const VERBOSE = String(process.env.ORDER_STATUS_VERBOSE || '1') !== '0'; // เปิด log ค่าเริ่มต้น
 
 // ─────────────────────────────────────────────────────────────
 // helpers
@@ -106,7 +107,6 @@ function computeRefund(oDoc, providerRes) {
   return null;
 }
 
-// pretty logger
 function fmtMoney(n) {
   if (!Number.isFinite(Number(n))) return '-';
   return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -126,21 +126,69 @@ function logOrderUpdate({ o, patch, prevStatus, providerStatus }) {
   const rfAmt = (patch.refundAmount ?? o.refundAmount);
   const rfTyp = (patch.refundType ?? o.refundType) || '';
 
-  // เฉพาะเวลามีการยิง updateOne เท่านั้นที่เราจะ log (เรียกฟังก์ชันนี้หลัง updateOne สำเร็จ)
-  console.log(
-    `[ออเดอร์อัปเดต] AUTO -`,
-    `เลขออเดอร์=${prov}`,
-    `สถานะ=${from}→${to} (prov:${String(providerStatus || '').toLowerCase() || '-'})`,
-    `สถานะปัจจุบัน=${Number.isFinite(prog) ? prog.toFixed(2) + '%' : '-'}`,
-    `จำนวนคงเหลือ=${Number.isFinite(rem) ? rem : '-'}`,
-    `จำนวนตอนเริ่ม=${Number.isFinite(sc) ? sc : '-'}→${Number.isFinite(cc) ? cc : '-'}`,
-    (Number.isFinite(rfAmt) && rfAmt > 0) ? `refund=${fmtMoney(rfAmt)} (${rfTyp||'-'})` : ''
-  );
+  // console.log(
+  //   `[ออโด้อัปเดต] STATUS`,
+  //   `เลขออเดอร์=${prov}`,
+  //   `สถานะ=${from}→${to} (prov:${String(providerStatus || '').toLowerCase() || '-'})`,
+  //   `สถานะปัจจุบัน=${Number.isFinite(prog) ? prog.toFixed(2) + '%' : '-'}`,
+  //   `จำนวนคงเหลือ=${Number.isFinite(rem) ? rem : '-'}`,
+  //   `จำนวนตอนเริ่ม=${Number.isFinite(sc) ? sc : '-'}→${Number.isFinite(cc) ? cc : '-'}`,
+  //   (Number.isFinite(rfAmt) && rfAmt > 0) ? `refund=${fmtMoney(rfAmt)} (${rfTyp||'-'})` : ''
+  // );
 }
 
 // ─────────────────────────────────────────────────────────────
 // core updater
 // ─────────────────────────────────────────────────────────────
+const FAST_SCAN_MS  = 1_000;   // สแกนเร็วทุก 1 วิ
+let fastTimer = null;          // ตัวตั้งเวลาแบบ on-demand
+
+async function fastReconcileOnce() {
+  // หาออเดอร์ที่จบแล้วแต่ยังไม่นับ spentAccounted
+  const target = await Order.find({
+    status: { $in: ['completed','partial'] },
+    $or: [
+      { spentAccounted: { $exists: false } },
+      { spentAccounted: { $eq: 0 } }
+    ]
+  })
+  .select('_id user status spentAccounted')
+  .sort({ updatedAt: -1 })
+  .limit(200)
+  .lean();
+
+  if (!target.length) return 0;
+
+  let changed = 0;
+  for (const o of target) {
+    try {
+      // delta-safe อยู่แล้วใน spend.js
+      await reconcileUserByOrderEvent(o._id, { force: true });
+      changed++;
+    } catch (e) {
+      console.warn('[fastReconcile] failed:', e?.message || e);
+    }
+  }
+  return changed;
+}
+
+function ensureFastRunner() {
+  if (fastTimer) return; // ทำงานอยู่แล้ว
+
+  fastTimer = setInterval(async () => {
+    try {
+      const n = await fastReconcileOnce();
+      // ถ้าไม่มีงานให้ทำ → หยุดรอ จนกว่าจะถูกเรียก ensureFastRunner() ใหม่
+      if (n === 0) {
+        clearInterval(fastTimer);
+        fastTimer = null;
+      }
+    } catch {
+      // ถ้าพลาดสแกนรอบนี้ก็ไม่เป็นไร ไว้รอบหน้า
+    }
+  }, FAST_SCAN_MS);
+}
+
 async function updateOneOrder(o) {
   if (!o?.providerOrderId) return;
 
@@ -199,24 +247,45 @@ async function updateOneOrder(o) {
     }
   }
 
-  // ยิงอัปเดตจริง
   const result = await Order.updateOne({ _id: o._id }, { $set: patch });
 
-  // ถ้า DB แจ้งว่ามีการแก้ไข (nModified/modifiedCount) → log ทุกครั้ง
-  // (mongoose v7 ใช้ { acknowledged, modifiedCount, matchedCount, upsertedId })
   if (result?.modifiedCount > 0 || result?.nModified > 0) {
     logOrderUpdate({ o, patch, prevStatus, providerStatus: provStatus });
+
+    const finalStatus = (patch.status ?? prevStatus);
+
+    if (finalStatus === 'completed' || finalStatus === 'partial') {
+      // เรียกคำนวณทันที (กันพลาด)
+      try {
+        await reconcileUserByOrderEvent(o._id, { force: true });
+      } catch (e) {
+        console.warn('[orderStatusJob] reconcileUserByOrderEvent failed:', e?.message || e);
+      }
+
+      if (o?.user) {
+        setTimeout(() => {
+          recalcUserTotals(String(o.user), { force: true }).catch(() => {});
+        }, 0);
+      }
+
+      // 🔔 ปลุก fast runner เพื่อไล่เก็บใบอื่น ๆ ที่ยังไม่ถูกนับ
+      ensureFastRunner();
+    }
   }
 }
 
 /** โพลออเดอร์ที่ยังไม่จบแล้วอัปเดตทั้งหมด */
 async function tickOnce() {
   const fields = {
-    _id: 1, status: 1, providerOrderId: 1,
+    _id: 1,
+    user: 1,                      // << ต้องใช้เพื่อ recalcUserTotals
+    status: 1,
+    providerOrderId: 1,
     estCost: 1, cost: 1, quantity: 1,
     refundCommitted: 1, refundAmount: 1, refundType: 1,
     startCount: 1, currentCount: 1, remains: 1,
     progress: 1,
+    updatedAt: 1,
   };
 
   const filter = {
@@ -251,7 +320,14 @@ export function startOrderStatusJob() {
     tickOnce().catch(() => {});
   }, TICK_MS);
 
+  // 🔔 สแกนรอบแรก (ถ้ามีงานค้างจะเริ่ม fast runner เอง)
+  ensureFastRunner();
+
   console.log(`[orderStatusJob] started (instance=${instanceId}). interval=${TICK_MS}ms, concurrency=${CONCURRENCY}, verbose=${VERBOSE}`);
 
-  return () => clearInterval(t);
+  return () => {
+    clearInterval(t);
+    if (fastTimer) clearInterval(fastTimer);
+    fastTimer = null;
+  };
 }

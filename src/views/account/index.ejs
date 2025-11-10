@@ -245,8 +245,9 @@
                   <div class="subcap">ใช้จ่ายไปแล้ว</div>
                   <!-- (ออปชัน) breakdown -->
                   <div class="muted">ยอดทั้งหมด: ฿<%= __raw.toLocaleString(undefined,{maximumFractionDigits:2}) %></div>
-                  <div class="muted">· แลกไปแล้ว: ฿<%= __redeemed.toLocaleString(undefined,{maximumFractionDigits:2}) %></div>
-                  <div class="muted">· ใช้คำนวณเลเวล: ฿<%= __spent.toLocaleString(undefined,{maximumFractionDigits:2}) %></div>
+                  <div class="muted">· แลกเครดิตไปแล้ว: ฿<%= __redeemed.toLocaleString(undefined,{maximumFractionDigits:2}) %></div>
+                  <div class="muted">· ใช้แต้มไปแล้ว: <%= Number(agg?.pointsRedeemed||0).toLocaleString(undefined,{minimumFractionDigits:2}) %> Point</div>
+                  <!-- <div class="muted">· ใช้คำนวณเลเวล: ฿<%= __spent.toLocaleString(undefined,{maximumFractionDigits:2}) %></div> -->
                   <!-- <div class="subcap" style="margin-top:6px">
                     ยอดดิบทั้งหมด: ฿<%= __raw.toLocaleString(undefined,{maximumFractionDigits:2}) %>
                     · แลกไปแล้ว: ฿<%= __redeemed.toLocaleString(undefined,{maximumFractionDigits:2}) %>
@@ -363,9 +364,9 @@
           </div>
         </div>
 
-        <!-- Section: รายชื่อผู้ที่คุณแนะนำ (พับ/หุบแบบมือถือ) -->
+        <!-- Section: รายการการถอนรายได้แนะนำเพื่อน (พับ/หุบแบบมือถือ) -->
         <div class="card" style="margin-top:14px">
-          <div class="card-header"><div class="title">รายชื่อผู้ที่คุณแนะนำ</div></div>
+          <div class="card-header"><div class="title">รายการการถอนรายได้แนะนำเพื่อน</div></div>
           <div class="form-grid">
             <div id="aff-list" class="aff-list"></div>
             <div class="muted" id="aff-empty" style="display:none">ยังไม่มีข้อมูล</div>
@@ -1048,12 +1049,15 @@ img, video, canvas, table, pre, code, .static-input { max-width: 100%; }
         const pointsNum = Number(j.remainPoints || 0);
         const pointsEl = document.querySelector('[data-id="points-num"]');
         if (pointsEl) pointsEl.innerHTML = `${pointsNum.toLocaleString(undefined,{ maximumFractionDigits: 2})} คะแนน`;
-
         const rateEl = document.querySelector('[data-id="point-rate"]');
         if (rateEl) rateEl.textContent = `฿${(j.rate || 0).toLocaleString()} / 1 แต้ม`;
-
         const valEl = document.querySelector('[data-id="point-value"]');
         if (valEl) valEl.textContent = `≈ ฿${(j.pointValueTHB || 0).toLocaleString(undefined,{ maximumFractionDigits: 2 })}`;
+
+        const prEl = document.querySelector('[data-id="points-redeemed"]');
+        if (prEl && typeof j.pointsRedeemed === 'number') {
+          prEl.textContent = `฿${j.pointsRedeemed.toLocaleString(undefined,{ minimumFractionDigits:2 })}`;
+        }
 
         if (pointsNum < 100) {
           btnRedeem.classList.remove('primary');
