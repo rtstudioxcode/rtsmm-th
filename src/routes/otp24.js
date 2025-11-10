@@ -10,8 +10,6 @@ import { refreshOtp24BalanceAsync } from '../lib/otp24BalanceUtil.js';
 const router = Router();
 const ACTIVE_STATUSES = ['processing','pending','waiting','purchased'];
 
-const TEN_MIN = 9 * 60 * 1000;
-const now = Date.now();
 const BKK_OFFSET_MS = 7 * 60 * 60 * 1000;
 
 function round2(n){ return Math.round((Number(n)||0)*100)/100; }
@@ -98,8 +96,7 @@ router.post('/buy', requireAuth, async (req, res) => {
 
     // บันทึกออเดอร์ (ตั้งเวลาหมดเขต 10 นาที)
     const now = Date.now();
-    const createdAt = new Date(now + BKK_OFFSET_MS);
-    const expiresAt = new Date(now + TEN_MIN);
+    const createdAt = new Date(now);
     const ord = await Otp24Order.create({
       user: user._id,
       productId: prod._id,
@@ -222,8 +219,7 @@ router.post('/buy-again', requireAuth, async (req, res) => {
 
     // 9) ผู้ให้บริการ success → สร้างออเดอร์ใหม่ (ตั้ง 10 นาทีจาก "ตอนนี้")
     const now = Date.now();
-    const createdAt = new Date(now + BKK_OFFSET_MS);
-    const expiresAt = new Date(now + TEN_MIN);
+    const createdAt = new Date(now);
 
     const ord = await Otp24Order.create({
       user: user._id,

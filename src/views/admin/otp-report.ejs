@@ -1,5 +1,4 @@
 <!-- admin/otp-report.ejs -->
-<% const COUNTDOWN = (typeof COUNTDOWN_ENABLED !== 'undefined') ? COUNTDOWN_ENABLED : true; %>
 <%
 // ===== Helpers: ธงประเทศ
 const CT2CODE = {52:'th',187:'us',16:'gb',6:'id',10:'vn',5:'mm',1:'ua',19:'ng',62:'tr',3:'cn',4:'ph',24:'kh',25:'la',7:'my',21:'eg'};
@@ -100,7 +99,7 @@ const USERNAME = (user) => {
             return '+' + s.replace(/[^\d]/g,'');
           })();
         %>
-          <tr data-orderid="<%= o.orderId %>" data-ct="<%= Number(o.countryId||0) %>" data-expires="<%= expISO %>">
+          <tr data-orderid="<%= o.orderId %>" data-ct="<%= Number(o.countryId||0) %>" data-created="<%= new Date(o.createdAt).toISOString() %>">
             <td class="mono"><%= o.orderId || '-' %></td>
             <td class="mono"><%= USERNAME(o.user) %></td>
             <td>
@@ -126,7 +125,14 @@ const USERNAME = (user) => {
               <% } else { %>
                 <div class="otp none">OTP : <span class="muted">ไม่พบข้อความ</span></div>
               <% } %>
-              <div class="ts"><%= new Date(o.createdAt).toISOString().replace('T',' ').slice(0,19) %></div>
+              <div class="ts">
+                <%= new Intl.DateTimeFormat('sv-SE', {
+                      timeZone: 'Asia/Bangkok',
+                      year: 'numeric', month: '2-digit', day: '2-digit',
+                      hour: '2-digit', minute: '2-digit', second: '2-digit',
+                      hour12: false
+                    }).format(new Date(o.createdAt)) %>
+              </div>
             </td>
 
             <td class="center">฿ <%= sale.toFixed(2) %></td>
@@ -141,11 +147,11 @@ const USERNAME = (user) => {
                 : st==='failed'    ? 'คืนเครดิต'
                 : 'กำลังรอ OTP' %>
               </span>
-              <% if (COUNTDOWN && st==='processing') { %>
-                <div class="countdown" data-expires="<%= expISO %>">
-                  เหลือเวลาอีก —:— นาที หากไม่ได้รับ OTP ระบบจะคืนเงินอัตโนมัติ
-                </div>
-              <% } %>
+              <% if (st==='processing') { %>
+              <div class="countdown">
+                เหลือเวลาอีก —:— นาที
+              </div>
+            <% } %>
             </td>
           </tr>
         <% }) %>
@@ -167,7 +173,8 @@ const USERNAME = (user) => {
     %>
     <div class="m-item collapsed"
         data-orderid="<%= o.orderId %>"
-        data-ct="<%= Number(o.countryId||0) %>">
+        data-ct="<%= Number(o.countryId||0) %>"
+        data-created="<%= new Date(o.createdAt).toISOString() %>">
         <!-- หัวการ์ด: แตะตรงไหนก็พับ/กาง -->
         <div class="m-head">
             <div class="row1">
@@ -218,10 +225,10 @@ const USERNAME = (user) => {
                 : st==='timeout'  ? 'คืนเครดิต'
                 : st==='failed'   ? 'คืนเครดิต' : 'กำลังรอ OTP' %>
             </span>
-            <% if (COUNTDOWN && st==='processing') { %>
-                <div class="countdown" data-expires="<%= o.expiresAt ? new Date(o.expiresAt).toISOString() : '' %>">
+            <% if (st==='processing') { %>
+              <div class="countdown">
                 เหลือเวลาอีก —:— นาที
-                </div>
+              </div>
             <% } %>
             </span>
         </div>
@@ -367,8 +374,6 @@ const USERNAME = (user) => {
 </section>
 
 <script>
-const COUNTDOWN_ENABLED = <%= COUNTDOWN ? 'true' : 'false' %>;
-
 const PHONE_COL_INDEX  = 3;
 const OTP_COL_INDEX    = 4;
 const STATUS_COL_INDEX = 8;
@@ -665,42 +670,44 @@ function mmss(ms){
   const ss = String(s%60).padStart(2,'0');
   return `${m}:${ss}`;
 }
+
 function tickCountdowns(){
   const now = Date.now();
+  const CD_WINDOW_MS = 10 * 60 * 1000; // 10 นาที
+
   const upd = (el) => {
-    const exp = Date.parse(el.dataset.expires || el.getAttribute('data-expires') || '');
-    if (!Number.isFinite(exp)) return;
+    // อัปเดตเฉพาะของที่ยัง processing เท่านั้น
+    const host = el.closest('[data-created]');
+    if (!host) return;
+
+    // ตรวจว่า pill ยังเป็น processing อยู่ไหม
+    const pill = host.querySelector('.pill');
+    const isProcessing = pill && /\bprocessing\b/.test(pill.className);
+    if (!isProcessing) { el.remove(); return; }
+
+    // ใช้เวลาเริ่มจาก data-created
+    const created = Date.parse(host.dataset.created || '');
+    if (!Number.isFinite(created)) return;
+
+    const exp  = created + CD_WINDOW_MS;
     const left = exp - now;
-    el.textContent = left>0 ? `เหลือเวลาอีก ${mmss(left)} นาที` : 'ระบบกำลังคืนเครดิต';
-    el.classList.toggle('warn', left>0 && left<=3*60*1000);
-    el.classList.toggle('danger', left>0 && left<=60*1000);
+
+    if (left > 0){
+      el.textContent = `เหลือเวลาอีก ${mmss(left)} นาที`;
+    } else {
+      el.textContent = 'ระบบกำลังคืนเครดิต';
+      el.classList.remove('warn','danger');
+      return;
+    }
+
+    // สีเตือนตามเวลา
+    el.classList.toggle('warn',   left <= 3*60*1000 && left > 60*1000);
+    el.classList.toggle('danger', left <= 60*1000);
   };
+
+  // อัปเดตทุก countdown (เดสก์ท็อป + มือถือ)
   document.querySelectorAll('#ordersBody .countdown').forEach(upd);
   document.querySelectorAll('#mOrders .countdown').forEach(upd);
-  // ปรับหมายเลขในตาราง Desktop ให้ถูกต้องตามประเทศ
-  document.querySelectorAll('#ordersBody tr').forEach(tr => {
-    const ct = Number(tr.dataset.ct || 0);
-    const box = tr.children?.[PHONE_COL_INDEX];
-    const mono = box?.querySelector('.mono .v') || box?.querySelector('.mono');
-    if (mono){
-      const formatted = displayPhoneByCountry(mono.textContent.trim(), ct);
-      mono.textContent = formatted;
-      const btn = box.querySelector('.copy');
-      if (btn) btn.dataset.copy = formatted;
-    }
-  });
-
-  // ปรับหมายเลขในลิสต์มือถือให้ถูกต้องเหมือนกัน
-  document.querySelectorAll('#mOrders .m-item').forEach(card => {
-    const ct = Number(card.dataset.ct || 0);
-    const el = card.querySelector('.row2 .phone .v');
-    if (el){
-      const formatted = displayPhoneByCountry(el.textContent.trim(), ct);
-      el.textContent = formatted;
-      const btn = card.querySelector('.row2 .phone .copy');
-      if (btn) btn.dataset.copy = formatted;
-    }
-  });
 }
 </script>
 
@@ -1207,10 +1214,18 @@ document.addEventListener('click', (e) => {
   }).catch(() => setCopyIcon(btn, false));
 });
 
-if (COUNTDOWN_ENABLED) {
-  tickCountdowns();
-  setInterval(tickCountdowns, 1000);
-}
+
+refreshProcessingOrdersOnce = async function () {
+  const out = await refreshProcessingOrdersOnce(); // ดึงแพตช์สถานะจากเซิร์ฟเวอร์
+  applyPagination();                   // จัดหน้าใหม่ตามจำนวนรายการล่าสุด
+  tickCountdowns();                    // อัปเดตตัวเลขนับถอยหลังให้ตรง DOM ล่าสุด
+
+  // ถ้าไม่เหลือแถวสถานะ processing แล้ว ให้หยุดลูป auto-refresh ตอนนี้เลย
+  if (!hasProcessingRows()) stopOrdersAutoRefresh();
+
+  return out; // เผื่อที่อื่นยังใช้งานผลลัพธ์เดิม
+};
+
 </script>
 
 <style>
