@@ -246,7 +246,7 @@
                   <!-- (ออปชัน) breakdown -->
                   <div class="muted">ยอดทั้งหมด: ฿<%= __raw.toLocaleString(undefined,{maximumFractionDigits:2}) %></div>
                   <div class="muted">· แลกเครดิตไปแล้ว: ฿<%= __redeemed.toLocaleString(undefined,{maximumFractionDigits:2}) %></div>
-                  <div class="muted">· แลกเป็นเงินไปแล้ว: ฿<%= Number(agg?.redeemedSpent||0).toLocaleString(undefined,{minimumFractionDigits:2}) %></div>
+                  <div class="muted">· ใช้แต้มไปแล้ว: <%= Number(agg?.pointsRedeemed||0).toLocaleString(undefined,{minimumFractionDigits:2}) %> Point</div>
                   <!-- <div class="muted">· ใช้คำนวณเลเวล: ฿<%= __spent.toLocaleString(undefined,{maximumFractionDigits:2}) %></div> -->
                   <!-- <div class="subcap" style="margin-top:6px">
                     ยอดดิบทั้งหมด: ฿<%= __raw.toLocaleString(undefined,{maximumFractionDigits:2}) %>
@@ -324,13 +324,14 @@
               <div class="rt-title">ยอดใช้จ่ายรวมของเพื่อน</div>
               <div class="bignum">฿<span id="aff-spent"><%= Number(affiliateSummary?.spentTHB ?? 0).toLocaleString(undefined,{minimumFractionDigits:2}) %></span></div>
             </div>
+
             <div class="summary-kpi">
               <div class="rt-title">
-                รายได้สะสมของคุณ (<span id="aff-rate-inline-2"><%= (typeof affRatePct === 'number' ? affRatePct : (affiliateSummary?.ratePct ?? 5)) %></span>%)
+                รายได้การแนะนำเพื่อนของคุณ (<span id="aff-rate-inline-2"><%= (typeof affRatePct === 'number' ? affRatePct : (affiliateSummary?.ratePct ?? 5)) %></span>%)
               </div>
 
               <div class="bignum" style="color:#31d810">
-                ฿<span id="aff-earn"><%= Number(affiliateSummary?.earningsTHB ?? 0).toLocaleString(undefined,{minimumFractionDigits:2}) %></span>
+                <span id="aff-withdrawable"><%= Number(affiliateSummary?.withdrawableTHB ?? 0).toLocaleString(undefined,{minimumFractionDigits:2}) %></span>
               </div>
 
               <div class="kpi-actions">
@@ -411,8 +412,8 @@
 <!-- Modal: เลือกประเภทการถอนรายได้แนะนำ -->
 <dialog id="affWithdrawModal">
   <form method="dialog" class="modal affw-modal">
-    <h3 class="affw-title">เลือกวิธีถอนรายได้</h3>
-    <p class="muted">โปรดเลือก 1 วิธี</p>
+    <h3 class="affw-title">เลือกวิธีการถอนรายได้</h3>
+    <p class="muted">โปรดเลือกวิธี</p>
 
     <!-- hidden field สำหรับส่งค่า -->
     <input type="hidden" id="affWKind" value="balance">

@@ -20,8 +20,8 @@ function mapProviderStatus(s) {
   if (['completed', 'success', 'done', 'finished'].includes(x)) return 'completed';
   if (['partial', 'partially', 'refunded'].includes(x))         return 'partial';
   if (['canceled', 'cancelled', 'rejected', 'fail', 'failed'].includes(x)) return 'canceled';
-  if (['processing'].includes(x))      return 'processing';
-  if (['pending', 'inprogress'].includes(x))      return 'inprogress';
+  if (['processing', 'pending', 'Awaiting'].includes(x))      return 'processing';
+  if (['inprogress'].includes(x))      return 'inprogress';
   return 'processing';
 }
 

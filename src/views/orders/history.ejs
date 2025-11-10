@@ -94,7 +94,7 @@ function fmtTHDate(d){
 <div class="orders-history tabs chips" id="statusTabs">
   <button class="chip active" data-st="all">ทั้งหมด</button>
   <button class="chip" data-st="processing">รอดำเนินการ</button>
-  <button class="chip" data-st="inprogress">กำลังทำ</button>
+  <button class="chip" data-st="inprogress">ดำเนินการ</button>
   <button class="chip" data-st="completed">เสร็จสิ้น</button>
   <button class="chip" data-st="partial">คืนบางส่วน</button>
   <button class="chip" data-st="canceled">ยกเลิก</button>
@@ -537,7 +537,7 @@ function fmtTHDate(d){
           <label class="ot-item">
             <input type="radio" name="otime" disabled>
             <div>
-              เวลาที่เซิร์ฟเวอร์อัปเดต
+              เซิร์ฟเวอร์อัปเดต
               <div class="ottime" id="om-updatedAt">-</div>
             </div>
           </label>
@@ -546,7 +546,7 @@ function fmtTHDate(d){
           <label class="ot-item">
             <input type="radio" name="otime" disabled>
             <div>
-              เวลาที่คำสั่งซื้อเข้ามา
+              คำสั่งซื้อเข้ามา
               <div class="ottime" id="om-createdAt">-</div>
             </div>
           </label>
@@ -744,20 +744,20 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
     function decideFinalTimeline(status) {
       switch (status) {
         case 'completed':
-          return { label: 'เวลาที่คำสั่งซื้อเสร็จสิ้น', cls: 'ot-final--success' };
+          return { label: 'คำสั่งซื้อเสร็จสิ้น', cls: 'ot-final--success' };
         case 'partial':
-          return { label: 'เวลาที่เซิร์ฟเวอร์ยืนยัน (คืนบางส่วน)', cls: 'ot-final--partial' };
+          return { label: 'เซิร์ฟเวอร์ยืนยัน (คืนบางส่วน)', cls: 'ot-final--partial' };
         case 'canceled':
           if (isPartialRefundCanceled) {
-            return { label: 'เวลาที่คำสั่งซื้อยกเลิก (คืนเงินบางส่วน)', cls: 'ot-final--partial' };
+            return { label: 'คำสั่งซื้อยกเลิก (คืนเงินบางส่วน)', cls: 'ot-final--partial' };
           }
-          return { label: 'เวลาที่เซิร์ฟเวอร์ยกเลิก / คำสั่งซื้อผิดพลาด', cls: 'ot-final--canceled' };
+          return { label: 'เซิร์ฟเวอร์ยกเลิก / คำสั่งซื้อผิดพลาด', cls: 'ot-final--canceled' };
         case 'canceling':
           return { label: 'สถานะล่าสุด (กำลังสั่งยกเลิก...)', cls: 'ot-final--progress' };
         case 'processing':
         case 'inprogress':
         default:
-          return { label: 'สถานะล่าสุด (กำลังดำเนินการ)', cls: 'ot-final--progress' };
+          return { label: 'สถานะล่าสุด (ดำเนินการ)', cls: 'ot-final--progress' };
       }
     }
 
@@ -1516,7 +1516,7 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
   });
   window.thStatus = window.thStatus || (s => ({
     processing: 'รอดำเนินการ',
-    inprogress: 'กำลังทำ',
+    inprogress: 'ดำเนินการ',
     completed:  'เสร็จสิ้น',
     partial:    'บางส่วน',
     canceled:   'ยกเลิก',

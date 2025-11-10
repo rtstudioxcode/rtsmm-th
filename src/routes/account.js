@@ -542,11 +542,11 @@ router.post("/account/points/redeem", async (req, res) => {
       { _id: uid },
       {
         $inc: { 
-          balance: addTHB,              // เงินที่เติมเข้ากระเป๋า
-          pointsRedeemed: redeemPoints, // รวมแต้มที่เคยแลก (หน่วย: Point)
-          redeemedSpent: addTHB         // รวมมูลค่าแต้มที่เคยแลก (หน่วย: THB) — ใช้โชว์ breakdown
+          balance: addTHB,
+          pointsRedeemed: redeemPoints,
+          redeemedSpent: addTHB
         },
-        $set: { totalSpentRaw: 0, totalSpent: 0, redeemedSpent: 0 } // <-- ลบการรีเซ็ต redeemedSpent ออก
+        $set: { totalSpentRaw: 0, totalSpent: 0 }
       }
     );
 
