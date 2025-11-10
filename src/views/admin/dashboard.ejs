@@ -6,7 +6,7 @@
       <h3>ขายแล้ว</h3>
       <div class="head-right">
         <span class="metric-badge">
-          <%= (stats?.orderCount || 0).toLocaleString() %> รายการ
+          <%= (stats?.totalSoldCount || 0).toLocaleString() %> รายการ
         </span>
       </div>
     </div>
@@ -82,7 +82,7 @@
   <section class="card">
     <h3>เครดิตผู้ให้บริการ</h3>
     <div id="bal" class="big"><%= balance %></div>
-    <button class="btn" onclick="refreshBal()">รีเฟรชเครดิต</button>
+    <button id="btnIp" class="btn" onclick="refreshBal()">ดึงยอด iPlusview</button>
   </section>
   <section class="card">
     <div class="card-head row-head">
@@ -484,17 +484,49 @@ async function syncOtpServices() {
 
 <script>
 async function refreshBal(){
-  const r = await fetch('/admin/refresh-balance',{ method:'POST' });
-  const d = await r.json();
-  document.getElementById('bal').innerText = d.balance + (d.currency ? (' '+d.currency) : '');
-  window.showMsg({
-    variant: 'success',
-    title: 'อัปเดตเครดิตสำเร็จ',
-    text: `ยอดคงเหลือ: ${d.balance}${d.currency?(' '+d.currency):''}`,
-    okText: 'ปิด'
-  });
-  // toast.success('อัปเดตเครดิตสำเร็จ', `ยอดคงเหลือ: ${d.balance}${d.currency?(' '+d.currency):''}`);
+  const btn   = document.getElementById('btnIp');
+
+  try{
+    if (btn){ btn.disabled = true; btn.dataset._label = btn.textContent; btn.textContent = 'กำลังดึง…'; }
+
+    const r = await fetch('/admin/refresh-balance', { method: 'POST' });
+    const text = await r.text();
+    let d = null; try { d = JSON.parse(text); } catch {}
+
+    if (!r.ok || !d?.ok) {
+      const msg = (d && (d.error || d.message)) || text || `HTTP ${r.status}`;
+      throw new Error(msg);
+    }
+
+    window.showMsg?.({
+      variant: 'success',
+      title: 'ดึงยอด iPlusview สำเร็จ',
+      text: `ยอดคงเหลือ: ${Number(d.balance).toLocaleString(undefined,{ minimumFractionDigits:2 })}${d.currency?(' '+d.currency):''}`,
+      okText: 'ปิด'
+    });
+  }catch(err){
+    window.showMsg?.({
+      variant: 'danger',
+      title: 'ล้มเหลว',
+      text: String(err?.message || err),
+      okText: 'ปิด'
+    });
+    console.error('refreshiPlusview error:', err);
+  }finally{
+    if (btn){ btn.disabled = false; if (btn.dataset._label) btn.textContent = btn.dataset._label; }
+  }
 }
+// async function refreshBal(){
+//   const r = await fetch('/admin/refresh-balance',{ method:'POST' });
+//   const d = await r.json();
+//   document.getElementById('bal').innerText = d.balance + (d.currency ? (' '+d.currency) : '');
+//   window.showMsg?.({
+//     variant: 'success',
+//     title: 'ดึงยอด iPlusview สำเร็จ',
+//     text: `ยอดคงเหลือ: ${d.balance}${d.currency?(' '+d.currency):''}`,
+//     okText: 'ปิด'
+//   });
+// }
 
 async function syncServices() {
   try {

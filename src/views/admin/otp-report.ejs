@@ -9,6 +9,13 @@ const USERNAME = (user) => {
   // ถ้าเป็น id string และมี userMap ถูกส่งมา ก็ลอง map; ไม่งั้นแสดง id
   return (typeof userMap !== 'undefined' && userMap && userMap[String(user)]) || String(user) || '-';
 };
+// ตัวช่วยเช็ค OTP
+const HAS_OTP = (v) => {
+  try{
+    const s = String(v ?? '').trim();
+    return !!(s && !/^0+$/.test(s));   // ว่างหรือศูนย์ล้วน = ไม่มี
+  }catch{ return false; }
+};
 %>
 
 <section class="page container otp24 admin-otp-report">
@@ -116,10 +123,10 @@ const USERNAME = (user) => {
             </td>
 
             <td>
-              <% if (o.otp) { %>
-                <div class="otp">OTP : <b><%= o.otp %></b>
-                  <button class="copy" data-copy="<%= o.otp %>" aria-label="คัดลอก OTP">
-                    <img src="/static/assets/otp24/copy.png" alt="">
+              <% if (HAS_OTP(o.otp)) { %>
+                <div class="otp">OTP : <b><%= String(o.otp).trim() %></b>
+                  <button class="copy" data-copy="<%= String(o.otp).trim() %>" aria-label="คัดลอก OTP">
+                    <img src="/static/assets/otp24/copy.png" alt="" />
                   </button>
                 </div>
               <% } else { %>
@@ -197,14 +204,14 @@ const USERNAME = (user) => {
                     <% } %>
                 </div>
 
-                <% if (o.otp) { %>
-                <div class="otp">OTP: <b class="v"><%= o.otp %></b>
-                    <button class="copy" data-copy="<%= o.otp %>" aria-label="คัดลอก OTP">
-                    <img src="/static/assets/otp24/copy.png" alt="">
+                <% if (HAS_OTP(o.otp)) { %>
+                  <div class="otp">OTP: <b class="v"><%= String(o.otp).trim() %></b>
+                    <button class="copy" data-copy="<%= String(o.otp).trim() %>" aria-label="คัดลอก OTP">
+                      <img src="/static/assets/otp24/copy.png" alt="">
                     </button>
-                </div>
+                  </div>
                 <% } else { %>
-                <div class="otp none">OTP: <span class="muted v">ไม่พบข้อความ</span></div>
+                  <div class="otp none">OTP: <span class="muted v">ไม่พบข้อความ</span></div>
                 <% } %>
             </div>
         </div>
@@ -382,6 +389,13 @@ const USERNAME = (user) => {
 const PHONE_COL_INDEX  = 3;
 const OTP_COL_INDEX    = 4;
 const STATUS_COL_INDEX = 8;
+
+// ───────── OTP ─────────
+function normalizeOtp(v){
+  const s = String(v ?? '').trim();
+  if (!s || /^0+$/.test(s)) return null;  // ว่าง / ศูนย์ล้วน = ไม่มี
+  return s;
+}
 
 // ───────── Tabs ─────────
 document.querySelectorAll('.tab').forEach(t=>{
@@ -675,7 +689,6 @@ function mmss(ms){
   const ss = String(s%60).padStart(2,'0');
   return `${m}:${ss}`;
 }
-
 function tickCountdowns(){
   const now = Date.now();
   const CD_WINDOW_MS = 10 * 60 * 1000; // 10 นาที
@@ -776,63 +789,12 @@ document.addEventListener('click', (e) => {
   });
 });
 
-// ====== รวม pagination เดสก์ท็อป + มือถือ ======
-const $cards = () => Array.from(document.querySelectorAll('#mOrders .m-item'));
-
-function totalItems(){
-  const isMobile = window.matchMedia('(max-width: 640px)').matches;
-  const rows = isMobile ? $cards() : $rows();
-  return rows.filter(el => elMatchesFilter(el)).length;
-}
-function elMatchesFilter(el){
-  if (!filterText) return true;
-  const t = filterText;
-  const text = (el.textContent || '').toLowerCase();
-  return text.includes(t);
-}
-
-function applyPagination(){
-  const isMobile = window.matchMedia('(max-width: 640px)').matches;
-  const items = (isMobile ? $cards() : $rows());
-
-  const filtered = items.filter(el => elMatchesFilter(el));
-  const pages = Math.max(1, Math.ceil(filtered.length / ORDERS_PER_PAGE));
-  currentPage = Math.min(Math.max(1, currentPage), pages);
-  const start = (currentPage-1) * ORDERS_PER_PAGE;
-  const end   = start + ORDERS_PER_PAGE;
-
-  items.forEach(el => { el.style.display = 'none'; });
-  filtered.forEach((el,i) => { if (i>=start && i<end) el.style.display = ''; });
-
-  if (!isMobile && $info)  $info.textContent  = `หน้า ${currentPage}/${pages}`;
-  if ( isMobile && $infoM) $infoM.textContent = `หน้า ${currentPage}/${pages}`;
-
-  const setBtns = (root) => {
-    if (!root) return;
-    root.querySelector('[data-act="first"]')?.toggleAttribute('disabled', currentPage<=1);
-    root.querySelector('[data-act="prev"]') ?.toggleAttribute('disabled', currentPage<=1);
-    root.querySelector('[data-act="next"]') ?.toggleAttribute('disabled', currentPage>=pages);
-    root.querySelector('[data-act="last"]') ?.toggleAttribute('disabled', currentPage>=pages);
-  };
-  setBtns($ctrlD); setBtns($ctrlM);
-}
-
-// ค้นหา: ใช้กับทั้ง table & mobile
-$search?.addEventListener('input', ()=>{
-  filterText = ($search.value || '').trim().toLowerCase();
-  currentPage = 1;
-  applyPagination();
-});
-
 // ปรับเมื่อ resize (สลับโหมด)
 let _resizeTimer = null;
 window.addEventListener('resize', () => {
   clearTimeout(_resizeTimer);
   _resizeTimer = setTimeout(applyPagination, 150);
 });
-
-// เริ่มต้น
-applyPagination();
 </script>
 
 <script>
@@ -934,27 +896,21 @@ function applyOrderPatch(p){
   }
 
   // อัปเดต OTP block
-  const cell = tr.children[4]; // คอลัมน์ OTP/เวลา
-  if (p.otp){
-    // มี OTP แล้ว
-    let otpDiv = cell.querySelector('.otp');
-    if (!otpDiv){
-      otpDiv = document.createElement('div');
-      otpDiv.className = 'otp';
-      cell.prepend(otpDiv);
-    }
-    otpDiv.innerHTML = `OTP : <b>${p.otp}</b>
-        <button class="copy" data-copy="${p.otp}" aria-label="คัดลอก OTP">
-            <img src="/static/assets/otp24/copy.png" alt="">
-        </button>`;
+  const cell = tr.children[4];
+  const otpVal = normalizeOtp(p.otp);
+  let otpDiv = cell.querySelector('.otp');
+  if (!otpDiv){
+    otpDiv = document.createElement('div');
+    otpDiv.className = 'otp';
+    cell.prepend(otpDiv);
+  }
+  if (otpVal){
+    otpDiv.classList.remove('none');
+    otpDiv.innerHTML = `OTP : <b>${otpVal}</b>
+      <button class="copy" data-copy="${otpVal}" aria-label="คัดลอก OTP">
+        <img src="/static/assets/otp24/copy.png" alt="">
+      </button>`;
   } else {
-    // ยังไม่มี OTP → “ไม่พบข้อความ”
-    let otpDiv = cell.querySelector('.otp');
-    if (!otpDiv){
-      otpDiv = document.createElement('div');
-      otpDiv.className = 'otp none';
-      cell.prepend(otpDiv);
-    }
     otpDiv.classList.add('none');
     otpDiv.innerHTML = `OTP : <span class="muted">ไม่พบข้อความ</span>`;
   }
@@ -1063,25 +1019,23 @@ function startOrderPolling(orderId){
   let lastStatus = null;
 
   const updateOtpCell = (tr, patch) => {
-    const cell = tr.children[3];
+    const cell = tr.children[];
     const nowText = new Date().toISOString().replace('T',' ').slice(0,19);
+    const otpVal = normalizeOtp(patch.otp);
 
-    if (patch.otp && patch.otp !== lastOtp) {
-      lastOtp = patch.otp;
+    if (otpVal && otpVal !== lastOtp) {
+      lastOtp = otpVal;
       cell.innerHTML = `
-        <div class="otp">OTP : <b>${patch.otp}</b>
-          <button class="copy" data-copy="${patch.otp}" aria-label="คัดลอก OTP">
+        <div class="otp">OTP : <b>${otpVal}</b>
+          <button class="copy" data-copy="${otpVal}" aria-label="คัดลอก OTP">
             <img src="/static/assets/otp24/copy.png" alt="" />
           </button>
         </div>
         <div class="ts">${nowText}</div>`;
-      // ไฮไลต์ครั้งเดียวตอนเพิ่งได้รหัส
-      cell.classList.remove('flash');
-      void cell.offsetWidth; // reflow
-      cell.classList.add('flash');
-    } else if (!patch.otp && lastOtp == null) {
+      cell.classList.remove('flash'); void cell.offsetWidth; cell.classList.add('flash');
+    } else if (!otpVal && lastOtp == null) {
       cell.innerHTML = `
-        <div class="otp muted">OTP : <b>ไม่พบข้อความ</b></div>
+        <div class="otp none">OTP : <span class="muted">ไม่พบข้อความ</span></div>
         <div class="ts">${nowText}</div>`;
     }
   };
@@ -1109,7 +1063,7 @@ function startOrderPolling(orderId){
     const formatted = displayPhoneByCountry(patch.phone, ct);
 
     // desktop cell
-    const cell = tr.children[2];
+    const cell = tr.children[4];
     const mono = cell.querySelector('.mono .v') || cell.querySelector('.mono');
     if (mono) mono.textContent = formatted;
 

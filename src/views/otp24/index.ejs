@@ -15,6 +15,14 @@ const FLAG = id => ({
   52:'🇹🇭',187:'🇺🇸',16:'🇬🇧',6:'🇮🇩',10:'🇻🇳',5:'🇲🇲',1:'🇺🇦',19:'🇳🇬',62:'🇹🇷',
   3:'🇨🇳',4:'🇵🇭',24:'🇰🇭',25:'🇱🇦',7:'🇲🇾',21:'🇪🇬'
 }[id] || '🏳️');
+
+// ตัวช่วยเช็ค OTP
+const HAS_OTP = (v) => {
+  try{
+    const s = String(v ?? '').trim();
+    return !!(s && !/^0+$/.test(s));   // ว่างหรือศูนย์ล้วน = ไม่มี
+  }catch{ return false; }
+};
 %>
 
 <section class="page container otp24">
@@ -128,14 +136,14 @@ const FLAG = id => ({
                 </td>
 
                 <td>
-                <% if (o.otp) { %>
-                    <div class="otp">OTP : <b><%= o.otp %></b>
-                    <button class="copy" data-copy="<%= o.otp %>" aria-label="คัดลอก OTP">
-                        <img src="/static/assets/otp24/copy.png" alt="" />
+                <% if (HAS_OTP(o.otp)) { %>
+                  <div class="otp">OTP : <b><%= String(o.otp).trim() %></b>
+                    <button class="copy" data-copy="<%= String(o.otp).trim() %>" aria-label="คัดลอก OTP">
+                      <img src="/static/assets/otp24/copy.png" alt="" />
                     </button>
-                    </div>
+                  </div>
                 <% } else { %>
-                    <div class="otp none">OTP : <span class="muted">ไม่พบข้อความ</span></div>
+                  <div class="otp none">OTP : <span class="muted">ไม่พบข้อความ</span></div>
                 <% } %>
                 <div class="ts">
                   <%= new Intl.DateTimeFormat('sv-SE', {
@@ -239,9 +247,9 @@ const FLAG = id => ({
               <% } %>
             </div>
 
-            <% if (o.otp) { %>
-              <div class="otp">OTP: <b class="v"><%= o.otp %></b>
-                <button class="copy" data-copy="<%= o.otp %>" aria-label="คัดลอก OTP">
+            <% if (HAS_OTP(o.otp)) { %>
+              <div class="otp">OTP: <b class="v"><%= String(o.otp).trim() %></b>
+                <button class="copy" data-copy="<%= String(o.otp).trim() %>" aria-label="คัดลอก OTP">
                   <img src="/static/assets/otp24/copy.png" alt="">
                 </button>
               </div>
@@ -362,6 +370,13 @@ function notify(title, text, variant='error'){
   }
 }
 
+/* ----- OTP ----- */
+function normalizeOtp(v){
+  const s = String(v ?? '').trim();
+  if (!s || /^0+$/.test(s)) return null;  // ว่าง / ศูนย์ล้วน = ไม่มี
+  return s;
+}
+
 /* ----- Tabs ----- */
 document.querySelectorAll('.tab').forEach(t=>{
   t.addEventListener('click', ()=>{
@@ -412,23 +427,21 @@ function startOrderPolling(orderId){
   const updateOtpCell = (tr, patch) => {
     const cell = tr.children[3];
     const nowText = new Date().toISOString().replace('T',' ').slice(0,19);
+    const otpVal = normalizeOtp(patch.otp);
 
-    if (patch.otp && patch.otp !== lastOtp) {
-      lastOtp = patch.otp;
+    if (otpVal && otpVal !== lastOtp) {
+      lastOtp = otpVal;
       cell.innerHTML = `
-        <div class="otp">OTP : <b>${patch.otp}</b>
-          <button class="copy" data-copy="${patch.otp}" aria-label="คัดลอก OTP">
+        <div class="otp">OTP : <b>${otpVal}</b>
+          <button class="copy" data-copy="${otpVal}" aria-label="คัดลอก OTP">
             <img src="/static/assets/otp24/copy.png" alt="" />
           </button>
         </div>
         <div class="ts">${nowText}</div>`;
-      // ไฮไลต์ครั้งเดียวตอนเพิ่งได้รหัส
-      cell.classList.remove('flash');
-      void cell.offsetWidth; // reflow
-      cell.classList.add('flash');
-    } else if (!patch.otp && lastOtp == null) {
+      cell.classList.remove('flash'); void cell.offsetWidth; cell.classList.add('flash');
+    } else if (!otpVal && lastOtp == null) {
       cell.innerHTML = `
-        <div class="otp muted">OTP : <b>ไม่พบข้อความ</b></div>
+        <div class="otp none">OTP : <span class="muted">ไม่พบข้อความ</span></div>
         <div class="ts">${nowText}</div>`;
     }
   };
@@ -624,7 +637,6 @@ function mmss(ms){
   const ss = String(s%60).padStart(2,'0');
   return `${m}:${ss}`;
 }
-
 function tickCountdowns(){
   const now = Date.now();
   const upd = (el) => {
@@ -754,27 +766,21 @@ function applyOrderPatch(p){
   }
 
   // อัปเดต OTP block
-  const cell = tr.children[3]; // คอลัมน์ OTP/เวลา
-  if (p.otp){
-    // มี OTP แล้ว
-    let otpDiv = cell.querySelector('.otp');
-    if (!otpDiv){
-      otpDiv = document.createElement('div');
-      otpDiv.className = 'otp';
-      cell.prepend(otpDiv);
-    }
-    otpDiv.innerHTML = `OTP : <b>${p.otp}</b>
-        <button class="copy" data-copy="${p.otp}" aria-label="คัดลอก OTP">
-            <img src="/static/assets/otp24/copy.png" alt="">
-        </button>`;
+  const cell = tr.children[3];
+  const otpVal = normalizeOtp(p.otp);
+  let otpDiv = cell.querySelector('.otp');
+  if (!otpDiv){
+    otpDiv = document.createElement('div');
+    otpDiv.className = 'otp';
+    cell.prepend(otpDiv);
+  }
+  if (otpVal){
+    otpDiv.classList.remove('none');
+    otpDiv.innerHTML = `OTP : <b>${otpVal}</b>
+      <button class="copy" data-copy="${otpVal}" aria-label="คัดลอก OTP">
+        <img src="/static/assets/otp24/copy.png" alt="">
+      </button>`;
   } else {
-    // ยังไม่มี OTP → “ไม่พบข้อความ”
-    let otpDiv = cell.querySelector('.otp');
-    if (!otpDiv){
-      otpDiv = document.createElement('div');
-      otpDiv.className = 'otp none';
-      cell.prepend(otpDiv);
-    }
     otpDiv.classList.add('none');
     otpDiv.innerHTML = `OTP : <span class="muted">ไม่พบข้อความ</span>`;
   }
