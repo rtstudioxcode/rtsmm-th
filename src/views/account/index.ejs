@@ -246,7 +246,7 @@
                   <!-- (ออปชัน) breakdown -->
                   <div class="muted">ยอดทั้งหมด: ฿<%= __raw.toLocaleString(undefined,{maximumFractionDigits:2}) %></div>
                   <div class="muted">· แลกเครดิตไปแล้ว: ฿<%= __redeemed.toLocaleString(undefined,{maximumFractionDigits:2}) %></div>
-                  <div class="muted">· ใช้แต้มไปแล้ว: <%= Number(agg?.pointsRedeemed||0).toLocaleString(undefined,{minimumFractionDigits:2}) %> Point</div>
+                  <div class="muted">· แลกเป็นเงินไปแล้ว: ฿<%= Number(agg?.redeemedSpent||0).toLocaleString(undefined,{minimumFractionDigits:2}) %></div>
                   <!-- <div class="muted">· ใช้คำนวณเลเวล: ฿<%= __spent.toLocaleString(undefined,{maximumFractionDigits:2}) %></div> -->
                   <!-- <div class="subcap" style="margin-top:6px">
                     ยอดดิบทั้งหมด: ฿<%= __raw.toLocaleString(undefined,{maximumFractionDigits:2}) %>
@@ -364,11 +364,42 @@
           </div>
         </div>
 
-        <!-- Section: รายการการถอนรายได้แนะนำเพื่อน (พับ/หุบแบบมือถือ) -->
+        <!-- Section: รายการการถอนรายได้แนะนำเพื่อน -->
         <div class="card" style="margin-top:14px">
           <div class="card-header"><div class="title">รายการการถอนรายได้แนะนำเพื่อน</div></div>
           <div class="form-grid">
-            <div id="aff-list" class="aff-list"></div>
+            <!-- Desktop table -->
+            <div class="table-wrap only-desktop">
+              <table class="tbl" id="aff-withdraw-table">
+                <thead>
+                  <tr>
+                    <th style="text-align:left">วันที่</th>
+                    <th>ยอดเงิน</th>
+                    <th>ประเภท</th>
+                    <th>สถานะ</th>
+                  </tr>
+                </thead>
+                <tbody id="aff-list"></tbody>
+              </table>
+            </div>
+
+            <!-- Mobile list -->
+            <div class="only-mobile" id="aff-list-mobile"></div>
+
+            <!-- Page control -->
+            <div class="page-control" id="aff-pager" style="display:flex;align-items:center;gap:8px;justify-content:flex-end;">
+              <label>ต่อหน้า
+                <select id="aff-perpage" class="fsel">
+                  <option value="10" selected>10</option>
+                  <option value="20">20</option>
+                  <option value="50">50</option>
+                </select>
+              </label>
+              <button class="btn" id="aff-prev">‹</button>
+              <span class="muted sm" id="aff-pageinfo">หน้า 1/1</span>
+              <button class="btn" id="aff-next">›</button>
+            </div>
+
             <div class="muted" id="aff-empty" style="display:none">ยังไม่มีข้อมูล</div>
           </div>
         </div>
@@ -376,6 +407,34 @@
     </div>
   </div>
 </section>
+
+<!-- Modal: เลือกประเภทการถอนรายได้แนะนำ -->
+<dialog id="affWithdrawModal">
+  <form method="dialog" class="modal affw-modal">
+    <h3 class="affw-title">เลือกวิธีถอนรายได้</h3>
+    <p class="muted">โปรดเลือก 1 วิธี</p>
+
+    <!-- hidden field สำหรับส่งค่า -->
+    <input type="hidden" id="affWKind" value="balance">
+
+    <div class="affw-grid">
+      <button type="button" class="affw-option is-active" data-kind="balance" aria-pressed="true">
+        <div class="affw-opt-title">เครดิต</div>
+        <div class="affw-opt-sub muted">สามารถถอนได้เลย</div>
+      </button>
+
+      <!-- <button type="button" class="affw-option" data-kind="cash" aria-pressed="false">
+        <div class="affw-opt-title">เงินสด</div>
+        <div class="affw-opt-sub muted">จำเป็นยืนยัน KYC ก่อนถอน</div>
+      </button> -->
+    </div>
+
+    <div class="card-actions">
+      <button class="btn" value="cancel">ยกเลิก</button>
+      <button id="affWConfirm" class="btn primary" value="confirm">ถอนเลย</button>
+    </div>
+  </form>
+</dialog>
 
 <style>
 /* ===== Theme tokens (sync กับ layout.ejs: html[data-theme]) ===== */
@@ -752,6 +811,129 @@ img, video, canvas, table, pre, code, .static-input { max-width: 100%; }
   .acc-wrap{ grid-template-columns: 1fr; gap: 14px; }
 }
 .page-title{ text-align:center; margin:8px 0 18px; }
+
+/* Desktop/Mobile switch */
+.only-desktop{ display:block; }
+.only-mobile{ display:none; }
+@media (max-width: 768px){
+  .only-desktop{ display:none; }
+  .only-mobile{ display:block; }
+}
+
+/* รายการมือถือเป็นการ์ดพับ/หุบได้ */
+.affw-item{ border:1px solid var(--line); border-radius:12px; background:var(--surface); overflow:hidden; margin-bottom:10px; }
+.affw-hd{ display:flex; align-items:center; justify-content:space-between; padding:12px 14px; cursor:pointer; }
+.affw-ttl{ font-weight:400; }
+.affw-body{ display:none; border-top:1px solid var(--line); padding:12px 14px; }
+.affw-item.open .affw-body{ display:block; }
+.badge.kind{ background:color-mix(in oklab,var(--accent) 12%, transparent); border:1px solid color-mix(in oklab,var(--accent) 28%, var(--line)); }
+.badge.st-success{ background:color-mix(in oklab,var(--success) 18%, transparent); border-color:#10b98155; color:var(--success); }
+.badge.st-fail{ background:color-mix(in oklab,var(--danger) 18%, transparent); border-color:#ff02027c; color:var(--danger); }
+
+/* ตารางหัวชิดซ้ายสวย ๆ */
+.tbl th:first-child, .tbl td:first-child{ text-align:left; }
+/* ===== Light theme: ทำ 3 KPI เป็นเทาอ่อนไม่ขาวล้วน ===== */
+html[data-theme="light"] .card-stack .summary-kpi{
+  background: #f3f5f8;                /* เทาอ่อน */
+  border-color: #e3e8ef;              /* เส้นขอบจาง */
+  box-shadow: 0 8px 20px rgba(16,24,40,.06);
+}
+html[data-theme="light"] .summary-kpi .bignum{ color:#0f172a; }
+html[data-theme="light"] .summary-kpi .kpi-actions .muted{ color:#475569; }
+/* ===== Dialog style: โค้งมน ไม่มีขอบขาว ===== */
+#affWithdrawModal{
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+#affWithdrawModal::backdrop{
+  background: rgba(0,0,0,.55);
+}
+#affWithdrawModal .affw-modal{
+  min-width: min(560px, 92vw);
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: linear-gradient(180deg, var(--surface), var(--surface-2));
+  box-shadow: var(--shadow);
+  padding: 16px 16px 12px;
+}
+
+/* header */
+.affw-title{ margin: 6px 0 4px; }
+
+/* กริดตัวเลือก */
+.affw-grid{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* การ์ดตัวเลือก (ไม่มี radio) */
+.affw-option{
+  display: block;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: transform .05s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.affw-option:hover{
+  transform: translateY(-1px);
+  border-color: color-mix(in oklab, var(--accent) 35%, var(--line));
+}
+.affw-option.is-active{
+  border-color: color-mix(in oklab, var(--accent) 85%, #000 15%);
+  outline: 2px solid color-mix(in oklab, var(--accent) 35%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent);
+}
+.affw-opt-title{ font-weight: 600; margin-bottom: 4px; }
+.affw-opt-sub{ font-size: .92rem; }
+
+/* Light theme โทนเทาอ่อนในโมดัล */
+html[data-theme="light"] #affWithdrawModal .affw-modal{
+  background: linear-gradient(180deg, #f3f5f8, #eef2f7);
+  border-color: #e3e8ef;
+  box-shadow: 0 12px 28px rgba(16,24,40,.10);
+}
+html[data-theme="light"] .affw-option{
+  background: #f7f9fc;
+  border-color: #e5ecf4;
+}
+html[data-theme="light"] .affw-option.is-active{
+  border-color: #2b8cff;
+  outline-color: rgba(43,140,255,.25);
+  box-shadow: 0 0 0 3px rgba(43,140,255,.18);
+}
+
+/* มือถือ */
+@media (max-width: 560px){
+  #affWithdrawModal .affw-modal{ min-width: min(480px, 94vw); }
+  .affw-grid{ grid-template-columns: 1fr; }
+}
+/* โมดัล: ค่าเริ่มต้น 1 คอลัมน์ (เต็มความกว้าง) */
+#affWithdrawModal .affw-grid{
+  display: grid;
+  grid-template-columns: 1fr;     /* ถ้ามีแค่ออปชันเดียว = เต็ม */
+  gap: 12px;
+  width: 100%;
+}
+
+/* ถ้ามีออปชันตั้งแต่ 2 อันขึ้นไป → ทำเป็น 2 คอลัมน์อัตโนมัติ */
+#affWithdrawModal .affw-grid:has(.affw-option:nth-child(2)){
+  grid-template-columns: 1fr 1fr;
+}
+
+/* ป้องกันไอเท็มตั้งความกว้างเอง */
+#affWithdrawModal .affw-option{ width: 100%; }
+
+@media (max-width:560px){
+  #affWithdrawModal .affw-grid{ grid-template-columns: 1fr !important; }
+}
 </style>
 
 <!-- 1) BRIDGE: map showMsg → notify และยึด alert ทั้งหน้าให้เป็น notify -->
@@ -1150,7 +1332,7 @@ img, video, canvas, table, pre, code, .static-input { max-width: 100%; }
       if (create && area && out) {
         create.hidden = true;
         area.hidden   = false;
-        out.textContent = j.link; // เช่น https://rtsmm-th.com/aff?=KEY
+        out.textContent = j.link;
       }
 
       ok('สร้างลิงก์แนะนำเรียบร้อย');
@@ -1161,9 +1343,12 @@ img, video, canvas, table, pre, code, .static-input { max-width: 100%; }
     }
   });
 
-  let lastStats = null; // เก็บไว้ใช้เปิดโมดัลโดยไม่ต้อง fetch ซ้ำ
+  let lastStats = null;
 
+  let __loadingStats = false;
   async function loadStats(){
+    if (__loadingStats) return
+    __loadingStats = true;
     try{
       const r = await fetch('/account/affiliate/stats');
       const j = await r.json();
@@ -1185,7 +1370,6 @@ img, video, canvas, table, pre, code, .static-input { max-width: 100%; }
       // ยอดถอนได้ + ปุ่ม
       const wd = Number(j.summary.withdrawableTHB || 0);
       $('#aff-withdrawable') && ($('#aff-withdrawable').textContent = fmt(wd));
-      const btn = $('#btnAffWithdraw');
       if (btn) btn.disabled = !(wd > 0.0001);
 
       // หลอดเลื่อนระดับ
@@ -1205,7 +1389,9 @@ img, video, canvas, table, pre, code, .static-input { max-width: 100%; }
         fill && (fill.style.width = p + '%');
         if (note && t.next) note.textContent = `ระดับถัดไป: ${t.next.rate}%`;
       }
-    } catch { /* เงียบไว้: SSR ควรมีค่าเริ่ม */ }
+    } finally { 
+      __loadingStats = false; 
+    }
   }
 
   function openTierModal(payload){
@@ -1252,28 +1438,7 @@ img, video, canvas, table, pre, code, .static-input { max-width: 100%; }
     }catch{}
   });
 
-  // ถอนรายได้
-  $('#btnAffWithdraw')?.addEventListener('click', async ()=>{
-    const btn = $('#btnAffWithdraw');
-    if (!btn || btn.disabled) return;
-    const old = btn.textContent;
-    btn.disabled = true; btn.textContent = 'กำลังถอน...';
-    try{
-      const r = await fetch('/account/affiliate/withdraw', { method:'POST' });
-      const j = await r.json();
-      if (!r.ok || !j?.ok){
-        fail(j?.error || 'ถอนรายได้ไม่สำเร็จ');
-        btn.disabled = false; btn.textContent = old;
-        return;
-      }
-      ok(`เพิ่มยอดกระเป๋าแล้ว ฿${(j.addedBalance||0).toLocaleString(undefined,{maximumFractionDigits:2})}`);
-      await loadStats();
-    } catch {
-      fail('เครือข่ายมีปัญหา โปรดลองใหม่');
-    } finally {
-      btn.textContent = old;
-    }
-  });
+  window.loadAffStats = loadStats;
 
   loadStats();
 })();
@@ -1416,6 +1581,180 @@ img, video, canvas, table, pre, code, .static-input { max-width: 100%; }
     const mo = new MutationObserver(bindCopyHandlers);
     mo.observe(area, { childList: true, subtree: true });
   }
+})();
+</script>
+
+<script>
+// ===== ถอนรายได้ (เปิด Modal เลือกประเภท) =====
+(() => {
+  const $  = s => document.querySelector(s);
+  const fmt = n => Number(n||0).toLocaleString(undefined,{maximumFractionDigits:2});
+  const modal      = $('#affWithdrawModal');
+  const btnOpen    = $('#btnAffWithdraw');
+  const btnConfirm = $('#affWConfirm');
+  const kindField  = $('#affWKind');
+
+  function setActive(kind){
+    kind = (kind === 'cash') ? 'cash' : 'balance';
+    kindField.value = kind;
+    document.querySelectorAll('#affWithdrawModal .affw-option').forEach(el=>{
+      const on = el.dataset.kind === kind;
+      el.classList.toggle('is-active', on);
+      el.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+
+  // bind click ให้การ์ดตัวเลือก
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('#affWithdrawModal .affw-option');
+    if (!el) return;
+    setActive(el.dataset.kind);
+  });
+
+  async function doWithdraw(kind){
+    try{
+      const r = await fetch('/account/affiliate/withdraw', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ type: kind })
+      });
+      const j = await r.json();
+
+      if (!r.ok || !j?.ok) { fail(j?.error || 'ถอนรายได้ไม่สำเร็จ'); return; }
+
+      if (kind === 'balance') ok(`เพิ่มยอดกระเป๋าแล้ว ฿${fmt(j.addedBalance||0)}`);
+      else ok('บันทึกการถอนแบบเงินสดแล้ว');
+
+      await (window.loadAffStats?.());
+      await (window.affWSetPage?.(1));
+      await (window.renderAffWithdraws?.());
+    } catch { fail('เครือข่ายมีปัญหา โปรดลองใหม่'); }
+  }
+
+  btnOpen?.addEventListener('click', e => {
+    e.preventDefault();
+    if (btnOpen.disabled) return;
+    btnOpen.disabled = true;                 /* ป้องกันดับเบิลคลิก */
+    try{
+      setActive(kindField?.value || 'balance');
+      if (typeof modal?.showModal === 'function') modal.showModal();
+      else {
+        const kind = confirm('ถอนเป็นเครดิต (OK) ? ยกเลิก = เงินสด') ? 'balance' : 'cash';
+        doWithdraw(kind);
+      }
+    } finally {
+      // เปิดโมดัลแล้วค่อยคืนค่า เพื่อกันคลิกซ้ำก่อน modal โผล่
+      setTimeout(()=>{ btnOpen.disabled = false; }, 250);
+    }
+  });
+
+  btnConfirm?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const kind = (kindField?.value === 'cash') ? 'cash' : 'balance';
+    modal?.close();
+    await doWithdraw(kind);
+  });
+})();
+</script>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const listTbody   = $('#aff-list');
+  const listMobile  = $('#aff-list-mobile');
+  const emptyEl     = $('#aff-empty');
+  const pageInfo    = $('#aff-pageinfo');
+  const btnPrev     = $('#aff-prev');
+  const btnNext     = $('#aff-next');
+  const selPerPage  = $('#aff-perpage');
+
+  // state
+  let currentPage = 1;
+  let totalPages  = 1;
+
+  const tFmt = new Intl.DateTimeFormat('th-TH', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'Asia/Bangkok'
+  });
+
+  function fmtTH(n){ return Number(n||0).toLocaleString(undefined,{ minimumFractionDigits:2, maximumFractionDigits:2 }); }
+  function kindBadge(k){ return k === 'balance' ? 'เครดิต' : 'เงินสด'; }
+  function statusBadge(s){ return s === 'success' ? '<span class="badge st-success">สำเร็จ</span>' : '<span class="badge st-fail">ล้มเหลว</span>'; }
+
+  async function fetchWithdraws(page=1, perPage=10){
+    const r = await fetch(`/account/affiliate/withdraws?page=${page}&perPage=${perPage}`);
+    const j = await r.json();
+    if (!r.ok || !j?.ok) throw new Error('fetch failed');
+    return j;
+  }
+
+  function renderDesktop(items){
+    if (!listTbody) return;
+    listTbody.innerHTML = items.map(it => `
+      <tr>
+        <td>${tFmt.format(new Date(it.createdAt))}</td>
+        <td style="text-align:right">฿${fmtTH(it.amount)}</td>
+        <td style="text-align:center"><span class="badge kind">${kindBadge(it.kind)}</span></td>
+        <td style="text-align:center">${statusBadge(it.status)}</td>
+      </tr>
+    `).join('');
+  }
+
+  function renderMobile(items){
+    if (!listMobile) return;
+    listMobile.innerHTML = items.map(it => `
+      <div class="affw-item">
+        <div class="affw-hd" onclick="this.parentElement.classList.toggle('open')">
+          <div class="affw-ttl">${tFmt.format(new Date(it.createdAt))}</div>
+          <div><span class="badge kind">${kindBadge(it.kind)}</span></div>
+        </div>
+        <div class="affw-body">
+          <div class="kv"><div>ยอดเงิน</div><div>฿${fmtTH(it.amount)}</div></div>
+          <div class="kv"><div>สถานะ</div><div>${statusBadge(it.status)}</div></div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function renderWithdraws(){
+    const per = Number(selPerPage?.value || 10);
+    try {
+      const j = await fetchWithdraws(currentPage, per);
+      const items = Array.isArray(j.items) ? j.items : [];
+      totalPages  = Math.max(1, Math.ceil((j.total || 0) / (j.perPage || per)));
+
+      // toggle empty
+      const isEmpty = items.length === 0;
+      if (emptyEl) emptyEl.style.display = isEmpty ? '' : 'none';
+
+      renderDesktop(items);
+      renderMobile(items);
+
+      if (pageInfo) pageInfo.textContent = `หน้า ${currentPage}/${totalPages}`;
+      if (btnPrev) btnPrev.disabled = currentPage <= 1;
+      if (btnNext) btnNext.disabled = currentPage >= totalPages;
+    } catch {
+      // แสดงว่าง
+      if (emptyEl) emptyEl.style.display = '';
+      if (listTbody) listTbody.innerHTML = '';
+      if (listMobile) listMobile.innerHTML = '';
+      if (pageInfo) pageInfo.textContent = `หน้า 1/1`;
+      if (btnPrev) btnPrev.disabled = true;
+      if (btnNext) btnNext.disabled = true;
+    }
+  }
+
+  // page events
+  btnPrev?.addEventListener('click', async () => { if (currentPage > 1){ currentPage -= 1; await renderWithdraws(); } });
+  btnNext?.addEventListener('click', async () => { if (currentPage < totalPages){ currentPage += 1; await renderWithdraws(); } });
+  selPerPage?.addEventListener('change', async () => { currentPage = 1; await renderWithdraws(); });
+
+  window.renderAffWithdraws = renderWithdraws;
+  window.affWSetPage = (p=1) => { currentPage = Math.max(1, Number(p)||1); renderWithdraws(); };
+
+  // เรียกครั้งแรกเมื่อโหลดแท็บ (หรือเรียกทันทีเลย)
+  renderWithdraws();
 })();
 </script>
 

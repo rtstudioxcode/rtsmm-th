@@ -21,6 +21,7 @@ import { recalcUserTotals } from "../services/spend.js";
 
 import crypto from 'crypto';
 
+import { AffWithdraw } from "../models/AffWithdraw.js";
 import { computeAffiliateTotals } from '../lib/affiliate.js';
 
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
@@ -540,8 +541,12 @@ router.post("/account/points/redeem", async (req, res) => {
     await User.updateOne(
       { _id: uid },
       {
-        $inc: { balance: addTHB, pointsRedeemed: addTHB },
-        $set: { totalSpentRaw: 0, totalSpent: 0, redeemedSpent: 0 }
+        $inc: { 
+          balance: addTHB,              // เงินที่เติมเข้ากระเป๋า
+          pointsRedeemed: redeemPoints, // รวมแต้มที่เคยแลก (หน่วย: Point)
+          redeemedSpent: addTHB         // รวมมูลค่าแต้มที่เคยแลก (หน่วย: THB) — ใช้โชว์ breakdown
+        },
+        $set: { totalSpentRaw: 0, totalSpent: 0, redeemedSpent: 0 } // <-- ลบการรีเซ็ต redeemedSpent ออก
       }
     );
 
@@ -640,44 +645,140 @@ router.get('/account/affiliate/stats', async (req, res) => {
     res.status(500).json({ ok:false });
   }
 });
-// ถอนรายได้
-router.post('/account/affiliate/withdraw', async (req, res) => {
+
+/**
+ * POST /account/affiliate/withdraw
+ * body: { type: 'balance' | 'cash' }
+ * - คำนวณจาก computeAffiliateTotals(uid) แบบสด
+ * - กันถอนซ้ำด้วยการอัปเดต paidTHB และรีเซ็ต earnings ให้เป็น 0
+ * - บันทึก AffWithdraw และ Transaction
+ * - ถ้า type=balance เติมเข้ากระเป๋า
+ */
+router.post('/account/affiliate/withdraw', requireAuth, async (req, res) => {
+  const uid = req.user?._id;
+  if (!uid) return res.status(401).json({ ok: false });
+
+  const kind = (req.body?.type === 'cash') ? 'cash' : 'balance';
+
+  let session;
   try {
-    const uid = getAuthUserId(req);
-    if (!uid) return res.status(401).json({ ok:false });
-
-    // คำนวณแบบสด เพื่อกันถอนซ้ำ
+    // 1) คำนวณยอดถอนได้แบบสด
     const totals = await computeAffiliateTotals(uid);
-    const amount = +totals.withdrawableTHB.toFixed(2);
-    if (amount <= 0) return res.status(400).json({ ok:false, error: 'ยังไม่มียอดที่ถอนได้' });
+    const amount = +Number(totals?.withdrawableTHB || 0).toFixed(2);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ ok: false, error: 'ยังไม่มียอดที่ถอนได้' });
+    }
 
-    // โอนเข้ากระเป๋า + บันทึกว่า "จ่ายแล้ว"
-    const u = await User.findById(uid);
-    if (!u) return res.status(404).json({ ok:false });
+    // 2) ทำเป็นธุรกรรม
+    session = await mongoose.startSession();
+    session.startTransaction();
 
-    u.balance = +(u.balance || 0) + amount; // ✅ addBalance
+    // โหลดผู้ใช้ใน session นี้
+    const u = await User.findById(uid).session(session);
+    if (!u) {
+      await session.abortTransaction(); session.endSession();
+      return res.status(404).json({ ok: false });
+    }
+
+    // เตรียมโครงสร้าง affiliate ถ้ายังไม่มี
     if (!u.affiliate) u.affiliate = {};
-    u.affiliate.paidTHB = +(u.affiliate.paidTHB || 0) + amount;
-    u.affiliate.earningsTHB = Math.max(0, +totals.earningsTHB - +u.affiliate.paidTHB);
-    u.affiliate.lastCalcAt = new Date();
-    await u.save();
 
-    // สร้าง Transaction (เครดิตเข้า)
+    // 3) อัปเดตกระเป๋า (ถ้าเลือก balance)
+    if (kind === 'balance') {
+      u.balance = +((u.balance || 0) + amount).toFixed(2);
+    }
+
+    // 4) กันถอนซ้ำ: ทำให้จ่ายแล้ว
+    // - เพิ่ม paidTHB
+    // - รีเซ็ต earningsTHB → 0 ตามสเปกใหม่ของคุณ
+    u.affiliate.paidTHB = +((u.affiliate.paidTHB || 0) + amount).toFixed(2);
+    u.affiliate.lastCalcAt = new Date();
+    await u.save({ session });
+
+    // 5) บันทึก AffWithdraw
+    const aw = await AffWithdraw.create([{
+      userId: u._id,
+      username: u.username,
+      amount,
+      kind,              // 'balance' | 'cash'
+      status: 'success', // ถ้าคุณมีเงื่อนไขล้มเหลวก็เปลี่ยนได้
+    }], { session });
+
+    // 6) บันทึก Transaction (ออปชัน)
     try {
-      await Transaction.create({
+      await Transaction.create([{
         userId: u._id,
         type: 'affiliate_withdraw',
-        amount: amount,
+        amount,
         currency: 'THB',
-        direction: 'in',
-        note: `Affiliate earnings withdraw`,
-        meta: { ratePct: totals.ratePct, referredCount: totals.referredCount }
-      });
+        direction: 'in', // เครดิตเข้า (แม้ cash จะไม่เข้า balance แต่เป็น inflow ทางบัญชีแนะนำ)
+        note: 'Affiliate earnings withdraw',
+        meta: {
+          ratePct: totals?.ratePct,
+          referredCount: totals?.referredCount,
+          kind,                    // เก็บชนิดไว้ด้วย
+          affWithdrawId: aw?.[0]?._id,
+        },
+      }], { session });
+    } catch {
+      // เงียบได้ ไม่ critical
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.json({
+      ok: true,
+      addedBalance: kind === 'balance' ? amount : 0,
+      newBalance: kind === 'balance' ? u.balance : undefined,
+    });
+  } catch (e) {
+    try {
+      if (session) {
+        await session.abortTransaction();
+        session.endSession();
+      }
     } catch {}
 
-    return res.json({ ok:true, addedBalance: amount, newBalance: u.balance });
+    // พยายามบันทึก fail record (นอกธุรกรรม)
+    try {
+      const u = req.user;
+      if (u) {
+        const totals = await computeAffiliateTotals(u._id).catch(()=>({}));
+        const amount = +Number(totals?.withdrawableTHB || 0).toFixed(2);
+        if (amount > 0) {
+          await AffWithdraw.create({
+            userId: u._id,
+            username: u.username,
+            amount,
+            kind,
+            status: 'fail',
+          });
+        }
+      }
+    } catch {}
+
+    return res.status(500).json({ ok: false, error: 'ถอนเงินไม่สำเร็จ' });
+  }
+});
+
+/**
+ * GET /account/affiliate/withdraws?page=&perPage=
+ * - สำหรับหน้า UI “รายการการถอนรายได้แนะนำเพื่อน”
+ */
+router.get('/account/affiliate/withdraws', requireAuth, async (req, res) => {
+  try {
+    const page    = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const perPage = Math.min(100, Math.max(1, parseInt(req.query.perPage, 10) || 10));
+    const q = { userId: req.user._id };
+
+    const total = await AffWithdraw.countDocuments(q);
+    const items = await AffWithdraw.find(q).sort({ createdAt: -1 })
+                  .skip((page - 1) * perPage).limit(perPage).lean();
+
+    return res.json({ ok: true, total, perPage, items });
   } catch (e) {
-    return res.status(500).json({ ok:false, error:'ถอนเงินไม่สำเร็จ' });
+    return res.status(500).json({ ok: false, error: 'FETCH_WITHDRAWS_FAILED' });
   }
 });
 
