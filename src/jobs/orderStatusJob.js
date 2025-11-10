@@ -1,98 +1,171 @@
+// src/jobs/orderStatusJob.js
 import os from 'os';
 import pLimit from 'p-limit';
 import { Order } from '../models/Order.js';
-import { acquireLock, prolongLock, releaseLock } from '../models/JobLock.js';
 import { getOrderStatus } from '../lib/iplusviewAdapter.js';
+import { connectMongoIfNeeded } from '../config.js';
 
-const JOB_KEY = 'orderStatusPoller';
-const TICK_MS = Number(process.env.ORDER_STATUS_TICK_MS || 60_000);
-const TICK_CANCELING_MS = Number(process.env.ORDER_STATUS_TICK_CANCELING_MS || 30_000);
-const LOCK_TTL_MS = Math.max(TICK_MS, 60_000);
-const CONCURRENCY = Number(process.env.ORDER_STATUS_CONCURRENCY || 4);
+const TICK_MS       = Number(process.env.ORDER_STATUS_TICK_MS || 60_000);
+const CONCURRENCY   = Number(process.env.ORDER_STATUS_CONCURRENCY || 100);
+const BATCH_LIMIT   = Number(process.env.ORDER_STATUS_BATCH_LIMIT || 1_000);
 
-// map สถานะฝั่ง provider -> ฝั่งเรา
-function mapProviderStatus(s){
-  const x = String(s||'').toLowerCase();
-  if (['completed','success','done','finished'].includes(x)) return 'completed';
-  if (['partial','partially','refunded'].includes(x))       return 'partial';
-  if (['canceled','cancelled','rejected','fail','failed'].includes(x)) return 'canceled';
-  if (['pending','processing','inprogress'].includes(x))    return 'processing';
+const VERBOSE = String(process.env.ORDER_STATUS_VERBOSE || '1') !== '0'; // เปิด log ไว้เป็นค่าเริ่มต้น
+
+// ─────────────────────────────────────────────────────────────
+// helpers
+// ─────────────────────────────────────────────────────────────
+function mapProviderStatus(s) {
+  const x = String(s || '').toLowerCase();
+  if (['completed', 'success', 'done', 'finished'].includes(x)) return 'completed';
+  if (['partial', 'partially', 'refunded'].includes(x))         return 'partial';
+  if (['canceled', 'cancelled', 'rejected', 'fail', 'failed'].includes(x)) return 'canceled';
+  if (['pending', 'processing', 'inprogress'].includes(x))      return 'processing';
   return 'processing';
 }
 
-function resolveNextStatus(currentLocal, providerRawStatus){
-  const local = String(currentLocal||'').toLowerCase();
+function resolveNextStatus(currentLocal, providerRawStatus) {
+  const local  = String(currentLocal || '').toLowerCase();
   const mapped = mapProviderStatus(providerRawStatus);
-
-  // ถ้าเรากำลังสั่งยกเลิกอยู่
-  if (local === 'canceling'){
-    // ให้ขยับ “เฉพาะ” เมื่อ provider จบจริง
-    if (mapped === 'canceled')   return 'canceled';
-    if (mapped === 'completed')  return 'completed';
-    if (mapped === 'partial')    return 'partial';
-    // ยัง pending/processing → คงเป็น canceling ต่อไป
+  if (local === 'canceling') {
+    if (mapped === 'canceled')  return 'canceled';
+    if (mapped === 'completed') return 'completed';
+    if (mapped === 'partial')   return 'partial';
     return 'canceling';
   }
-
-  // กรณีปกติ
   return mapped;
 }
 
-// คำนวณยอดคืนจากข้อมูล provider (ถ้ามี)
-function computeRefund(o, prov){
-  const est = Number(o.estCost ?? o.cost ?? 0);
+function pickLastStatus(res) {
+  const ls = res?.lastStatus || res || {};
+  const n = v => (Number.isFinite(Number(v)) ? Number(v) : undefined);
+  return {
+    status:        ls.status ?? res?.status ?? null,
+    rawStatus:     ls.rawStatus ?? null,
+    charge:        n(ls.charge ?? res?.charge),
+    currency:      ls.currency ?? res?.currency ?? null,
+    remains:       n(ls.remains ?? res?.remains),
+    start_count:   n(ls.start_count ?? res?.start_count),
+    current_count: n(ls.current_count ?? res?.current_count),
+    providerOrderId: res?.id || res?.order_id || res?.providerOrderId || null,
+    checkedAt: new Date()
+  };
+}
+
+function computeDonePct(oLike) {
+  const qty = Number(oLike.quantity) || 0;
+  if (qty > 0) {
+    if (typeof oLike.remains === 'number') {
+      const left = Math.max(0, oLike.remains);
+      return Math.max(0, Math.min(100, (1 - (left / qty)) * 100));
+    }
+    if (typeof oLike.startCount === 'number' && typeof oLike.currentCount === 'number') {
+      const gained = Math.max(0, oLike.currentCount - oLike.startCount);
+      return Math.max(0, Math.min(100, (gained / qty) * 100));
+    }
+  }
+  if (typeof oLike.progress === 'number') {
+    return Math.max(0, Math.min(100, oLike.progress));
+  }
+  return 0;
+}
+
+function computeRefund(oDoc, providerRes) {
+  const est = Number(oDoc.estCost ?? oDoc.cost ?? 0);
   if (!Number.isFinite(est) || est <= 0) return null;
 
-  const status = mapProviderStatus(prov?.status || prov?.rawStatus);
-  const chg = Number(prov?.charge ?? NaN);
+  const status = mapProviderStatus(
+    providerRes?.status || providerRes?.rawStatus || providerRes?.lastStatus?.status || providerRes?.lastStatus?.rawStatus
+  );
+  const chg = Number(providerRes?.charge ?? NaN);
 
-  // ใช้ charge ถ้ามี (เชื่อว่าเป็น "ยอดที่ถูกคิดจริง" ของ provider)
   if (Number.isFinite(chg)) {
     const refund = Math.max(0, est - chg);
     if (status === 'canceled') {
-      // ถ้า charge=0 → full refund, ถ้ามากกว่า est ก็กันล้น
-      return { amount: Math.min(refund, est), type: refund >= est ? 'full' : (refund>0 ? 'partial' : 'full') };
+      return { amount: Math.min(refund, est), type: refund >= est ? 'full' : (refund > 0 ? 'partial' : 'full') };
     }
     if (status === 'partial') {
-      return { amount: Math.min(refund, est), type: refund > 0 ? 'partial' : null } || null;
+      return refund > 0 ? { amount: Math.min(refund, est), type: 'partial' } : null;
     }
   }
 
-  // ไม่มี charge → ประมาณจาก remains/qty
-  const qty = Number(o.quantity) || 0;
-  const rem = Number.isFinite(prov?.remains) ? Number(prov.remains) : null;
+  const qty = Number(oDoc.quantity) || 0;
+  const rem = Number.isFinite(providerRes?.remains) ? Number(providerRes.remains) : null;
 
   if (qty > 0 && rem != null) {
-    const done = Math.max(0, qty - Math.max(0, rem));   // ทำได้เท่าไหร่
-    const doneRatio = Math.max(0, Math.min(1, done / qty));
-    const chargedEstimated = est * doneRatio;           // สมมุติคิดตามส่วนที่ทำได้
+    const done = Math.max(0, qty - Math.max(0, rem));
+    const ratioDone = Math.max(0, Math.min(1, done / qty));
+    const chargedEstimated = est * ratioDone;
     const refund = Math.max(0, est - chargedEstimated);
+
     if (status === 'canceled') return { amount: Math.min(refund, est), type: refund >= est ? 'full' : 'partial' };
-    if (status === 'partial')  return { amount: Math.min(refund, est), type: refund > 0 ? 'partial' : null } || null;
+    if (status === 'partial')  return refund > 0 ? { amount: Math.min(refund, est), type: 'partial' } : null;
   }
 
-  if (status === 'canceled') return { amount: est, type: 'full' }; // safe default
+  if (status === 'canceled') return { amount: est, type: 'full' };
   return null;
 }
 
-async function updateOne(o){
-  if (!o.providerOrderId) return;
+// pretty logger
+function fmtMoney(n) {
+  if (!Number.isFinite(Number(n))) return '-';
+  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function logOrderUpdate({ o, patch, prevStatus, providerStatus }) {
+  if (!VERBOSE) return;
+
+  const id    = String(o._id);
+  const prov  = o.providerOrderId || (patch?.['providerResponse.lastStatus']?.providerOrderId) || '-';
+  const from  = prevStatus || o.status || '-';
+  const to    = (patch.status ?? from);
+  const prog  = (patch.progress ?? o.progress);
+  const rem   = (patch.remains ?? o.remains);
+  const sc    = (patch.startCount ?? o.startCount);
+  const cc    = (patch.currentCount ?? o.currentCount);
+  const rfAmt = (patch.refundAmount ?? o.refundAmount);
+  const rfTyp = (patch.refundType ?? o.refundType) || '';
+
+  // เฉพาะเวลามีการยิง updateOne เท่านั้นที่เราจะ log (เรียกฟังก์ชันนี้หลัง updateOne สำเร็จ)
+  console.log(
+    `[orderStatusJob] update`,
+    `order=${id}`,
+    `prov=${prov}`,
+    `status=${from}→${to} (prov:${String(providerStatus || '').toLowerCase() || '-'})`,
+    `progress=${Number.isFinite(prog) ? prog.toFixed(2) + '%' : '-'}`,
+    `remains=${Number.isFinite(rem) ? rem : '-'}`,
+    `count=${Number.isFinite(sc) ? sc : '-'}→${Number.isFinite(cc) ? cc : '-'}`,
+    (Number.isFinite(rfAmt) && rfAmt > 0) ? `refund=${fmtMoney(rfAmt)} (${rfTyp||'-'})` : ''
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// core updater
+// ─────────────────────────────────────────────────────────────
+async function updateOneOrder(o) {
+  if (!o?.providerOrderId) return;
 
   let res;
   try {
     res = await getOrderStatus(o.providerOrderId);
-  } catch (e) {
-    // provider ล่ม/timeout → อย่าแตะอะไร
+  } catch {
     return;
   }
 
-  // บาง adapter อาจใส่ไว้ใน res.lastStatus
-  const provStatus = res?.status || res?.rawStatus || res?.lastStatus?.rawStatus || res?.lastStatus?.status;
+  const provStatus =
+    res?.status ||
+    res?.rawStatus ||
+    res?.lastStatus?.rawStatus ||
+    res?.lastStatus?.status ||
+    'processing';
+
   const nextStatus = resolveNextStatus(o.status, provStatus);
 
-  const patch = { updatedAt: new Date() };
+  const patch = {
+    updatedAt: new Date(),
+    'providerResponse.lastStatus': pickLastStatus(res),
+    'providerResponse.lastCheckedAt': new Date()
+  };
 
-  // fields ตัวเลข
   const start = (res?.start_count ?? res?.lastStatus?.start_count);
   const curr  = (res?.current_count ?? res?.lastStatus?.current_count);
   const rem   = (res?.remains ?? res?.lastStatus?.remains);
@@ -101,89 +174,84 @@ async function updateOne(o){
   if (typeof curr  === 'number') patch.currentCount = curr;
   if (typeof rem   === 'number') patch.remains      = rem;
 
-  // สถานะ: ห้ามดันกลับจาก canceling → processing
-  if (nextStatus !== o.status) {
-    patch.status = nextStatus;
-
-    // คำนวณ/บันทึกคืนเงินเฉพาะ “จังหวะเปลี่ยนเป็น” canceled/partial
-    if ((nextStatus === 'partial' || nextStatus === 'canceled')
-        && !o.refundCommitted) { // ถ้าคืนไปแล้ว ไม่คิดซ้ำ
-      const rf = computeRefund(o, res);
-      if (rf && rf.amount > 0) {
-        // ถ้าเคยมีค่าเดิม และเดิมมากกว่า → คงค่าที่สูงสุด (กันกรณี provider ให้ข้อมูลช้า)
-        const prevAmt = Number(o.refundAmount || 0);
-        patch.refundAmount = Math.max(prevAmt, rf.amount);
-        patch.refundType   = (patch.refundAmount >= (o.estCost ?? o.cost)) ? 'full' : (rf.type || 'partial');
-      }
+  if (patch.progress == null) {
+    const qty = Number(o.quantity) || 0;
+    if (qty > 0 && typeof patch.startCount === 'number' && typeof patch.currentCount === 'number') {
+      const gained = Math.max(0, patch.currentCount - patch.startCount);
+      patch.progress = Math.max(0, Math.min(100, (gained / qty) * 100));
     }
   }
 
-  await Order.updateOne({ _id: o._id }, { $set: patch });
+  const prevStatus = String(o.status || '').toLowerCase();
+  if (nextStatus !== o.status) {
+    patch.status = nextStatus;
+  }
+
+  if ((nextStatus === 'partial' || nextStatus === 'canceled') && !o.refundCommitted) {
+    const rf = computeRefund(o, res);
+    if (rf && rf.amount > 0) {
+      const prevAmt = Number(o.refundAmount || 0);
+      patch.refundAmount = Math.max(prevAmt, rf.amount);
+      patch.refundType   = (patch.refundAmount >= (o.estCost ?? o.cost)) ? 'full' : (rf.type || 'partial');
+    }
+    if (nextStatus === 'canceled') {
+      patch.canceledAt = new Date();
+    }
+  }
+
+  // ยิงอัปเดตจริง
+  const result = await Order.updateOne({ _id: o._id }, { $set: patch });
+
+  // ถ้า DB แจ้งว่ามีการแก้ไข (nModified/modifiedCount) → log ทุกครั้ง
+  // (mongoose v7 ใช้ { acknowledged, modifiedCount, matchedCount, upsertedId })
+  if (result?.modifiedCount > 0 || result?.nModified > 0) {
+    logOrderUpdate({ o, patch, prevStatus, providerStatus: provStatus });
+  }
 }
 
-async function scanAndUpdateBatch(filter, limitN){
+/** โพลออเดอร์ที่ยังไม่จบแล้วอัปเดตทั้งหมด */
+async function tickOnce() {
   const fields = {
     _id: 1, status: 1, providerOrderId: 1,
     estCost: 1, cost: 1, quantity: 1,
     refundCommitted: 1, refundAmount: 1, refundType: 1,
-    updatedAt: 1
+    startCount: 1, currentCount: 1, remains: 1,
+    progress: 1,
   };
 
-  const cursor = Order.find(filter, fields).sort({ updatedAt: 1 }).limit(limitN).lean().cursor();
-  const limit = pLimit(CONCURRENCY);
-  const tasks = [];
-  let processed = 0;
+  const filter = {
+    status: { $in: ['processing', 'inprogress', 'canceling'] },
+    providerOrderId: { $exists: true, $ne: null }
+  };
 
-  for (let o = await cursor.next(); o != null; o = await cursor.next()){
-    tasks.push(limit(async () => {
-      await updateOne(o);
-      // ต่ออายุ lock เป็นระยะ
-      processed++;
-      if (processed % 100 === 0) {
-        try { await prolongLock(JOB_KEY + ':normal', LOCK_TTL_MS); } catch {}
-        try { await prolongLock(JOB_KEY + ':canceling', LOCK_TTL_MS); } catch {}
-      }
-    }));
+  const limit = pLimit(CONCURRENCY);
+  const cursor = Order.find(filter, fields).sort({ updatedAt: 1 }).limit(BATCH_LIMIT).lean().cursor();
+
+  const tasks = [];
+  for (let o = await cursor.next(); o != null; o = await cursor.next()) {
+    tasks.push(limit(() => updateOneOrder(o)));
   }
   await Promise.allSettled(tasks);
 }
 
-export function startOrderStatusJob(){
-  process.env.INSTANCE_ID = process.env.INSTANCE_ID || (os.hostname() + ':' + process.pid);
+// ─────────────────────────────────────────────────────────────
+// public API
+// ─────────────────────────────────────────────────────────────
+export function startOrderStatusJob() {
+  const instanceId = process.env.INSTANCE_ID || (os.hostname() + ':' + process.pid);
+  process.env.INSTANCE_ID = instanceId;
 
-  async function tickNormal(){
-    const key = `${JOB_KEY}:normal`;
-    const lock = await acquireLock(key, LOCK_TTL_MS);
-    if (!lock) return;
-    try {
-      await scanAndUpdateBatch(
-        { status: { $in: ['processing','inprogress','partial'] }, providerOrderId: { $exists: true, $ne: null } },
-        300
-      );
-    } finally {
-      await releaseLock(key).catch(()=>{});
-    }
-  }
+  connectMongoIfNeeded().catch((e) => {
+    console.error('[orderStatusJob] Mongo connect failed:', e?.message || e);
+  });
 
-  async function tickCanceling(){
-    const key = `${JOB_KEY}:canceling`;
-    const lock = await acquireLock(key, LOCK_TTL_MS);
-    if (!lock) return;
-    try {
-      await scanAndUpdateBatch(
-        { status: 'canceling', providerOrderId: { $exists: true, $ne: null } },
-        500
-      );
-    } finally {
-      await releaseLock(key).catch(()=>{});
-    }
-  }
+  (async () => { try { await tickOnce(); } catch {} })();
 
-  // run ทันที
-  tickNormal().catch(()=>{});  tickCanceling().catch(()=>{});
+  const t = setInterval(() => {
+    tickOnce().catch(() => {});
+  }, TICK_MS);
 
-  const t1 = setInterval(() => tickNormal().catch(()=>{}),    TICK_MS);
-  const t2 = setInterval(() => tickCanceling().catch(()=>{}), TICK_CANCELING_MS);
-  console.log(`[orderStatusJob] started. normal=${TICK_MS}ms canceling=${TICK_CANCELING_MS}ms`);
-  return () => { clearInterval(t1); clearInterval(t2); };
+  console.log(`[orderStatusJob] started (instance=${instanceId}). interval=${TICK_MS}ms, concurrency=${CONCURRENCY}, verbose=${VERBOSE}`);
+
+  return () => clearInterval(t);
 }

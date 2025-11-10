@@ -989,182 +989,182 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
   * - ถ้ามีแต่ "กำลังยกเลิก" หรือมี long-poll ยกเลิกค้าง → ทุก 2 นาที
   * - ไม่เรียก refresh-all เพื่อไม่ไปแตะออเดอร์ที่กำลังยกเลิก
   * =========================== */
-  const AutoRefresh = (() => {
-    const NORMAL_INTERVAL      = 60_000;  // 1 นาที
-    const CANCELING_INTERVAL   = 120_000; // 2 นาที
-    const ERR_BACKOFF_FACTOR   = 2.0;
+  // const AutoRefresh = (() => {
+  //   const NORMAL_INTERVAL      = 60_000;  // 1 นาที
+  //   const CANCELING_INTERVAL   = 120_000; // 2 นาที
+  //   const ERR_BACKOFF_FACTOR   = 2.0;
 
-    // จำกัดจำนวนรีเควสพร้อมกัน (กันยิงถี่เกิน)
-    const CONCURRENCY          = 3;
-    // หน่วงระหว่างคำขอ (เมื่อคิวถี่)
-    const PER_ORDER_GAP_MS     = 300;
+  //   // จำกัดจำนวนรีเควสพร้อมกัน (กันยิงถี่เกิน)
+  //   const CONCURRENCY          = 3;
+  //   // หน่วงระหว่างคำขอ (เมื่อคิวถี่)
+  //   const PER_ORDER_GAP_MS     = 300;
 
-    // เก็บ orderId ที่กำลัง await ยกเลิกจริงจาก API
-    window.__CANCEL_AWAITING__ = window.__CANCEL_AWAITING__ || new Set();
+  //   // เก็บ orderId ที่กำลัง await ยกเลิกจริงจาก API
+  //   window.__CANCEL_AWAITING__ = window.__CANCEL_AWAITING__ || new Set();
 
-    let timer   = null;
-    let running = false;
-    let lastCancelingRun = 0;
+  //   let timer   = null;
+  //   let running = false;
+  //   let lastCancelingRun = 0;
 
-    const isVisible = el => !!(el && el.offsetParent !== null);
+  //   const isVisible = el => !!(el && el.offsetParent !== null);
 
-    const qsa = (sel) => Array.from(document.querySelectorAll(sel));
+  //   const qsa = (sel) => Array.from(document.querySelectorAll(sel));
 
-    // หา “ออเดอร์ที่ยังทำอยู่” (ไม่รวม canceling)
-    function getActiveNonCancelingIds(){
-      const nodes = qsa('#orderTable tbody tr[data-order-id], .o-card[data-order-id]')
-        .filter(n => isVisible(n));
-      const ids = [];
-      for (const n of nodes){
-        const st = String(n.dataset.status || '').toLowerCase();
-        if (st === 'processing' || st === 'inprogress'){
-          const id = n.dataset.orderId;
-          if (id) ids.push(id);
-        }
-      }
-      // unique
-      return [...new Set(ids)];
-    }
+  //   // หา “ออเดอร์ที่ยังทำอยู่” (ไม่รวม canceling)
+  //   function getActiveNonCancelingIds(){
+  //     const nodes = qsa('#orderTable tbody tr[data-order-id], .o-card[data-order-id]')
+  //       .filter(n => isVisible(n));
+  //     const ids = [];
+  //     for (const n of nodes){
+  //       const st = String(n.dataset.status || '').toLowerCase();
+  //       if (st === 'processing' || st === 'inprogress'){
+  //         const id = n.dataset.orderId;
+  //         if (id) ids.push(id);
+  //       }
+  //     }
+  //     // unique
+  //     return [...new Set(ids)];
+  //   }
 
-    function hasAnyCanceling(){
-      return !!document.querySelector(
-        '#orderTable tbody tr[data-status="canceling"], .o-card[data-status="canceling"]'
-      );
-    }
+  //   function hasAnyCanceling(){
+  //     return !!document.querySelector(
+  //       '#orderTable tbody tr[data-status="canceling"], .o-card[data-status="canceling"]'
+  //     );
+  //   }
 
-    function hasActiveNonCanceling(){
-      return getActiveNonCancelingIds().length > 0;
-    }
+  //   function hasActiveNonCanceling(){
+  //     return getActiveNonCancelingIds().length > 0;
+  //   }
 
-    function hasOnlyCancelingOrAwait(){
-      const onlyCanceling = hasAnyCanceling() && !hasActiveNonCanceling();
-      const awaiting = (window.__CANCEL_AWAITING__?.size || 0) > 0;
-      return onlyCanceling || awaiting;
-    }
+  //   function hasOnlyCancelingOrAwait(){
+  //     const onlyCanceling = hasAnyCanceling() && !hasActiveNonCanceling();
+  //     const awaiting = (window.__CANCEL_AWAITING__?.size || 0) > 0;
+  //     return onlyCanceling || awaiting;
+  //   }
 
-    function schedule(ms){
-      clearTimeout(timer);
-      timer = setTimeout(tick, Math.max(0, ms));
-    }
+  //   function schedule(ms){
+  //     clearTimeout(timer);
+  //     timer = setTimeout(tick, Math.max(0, ms));
+  //   }
 
-    // รันรีเฟรชทีละออเดอร์ (batch + concurrency)
-    async function refreshPerOrder(ids){
-      if (!ids.length) return;
+  //   // รันรีเฟรชทีละออเดอร์ (batch + concurrency)
+  //   async function refreshPerOrder(ids){
+  //     if (!ids.length) return;
 
-      // ดึงปุ่ม refresh ของแต่ละออเดอร์ (ถ้ามี) เพื่อส่งให้ refreshOneOrder ใช้ setBusy สวยๆ
-      const btnFor = (id) =>
-        document.querySelector(`.btn-refresh[data-id="${id}"]`) ||
-        document.querySelector(`[data-order-id="${id}"] .btn-refresh`) || undefined;
+  //     // ดึงปุ่ม refresh ของแต่ละออเดอร์ (ถ้ามี) เพื่อส่งให้ refreshOneOrder ใช้ setBusy สวยๆ
+  //     const btnFor = (id) =>
+  //       document.querySelector(`.btn-refresh[data-id="${id}"]`) ||
+  //       document.querySelector(`[data-order-id="${id}"] .btn-refresh`) || undefined;
 
-      // ตัวช่วยจำกัด concurrency
-      const queue = ids.slice();
-      const workers = new Array(Math.min(CONCURRENCY, queue.length)).fill(0).map(async () => {
-        while (queue.length){
-          const id = queue.shift();
-          try{
-            await refreshOneOrder(id, btnFor(id));
-          }catch(e){
-            // เงียบไว้หรือ log ก็ได้
-            console.warn('refreshOneOrder failed:', id, e);
-          }
-          // กันยิงชิดเกินไป
-          if (PER_ORDER_GAP_MS) {
-            await new Promise(s => setTimeout(s, PER_ORDER_GAP_MS));
-          }
-        }
-      });
-      await Promise.allSettled(workers);
-    }
+  //     // ตัวช่วยจำกัด concurrency
+  //     const queue = ids.slice();
+  //     const workers = new Array(Math.min(CONCURRENCY, queue.length)).fill(0).map(async () => {
+  //       while (queue.length){
+  //         const id = queue.shift();
+  //         try{
+  //           await refreshOneOrder(id, btnFor(id));
+  //         }catch(e){
+  //           // เงียบไว้หรือ log ก็ได้
+  //           console.warn('refreshOneOrder failed:', id, e);
+  //         }
+  //         // กันยิงชิดเกินไป
+  //         if (PER_ORDER_GAP_MS) {
+  //           await new Promise(s => setTimeout(s, PER_ORDER_GAP_MS));
+  //         }
+  //       }
+  //     });
+  //     await Promise.allSettled(workers);
+  //   }
 
-    async function doRun(nextMs, { markCancelingRun = false } = {}){
-      if (running) { schedule(Math.max(nextMs, 3_000)); return; }
-      running = true;
-      try{
-        if (hasActiveNonCanceling()){
-          // รีเฟรชเฉพาะออเดอร์ที่ยังทำงานอยู่
-          const ids = getActiveNonCancelingIds();
-          await refreshPerOrder(ids);
-          schedule(NORMAL_INTERVAL);
-        } else if (hasOnlyCancelingOrAwait()){
-          // เคารพรอบ 2 นาทีสำหรับงานยกเลิก / long-poll ยกเลิก
-          if (markCancelingRun) lastCancelingRun = Date.now();
-          schedule(CANCELING_INTERVAL);
-        } else {
-          schedule(NORMAL_INTERVAL);
-        }
-      } catch (e){
-        console.error('auto refresh (per-order) failed:', e);
-        const backoff = Math.min(CANCELING_INTERVAL, Math.floor((nextMs || NORMAL_INTERVAL) * ERR_BACKOFF_FACTOR));
-        schedule(backoff);
-      } finally {
-        running = false;
-      }
-    }
+  //   async function doRun(nextMs, { markCancelingRun = false } = {}){
+  //     if (running) { schedule(Math.max(nextMs, 3_000)); return; }
+  //     running = true;
+  //     try{
+  //       if (hasActiveNonCanceling()){
+  //         // รีเฟรชเฉพาะออเดอร์ที่ยังทำงานอยู่
+  //         const ids = getActiveNonCancelingIds();
+  //         await refreshPerOrder(ids);
+  //         schedule(NORMAL_INTERVAL);
+  //       } else if (hasOnlyCancelingOrAwait()){
+  //         // เคารพรอบ 2 นาทีสำหรับงานยกเลิก / long-poll ยกเลิก
+  //         if (markCancelingRun) lastCancelingRun = Date.now();
+  //         schedule(CANCELING_INTERVAL);
+  //       } else {
+  //         schedule(NORMAL_INTERVAL);
+  //       }
+  //     } catch (e){
+  //       console.error('auto refresh (per-order) failed:', e);
+  //       const backoff = Math.min(CANCELING_INTERVAL, Math.floor((nextMs || NORMAL_INTERVAL) * ERR_BACKOFF_FACTOR));
+  //       schedule(backoff);
+  //     } finally {
+  //       running = false;
+  //     }
+  //   }
 
-    async function tick(){
-      if (document.hidden) { schedule(NORMAL_INTERVAL); return; }
+  //   async function tick(){
+  //     if (document.hidden) { schedule(NORMAL_INTERVAL); return; }
 
-      // โหมดมีงานที่ยังทำอยู่ → 1 นาที/รอบ
-      if (hasActiveNonCanceling()){
-        await doRun(NORMAL_INTERVAL);
-        return;
-      }
+  //     // โหมดมีงานที่ยังทำอยู่ → 1 นาที/รอบ
+  //     if (hasActiveNonCanceling()){
+  //       await doRun(NORMAL_INTERVAL);
+  //       return;
+  //     }
 
-      // โหมด canceling-only หรือ await cancel → รอบ 2 นาที "เป๊ะ"
-      if (hasOnlyCancelingOrAwait()){
-        const now = Date.now();
-        if (!lastCancelingRun) lastCancelingRun = now;
-        const dueIn = (lastCancelingRun + CANCELING_INTERVAL) - now;
-        if (dueIn > 0) { schedule(dueIn); return; }
-        await doRun(CANCELING_INTERVAL, { markCancelingRun:true });
-        return;
-      }
+  //     // โหมด canceling-only หรือ await cancel → รอบ 2 นาที "เป๊ะ"
+  //     if (hasOnlyCancelingOrAwait()){
+  //       const now = Date.now();
+  //       if (!lastCancelingRun) lastCancelingRun = now;
+  //       const dueIn = (lastCancelingRun + CANCELING_INTERVAL) - now;
+  //       if (dueIn > 0) { schedule(dueIn); return; }
+  //       await doRun(CANCELING_INTERVAL, { markCancelingRun:true });
+  //       return;
+  //     }
 
-      schedule(NORMAL_INTERVAL);
-    }
+  //     schedule(NORMAL_INTERVAL);
+  //   }
 
-    // โฟกัสกลับหน้า → รีเซ็ตตามโหมด
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) return;
-      clearTimeout(timer);
-      if (hasActiveNonCanceling()){
-        tick(); // เริ่มทันที
-      } else if (hasOnlyCancelingOrAwait()){
-        const now = Date.now();
-        if (!lastCancelingRun) lastCancelingRun = now;
-        const dueIn = (lastCancelingRun + CANCELING_INTERVAL) - now;
-        schedule(Math.max(0, dueIn));
-      } else {
-        schedule(NORMAL_INTERVAL);
-      }
-    });
+  //   // โฟกัสกลับหน้า → รีเซ็ตตามโหมด
+  //   document.addEventListener('visibilitychange', () => {
+  //     if (document.hidden) return;
+  //     clearTimeout(timer);
+  //     if (hasActiveNonCanceling()){
+  //       tick(); // เริ่มทันที
+  //     } else if (hasOnlyCancelingOrAwait()){
+  //       const now = Date.now();
+  //       if (!lastCancelingRun) lastCancelingRun = now;
+  //       const dueIn = (lastCancelingRun + CANCELING_INTERVAL) - now;
+  //       schedule(Math.max(0, dueIn));
+  //     } else {
+  //       schedule(NORMAL_INTERVAL);
+  //     }
+  //   });
 
-    // เริ่มทำงาน
-    window.addEventListener('load', () => {
-      if (hasActiveNonCanceling()){
-        schedule(3_000); // เริ่มไวขึ้นเล็กน้อย
-      } else if (hasOnlyCancelingOrAwait()){
-        lastCancelingRun = Date.now();
-        schedule(CANCELING_INTERVAL);
-      } else {
-        schedule(NORMAL_INTERVAL);
-      }
-    });
+  //   // เริ่มทำงาน
+  //   window.addEventListener('load', () => {
+  //     if (hasActiveNonCanceling()){
+  //       schedule(3_000); // เริ่มไวขึ้นเล็กน้อย
+  //     } else if (hasOnlyCancelingOrAwait()){
+  //       lastCancelingRun = Date.now();
+  //       schedule(CANCELING_INTERVAL);
+  //     } else {
+  //       schedule(NORMAL_INTERVAL);
+  //     }
+  //   });
 
-    // ผู้ใช้กดปุ่ม sync เอง → รีเฟรชเฉพาะที่ยังทำอยู่ (ไม่แตะ canceling)
-    document.querySelector('#btnSync')?.addEventListener('click', async () => {
-      if (hasOnlyCancelingOrAwait()) return; // เคารพรอบ 2 นาที
-      clearTimeout(timer);
-      try{
-        const ids = getActiveNonCancelingIds();
-        await refreshPerOrder(ids);
-      } finally {
-        schedule(NORMAL_INTERVAL);
-      }
-    });
+  //   // ผู้ใช้กดปุ่ม sync เอง → รีเฟรชเฉพาะที่ยังทำอยู่ (ไม่แตะ canceling)
+  //   document.querySelector('#btnSync')?.addEventListener('click', async () => {
+  //     if (hasOnlyCancelingOrAwait()) return; // เคารพรอบ 2 นาที
+  //     clearTimeout(timer);
+  //     try{
+  //       const ids = getActiveNonCancelingIds();
+  //       await refreshPerOrder(ids);
+  //     } finally {
+  //       schedule(NORMAL_INTERVAL);
+  //     }
+  //   });
 
-    return { start: () => schedule(1_000), stop: () => clearTimeout(timer) };
-  })();
+  //   return { start: () => schedule(1_000), stop: () => clearTimeout(timer) };
+  // })();
 
 
   /* === decideDisplay (ฝั่ง client) === */
@@ -1383,7 +1383,7 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
     const targets = [triggerBtn, btnSync].filter(Boolean);
     const uniqTargets = [...new Set(targets)];
 
-    setBusyTargets(uniqTargets, true);
+    setBusyTargets(uniqTargets, false);
     try{
       const res = await fetch('/api/orders/refresh-all', { method: 'POST' });
       const data = await res.json();
