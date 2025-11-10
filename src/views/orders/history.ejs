@@ -1361,6 +1361,76 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
     }
   }
 
+  async function refreshOneLocal(orderId, triggerBtn) {
+    if (!orderId) return;
+    setBtnBusy(triggerBtn, true);
+    try {
+      // เรียก endpoint ที่อ่านจาก DB อย่างเดียว (ไม่ยิง provider)
+      const res = await fetch(`/api/orders/${orderId}/refresh-local`, { method: 'POST' });
+      const data = await res.json();
+
+      const patch = {
+        _id: orderId,
+        status:        data.status,
+        progress:      data.progress,
+        remains:       data.remains,
+        startCount:    data.start_count,
+        currentCount:  data.current_count,
+        updatedAt:     data.updatedAt || new Date().toISOString(),
+        refundAmount:  data.refundAmount,
+        refundType:    data.refundType
+      };
+      window.applyOrderPatch?.(patch);
+
+      // sync cache modal (__ORDERS__)
+      const arr = window.__ORDERS__ || [];
+      const idx = arr.findIndex(x => x._id === orderId);
+      if (idx > -1) {
+        const o = arr[idx];
+        o.status        = (patch.status        ?? o.status);
+        if (typeof patch.progress      === 'number') o.progress      = patch.progress;
+        if (typeof patch.remains       === 'number') o.remains       = patch.remains;
+        if (typeof patch.startCount    === 'number') o.startCount    = patch.startCount;
+        if (typeof patch.currentCount  === 'number') o.currentCount  = patch.currentCount;
+        o.updatedAt     = patch.updatedAt || o.updatedAt;
+        if (typeof patch.refundAmount === 'number') o.refundAmount = patch.refundAmount;
+        if (typeof patch.refundType   === 'string') o.refundType   = patch.refundType;
+      }
+    } catch (e) {
+      console.error('refreshOneLocal failed:', e);
+    } finally {
+      setBtnBusy(triggerBtn, false);
+    }
+  }
+
+  async function refreshAllLocal(triggerBtn){
+    const btnSync = document.querySelector('#btnSync');
+    const targets = [triggerBtn, btnSync].filter(Boolean);
+    const uniqTargets = [...new Set(targets)];
+
+    setBusyTargets(uniqTargets, true);
+    try{
+      const res = await fetch('/api/orders/refresh-all-local', { method: 'POST' });
+      const data = await res.json();
+      if (!data?.ok) throw new Error(data?.error || 'refresh failed');
+
+      (data.changes || []).forEach(patch => {
+        const st = String(patch?.status || '').toLowerCase();
+        if (st === 'canceling') return;
+        const rowOrCard =
+          document.querySelector(`[data-order-id="${patch._id}"]`) ||
+          document.querySelector(`.o-card[data-order-id="${patch._id}"]`);
+        const domSt = (rowOrCard?.dataset?.status || '').toLowerCase();
+        if (domSt === 'canceling') return;
+        window.applyOrderPatch?.(patch);
+      });
+    } catch(e){
+      console.error(e);
+    } finally {
+      setBusyTargets(uniqTargets, false);
+    }
+  }
+
   /* ---------- เปลี่ยน handler ปุ่มรีเฟรชใต้สถานะให้รีเฟรชเฉพาะออเดอร์ ---------- */
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('.btn-refresh');
@@ -1383,7 +1453,7 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
     const targets = [triggerBtn, btnSync].filter(Boolean);
     const uniqTargets = [...new Set(targets)];
 
-    setBusyTargets(uniqTargets, false);
+    setBusyTargets(uniqTargets, true);
     try{
       const res = await fetch('/api/orders/refresh-all', { method: 'POST' });
       const data = await res.json();
@@ -1405,7 +1475,7 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
     } catch(e){
       console.error(e);
     } finally{
-      setBusy(uniqTargets, false);
+      setBusyTargets(uniqTargets, true);
     }
   }
 
@@ -1710,6 +1780,64 @@ async function startCancel(orderId) {
   // ถ้าหน้าจอขยายกลับเป็นเดสก์ท็อป → ปิดเมนู
   window.addEventListener('resize', () => {
     if (!matchMedia('(max-width:640px)').matches) wrap.classList.remove('open');
+  });
+})();
+
+(function AutoRefreshLocal(){
+  const NORMAL_INTERVAL = 60_000;
+  const PER_ORDER_GAP_MS = 250;
+  let t = null, running = false;
+
+  const isVisible = el => !!(el && el.offsetParent !== null);
+  const qsa = sel => Array.from(document.querySelectorAll(sel));
+
+  function getActiveIds(){
+    const nodes = qsa('#orderTable tbody tr[data-order-id], .o-card[data-order-id]')
+      .filter(n => isVisible(n));
+    const ids = [];
+    for (const n of nodes) {
+      const st = String(n.dataset.status || '').toLowerCase();
+      if (st === 'processing' || st === 'inprogress') {
+        const id = n.dataset.orderId;
+        if (id) ids.push(id);
+      }
+    }
+    return [...new Set(ids)];
+  }
+
+  async function refreshBatch(ids){
+    for (const id of ids) {
+      // ปุ่มของออเดอร์นี้ (ถ้ามี) – เพื่อโชว์สถานะ busy สวยๆ
+      const btn =
+        document.querySelector(`.btn-refresh[data-id="${id}"]`) ||
+        document.querySelector(`[data-order-id="${id}"] .btn-refresh`) || undefined;
+
+      await refreshOneLocal(id, btn);
+      if (PER_ORDER_GAP_MS) await new Promise(s => setTimeout(s, PER_ORDER_GAP_MS));
+    }
+  }
+
+  async function tick(){
+    if (running) return;
+    running = true;
+    try {
+      if (document.hidden) return;
+      const ids = getActiveIds();
+      if (ids.length) await refreshBatch(ids);
+    } finally {
+      running = false;
+      t = setTimeout(tick, NORMAL_INTERVAL);
+    }
+  }
+
+  // start
+  t = setTimeout(tick, NORMAL_INTERVAL);
+
+  // โฟกัสกลับมา → รีเฟรชเร็วขึ้นรอบนึง
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    clearTimeout(t);
+    t = setTimeout(tick, 1_000);
   });
 })();
 </script>

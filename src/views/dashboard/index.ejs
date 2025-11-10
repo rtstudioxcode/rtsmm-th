@@ -6,7 +6,7 @@
     <%
       const NAME   = me?.name || me?.username || '-';
       const EMAIL  = me?.email || '-';
-      const AVATAR = me?.avatarUrl || '/static/assets/img/user-blue.png';
+      const AVATAR = me?.avatarUrl || '/static/assets/logortsmmgif2.gif';
       const AVVER  = me?.avatarVer || Date.now();
     %>
     <div class="card user-summary">
@@ -24,7 +24,7 @@
       <!-- รูปโปรไฟล์ -->
       <div class="user-summary__avatar" aria-hidden="true">
         <img
-          src="<%= me && me.avatarUrl ? me.avatarUrl : '/static/assets/img/user-blue.png' %>?v=<%= (me && me.avatarVer) || Date.now() %>"
+          src="<%= me && me.avatarUrl ? me.avatarUrl : '/static/assets/logortsmmgif2.gif' %>?v=<%= (me && me.avatarVer) || Date.now() %>"
           alt=""
           loading="lazy"
           decoding="async"

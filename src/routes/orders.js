@@ -1240,4 +1240,55 @@ router.post('/orders/:id/cancel/await', async (req, res) => {
   return res.json({ ok:true, updated:false, keepWaiting:true });
 });
 
+// POST /api/orders/:id/refresh-local
+router.post('/api/orders/:id/refresh-local', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const o = await Order.findById(id).lean();
+    if (!o) return res.status(404).json({ error: 'not found' });
+    return res.json({
+      status: o.status,
+      progress: o.progress ?? null,
+      remains: o.remains ?? null,
+      start_count: o.startCount ?? null,
+      current_count: o.currentCount ?? null,
+      updatedAt: o.updatedAt ?? o.createdAt,
+      refundAmount: o.refundAmount ?? 0,
+      refundType: o.refundType ?? null
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'refresh-local failed' });
+  }
+});
+
+// POST /api/orders/refresh-all-local
+router.post('/api/orders/refresh-all-local', async (req, res) => {
+  try {
+    // เอาเฉพาะที่ยังทำงานอยู่ เพื่อลด payload
+    const active = await Order.find({
+      status: { $in: ['processing','inprogress'] }
+    }, {
+      _id: 1, status: 1, progress: 1, remains: 1,
+      startCount: 1, currentCount: 1, updatedAt: 1,
+      refundAmount: 1, refundType: 1
+    }).lean();
+
+    const changes = active.map(o => ({
+      _id: String(o._id),
+      status: o.status,
+      progress: o.progress ?? null,
+      remains: o.remains ?? null,
+      startCount: o.startCount ?? null,
+      currentCount: o.currentCount ?? null,
+      updatedAt: o.updatedAt ?? null,
+      refundAmount: o.refundAmount ?? 0,
+      refundType: o.refundType ?? null
+    }));
+
+    res.json({ ok: true, changes });
+  } catch (e) {
+    res.status(500).json({ ok:false, error: 'refresh-all-local failed' });
+  }
+});
+
 export default router;
