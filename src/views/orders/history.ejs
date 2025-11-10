@@ -1168,43 +1168,78 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
 
 
   /* === decideDisplay (ฝั่ง client) === */
+  const clampPct = v => Math.max(0, Math.min(100, Number(v)||0));
+
   window.decideDisplay = function(o){
     const qty = Number(o.quantity)||0;
     const st  = String(o.status||'').toLowerCase();
 
-    if (st === 'canceling') {
-      return { label: 'กำลังส่งยกเลิก…', donePct: 0, showPct: false, isDone: false };
-    }
+    if (st === 'canceling') return { label:'กำลังส่งยกเลิก…', donePct:0, showPct:false, isDone:false };
+    if (st === 'canceled')  return { label:'ยกเลิก',         donePct:0, showPct:false, isDone:false };
+    if (st === 'partial')   return { label:'คืนบางส่วน',     donePct:0, showPct:false, isDone:false };
 
-    if (st === 'canceled') {
-      return { label: 'ยกเลิก', donePct: 0, showPct: false, isDone: false };
-    }
-
-    if (st === 'partial') {
-      return { label: 'คืนบางส่วน', donePct: 0, showPct: false, isDone: false };
-    }
-
-    const isWaiting =
-      st === 'processing' &&
-      (o.progress == null) &&
-      ((typeof o.remains === 'number' ? o.remains >= qty : true) || o.currentCount == null);
-
-    if (isWaiting) return { label: 'รอดำเนินการ', donePct: 0, showPct: false, isDone: false };
+    const hasProgress = (typeof o.progress === 'number' && isFinite(o.progress));
+    const hasRemains  = (typeof o.remains  === 'number' && isFinite(o.remains));
+    const hasCounts   = (typeof o.startCount === 'number' && typeof o.currentCount === 'number');
 
     let donePct = 0;
-    if (typeof o.progress === 'number') {
-      donePct = Math.max(0, Math.min(100, o.progress));
-    } else if (typeof o.remains === 'number' && qty > 0) {
-      donePct = Math.max(0, Math.min(100, (1 - Math.max(0, o.remains)/qty) * 100));
-    } else if (typeof o.startCount === 'number' && typeof o.currentCount === 'number' && qty > 0) {
-      donePct = Math.max(0, Math.min(100, ((o.currentCount - o.startCount)/qty) * 100));
+
+    if (hasProgress) {
+      donePct = clampPct(o.progress);
+    } else if (hasRemains && qty > 0) {
+      // ใช้ remains เป็นหลัก ถ้ามี → ถือว่าเริ่มทำงานแล้ว
+      donePct = clampPct((1 - Math.max(0, o.remains)/qty) * 100);
+    } else if (hasCounts && qty > 0) {
+      donePct = clampPct(((o.currentCount - o.startCount)/qty) * 100);
     }
+
+    // รอดำเนินการ เฉพาะกรณี "ไม่มีข้อมูลความคืบหน้าเลย"
+    const isWaiting = (st === 'processing') && !hasProgress && !hasRemains && !hasCounts;
+    if (isWaiting) return { label:'รอดำเนินการ', donePct:0, showPct:false, isDone:false };
+
     const isDone = (st === 'completed') || donePct >= 99.995;
 
     return isDone
-      ? { label: 'เสร็จสิ้น', donePct: 100, showPct: false, isDone: true }
-      : { label: `ดำเนินการ ~ ${donePct.toFixed(2)}%`, donePct, showPct: true, isDone: false };
+      ? { label:'เสร็จสิ้น', donePct:100, showPct:false, isDone:true }
+      : { label:`ดำเนินการ ~ ${donePct.toFixed(2)}%`, donePct, showPct:true, isDone:false };
   };
+  // window.decideDisplay = function(o){
+  //   const qty = Number(o.quantity)||0;
+  //   const st  = String(o.status||'').toLowerCase();
+
+  //   if (st === 'canceling') {
+  //     return { label: 'กำลังส่งยกเลิก…', donePct: 0, showPct: false, isDone: false };
+  //   }
+
+  //   if (st === 'canceled') {
+  //     return { label: 'ยกเลิก', donePct: 0, showPct: false, isDone: false };
+  //   }
+
+  //   if (st === 'partial') {
+  //     return { label: 'คืนบางส่วน', donePct: 0, showPct: false, isDone: false };
+  //   }
+
+  //   const isWaiting =
+  //     st === 'processing' &&
+  //     (o.progress == null) &&
+  //     ((typeof o.remains === 'number' ? o.remains >= qty : true) || o.currentCount == null);
+
+  //   if (isWaiting) return { label: 'รอดำเนินการ', donePct: 0, showPct: false, isDone: false };
+
+  //   let donePct = 0;
+  //   if (typeof o.progress === 'number') {
+  //     donePct = Math.max(0, Math.min(100, o.progress));
+  //   } else if (typeof o.remains === 'number' && qty > 0) {
+  //     donePct = Math.max(0, Math.min(100, (1 - Math.max(0, o.remains)/qty) * 100));
+  //   } else if (typeof o.startCount === 'number' && typeof o.currentCount === 'number' && qty > 0) {
+  //     donePct = Math.max(0, Math.min(100, ((o.currentCount - o.startCount)/qty) * 100));
+  //   }
+  //   const isDone = (st === 'completed') || donePct >= 99.995;
+
+  //   return isDone
+  //     ? { label: 'เสร็จสิ้น', donePct: 100, showPct: false, isDone: true }
+  //     : { label: `ดำเนินการ ~ ${donePct.toFixed(2)}%`, donePct, showPct: true, isDone: false };
+  // };
 
   /* ---------- สั่งซ้ำ (Repeat) ---------- */
   async function repeatOrder(btn){

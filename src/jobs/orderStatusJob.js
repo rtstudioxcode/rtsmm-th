@@ -127,13 +127,12 @@ function logOrderUpdate({ o, patch, prevStatus, providerStatus }) {
 
   // เฉพาะเวลามีการยิง updateOne เท่านั้นที่เราจะ log (เรียกฟังก์ชันนี้หลัง updateOne สำเร็จ)
   console.log(
-    `[orderStatusJob] update`,
-    `order=${id}`,
-    `prov=${prov}`,
-    `status=${from}→${to} (prov:${String(providerStatus || '').toLowerCase() || '-'})`,
-    `progress=${Number.isFinite(prog) ? prog.toFixed(2) + '%' : '-'}`,
-    `remains=${Number.isFinite(rem) ? rem : '-'}`,
-    `count=${Number.isFinite(sc) ? sc : '-'}→${Number.isFinite(cc) ? cc : '-'}`,
+    `[ออเดอร์อัปเดต] AUTO -`,
+    `เลขออเดอร์=${prov}`,
+    `สถานะ=${from}→${to} (prov:${String(providerStatus || '').toLowerCase() || '-'})`,
+    `สถานะปัจจุบัน=${Number.isFinite(prog) ? prog.toFixed(2) + '%' : '-'}`,
+    `จำนวนคงเหลือ=${Number.isFinite(rem) ? rem : '-'}`,
+    `จำนวนตอนเริ่ม=${Number.isFinite(sc) ? sc : '-'}→${Number.isFinite(cc) ? cc : '-'}`,
     (Number.isFinite(rfAmt) && rfAmt > 0) ? `refund=${fmtMoney(rfAmt)} (${rfTyp||'-'})` : ''
   );
 }
