@@ -6,6 +6,10 @@ const POKE_FIELDS = new Set([
   'quantity','rateAtOrder','rate','partialRefunds'
 ]);
 
+const OTP24_POKE_FIELDS = new Set([
+  'status','cost','price','priceTHB','amountTHB','refundAmount','salePrice'
+]);
+
 const userQueue = new Map();
 function scheduleUser(userId, fn) {
   const key = String(userId);
@@ -18,34 +22,41 @@ function scheduleUser(userId, fn) {
 async function startPollingFallback(mongooseConn, intervalMs = 5000) {
   console.warn('[spendWatcher] using polling fallback (no replica set).');
   const Order = mongooseConn.model('Order');
+  const Otp24Order = mongooseConn.model('Otp24Order');
 
-  let last = new Date(Date.now() - 60 * 1000); // เริ่มดูย้อนหลัง 1 นาที
+  let last = new Date(Date.now() - 60 * 1000);
+
   const timer = setInterval(async () => {
     try {
-      // ดึงออเดอร์ที่พึ่งถูกสร้าง/อัปเดตหลังเวลา last
-      const changed = await Order.find(
-        { updatedAt: { $gt: last } },
-        { _id: 1, userId: 1, user: 1, updatedAt: 1 }
-      ).lean();
+      const [changedOrd, changedOtp] = await Promise.all([
+        Order.find({ updatedAt: { $gt: last } }, { _id:1, userId:1, user:1, updatedAt:1 }).lean(),
+        Otp24Order.find({ updatedAt: { $gt: last } }, { _id:1, userId:1, user:1, updatedAt:1 }).lean(),
+      ]);
 
-      if (changed.length) {
-        last = changed.reduce((m, d) => (d.updatedAt > m ? d.updatedAt : m), last);
+      const all = [...changedOrd, ...changedOtp];
+      if (all.length) {
+        last = all.reduce((m, d) => (d.updatedAt > m ? d.updatedAt : m), last);
 
-        for (const doc of changed) {
+        for (const doc of all) {
           const uid = doc.userId || doc.user;
           if (!uid) continue;
 
-          // 1) reconcile ต่อใบ
+          // reconcile ต่อใบ (เด้งถูกประเภท)
           (async () => {
             try {
-              const { reconcileOrderSpend } = await import('./spend.js');
-              await reconcileOrderSpend(doc._id);
+              if (doc._id && changedOtp.find(x => String(x._id) === String(doc._id))) {
+                const { reconcileOtp24OrderSpend } = await import('./spend.js');
+                await reconcileOtp24OrderSpend(doc._id);
+              } else {
+                const { reconcileOrderSpend } = await import('./spend.js');
+                await reconcileOrderSpend(doc._id);
+              }
             } catch (e) {
-              console.error('[spendWatcher/poll] reconcileOrderSpend failed:', e?.message || e);
+              console.error('[spendWatcher/poll] reconcile failed:', e?.message || e);
             }
           })();
 
-          // 2) debounce ต่อผู้ใช้
+          // debounce ต่อ user
           scheduleUser(uid, async () => {
             try {
               const { recalcUserTotals } = await import('./spend.js');
@@ -65,19 +76,18 @@ async function startPollingFallback(mongooseConn, intervalMs = 5000) {
 }
 
 export function startSpendAutoRecalc(mongooseConn = mongoose.connection) {
-  const coll = mongooseConn.collection('orders');
+  const collOrders = mongooseConn.collection('orders');
+  const collOtp24  = mongooseConn.collection('otp24orders');
 
-  // ถ้าไม่มี .watch ให้ fallback ทันที
-  if (!coll?.watch) {
+  if (!collOrders?.watch || !collOtp24?.watch) {
     console.warn('[spendWatcher] change streams unsupported (no watch). Using polling.');
     return startPollingFallback(mongooseConn);
   }
 
-  // พยายามเปิด change stream ถ้า fail → fallback
-  try {
+  const startWatch = (coll, kind) => {
     const pipeline = [{ $match: { operationType: { $in: ['insert','update','replace'] } } }];
     const cs = coll.watch(pipeline, { fullDocument: 'updateLookup' });
-    console.log('[spendWatcher] watching orders…');
+    console.log(`[spendWatcher] watching ${kind}…`);
 
     cs.on('change', async (chg) => {
       try {
@@ -92,23 +102,30 @@ export function startSpendAutoRecalc(mongooseConn = mongoose.connection) {
 
         if (chg.operationType === 'update') {
           const updated = Object.keys(chg.updateDescription?.updatedFields || {});
-          const touched = updated.some(k => POKE_FIELDS.has(k));
+          const touched = kind === 'orders'
+            ? updated.some(k => POKE_FIELDS.has(k))
+            : updated.some(k => OTP24_POKE_FIELDS.has(k));
           if (!touched) return;
         }
 
         (async () => {
           try {
-            const { reconcileOrderSpend } = await import('./spend.js');
-            await reconcileOrderSpend(orderId);
+            if (kind === 'orders') {
+              const { reconcileOrderSpend } = await import('./spend.js');
+              await reconcileOrderSpend(orderId);
+            } else {
+              const { reconcileOtp24OrderSpend } = await import('./spend.js');
+              await reconcileOtp24OrderSpend(orderId);
+            }
           } catch (e) {
-            console.error('[spendWatcher] reconcileOrderSpend failed:', e?.message || e);
+            console.error(`[spendWatcher] reconcile ${kind} failed:`, e?.message || e);
           }
         })();
 
         scheduleUser(uid, async () => {
           try {
             const { recalcUserTotals } = await import('./spend.js');
-            await recalcUserTotals(uid, { force: true, reason: 'change_stream' });
+            await recalcUserTotals(uid, { force: true, reason: `change_stream_${kind}` });
           } catch (e) {
             console.error('[spendWatcher] recalcUserTotals failed:', e?.message || e);
           }
@@ -119,19 +136,19 @@ export function startSpendAutoRecalc(mongooseConn = mongoose.connection) {
     });
 
     cs.on('error', async (e) => {
-      console.error('[spendWatcher] stream error:', e?.message || e);
-      // ปิด stream แล้วสลับเป็น polling
+      console.error(`[spendWatcher] stream error (${kind}):`, e?.message || e);
       try { cs.close(); } catch {}
       startPollingFallback(mongooseConn);
     });
 
-    // ฟังก์ชัน stop
-    return () => {
-      try { cs.close(); } catch {}
-    };
+    return cs;
+  };
 
+  try {
+    const cs1 = startWatch(collOrders, 'orders');
+    const cs2 = startWatch(collOtp24, 'otp24orders');
+    return () => { try{ cs1?.close(); }catch{} try{ cs2?.close(); }catch{} };
   } catch (e) {
-    // error ตอนเปิด watch → ใช้ polling เลย
     console.error('[spendWatcher] watch init failed:', e?.message || e);
     return startPollingFallback(mongooseConn);
   }

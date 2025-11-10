@@ -623,8 +623,8 @@ router.get('/account/affiliate/stats', async (req, res) => {
         paidTHB: totals.paidTHB,
         withdrawableTHB: totals.withdrawableTHB
       },
-      tier: totals.tier,     // 👈 เพิ่มอันนี้
-      list: []               // (ถ้าคุณส่งรายชื่ออยู่แล้ว คงไว้)
+      tier: totals.tier,
+      list: []
     });
   } catch (e) {
     res.status(500).json({ ok:false });
