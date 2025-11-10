@@ -1450,19 +1450,19 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
   // }
 
   // /* ---------- เปลี่ยน handler ปุ่มรีเฟรชใต้สถานะให้รีเฟรชเฉพาะออเดอร์ ---------- */
-  // document.addEventListener('click', (e) => {
-  //   const btn = e.target.closest('.btn-refresh');
-  //   if (!btn) return;
-  //   e.preventDefault();
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-refresh');
+    if (!btn) return;
+    e.preventDefault();
 
-  //   // ไม่ให้กดในสถานะที่ห้าม (ตามเงื่อนไข EJS ที่ซ่อนไว้อยู่แล้ว เผื่อ DOM เปลี่ยน)
-  //   const rowOrCard = btn.closest('[data-order-id]');
-  //   const st = (rowOrCard?.dataset?.status || '').toLowerCase();
-  //   if (st === 'canceling' || st === 'completed' || st === 'partial' || st === 'canceled') return;
+    // ไม่ให้กดในสถานะที่ห้าม (ตามเงื่อนไข EJS ที่ซ่อนไว้อยู่แล้ว เผื่อ DOM เปลี่ยน)
+    const rowOrCard = btn.closest('[data-order-id]');
+    const st = (rowOrCard?.dataset?.status || '').toLowerCase();
+    if (st === 'canceling' || st === 'completed' || st === 'partial' || st === 'canceled') return;
 
-  //   const id = btn.dataset.id || rowOrCard?.dataset?.orderId;
-  //   refreshOneOrder(id, btn);
-  // });
+    const id = btn.dataset.id || rowOrCard?.dataset?.orderId;
+    refreshOneOrder(id, btn);
+  });
 
   async function refreshAll(triggerBtn){
     const btnSync = document.querySelector('#btnSync');
