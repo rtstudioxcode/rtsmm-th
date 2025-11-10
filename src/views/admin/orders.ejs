@@ -976,62 +976,37 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
   }
 
   /* ===========================
-  * Auto Refresh-Per-Order (Smart Poller)
-  * - ปกติ: รีเฟรชเฉพาะออเดอร์ที่ยังทำงานอยู่ทุก 1 นาที
-  * - ถ้ามีแต่ "กำลังยกเลิก" หรือมี long-poll ยกเลิกค้าง → ทุก 2 นาที
-  * - ไม่เรียก refresh-all เพื่อไม่ไปแตะออเดอร์ที่กำลังยกเลิก
+  * Auto Refresh (DB-only)
+  * - ดึงสถานะจาก DB orders อย่างเดียว
+  * - ไม่ยุ่งกับการเปลี่ยนสถานะเอง (no canceling logic)
+  * - รีเฟรชเฉพาะออเดอร์ที่ยังทำงานอยู่ (processing/inprogress)
   * =========================== */
   const AutoRefresh = (() => {
-    const NORMAL_INTERVAL      = 60_000;  // 1 นาที
-    const CANCELING_INTERVAL   = 120_000; // 2 นาที
-    const ERR_BACKOFF_FACTOR   = 2.0;
+    const NORMAL_INTERVAL    = 10_000; // 10s (ปรับได้)
+    const ERR_BACKOFF_FACTOR = 2.0;
 
-    // จำกัดจำนวนรีเควสพร้อมกัน (กันยิงถี่เกิน)
-    const CONCURRENCY          = 3;
-    // หน่วงระหว่างคำขอ (เมื่อคิวถี่)
-    const PER_ORDER_GAP_MS     = 300;
-
-    // เก็บ orderId ที่กำลัง await ยกเลิกจริงจาก API
-    window.__CANCEL_AWAITING__ = window.__CANCEL_AWAITING__ || new Set();
+    const CONCURRENCY      = 3;   // ขอพร้อมกันสูงสุด
+    const PER_ORDER_GAP_MS = 300; // หน่วงระหว่างคำขอ
 
     let timer   = null;
     let running = false;
-    let lastCancelingRun = 0;
 
     const isVisible = el => !!(el && el.offsetParent !== null);
-
     const qsa = (sel) => Array.from(document.querySelectorAll(sel));
 
-    // หา “ออเดอร์ที่ยังทำอยู่” (ไม่รวม canceling)
-    function getActiveNonCancelingIds(){
+    // เลือกเฉพาะรายการที่ยังทำงานอยู่
+    function getRefreshableIds(){
       const nodes = qsa('#orderTable tbody tr[data-order-id], .o-card[data-order-id]')
         .filter(n => isVisible(n));
       const ids = [];
       for (const n of nodes){
         const st = String(n.dataset.status || '').toLowerCase();
-        if (st === 'processing' || st === 'inprogress'){
+        if (st === 'processing' || st === 'inprogress' || st === 'canceling'){
           const id = n.dataset.orderId;
           if (id) ids.push(id);
         }
       }
-      // unique
       return [...new Set(ids)];
-    }
-
-    function hasAnyCanceling(){
-      return !!document.querySelector(
-        '#orderTable tbody tr[data-status="canceling"], .o-card[data-status="canceling"]'
-      );
-    }
-
-    function hasActiveNonCanceling(){
-      return getActiveNonCancelingIds().length > 0;
-    }
-
-    function hasOnlyCancelingOrAwait(){
-      const onlyCanceling = hasAnyCanceling() && !hasActiveNonCanceling();
-      const awaiting = (window.__CANCEL_AWAITING__?.size || 0) > 0;
-      return onlyCanceling || awaiting;
     }
 
     function schedule(ms){
@@ -1039,27 +1014,23 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
       timer = setTimeout(tick, Math.max(0, ms));
     }
 
-    // รันรีเฟรชทีละออเดอร์ (batch + concurrency)
+    // ยิงทีละออเดอร์แบบจำกัด concurrency
     async function refreshPerOrder(ids){
       if (!ids.length) return;
 
-      // ดึงปุ่ม refresh ของแต่ละออเดอร์ (ถ้ามี) เพื่อส่งให้ refreshOneOrder ใช้ setBusy สวยๆ
       const btnFor = (id) =>
         document.querySelector(`.btn-refresh[data-id="${id}"]`) ||
         document.querySelector(`[data-order-id="${id}"] .btn-refresh`) || undefined;
 
-      // ตัวช่วยจำกัด concurrency
       const queue = ids.slice();
       const workers = new Array(Math.min(CONCURRENCY, queue.length)).fill(0).map(async () => {
         while (queue.length){
           const id = queue.shift();
           try{
-            await refreshOneOrder(id, btnFor(id));
+            await refreshOneOrder(id, btnFor(id)); // ← ฟังก์ชันของคุณที่เรียก /local-status แล้ว applyOrderPatch
           }catch(e){
-            // เงียบไว้หรือ log ก็ได้
             console.warn('refreshOneOrder failed:', id, e);
           }
-          // กันยิงชิดเกินไป
           if (PER_ORDER_GAP_MS) {
             await new Promise(s => setTimeout(s, PER_ORDER_GAP_MS));
           }
@@ -1068,25 +1039,16 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
       await Promise.allSettled(workers);
     }
 
-    async function doRun(nextMs, { markCancelingRun = false } = {}){
-      if (running) { schedule(Math.max(nextMs, 3_000)); return; }
+    async function doRun(nextMs){
+      if (running) { schedule(Math.max(nextMs, 1_000)); return; }
       running = true;
       try{
-        if (hasActiveNonCanceling()){
-          // รีเฟรชเฉพาะออเดอร์ที่ยังทำงานอยู่
-          const ids = getActiveNonCancelingIds();
-          await refreshPerOrder(ids);
-          schedule(NORMAL_INTERVAL);
-        } else if (hasOnlyCancelingOrAwait()){
-          // เคารพรอบ 2 นาทีสำหรับงานยกเลิก / long-poll ยกเลิก
-          if (markCancelingRun) lastCancelingRun = Date.now();
-          schedule(CANCELING_INTERVAL);
-        } else {
-          schedule(NORMAL_INTERVAL);
-        }
+        const ids = getRefreshableIds();
+        await refreshPerOrder(ids);
+        schedule(NORMAL_INTERVAL);
       } catch (e){
-        console.error('auto refresh (per-order) failed:', e);
-        const backoff = Math.min(CANCELING_INTERVAL, Math.floor((nextMs || NORMAL_INTERVAL) * ERR_BACKOFF_FACTOR));
+        console.error('auto refresh failed:', e);
+        const backoff = Math.floor((nextMs || NORMAL_INTERVAL) * ERR_BACKOFF_FACTOR);
         schedule(backoff);
       } finally {
         running = false;
@@ -1095,67 +1057,31 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
 
     async function tick(){
       if (document.hidden) { schedule(NORMAL_INTERVAL); return; }
-
-      // โหมดมีงานที่ยังทำอยู่ → 1 นาที/รอบ
-      if (hasActiveNonCanceling()){
-        await doRun(NORMAL_INTERVAL);
-        return;
-      }
-
-      // โหมด canceling-only หรือ await cancel → รอบ 2 นาที "เป๊ะ"
-      if (hasOnlyCancelingOrAwait()){
-        const now = Date.now();
-        if (!lastCancelingRun) lastCancelingRun = now;
-        const dueIn = (lastCancelingRun + CANCELING_INTERVAL) - now;
-        if (dueIn > 0) { schedule(dueIn); return; }
-        await doRun(CANCELING_INTERVAL, { markCancelingRun:true });
-        return;
-      }
-
-      schedule(NORMAL_INTERVAL);
+      await doRun(NORMAL_INTERVAL);
     }
 
-    // โฟกัสกลับหน้า → รีเซ็ตตามโหมด
+    // โฟกัสกลับหน้า → เริ่มรอบใหม่ไวหน่อย
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) return;
       clearTimeout(timer);
-      if (hasActiveNonCanceling()){
-        tick(); // เริ่มทันที
-      } else if (hasOnlyCancelingOrAwait()){
-        const now = Date.now();
-        if (!lastCancelingRun) lastCancelingRun = now;
-        const dueIn = (lastCancelingRun + CANCELING_INTERVAL) - now;
-        schedule(Math.max(0, dueIn));
-      } else {
-        schedule(NORMAL_INTERVAL);
-      }
+      schedule(200);
     });
 
     // เริ่มทำงาน
-    window.addEventListener('load', () => {
-      if (hasActiveNonCanceling()){
-        schedule(3_000); // เริ่มไวขึ้นเล็กน้อย
-      } else if (hasOnlyCancelingOrAwait()){
-        lastCancelingRun = Date.now();
-        schedule(CANCELING_INTERVAL);
-      } else {
-        schedule(NORMAL_INTERVAL);
-      }
-    });
+    window.addEventListener('load', () => schedule(200));
 
-    // ผู้ใช้กดปุ่ม sync เอง → รีเฟรชเฉพาะที่ยังทำอยู่ (ไม่แตะ canceling)
+    // ปุ่ม Sync → รีเฟรชเฉพาะที่ยังทำงานอยู่
     document.querySelector('#btnSync')?.addEventListener('click', async () => {
-      if (hasOnlyCancelingOrAwait()) return; // เคารพรอบ 2 นาที
       clearTimeout(timer);
       try{
-        const ids = getActiveNonCancelingIds();
+        const ids = getRefreshableIds();
         await refreshPerOrder(ids);
       } finally {
         schedule(NORMAL_INTERVAL);
       }
     });
 
-    return { start: () => schedule(1_000), stop: () => clearTimeout(timer) };
+    return { start: () => schedule(500), stop: () => clearTimeout(timer) };
   })();
 
   // ผูกเป็นตัว global เดียว แล้วสตาร์ท
@@ -1166,42 +1092,40 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
 
 
   /* === decideDisplay (ฝั่ง client) === */
+  const clampPct = v => Math.max(0, Math.min(100, Number(v)||0));
+
   window.decideDisplay = function(o){
     const qty = Number(o.quantity)||0;
     const st  = String(o.status||'').toLowerCase();
-    
-    if (st === 'canceling') {
-      return { label: 'กำลังส่งยกเลิก…', donePct: 0, showPct: false, isDone: false };
-    }
 
-    if (st === 'canceled') {
-      return { label: 'ยกเลิก', donePct: 0, showPct: false, isDone: false };
-    }
+    if (st === 'canceling') return { label:'กำลังส่งยกเลิก…', donePct:0, showPct:false, isDone:false };
+    if (st === 'canceled')  return { label:'ยกเลิก',         donePct:0, showPct:false, isDone:false };
+    if (st === 'partial')   return { label:'คืนบางส่วน',     donePct:0, showPct:false, isDone:false };
 
-    if (st === 'partial') {
-      return { label: 'คืนบางส่วน', donePct: 0, showPct: false, isDone: false };
-    }
-
-    const isWaiting =
-      st === 'processing' &&
-      (o.progress == null) &&
-      ((typeof o.remains === 'number' ? o.remains >= qty : true) || o.currentCount == null);
-
-    if (isWaiting) return { label: 'รอดำเนินการ', donePct: 0, showPct: false, isDone: false };
+    const hasProgress = (typeof o.progress === 'number' && isFinite(o.progress));
+    const hasRemains  = (typeof o.remains  === 'number' && isFinite(o.remains));
+    const hasCounts   = (typeof o.startCount === 'number' && typeof o.currentCount === 'number');
 
     let donePct = 0;
-    if (typeof o.progress === 'number') {
-      donePct = Math.max(0, Math.min(100, o.progress));
-    } else if (typeof o.remains === 'number' && qty > 0) {
-      donePct = Math.max(0, Math.min(100, (1 - Math.max(0, o.remains)/qty) * 100));
-    } else if (typeof o.startCount === 'number' && typeof o.currentCount === 'number' && qty > 0) {
-      donePct = Math.max(0, Math.min(100, ((o.currentCount - o.startCount)/qty) * 100));
+
+    if (hasProgress) {
+      donePct = clampPct(o.progress);
+    } else if (hasRemains && qty > 0) {
+      // ใช้ remains เป็นหลัก ถ้ามี → ถือว่าเริ่มทำงานแล้ว
+      donePct = clampPct((1 - Math.max(0, o.remains)/qty) * 100);
+    } else if (hasCounts && qty > 0) {
+      donePct = clampPct(((o.currentCount - o.startCount)/qty) * 100);
     }
+
+    // รอดำเนินการ เฉพาะกรณี "ไม่มีข้อมูลความคืบหน้าเลย"
+    const isWaiting = (st === 'processing') && !hasProgress && !hasRemains && !hasCounts;
+    if (isWaiting) return { label:'รอดำเนินการ', donePct:0, showPct:false, isDone:false };
+
     const isDone = (st === 'completed') || donePct >= 99.995;
 
     return isDone
-      ? { label: 'เสร็จสิ้น', donePct: 100, showPct: false, isDone: true }
-      : { label: `ดำเนินการ ~ ${donePct.toFixed(2)}%`, donePct, showPct: true, isDone: false };
+      ? { label:'เสร็จสิ้น', donePct:100, showPct:false, isDone:true }
+      : { label:`ดำเนินการ ~ ${donePct.toFixed(2)}%`, donePct, showPct:true, isDone:false };
   };
 
   /* ---------- สั่งซ้ำ (Repeat) ---------- */
@@ -1298,20 +1222,31 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
     if (!orderId) return;
     setBtnBusy(triggerBtn, true);
     try {
-      const res = await fetch(`/api/orders/${orderId}/refresh`, { method: 'POST' });
+      // ↙↙↙ เปลี่ยนมาใช้ endpoint ที่อ่านจาก DB เท่านั้น
+      const res = await fetch(`/api/orders/${orderId}/local-status`, { method: 'GET' });
       const data = await res.json();
+
+      // รองรับรูปแบบ { ok, ... } และ fallback เดิม
+      const status        = data.status;
+      const progress      = data.progress;
+      const remains       = data.remains;
+      const start_count   = data.start_count;
+      const current_count = data.current_count;
+      const updatedAt     = data.updatedAt || new Date().toISOString();
+      const refundAmount  = data.refundAmount;
+      const refundType    = data.refundType;
 
       // สร้าง patch แล้วอัปเดต DOM ผ่าน applyOrderPatch
       const patch = {
         _id: orderId,
-        status:        data.status,
-        progress:      data.progress,
-        remains:       data.remains,
-        startCount:    data.start_count,
-        currentCount:  data.current_count,
-        updatedAt:     data.updatedAt || new Date().toISOString(),
-        refundAmount:  data.refundAmount,
-        refundType:    data.refundType
+        status,
+        progress,
+        remains,
+        startCount:   start_count,
+        currentCount: current_count,
+        updatedAt,
+        refundAmount,
+        refundType
       };
       window.applyOrderPatch?.(patch);
 
@@ -1330,11 +1265,53 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
         if (typeof patch.refundType   === 'string') o.refundType   = patch.refundType;
       }
     } catch (e) {
-      console.error('refresh one failed:', e);
+      console.error('refresh one (local) failed:', e);
     } finally {
       setBtnBusy(triggerBtn, false);
     }
   }
+
+  // async function refreshOneOrder(orderId, triggerBtn) {
+  //   if (!orderId) return;
+  //   setBtnBusy(triggerBtn, true);
+  //   try {
+  //     const res = await fetch(`/api/orders/${orderId}/refresh`, { method: 'POST' });
+  //     const data = await res.json();
+
+  //     // สร้าง patch แล้วอัปเดต DOM ผ่าน applyOrderPatch
+  //     const patch = {
+  //       _id: orderId,
+  //       status:        data.status,
+  //       progress:      data.progress,
+  //       remains:       data.remains,
+  //       startCount:    data.start_count,
+  //       currentCount:  data.current_count,
+  //       updatedAt:     data.updatedAt || new Date().toISOString(),
+  //       refundAmount:  data.refundAmount,
+  //       refundType:    data.refundType
+  //     };
+  //     window.applyOrderPatch?.(patch);
+
+  //     // อัปเดต cache modal (__ORDERS__) ถ้ามี
+  //     const arr = window.__ORDERS__ || [];
+  //     const idx = arr.findIndex(x => x._id === orderId);
+  //     if (idx > -1) {
+  //       const o = arr[idx];
+  //       o.status        = (patch.status        ?? o.status);
+  //       o.progress      = (typeof patch.progress      === 'number') ? patch.progress      : o.progress;
+  //       o.remains       = (typeof patch.remains       === 'number') ? patch.remains       : o.remains;
+  //       o.startCount    = (typeof patch.startCount    === 'number') ? patch.startCount    : o.startCount;
+  //       o.currentCount  = (typeof patch.currentCount  === 'number') ? patch.currentCount  : o.currentCount;
+  //       o.updatedAt     = patch.updatedAt || o.updatedAt;
+  //       if (typeof patch.refundAmount === 'number') o.refundAmount = patch.refundAmount;
+  //       if (typeof patch.refundType   === 'string') o.refundType   = patch.refundType;
+  //     }
+  //   } catch (e) {
+  //     console.error('refresh one failed:', e);
+  //   } finally {
+  //     setBtnBusy(triggerBtn, false);
+  //   }
+  // }
 
   /* ---------- เปลี่ยน handler ปุ่มรีเฟรชใต้สถานะให้รีเฟรชเฉพาะออเดอร์ ---------- */
   document.addEventListener('click', (e) => {
