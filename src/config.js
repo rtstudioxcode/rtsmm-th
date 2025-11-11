@@ -8,8 +8,8 @@ import { decryptAesGcm } from './lib/crypto.js';
  */
 const envConfig = {
   port: Number(process.env.PORT || 3000),
-  mongoUri: process.env.MONGO_URI,
-  // mongoUri: process.env.MONGO_URI || 'mongodb://mongo:UExusYQYbMpqTLSRXPKAMfHyuVaRoVnK@ballast.proxy.rlwy.net:33636/rtsmm-th?replicaSet=rs0&authSource=admin&retryWrites=true&w=majority',
+  // mongoUri: process.env.MONGO_URI,
+  mongoUri: process.env.MONGO_URI || 'mongodb://mongo:UExusYQYbMpqTLSRXPKAMfHyuVaRoVnK@ballast.proxy.rlwy.net:33636/rtsmm-th?replicaSet=rs0&authSource=admin&retryWrites=true&w=majority',
   sessionSecret: process.env.SESSION_SECRET || '',
 
   // iPlusView (คงเดิม)

@@ -388,17 +388,40 @@
             <div class="only-mobile" id="aff-list-mobile"></div>
 
             <!-- Page control -->
-            <div class="page-control" id="aff-pager" style="display:flex;align-items:center;gap:8px;justify-content:flex-end;">
-              <label>ต่อหน้า
-                <select id="aff-perpage" class="fsel">
-                  <option value="10" selected>10</option>
-                  <option value="20">20</option>
+            <div class="page-control" id="aff-pager">
+              <!-- Per-page: custom dropdown + select เดิม (ซ่อนไว้) -->
+              <div class="perpage perpage-dd">
+                <label>ต่อหน้า</label>
+
+                <!-- ปุ่มสวยๆ -->
+                <button id="perpageBtn" class="dd-btn" type="button" aria-haspopup="listbox" aria-expanded="false">
+                  <span id="perpageLabel">10</span>
+                  <svg class="chev" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true">
+                    <path fill="currentColor" d="M7 10l5 5 5-5z"/>
+                  </svg>
+                </button>
+
+                <!-- เมนูลอย (จะถูกวางแบบ fixed) -->
+                <ul id="perpageMenu" class="dd-menu" role="listbox">
+                  <li role="option" data-val="20" aria-selected="true">20</li>
+                  <li role="option" data-val="50">50</li>
+                  <li role="option" data-val="100">100</li>
+                </ul>
+
+                <!-- select เดิม: ซ่อนไว้และใช้ sync กับ backend -->
+                <select id="aff-perpage" class="fsel" hidden>
+                  <option value="20" selected>20</option>
                   <option value="50">50</option>
+                  <option value="100">100</option>
                 </select>
-              </label>
-              <button class="btn" id="aff-prev">‹</button>
-              <span class="muted sm" id="aff-pageinfo">หน้า 1/1</span>
-              <button class="btn" id="aff-next">›</button>
+              </div>
+
+              <!-- กลุ่มปุ่มเปลี่ยนหน้า -->
+              <div class="pager">
+                <button class="btn" id="aff-prev" aria-label="หน้าก่อน">‹</button>
+                <span class="muted sm" id="aff-pageinfo">หน้า 1/1</span>
+                <button class="btn" id="aff-next" aria-label="หน้าถัดไป">›</button>
+              </div>
             </div>
 
             <div class="muted" id="aff-empty" style="display:none">ยังไม่มีข้อมูล</div>
@@ -934,6 +957,320 @@ html[data-theme="light"] .affw-option.is-active{
 
 @media (max-width:560px){
   #affWithdrawModal .affw-grid{ grid-template-columns: 1fr !important; }
+}
+
+/* ===== Desktop only ===== */
+@media (min-width: 1024px){
+  /* ให้ตารางเต็มความกว้างการ์ด */
+  .card .form-grid{
+    display: block;             /* ไม่ให้จัดเป็น grid สองคอลัมน์ */
+  }
+  .card .table-wrap.only-desktop{
+    width: 100%;
+    overflow: auto;
+  }
+  .card .tbl{
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  .card .tbl th,
+  .card .tbl td{
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--elevated-border,#24262b);
+  }
+  .card .tbl thead th{
+    position: sticky;
+    top: 0;
+    background: var(--elevated-bg,#111316);
+    z-index: 1;
+  }
+
+  /* Page control ขวาสุด + ปรับหน้าตา */
+  .page-control{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: flex-end;  /* ชิดขวา */
+    margin-top: 12px;
+  }
+
+  /* ป้าย "ต่อหน้า" แบบ pill */
+  .page-control .perpage{
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px;
+    background: var(--elevated-bg,#141518);
+    border: 1px solid var(--elevated-border,#24262b);
+    border-radius: 999px;
+    line-height: 1;
+  }
+  .page-control .perpage label{
+    color: var(--text-muted,#a7b0bb);
+    font-size: 13px;
+  }
+
+  /* สไตล์ select ให้กลมกลืน + ลูกศร */
+  .page-control .select-wrap{
+    position: relative;
+  }
+  .page-control .select-wrap::after{
+    content: "▾";
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: var(--text-muted,#a7b0bb);
+    font-size: 12px;
+  }
+  .page-control select.fsel{
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background: var(--page,#0f1114);
+    color: var(--text-primary,#f2f4f8);
+    border: 1px solid var(--elevated-border,#24262b);
+    border-radius: 10px;
+    padding: 6px 28px 6px 10px;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  /* ปุ่มลูกศรแบบกลม */
+  .page-control .btn{
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: var(--elevated-bg,#141518);
+    border: 1px solid var(--elevated-border,#24262b);
+  }
+  .page-control .btn:disabled{
+    opacity: .45; cursor: not-allowed;
+  }
+
+  /* ป้าย “หน้า 1/1” เป็น badge */
+  #aff-pageinfo{
+    padding: 6px 10px;
+    background: rgba(255,255,255,.06);
+    border: 1px solid var(--elevated-border,#24262b);
+    border-radius: 999px;
+  }
+}
+
+/* ให้ page-control ลอยอยู่เหนือ table sticky */
+.card .table-wrap.only-desktop{
+  position: relative;
+  z-index: 1;
+}
+.page-control{
+  position: relative;
+  z-index: 3;           /* สูงกว่า thead sticky */
+}
+
+/* กันเคสถูกทับจนกด select ไม่ได้ */
+.page-control .select-wrap,
+.page-control select.fsel{
+  position: relative;
+  pointer-events: auto !important;
+}
+
+/* บางธีมบน Chromium ต้องรีเซ็ต appearance เพื่อโฟกัส/คลิกติด */
+.page-control select.fsel{
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* เผื่อมีชั้นใส (เช่น ::before/::after) ไปกั้นการคลิก */
+.page-control::before,
+.page-control::after{
+  pointer-events: none !important;
+}
+.card .tbl thead th{
+  position: sticky;
+  top: 0;
+  z-index: 2;                 /* ต่ำกว่า page-control(z=3) */
+}
+
+/* ===== Per-page modern dropdown ===== */
+.perpage-dd{
+  display:flex; align-items:center; gap:10px;
+  padding:6px 10px; border:1px solid var(--elevated-border,#24262b);
+  background: var(--elevated-bg,#141518);
+  border-radius: 999px; line-height:1;
+}
+.perpage-dd .perpage-label{ color:var(--text-muted,#a7b0bb); font-size:13px; }
+
+.dd-trigger{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 12px; border-radius:10px; border:1px solid var(--elevated-border,#24262b);
+  background: var(--page,#0f1114); color: var(--text-primary,#f2f4f8);
+  font-weight:600; line-height:1.2; cursor:pointer;
+}
+.dd-trigger[aria-expanded="true"]{ outline:2px solid color-mix(in oklab,var(--accent,#2a84ff) 35%, transparent); }
+
+.dd-menu{
+  position:absolute; margin-top:8px; list-style:none; padding:6px;
+  border:1px solid var(--elevated-border,#24262b); background: var(--elevated-bg,#111316);
+  border-radius:14px; box-shadow: var(--shadow,0 10px 24px rgba(0,0,0,.35));
+  display:none; min-width:120px; z-index:50;
+}
+.dd-menu.show{ display:block; }
+.dd-menu li{
+  padding:8px 12px; border-radius:10px; cursor:pointer;
+  color: var(--text-primary,#f2f4f8);
+}
+.dd-menu li[aria-selected="true"], .dd-menu li:hover{
+  background: color-mix(in oklab,var(--accent,#2a84ff) 18%, transparent);
+  border:1px solid color-mix(in oklab,var(--accent,#2a84ff) 35%, var(--elevated-border,#24262b));
+}
+
+/* ซ่อน select เดิมแต่ให้ JS ใช้งานได้ */
+.sr-only-select{
+  position:absolute !important; width:1px; height:1px; overflow:hidden;
+  clip:rect(0 0 0 0); white-space:nowrap; border:0; padding:0; margin:-1px;
+}
+
+/* ===== Layout: ให้ “ต่อหน้า + pager” อยู่แถวเดียวเสมอ ===== */
+.page-control{
+  display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px;
+  flex-wrap:wrap;
+}
+.page-control .pager{ display:flex; align-items:center; gap:10px; }
+
+/* มือถือ: กะทัดรัดและเรียงในบรรทัดเดียว */
+@media (max-width: 560px){
+  .page-control{ gap:8px; }
+  .perpage-dd{ padding:4px 8px; }
+  .dd-trigger{ padding:6px 10px; }
+  #aff-pageinfo{ padding:4px 8px; }
+}
+
+/* Light theme โทนเทาอ่อน */
+html[data-theme="light"] .perpage-dd{ background:#f3f5f8; border-color:#e3e8ef; }
+html[data-theme="light"] .dd-trigger{ background:#fff; border-color:#e5ecf4; color:#0f172a; }
+html[data-theme="light"] .dd-menu{ background:#fff; border-color:#e5ecf4; }
+
+/* กล่องควบคุม */
+.perpage-dd{ display:inline-flex; align-items:center; gap:10px; position:relative; }
+
+/* ปุ่ม */
+.dd-btn{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:6px 12px; border-radius:12px;
+  background: var(--elevated-bg,#141518);
+  color: var(--text,#eaf0f8); border:1px solid var(--elevated-border,#24262b);
+  line-height:1; cursor:pointer;
+  box-shadow: var(--elevated-shadow,0 10px 24px rgba(0,0,0,.35));
+}
+.dd-btn:focus{ outline:2px solid color-mix(in oklab,var(--accent) 45%, transparent); }
+
+/* เมนู (ลอย) – ใช้ fixed เพื่อหนี overflow:hidden ของการ์ด */
+.dd-menu{
+  position: fixed;               /* สำคัญ! */
+  display:none;
+  margin:0; padding:6px; list-style:none;
+  background: var(--elevated-bg,#111316);
+  border:1px solid var(--elevated-border,#24262b);
+  border-radius:12px;
+  box-shadow: var(--elevated-shadow,0 10px 24px rgba(0,0,0,.35));
+  z-index: 9999;                 /* อยู่บนสุด */
+}
+.dd-menu.show{ display:block; }
+.dd-menu li{
+  padding:8px 12px; border-radius:10px; cursor:pointer; white-space:nowrap;
+}
+.dd-menu li[aria-selected="true"]{
+  background: color-mix(in oklab,var(--accent) 22%, transparent);
+  border:1px solid color-mix(in oklab,var(--accent) 45%, var(--elevated-border,#24262b));
+}
+.dd-menu li:hover{ background: rgba(255,255,255,.06); }
+
+/* ─────────────────────────────
+   Light theme for pager + dropdown
+   ───────────────────────────── */
+
+/* ป้าย "ต่อหน้า" + กรอบกลุ่ม */
+html[data-theme="light"] .page-control .perpage{
+  background: #f7f9fc;
+  border-color: #e5ecf4;
+}
+
+/* ปุ่มกดจำนวนต่อหน้า (dd-btn) */
+html[data-theme="light"] .dd-btn{
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #e3e8ef;
+  box-shadow: 0 8px 20px rgba(16,24,40,.06);
+}
+
+/* เมนูลอย (fixed dropdown) */
+html[data-theme="light"] .dd-menu{
+  background: #ffffff;
+  border-color: #e3e8ef;
+  box-shadow: 0 12px 28px rgba(16,24,40,.10);
+}
+
+/* รายการในเมนู */
+html[data-theme="light"] .dd-menu li{
+  color: #0f172a;
+}
+html[data-theme="light"] .dd-menu li:hover{
+  background: #f1f5f9;            /* เทาอ่อนตอนโฮเวอร์ */
+}
+html[data-theme="light"] .dd-menu li[aria-selected="true"]{
+  background: #eaf2ff;            /* ฟ้าอ่อน */
+  border: 1px solid rgba(43,140,255,.35);
+}
+
+/* ปุ่มลูกศรย้อนหน้า/ถัดไป */
+html[data-theme="light"] .page-control .btn{
+  background: #ffffff;
+  border-color: #e3e8ef;
+  color:#0f172a;
+  box-shadow: 0 8px 20px rgba(16,24,40,.06);
+}
+html[data-theme="light"] .page-control .btn:disabled{
+  background:#eef2f7;
+  border-color:#e6ecf3;
+  color:#94a3b8;
+}
+
+/* ป้าย “หน้า x/x” */
+html[data-theme="light"] #aff-pageinfo{
+  background: #eef2f7;
+  border-color: #e3e8ef;
+  color: #0f172a;
+}
+
+/* เฮดเดอร์ตารางให้คอนทราสต์ใน light */
+html[data-theme="light"] .tbl thead th{
+  background: #eef2f7;            /* แทนดำในดาร์ค */
+  color:#0f172a;
+  border-bottom: 1px solid #e3e8ef;
+}
+
+/* เส้นคั่นแถวตารางเบาลง */
+html[data-theme="light"] .tbl td{
+  border-bottom: 1px solid #e9eef5;
+}
+
+/* แบดจ์ในตารางคงโทนอ่านง่าย */
+html[data-theme="light"] .badge.kind{
+  background:#eef6ff;
+  border-color:#d9e7ff;
+  color:#0f172a;
+}
+html[data-theme="light"] .badge.st-success{
+  background:#e9fbf4;
+  border-color:#bfead7;
+  color:#067647;
+}
+html[data-theme="light"] .badge.st-fail{
+  background:#feecec;
+  border-color:#ffd4d4;
+  color:#b42318;
 }
 </style>
 
@@ -1667,9 +2004,13 @@ html[data-theme="light"] .affw-option.is-active{
   const pageInfo    = $('#aff-pageinfo');
   const btnPrev     = $('#aff-prev');
   const btnNext     = $('#aff-next');
-  const selPerPage  = $('#aff-perpage');
+  const selPerPage  = $('#aff-perpage');        // select เดิม (ซ่อนไว้)
+  // องค์ประกอบของดรอปดาวน์ใหม่
+  const ddBtn   = document.getElementById('perpageBtn');
+  const ddMenu  = document.getElementById('perpageMenu');
+  const ddLabel = document.getElementById('perpageLabel');
 
-  // state
+  // ---------- state ----------
   let currentPage = 1;
   let totalPages  = 1;
 
@@ -1679,9 +2020,11 @@ html[data-theme="light"] .affw-option.is-active{
     timeZone: 'Asia/Bangkok'
   });
 
-  function fmtTH(n){ return Number(n||0).toLocaleString(undefined,{ minimumFractionDigits:2, maximumFractionDigits:2 }); }
-  function kindBadge(k){ return k === 'balance' ? 'เครดิต' : 'เงินสด'; }
-  function statusBadge(s){ return s === 'success' ? '<span class="badge st-success">สำเร็จ</span>' : '<span class="badge st-fail">ล้มเหลว</span>'; }
+  const fmtTH = n => Number(n||0).toLocaleString(undefined,{ minimumFractionDigits:2, maximumFractionDigits:2 });
+  const kindBadge   = k => k === 'balance' ? 'เครดิต' : 'เงินสด';
+  const statusBadge = s => s === 'success'
+    ? '<span class="badge st-success">สำเร็จ</span>'
+    : '<span class="badge st-fail">ล้มเหลว</span>';
 
   async function fetchWithdraws(page=1, perPage=10){
     const r = await fetch(`/account/affiliate/withdraws?page=${page}&perPage=${perPage}`);
@@ -1736,7 +2079,6 @@ html[data-theme="light"] .affw-option.is-active{
       if (btnPrev) btnPrev.disabled = currentPage <= 1;
       if (btnNext) btnNext.disabled = currentPage >= totalPages;
     } catch {
-      // แสดงว่าง
       if (emptyEl) emptyEl.style.display = '';
       if (listTbody) listTbody.innerHTML = '';
       if (listMobile) listMobile.innerHTML = '';
@@ -1746,17 +2088,91 @@ html[data-theme="light"] .affw-option.is-active{
     }
   }
 
-  // page events
-  btnPrev?.addEventListener('click', async () => { if (currentPage > 1){ currentPage -= 1; await renderWithdraws(); } });
-  btnNext?.addEventListener('click', async () => { if (currentPage < totalPages){ currentPage += 1; await renderWithdraws(); } });
-  selPerPage?.addEventListener('change', async () => { currentPage = 1; await renderWithdraws(); });
+  // ---------- page events ----------
+  btnPrev?.addEventListener('click', async () => {
+    if (currentPage > 1){
+      currentPage -= 1;
+      await renderWithdraws();
+    }
+  });
+  btnNext?.addEventListener('click', async () => {
+    if (currentPage < totalPages){
+      currentPage += 1;
+      await renderWithdraws();
+    }
+  });
+  selPerPage?.addEventListener('change', async () => {
+    currentPage = 1;
+    // sync ป้ายบนปุ่มด้วย (กันกรณีมีการเปลี่ยนจากภายนอก)
+    if (ddLabel) ddLabel.textContent = selPerPage.value;
+    // sync aria-selected ของเมนู
+    if (ddMenu){
+      [...ddMenu.children].forEach(li =>
+        li.setAttribute('aria-selected', li.dataset.val === selPerPage.value ? 'true' : 'false')
+      );
+    }
+    await renderWithdraws();
+  });
 
+  // ---------- Custom dropdown binding ----------
+  function openMenu(){
+    const rect = ddBtn.getBoundingClientRect();
+    ddMenu.style.minWidth = rect.width + 'px';
+    ddMenu.style.left = rect.left + 'px';
+    ddMenu.style.top  = rect.bottom + 'px';
+    ddMenu.classList.add('show');
+    ddBtn.setAttribute('aria-expanded','true');
+  }
+  function closeMenu(){
+    ddMenu.classList.remove('show');
+    ddBtn.setAttribute('aria-expanded','false');
+  }
+
+  if (ddBtn && ddMenu && ddLabel && selPerPage){
+    // init
+    const initVal = selPerPage.value || '10';
+    ddLabel.textContent = initVal;
+    [...ddMenu.children].forEach(li =>
+      li.setAttribute('aria-selected', li.dataset.val === initVal ? 'true':'false')
+    );
+
+    ddBtn.addEventListener('click', (e)=>{
+      e.preventDefault();
+      ddMenu.classList.contains('show') ? closeMenu() : openMenu();
+    });
+
+    ddMenu.addEventListener('click', (e)=>{
+      const li = e.target.closest('li[role="option"]');
+      if (!li) return;
+      const v = li.dataset.val;
+      ddLabel.textContent = v;
+      [...ddMenu.children].forEach(x => x.setAttribute('aria-selected','false'));
+      li.setAttribute('aria-selected','true');
+      closeMenu();
+      // sync -> select เดิม + trigger change
+      if (selPerPage.value !== v){
+        selPerPage.value = v;
+        selPerPage.dispatchEvent(new Event('change', { bubbles:true }));
+      }
+    });
+
+    // ปิดเมื่อคลิกนอก/กด ESC/เลื่อน/รีไซส์
+    document.addEventListener('click', (e)=>{ if (!e.target.closest('.perpage-dd')) closeMenu(); });
+    document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') closeMenu(); });
+    window.addEventListener('scroll', ()=> ddMenu.classList.contains('show') && closeMenu(), true);
+    window.addEventListener('resize', ()=> ddMenu.classList.contains('show') && closeMenu());
+  }
+
+  // ---------- expose & first render ----------
   window.renderAffWithdraws = renderWithdraws;
-  window.affWSetPage = (p=1) => { currentPage = Math.max(1, Number(p)||1); renderWithdraws(); };
+  window.affWSetPage = (p=1) => {
+    currentPage = Math.max(1, Number(p)||1);
+    renderWithdraws();
+  };
 
-  // เรียกครั้งแรกเมื่อโหลดแท็บ (หรือเรียกทันทีเลย)
   renderWithdraws();
 })();
 </script>
+
 
 

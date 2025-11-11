@@ -260,7 +260,9 @@
              var tx = transactions[i];
              var methodName = (tx.method === 'tw')  ? 'TrueWallet'
                             : (tx.method === 'scb') ? 'SCB ไทยพาณิชย์'
-                            : (tx.method === 'kbank') ? 'KBANK กสิกรไทย' : 'ไม่ระบุ';
+                            : (tx.method === 'kbank') ? 'KBANK กสิกรไทย' 
+                            : (tx.method === 'manual') ? 'แอดมิน'
+                            : (tx.method === 'admin') ? 'แอดมิน': 'ไม่ระบุ';
              var st = String(tx.status || '').toLowerCase(); // completed|pending|failed|canceled
              var statusLabel = (st === 'completed') ? 'สำเร็จ'
                              : (st === 'pending')   ? 'รอดำเนินการ'
@@ -276,10 +278,19 @@
                     day:'2-digit', hour:'2-digit', minute:'2-digit'
                   }) %>
             </td>
-            <td class="method">
-              <img class="method-ico" src="/static/assets/payment/<%= tx.method %>.webp"
-                   alt="<%= methodName %>" width="22" height="22" loading="lazy">
-              <span class="method-name"><%= methodName %></span>
+            <td class="method-cell">
+              <span class="method">
+                <img
+                  class="method-ico"
+                  src="/static/assets/payment/<%= tx.method %>.webp"
+                  alt="<%= methodName %>"
+                  width="22"
+                  height="22"
+                  loading="lazy"
+                  style="margin-right:0"
+                >
+                <span class="method-name"><%= methodName %></span>
+              </span>
             </td>
             <td class="amount right">
               <span class="money">฿<%= amountNum.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) %></span>
@@ -301,7 +312,10 @@
            var t = transactions[j];
            var mName = (t.method === 'tw')  ? 'TrueWallet'
                     : (t.method === 'scb') ? 'SCB ไทยพาณิชย์'
-                    : (t.method === 'kbank') ? 'KBANK กสิกรไทย' : 'ไม่ระบุ';
+                    : (t.method === 'kbank') ? 'KBANK กสิกรไทย'
+                    : (t.method === 'scb') ? 'SCB ไทยพานิชย์'
+                    : (t.method === 'manual') ? 'แอดมิน'
+                    : (t.method === 'admin') ? 'แอดมิน' : 'ไม่ระบุ';
            var st2 = String(t.status || '').toLowerCase();
            var stLabel = (st2 === 'completed') ? 'สำเร็จ'
                        : (st2 === 'pending')   ? 'รอดำเนินการ'
