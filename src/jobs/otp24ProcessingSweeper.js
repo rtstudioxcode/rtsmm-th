@@ -10,6 +10,7 @@ export function startOtp24ProcessingSweeper () {
   let running = false;
 
   // คืนเครดิตแบบ one-shot ด้วยตัวล็อก refundApplied
+  // nextStatus ตอนนี้ใช้แค่ 'refunded' อย่างเดียว (ตาม requirement ใหม่)
   async function refundOnce(row, nextStatus, msg){
     const sale = round2(Number(row.salePrice || 0));
     // ล็อกกันซ้ำ + เซ็ตสถานะ + บันทึกจำนวนที่คืน
@@ -17,7 +18,7 @@ export function startOtp24ProcessingSweeper () {
       { _id: row._id, refundApplied: { $ne: true } },
       {
         $set: {
-          status:        nextStatus,                    // 'refunded' | 'timeout' | 'failed'
+          status:        nextStatus, // ปกติ = 'refunded'
           message:       msg || 'คืนเครดิต',
           refundApplied: true,
           refundAmount:  sale,
@@ -52,9 +53,9 @@ export function startOtp24ProcessingSweeper () {
         .lean();
 
       for (const row of list) {
-        // 1) หมดเวลา (ถ้าโครงสร้างยังใช้อยู่) → คืนเครดิต one-shot
+        // 1) หมดเวลา → คืนเครดิต one-shot และเปลี่ยนเป็นสถานะ refunded
         if (row.expiresAt && new Date(row.expiresAt).getTime() <= now) {
-          await refundOnce(row, 'คืนเครดิต', row.message || 'คืนเครดิต');
+          await refundOnce(row, 'refunded', row.message || 'คืนเครดิต (หมดเวลา)');
           continue;
         }
 
@@ -79,21 +80,21 @@ export function startOtp24ProcessingSweeper () {
           continue;
         }
 
-        // 2.2 refunded → คืนเครดิต one-shot
+        // 2.2 provider ส่งสถานะ refunded → คืนเครดิต one-shot และ mark refunded
         if (st.includes('refunded')) {
           await refundOnce(row, 'refunded', r.msg || 'คืนเครดิต');
           continue;
         }
 
-        // 2.3 timeout (จาก provider) → คืนเครดิต one-shot (สถานะคงเป็น timeout)
+        // 2.3 provider ส่ง timeout → เปลี่ยนเป็น refunded อย่างเดียว
         if (st.includes('timeout')) {
-          await refundOnce(row, 'refunded', r.msg || 'คืนเครดิต');
+          await refundOnce(row, 'refunded', r.msg || 'คืนเครดิต (timeout)');
           continue;
         }
 
-        // 2.4 failed → คืนเครดิต one-shot (สถานะคงเป็น failed)
-        if (st.includes('failed')) {
-          await refundOnce(row, 'refunded', r.msg || 'คืนเครดิต');
+        // 2.4 provider ส่ง fail/failed → เปลี่ยนเป็น refunded อย่างเดียว
+        if (st.includes('failed') || st.includes('fail')) {
+          await refundOnce(row, 'refunded', r.msg || 'คืนเครดิต (failed)');
           continue;
         }
 
