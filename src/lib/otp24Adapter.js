@@ -599,6 +599,90 @@ export async function getOtpStatus(orderId) {
     return { ok:false, error:String(e?.message || e) };
   }
 }
+// export async function getOtpStatus(orderId) {
+//   await refreshConfigFromDB();
+//   const { base, key } = assertConfigured(); // key มาจาก config ใน DB
+//   const endpoint = base.replace(/\?.*$/,'').replace(/\/+$/,'');
+//   const q = new URLSearchParams({ order_id: String(orderId) });
+//   if (key) q.set('keyapi', key);
+
+//   // ตัวช่วยแปลง text -> object เผื่อบางรอบส่ง urlencoded กลับมา
+//   const parseLoose = (text) => {
+//     const t = (text || '').trim();
+//     const j = parseMaybeJson(t);
+//     if (j) return j;
+//     try { return Object.fromEntries(new URLSearchParams(t)); } catch { return null; }
+//   };
+
+//   // --- ทางหลัก: GET ---
+//   try {
+//     const url = `${endpoint}/otp_status?${q.toString()}`;
+//     const res = await fetchWithTimeout(url, { method:'GET', headers:{ accept:'application/json' } }, 15000);
+//     const text = await res.text();
+//     const json = parseLoose(text) ?? {};
+//     if (!res.ok) return { ok:false, error:`HTTP ${res.status}`, raw:text };
+
+//     const rawStatus = (json.status ?? json.Status ?? json.STATUS ?? '').toString();
+//     const otpRaw    = (json.otp ?? json.OTP ?? json.code ?? '').toString().trim();
+//     const msg       = (json.msg ?? json.message ?? '').toString();
+
+//     return { ok:true, status: rawStatus, otp: otpRaw || null, msg, raw: json ?? text };
+//   } catch (e) {
+//     // ตกไปลอง POST form ต่อ
+//   }
+
+//   // --- Fallback: POST form ---
+//   try {
+//     const form = new URLSearchParams();
+//     if (key) form.set('keyapi', key);
+//     form.set('order_id', String(orderId));
+
+//     const res2  = await fetchWithTimeout(`${endpoint}/otp_status`, {
+//       method: 'POST',
+//       headers: { 'content-type':'application/x-www-form-urlencoded', accept:'application/json' },
+//       body: form.toString()
+//     }, 15000);
+
+//     const text2 = await res2.text();
+//     const json2 = parseLoose(text2) ?? {};
+//     if (!res2.ok) return { ok:false, error:`HTTP ${res2.status}`, raw:text2 };
+
+//     const rawStatus = (json2.status ?? json2.Status ?? json2.STATUS ?? '').toString();
+//     const otpRaw    = (json2.otp ?? json2.OTP ?? json2.code ?? '').toString().trim();
+//     const msg       = (json2.msg ?? json2.message ?? '').toString();
+
+//     return { ok:true, status: rawStatus, otp: otpRaw || null, msg, raw: json2 ?? text2 };
+//   } catch (e) {
+//     return { ok:false, error:String(e?.message || e) };
+//   }
+// }
+
+/**
+ * canReuse: เช็คแบบคร่าว ๆ ว่า order เดิม “น่าจะ” ยังใช้เบอร์ซ้ำได้ไหม
+ * คืน:
+ *   true  = ดูแล้วไม่มีคำว่า removed/not reusable → ปล่อยผ่าน
+ *   false = เจอ keyword ว่าเบอร์ถูกถอด / reuse ไม่ได้
+ *   null  = เช็คไม่ได้ / API error → ให้ route ตัดสินใจเอง
+ */
+export async function canReuse({ orderId }) {
+  if (!orderId) return null;
+  try {
+    const r = await getOtpStatus(orderId);
+    if (!r?.ok) return null;
+
+    const blob = `${r.status || ''} ${r.msg || ''}`.toLowerCase();
+
+    // ถ้าข้อความ/status มีคำประมาณนี้ → ถือว่า reuse ไม่ได้
+    if (/not\s*available|removed|cannot\s*reuse|not\s*reusable|invalid/.test(blob)) {
+      return false;
+    }
+
+    // ที่เหลือถือว่า "น่าจะ" reuse ได้ (ให้ provider เป็นคนตัดสินรอบ buy-again อีกที)
+    return true;
+  } catch {
+    return null;
+  }
+}
 
 export function isOtp24Configured() {
   try { assertConfigured(); return true; } catch { return false; }
