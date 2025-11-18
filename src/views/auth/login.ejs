@@ -12,26 +12,20 @@
 
   <form id="loginForm" class="auth-form" action="/login" method="post" novalidate>
     <input type="hidden" name="next" value="<%= next %>">
-
     <label>ชื่อผู้ใช้
       <input name="username" required autocomplete="username">
     </label>
-
     <label>รหัสผ่าน
       <input type="password" name="password" required autocomplete="current-password">
     </label>
-
-    <!-- Turnstile: อยู่ใต้ฟิลด์เฉพาะ desktop (มือถือจะเต็มบล็อกเหมือนเดิม) -->
-    <div class="captcha-wrap">
-      <div
-        id="cf-turnstile"
-        class="cf-turnstile"
-        data-sitekey="<%= turnstileSiteKey %>">
-      </div>
-    </div>
-
     <button class="btn primary block" type="submit" id="btnLogin">เข้าสู่ระบบ</button>
-
+    <div class="captcha-wrap" style="margin:16px 0; display:flex; justify-content:center;">
+      <div class="cf-turnstile"
+          data-sitekey="<%= turnstileSiteKey %>"
+          data-theme="dark"
+          data-language="th">
+      </div>
+    </div> 
     <div class="auth-foot">ยังไม่มีบัญชี? <a href="/register">สมัครสมาชิก</a></div>
     <div style="margin-top:8px;text-align:right">
       <button id="linkForgot" type="button" class="muted link-btn" aria-haspopup="dialog">
@@ -109,27 +103,6 @@
   .pill{border-radius:999px;padding:8px 14px;border:0;cursor:pointer}
   .pill.primary{background:#f0c662;color:#111}
   .pill.ghost{background:transparent;border:1px solid #434a5a;color:#ddd}
-
-  /* ตำแหน่ง Turnstile ทั่วไป */
-  .captcha-wrap {
-    margin: 16px 0;
-    display: flex;
-    justify-content: center;
-  }
-
-  /* เฉพาะจอใหญ่: วางฟิลด์แบบคอลัมน์ และให้ Turnstile อยู่ "ใต้ฟิลด์" ทางซ้าย */
-  @media (min-width: 900px) {
-    .captcha-wrap {
-      justify-content: flex-start; /* ให้ชิดซ้ายฟิลด์ */
-    }
-  }
-
-  /* มือถือ: ใช้ layout เดิม (แค่แน่ใจว่ากลางการ์ด) */
-  @media (max-width: 899.98px) {
-    .captcha-wrap {
-      justify-content: center;
-    }
-  }
 </style>
 
 <script type="module">
@@ -221,5 +194,48 @@
     } catch (e) {
       window.showMsg?.({ variant:'error', icon:'✖', title:'เครือข่ายมีปัญหา', text:'โปรดลองใหม่อีกครั้ง' });
     }
+  });
+  // ======= TURNSTILE + THEME SYNC (เฉพาะหน้า Login) =======
+  function tsCurrentTheme() {
+    const t = document.documentElement.getAttribute('data-theme');
+    return t === 'light' ? 'light' : 'dark';
+  }
+
+  function tsRender() {
+    const container = document.getElementById('cf-turnstile');
+    if (!container || !window.turnstile) return;
+
+    const sitekey = container.dataset.sitekey;
+    if (!sitekey) return;
+
+    // เคลียร์ของเก่าแล้ว render ใหม่
+    container.innerHTML = '';
+    window.turnstile.render(container, {
+      sitekey,
+      theme: tsCurrentTheme(),   // sync ตาม theme
+      language: 'th'
+    });
+  }
+
+  function tsInit() {
+    if (window.turnstile) {
+      tsRender();
+    } else {
+      window.addEventListener('turnstile-ready', () => {
+        tsRender();
+      }, { once: true });
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', tsInit, { once: true });
+  } else {
+    tsInit();
+  }
+
+  // เวลาสลับธีมจากปุ่มบน topbar -> re-render captcha ให้ตรง theme
+  window.addEventListener('themechange', () => {
+    if (!window.turnstile) return;
+    tsRender();
   });
 </script>

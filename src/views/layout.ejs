@@ -5,19 +5,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- Favicon -->
-  <link rel="icon" href="/static/logo/icon-logo.png" type="image/png">
-  <link rel="shortcut icon" href="/static/logo/icon-logo.png" type="image/png">
-  <link rel="apple-touch-icon" href="/static/logo/icon-logo.png">
-  <title><%= (typeof title !== 'undefined' ? title : 'RTSSM-TH.COM ผู้ให้บริการการตลาดออนไลน์และโซเชียลระดับสากล มาตรฐานมืออาชีพ ดูแลลูกค้าทั่วโลก') %></title>
-
   <script>
-    // ถูกเรียกโดย Turnstile เมื่อโหลดเสร็จ (เพราะเราใส่ ?onload=onTurnstileLoad)
     window.onTurnstileLoad = function () {
       window.dispatchEvent(new Event('turnstile-ready'));
     };
   </script>
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onTurnstileLoad" async defer></script>
+  <!-- Favicon -->
+  <link rel="icon" href="/static/logo/icon-logo.png" type="image/png">
+  <link rel="shortcut icon" href="/static/logo/icon-logo.png" type="image/png">
+  <link rel="apple-touch-icon" href="/static/logo/icon-logo.png">
+  <title><%= (typeof title !== 'undefined' ? title : 'RTSSM-TH.COM ผู้ให้บริการการตลาดออนไลน์และโซเชียลระดับสากล มาตรฐานมืออาชีพ ดูแลลูกค้าทั่วโลก') %></title>
 
   <!-- THEME MANAGER: แหล่งความจริงเดียว -->
   <script>
@@ -30,7 +28,7 @@
       html.classList.toggle('light', t === 'light');
       html.classList.toggle('dark',  t === 'dark');
       try { html.style.colorScheme = (t === 'light') ? 'light' : 'dark'; } catch(e){}
-      // กัน body ไปมีธีมทับ
+
       if (document.body) {
         document.body.removeAttribute('data-theme');
         document.body.classList.remove('light','dark');
@@ -44,12 +42,10 @@
       window.dispatchEvent(new CustomEvent('themechange', { detail:{ theme:t } }));
     }
 
-    // ธีมเริ่มต้น
     let t = localStorage.getItem('theme');
     if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     applyTheme(t);
 
-    // API สาธารณะ
     window.setTheme   = (name) => applyTheme(name);
     window.toggleTheme= () => {
       const cur  = html.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
@@ -58,53 +54,7 @@
       return next;
     };
   })();
-  // ======= TURNSTILE + THEME SYNC =======
-  const tsContainer = document.getElementById('cf-turnstile');
-  const siteKey = tsContainer?.dataset.sitekey || null;
-  let tsWidgetId = null;
-
-  function currentTheme() {
-    // เอาค่าจาก html[data-theme] (มาจาก theme manager ใน layout.ejs)
-    const t = document.documentElement.getAttribute('data-theme');
-    return t === 'light' ? 'light' : 'dark';
-  }
-
-  function renderTurnstile() {
-    if (!window.turnstile || !tsContainer || !siteKey) return;
-
-    // ล้างของเก่าแล้ว render ใหม่ตามธีมปัจจุบัน
-    tsContainer.innerHTML = '';
-    tsWidgetId = window.turnstile.render('#cf-turnstile', {
-      sitekey: siteKey,
-      theme: currentTheme(),   // 'light' หรือ 'dark'
-      language: 'th'
-    });
-  }
-
-  // รอให้สคริปต์ Turnstile โหลดเสร็จ (ยิงมาจาก window.onTurnstileLoad ใน layout)
-  function initTurnstileWhenReady() {
-    if (window.turnstile) {
-      renderTurnstile();
-    } else {
-      window.addEventListener('turnstile-ready', () => {
-        renderTurnstile();
-      }, { once: true });
-    }
-  }
-
-  // เริ่มทำงานเมื่อ DOM พร้อม
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initTurnstileWhenReady, { once: true });
-  } else {
-    initTurnstileWhenReady();
-  }
-
-  // เมื่อมีการเปลี่ยนธีมจากปุ่มใน topbar -> re-render Turnstile ให้ธีมตรงกัน
-  window.addEventListener('themechange', () => {
-    if (!window.turnstile || !tsContainer) return;
-    renderTurnstile();
-  });
-  </script>
+</script>
 
   <!-- CSS หลัก -->
   <link rel="stylesheet" href="/static/css/styles.css?v=32">
