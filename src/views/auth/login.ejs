@@ -20,12 +20,12 @@
     </label>
     <button class="btn primary block" type="submit" id="btnLogin">เข้าสู่ระบบ</button>
     <div class="captcha-wrap" style="margin:16px 0; display:flex; justify-content:center;">
-      <div class="cf-turnstile"
-          data-sitekey="<%= turnstileSiteKey %>"
-          data-theme="dark"
-          data-language="th">
+      <div
+        id="cf-turnstile"
+        class="cf-turnstile"
+        data-sitekey="<%= turnstileSiteKey %>">
       </div>
-    </div> 
+    </div>
     <div class="auth-foot">ยังไม่มีบัญชี? <a href="/register">สมัครสมาชิก</a></div>
     <div style="margin-top:8px;text-align:right">
       <button id="linkForgot" type="button" class="muted link-btn" aria-haspopup="dialog">
@@ -196,46 +196,50 @@
     }
   });
   // ======= TURNSTILE + THEME SYNC (เฉพาะหน้า Login) =======
-  function tsCurrentTheme() {
-    const t = document.documentElement.getAttribute('data-theme');
-    return t === 'light' ? 'light' : 'dark';
-  }
-
-  function tsRender() {
-    const container = document.getElementById('cf-turnstile');
-    if (!container || !window.turnstile) return;
-
-    const sitekey = container.dataset.sitekey;
-    if (!sitekey) return;
-
-    // เคลียร์ของเก่าแล้ว render ใหม่
-    container.innerHTML = '';
-    window.turnstile.render(container, {
-      sitekey,
-      theme: tsCurrentTheme(),   // sync ตาม theme
-      language: 'th'
-    });
-  }
-
-  function tsInit() {
-    if (window.turnstile) {
-      tsRender();
-    } else {
-      window.addEventListener('turnstile-ready', () => {
-        tsRender();
-      }, { once: true });
+  (function () {
+    function tsCurrentTheme() {
+      const t = document.documentElement.getAttribute('data-theme');
+      return t === 'light' ? 'light' : 'dark';
     }
-  }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', tsInit, { once: true });
-  } else {
-    tsInit();
-  }
+    function tsRender() {
+      const container = document.getElementById('cf-turnstile');
+      if (!container || !window.turnstile) return;
 
-  // เวลาสลับธีมจากปุ่มบน topbar -> re-render captcha ให้ตรง theme
-  window.addEventListener('themechange', () => {
-    if (!window.turnstile) return;
-    tsRender();
-  });
+      const sitekey = container.dataset.sitekey;
+      if (!sitekey) return;
+
+      // เคลียร์ widget เก่า แล้ว render ใหม่ตามธีมปัจจุบัน
+      container.innerHTML = '';
+      window.turnstile.render(container, {
+        sitekey,
+        theme: tsCurrentTheme(), // 'light' หรือ 'dark'
+        language: 'th'
+      });
+    }
+
+    function tsInit() {
+      if (window.turnstile) {
+        tsRender();
+      } else {
+        // รอให้สคริปต์ Turnstile ยิง onload -> turnstile-ready
+        window.addEventListener('turnstile-ready', () => {
+          tsRender();
+        }, { once: true });
+      }
+    }
+
+    // เริ่มตอน DOM พร้อม
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', tsInit, { once: true });
+    } else {
+      tsInit();
+    }
+
+    // เวลาสลับธีมจากปุ่มบน topbar -> re-render captcha ให้ตรง theme
+    window.addEventListener('themechange', () => {
+      if (!window.turnstile) return;
+      tsRender();
+    });
+  })();
 </script>
