@@ -5,6 +5,7 @@ import { User } from '../models/User.js';
 import { OtpToken } from '../models/OtpToken.js';
 import { sendEmail } from '../lib/mailer.js';
 import crypto from 'crypto';
+import { config } from '../config.js';
 
 const router = express.Router();
 const parseUrlencoded = express.urlencoded({ extended: false });
@@ -94,13 +95,45 @@ function genToken(bytes = 32) {
   return crypto.randomBytes(bytes).toString('base64url'); // Node 20+
 }
 
+async function verifyTurnstile(token, remoteIp) {
+  const secret = config.turnstile?.secretKey || '';
+
+  // ถ้าไม่ได้ตั้ง secret ไว้ (เช่น dev) ให้ผ่านไปเลย
+  if (!secret) return true;
+
+  if (!token) return false;
+
+  try {
+    const resp = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        secret,
+        response: token,
+        remoteip: remoteIp || '',
+      }),
+    });
+
+    const data = await resp.json();
+    return !!data.success;
+  } catch (err) {
+    console.error('Turnstile verify error', err);
+    // ถ้า error ให้ถือว่าไม่ผ่าน เพื่อกัน bot
+    return false;
+  }
+}
+
 /* =========================
  * LOGIN
  * ========================= */
 router.get('/login', (req, res) => {
   if (req.session?.user) return res.redirect('/');
   const next = typeof req.query.next === 'string' ? req.query.next : '/';
-  res.render('auth/login', { title: 'เข้าสู่ระบบ', next });
+  res.render('auth/login', {
+    title: 'เข้าสู่ระบบ',
+    next,
+    turnstileSiteKey: config.turnstile?.siteKey || '',
+  });
 });
 
 router.post('/login', parseUrlencoded, async (req, res) => {
@@ -108,6 +141,20 @@ router.post('/login', parseUrlencoded, async (req, res) => {
     const username = (req.body.username || '').trim();
     const password = req.body.password || '';
     const nextUrl  = safeNext(req.body.next);
+
+    // ✅ ดึง Turnstile token จากฟอร์ม (ชื่อฟิลด์มาตรฐานของ Cloudflare)
+    const token =
+      req.body['cf-turnstile-response'] ||
+      req.body['cf_challenge_response'] ||
+      '';
+
+    const human = await verifyTurnstile(token, req.ip);
+    if (!human) {
+      return res.status(400).json({
+        ok: false,
+        message: '⚠️ กรุณายืนยันว่าคุณเป็นมนุษย์ก่อนเข้าสู่ระบบ',
+      });
+    }
 
     const user = await User.findOne({ username }).lean(false);
     if (!user) return res.status(400).json({ ok:false, message:'⚠️ไม่พบบัญชีผู้ใช้' });

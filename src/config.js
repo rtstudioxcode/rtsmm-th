@@ -43,6 +43,11 @@ const envConfig = {
   },
 
   TW_GEN_LINK_SECRET: process.env.TW_GEN_LINK_SECRET || '',
+
+  turnstile: {
+    siteKey: process.env.TURNSTILE_SITE_KEY || '',
+    secretKey: process.env.TURNSTILE_SECRET_KEY || '',
+  },
 };
 
 // live object ที่ทุกไฟล์ใช้ร่วมกัน
@@ -79,6 +84,11 @@ const secureConfigSchema = new mongoose.Schema(
       maxAttempts: Number,
     },
     TW_GEN_LINK_SECRET: String,
+
+    turnstile: {
+      siteKey: String,
+      secretKey: String,
+    },
 
     // เก็บ mongoUri แบบเข้ารหัส (คงเดิม)
     mongoUriEnc: String,
@@ -136,6 +146,16 @@ function applyDBToConfig(doc) {
       config.otp.resendCooldownSec = Number(doc.otp.resendCooldownSec);
     }
     if (Number.isFinite(doc.otp.maxAttempts)) config.otp.maxAttempts = Number(doc.otp.maxAttempts);
+  }
+
+  // Turnstile
+  if (doc.turnstile) {
+    if (doc.turnstile.siteKey) {
+      config.turnstile.siteKey = String(doc.turnstile.siteKey);
+    }
+    if (doc.turnstile.secretKey) {
+      config.turnstile.secretKey = String(doc.turnstile.secretKey);
+    }
   }
 }
 
