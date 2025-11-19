@@ -6,14 +6,13 @@ import { getOtpStatus } from '../lib/otp24Adapter.js';
 function round2(n){ return Math.round((Number(n)||0)*100)/100; }
 
 export function startOtp24ProcessingSweeper () {
-  const INTERVAL_MS = 5000;
+  const INTERVAL_MS = 2500;
   let running = false;
 
   // คืนเครดิตแบบ one-shot ด้วยตัวล็อก refundApplied
-  // nextStatus ตอนนี้ใช้แค่ 'refunded' อย่างเดียว (ตาม requirement ใหม่)
   async function refundOnce(row, nextStatus, msg){
     const sale = round2(Number(row.salePrice || 0));
-    // ล็อกกันซ้ำ + เซ็ตสถานะ + บันทึกจำนวนที่คืน
+
     const res = await Otp24Order.updateOne(
       { _id: row._id, refundApplied: { $ne: true } },
       {
@@ -30,7 +29,7 @@ export function startOtp24ProcessingSweeper () {
     if (res.modifiedCount === 1 && sale > 0){
       // เพิ่มเงินเข้ากระเป๋าผู้ใช้ครั้งเดียว
       await User.updateOne({ _id: row.user }, { $inc: { balance: sale } });
-      // (ถ้ามีตาราง log กระเป๋า ให้บันทึกตรงนี้ด้วย)
+      // TODO: ถ้ามีตาราง log กระเป๋า ให้บันทึกตรงนี้ด้วย
     } else {
       // เคยคืนไปแล้ว → sync สถานะ/ข้อความให้ตรง
       await Otp24Order.updateOne(
@@ -46,26 +45,43 @@ export function startOtp24ProcessingSweeper () {
     try {
       const now = Date.now();
 
-      // ดึงเฉพาะงานที่ยัง active เพื่อลดโหลด/ลด race
-      const list = await Otp24Order.find({ status: 'processing' })
-        .select('_id orderId message expiresAt user salePrice')
+      // ดึงเฉพาะงานที่ยังไม่ถูก refund (หรือยัง active บางสถานะ)
+      const list = await Otp24Order.find({
+        status: { $in: ['processing', 'timeout', 'failed', 'fail'] }
+      })
+        .select('_id orderId message expiresAt user salePrice status refundApplied')
         .limit(200)
         .lean();
 
       for (const row of list) {
-        // 1) หมดเวลา → คืนเครดิต one-shot และเปลี่ยนเป็นสถานะ refunded
-        if (row.expiresAt && new Date(row.expiresAt).getTime() <= now) {
+        const status = String(row.status || '').toLowerCase();
+        const alreadyRefunded = row.refundApplied === true;
+
+        // 1) หมดเวลาแล้ว และยังไม่ refund → คืนเครดิต + mark refunded
+        if (row.expiresAt && new Date(row.expiresAt).getTime() <= now && !alreadyRefunded) {
           await refundOnce(row, 'refunded', row.message || 'คืนเครดิต (หมดเวลา)');
           continue;
         }
 
-        // 2) เช็คผู้ให้บริการ
+        // 2) สถานะใน DB เป็น timeout/failed/fail แล้ว แต่ยังไม่ refund → คืนเครดิต + mark refunded
+        if (!alreadyRefunded && (status === 'timeout' || status === 'failed' || status === 'fail')) {
+          const reason =
+            status === 'timeout'
+              ? 'คืนเครดิต (timeout)'
+              : 'คืนเครดิต (failed)';
+          await refundOnce(row, 'refunded', row.message || reason);
+          continue;
+        }
+
+        // 3) เฉพาะ processing เท่านั้นที่ไปถาม provider
+        if (status !== 'processing') continue;
+
         const r = await getOtpStatus(row.orderId).catch(() => null);
         if (!r?.ok) continue;
 
         const st = String(r.status || '').toLowerCase();
 
-        // 2.1 success → อัปเดตเฉย ๆ (ไม่คืนเครดิต)
+        // 3.1 success → อัปเดตเฉย ๆ (ไม่คืนเครดิต)
         if (st.includes('success') && r.otp) {
           await Otp24Order.updateOne(
             { _id: row._id, status: 'processing' },
@@ -80,25 +96,25 @@ export function startOtp24ProcessingSweeper () {
           continue;
         }
 
-        // 2.2 provider ส่งสถานะ refunded → คืนเครดิต one-shot และ mark refunded
+        // 3.2 provider ส่ง refunded → คืนเครดิต one-shot และ mark refunded
         if (st.includes('refunded')) {
           await refundOnce(row, 'refunded', r.msg || 'คืนเครดิต');
           continue;
         }
 
-        // 2.3 provider ส่ง timeout → เปลี่ยนเป็น refunded อย่างเดียว
+        // 3.3 provider ส่ง timeout → เราก็ treat เป็น refunded เช่นกัน
         if (st.includes('timeout')) {
           await refundOnce(row, 'refunded', r.msg || 'คืนเครดิต (timeout)');
           continue;
         }
 
-        // 2.4 provider ส่ง fail/failed → เปลี่ยนเป็น refunded อย่างเดียว
+        // 3.4 provider ส่ง fail/failed → treat เป็น refunded เช่นกัน
         if (st.includes('failed') || st.includes('fail')) {
           await refundOnce(row, 'refunded', r.msg || 'คืนเครดิต (failed)');
           continue;
         }
 
-        // 2.5 ยังรอ → อัปเดตข้อความเฉย ๆ
+        // 3.5 ยังรอ → อัปเดตข้อความเฉย ๆ
         const msg = r.msg || 'กำลังรอ OTP…';
         await Otp24Order.updateOne(
           { _id: row._id, status: 'processing', message: { $ne: msg } },
