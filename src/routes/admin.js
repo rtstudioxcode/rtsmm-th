@@ -14,6 +14,8 @@ import { getOtp24Balance, getOtp24Products } from '../lib/otp24Adapter.js';
 import { Otp24Setting } from '../models/Otp24Setting.js';
 import { Otp24Product } from "../models/Otp24Product.js";
 import { Otp24Order } from '../models/Otp24Order.js';
+import { BonustimeOrder } from "../models/BonustimeOrder.js";
+import { config, connectMongoIfNeeded } from "../config.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -26,6 +28,107 @@ const USER_FIELDS = 'username email avatarUrl avatarVer';
 let SYNC_LOCK = false;
 let SYNC_STARTED_AT = 0;
 const MAX_RUN_MS = 15 * 60 * 1000; // 15 นาที
+
+// ─────────────────────────────────────────────────────────────
+// BONUSTIME helpers — ใช้ connection เดิมของ mongoose แล้วสลับ db เป็น rtautobot
+// ─────────────────────────────────────────────────────────────
+async function getBonustimeUsersCollection() {
+  // ใช้ connectMongoIfNeeded ให้แน่ใจว่า cluster ต่อแล้ว
+  await connectMongoIfNeeded();
+
+  const conn = mongoose.connection;
+  const client =
+    typeof conn.getClient === "function"
+      ? conn.getClient()
+      : conn.client;
+
+  if (!client) {
+    throw new Error("Mongo client is not ready for Bonustime");
+  }
+
+  const dbName = config.bonustime?.dbName || "rtautobot";
+  const db = client.db(dbName);
+  return db.collection("users");
+}
+
+/**
+ * แปลง date/สตริง => label ภาษาไทย เช่น 1 ม.ค. 2568
+ */
+function fmtDateLabel(value) {
+  if (!value) return null;
+
+  let d;
+  if (value instanceof Date) {
+    d = value;
+  } else {
+    const s = String(value);
+    // รองรับฟอร์แมต dd/MM/yyyy (พ.ศ.)
+    const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) {
+      const day = Number(m[1]);
+      const month = Number(m[2]);
+      const yearBE = Number(m[3]);
+      const year = yearBE > 2400 ? yearBE - 543 : yearBE;
+      d = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
+    } else {
+      d = new Date(s);
+    }
+  }
+
+  if (!Number.isFinite(d.getTime())) return null;
+
+  return d.toLocaleDateString("th-TH", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  });
+}
+
+/**
+ * คำนวณวันหมดอายุจาก LICENSE_START_DATE + LICENSE_DURATION_DAYS
+ * คืน { expiresAt, label, input }
+ */
+function computeLicenseExpiry(doc = {}) {
+  if (doc.LICENSE_DISABLED === true) {
+    return {
+      expiresAt: null,
+      label: "ไม่มีวันหมดอายุ",
+      input: "",
+      disabled: true,
+    };
+  }
+
+  const startStr = doc.LICENSE_START_DATE;
+  const durDays = Number(doc.LICENSE_DURATION_DAYS || 0);
+  if (!startStr || !durDays) {
+    return { expiresAt: null, label: null, input: "", disabled: false };
+  }
+
+  const m = String(startStr).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) {
+    return { expiresAt: null, label: null, input: "", disabled: false };
+  }
+
+  const day = Number(m[1]);
+  const month = Number(m[2]);
+  const yearBE = Number(m[3]);
+  const year = yearBE > 2400 ? yearBE - 543 : yearBE;
+
+  const start = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
+  if (!Number.isFinite(start.getTime())) {
+    return { expiresAt: null, label: null, input: "", disabled: false };
+  }
+
+  const expires = new Date(start.getTime() + durDays * 24 * 60 * 60 * 1000);
+  const label = expires.toLocaleDateString("th-TH", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  });
+  const input = expires.toISOString().slice(0, 10); // YYYY-MM-DD
+
+  return { expiresAt: expires, label, input, disabled: false };
+}
 
 // === helper : normalize + validate ===
 function normDigits(s = "") {
@@ -967,6 +1070,467 @@ router.get('/otp-report', async (req, res) => {
   } catch (e) {
     console.error('GET /admin/otp-report error:', e);
     res.status(500).send('เกิดข้อผิดพลาดในระบบ');
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// BONUSTIME PANEL (Admin)
+// ─────────────────────────────────────────────────────────────
+// GET /admin/bonustime-panel
+router.get("/bonustime-panel", async (req, res) => {
+  try {
+    const col = await getBonustimeUsersCollection();
+
+    // ========== PART 1: Tenant Records (TAB 1)
+    const docs = await col
+      .find({})
+      .sort({ createdAt: 1, _id: 1 })
+      .toArray();
+
+    const tenantIds = docs.map((d) => d.tenantId).filter(Boolean);
+    const serialKeys = docs.map((d) => d.serial_key).filter(Boolean);
+
+    let ownerByTenant = {};
+    let ownerBySerial = {};
+
+    try {
+      const btOrders = await BonustimeOrder.find({
+        $or: [
+          { tenantId: { $in: tenantIds } },
+          { serial_key: { $in: serialKeys } },
+          { serialKey: { $in: serialKeys } },
+        ]
+      })
+        .populate({ path: "user", select: "username" })
+        .lean();
+
+      for (const o of btOrders || []) {
+        const uName = o.user?.username || null;
+        if (uName) {
+          const t = o.tenantId || o.tenant || null;
+          const sk = o.serial_key || o.serialKey || null;
+          if (t) ownerByTenant[t] = uName;
+          if (sk) ownerBySerial[sk] = uName;
+        }
+      }
+    } catch (err) {
+      console.warn("Owner map error:", err.message);
+    }
+
+    const records = docs.map((doc) => {
+      const expiry = computeLicenseExpiry(doc);
+
+      const ownerUsername =
+        ownerByTenant[doc.tenantId] ||
+        ownerBySerial[doc.serial_key] ||
+        null;
+
+      return {
+        tenantId: doc.tenantId || "",
+        serial_key: doc.serial_key || "",
+        NAME: doc.NAME || "",
+        LOGO: doc.LOGO || "",
+        LOGIN_URL: doc.LOGIN_URL || "",
+        SIGNUP_URL: doc.SIGNUP_URL || "",
+        LINE_ADMIN: doc.LINE_ADMIN || "",
+        LOTTO_ENABLED: !!doc.LOTTO_ENABLED,
+        LICENSE_START_DATE: doc.LICENSE_START_DATE || "",
+        LICENSE_DURATION_DAYS: Number(doc.LICENSE_DURATION_DAYS || 0),
+        LICENSE_DISABLED: !!doc.LICENSE_DISABLED,
+        CHANNEL_ACCESS_TOKEN: doc.CHANNEL_ACCESS_TOKEN || "",
+        CHANNEL_SECRET: doc.CHANNEL_SECRET || "",
+        LINK: doc.LINK || "",
+        username: ownerUsername,
+        ownerName: doc.ownerName || "",
+        note: doc.note || "",
+        createdAtLabel: fmtDateLabel(doc.createdAt),
+        updatedAtLabel: fmtDateLabel(doc.updatedAt),
+        expiresAtLabel: expiry.label,
+        expiresAtInput: expiry.input,
+        licenseDisabled: expiry.disabled,
+        raw: doc
+      };
+    });
+
+    // ========== PART 2: Ultra Mode Summary (TAB 2)
+
+    // เดือนที่เลือก
+    const now = new Date();
+    const year = Number(req.query.year || now.getFullYear());
+    const month = Number(req.query.month || now.getMonth() + 1);
+
+    const start = new Date(`${year}-${month}-01T00:00:00.000Z`);
+    const end = new Date(start);
+    end.setMonth(end.getMonth() + 1);
+
+    // ==== Query orders เดือนนั้น
+    const monthOrders = await BonustimeOrder.find({
+      createdAt: { $gte: start, $lt: end }
+    }).lean();
+
+    // ==== Summary
+    let totalRevenue = 0;
+    let pkg1Revenue = 0;
+    let pkg2Revenue = 0;
+    let pkg1Count = 0;
+    let pkg2Count = 0;
+
+    // สำหรับกราฟรายวัน
+    let daily = {};
+    let topdays = {};
+
+    monthOrders.forEach(o => {
+      const amt = Number(o.amountTHB || 0);
+      totalRevenue += amt;
+
+      // Package 1 = normal
+      const day = new Date(o.createdAt).getDate();
+      daily[day] = (daily[day] || 0) + amt;
+
+      if (o.packageType === "normal") {
+        pkg1Revenue += amt;
+        pkg1Count++;
+      } else {
+        pkg2Revenue += amt;
+        pkg2Count++;
+      }
+    });
+
+    // จัด rank top 5 วัน
+    const top5 = Object.entries(daily)
+      .map(([d, amt]) => ({ day: Number(d), amount: amt }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 5);
+
+    // ส่งค่าไปหน้าเว็บครบทุก field
+    return res.render("admin/bonustime_panel", {
+      title: "Bonustime Panel",
+
+      // TAB 1
+      records,
+      updateEndpoint: "/admin/bonustime/tenant",
+
+      // TAB 2 (Ultra Summary)
+      year,
+      month,
+      monthOrders,
+      totalRevenue,
+      pkg1Revenue,
+      pkg2Revenue,
+      pkg1Count,
+      pkg2Count,
+      daily: JSON.stringify(daily),
+      top5: JSON.stringify(top5)
+    });
+
+  } catch (err) {
+    console.error("GET /admin/bonustime-panel error:", err);
+    res.status(500).send("เกิดข้อผิดพลาดในการดึงข้อมูล Bonustime");
+  }
+});
+
+// PATCH /admin/bonustime/tenant/:tenantId — auto-save ฟิลด์ใน section
+router.patch("/bonustime/tenant/:tenantId", async (req, res) => {
+  try {
+    const { tenantId } = req.params;
+    const { field, value } = req.body || {};
+
+    if (!tenantId || !field) {
+      return res
+        .status(400)
+        .json({ ok: false, error: "tenantId หรือ field ไม่ถูกต้อง" });
+    }
+
+    // ✅ อนุญาตทุก field ที่เราจะให้แก้ (ยกเว้น TenantID / username / serial)
+    const allowed = new Set([
+      "NAME",
+      "ownerName",
+      "expiresAt",
+      "LINK",
+      "note",
+
+      "LOGO",
+      "LOGIN_URL",
+      "SIGNUP_URL",
+      "LINE_ADMIN",
+
+      "LOTTO_ENABLED",
+      "LICENSE_DISABLED",
+      "LICENSE_START_DATE",
+      "LICENSE_DURATION_DAYS",
+
+      "CHANNEL_ACCESS_TOKEN",
+      "CHANNEL_SECRET",
+    ]);
+
+    if (!allowed.has(field)) {
+      return res
+        .status(400)
+        .json({ ok: false, error: "field นี้ไม่อนุญาตให้แก้ไข" });
+    }
+
+    const col = await getBonustimeUsersCollection();
+    const update = {};
+
+    if (field === "expiresAt") {
+      if (value) {
+        const d = new Date(String(value) + "T00:00:00.000Z");
+        if (!Number.isFinite(d.getTime())) {
+          return res
+            .status(400)
+            .json({ ok: false, error: "รูปแบบวันหมดอายุไม่ถูกต้อง" });
+        }
+        update.expiresAt = d;
+      } else {
+        update.expiresAt = null;
+      }
+
+    } else if (field === "NAME") {
+      update.NAME = String(value || "").trim().slice(0, 100);
+
+    } else if (field === "LINK") {
+      update.LINK = String(value || "").trim();
+
+    } else if (field === "ownerName") {
+      update.ownerName = String(value || "").trim();
+
+    } else if (field === "note") {
+      update.note = String(value || "").trim();
+
+    // ---------- config จาก RT AUTOBOT ----------
+    } else if (field === "LOGO") {
+      update.LOGO = String(value || "").trim();
+
+    } else if (field === "LOGIN_URL") {
+      update.LOGIN_URL = String(value || "").trim();
+
+    } else if (field === "SIGNUP_URL") {
+      update.SIGNUP_URL = String(value || "").trim();
+
+    } else if (field === "LINE_ADMIN") {
+      update.LINE_ADMIN = String(value || "").trim();
+
+    } else if (field === "LOTTO_ENABLED") {
+      // มาจาก select value="true"/"false"
+      const boolVal = value === true || value === "true";
+      update.LOTTO_ENABLED = boolVal;
+
+    } else if (field === "LICENSE_DISABLED") {
+      const boolVal = value === true || value === "true";
+      update.LICENSE_DISABLED = boolVal;
+      // ถ้าปิดระบบวันหมดอายุ เคลียร์ expiresAt ทิ้ง (กันสับสน)
+      if (boolVal) {
+        update.expiresAt = null;
+      }
+
+    } else if (field === "LICENSE_START_DATE") {
+      // เก็บ string ตามที่ RT AUTOBOT ให้มา (เช่น 29/09/2568)
+      update.LICENSE_START_DATE = String(value || "").trim();
+
+    } else if (field === "LICENSE_DURATION_DAYS") {
+      const num = parseInt(value, 10);
+      update.LICENSE_DURATION_DAYS = Number.isFinite(num) && num >= 0 ? num : 0;
+
+    } else if (field === "CHANNEL_ACCESS_TOKEN") {
+      update.CHANNEL_ACCESS_TOKEN = String(value || "");
+
+    } else if (field === "CHANNEL_SECRET") {
+      update.CHANNEL_SECRET = String(value || "");
+    }
+
+    const result = await col.updateOne(
+      { tenantId },
+      {
+        $set: {
+          ...update,
+          updatedAt: new Date(),
+        },
+        $setOnInsert: { tenantId },
+      }
+    );
+
+    if (!result.matchedCount && !result.upsertedCount) {
+      return res
+        .status(404)
+        .json({ ok: false, error: "ไม่พบ tenantId นี้ใน Bonustime DB" });
+    }
+
+    return res.json({ ok: true, updated: true });
+  } catch (err) {
+    console.error("PATCH /admin/bonustime/tenant error:", err);
+    return res
+      .status(500)
+      .json({ ok: false, error: "บันทึกไม่สำเร็จ กรุณาลองใหม่" });
+  }
+});
+
+// สร้าง Tenant / Serial ใหม่
+router.post("/bonustime/tenant", async (req, res) => {
+  try {
+    const { tenantId, LOTTO_ENABLED, LINK } = req.body || {};
+
+    if (!tenantId || typeof tenantId !== "string") {
+      return res
+        .status(400)
+        .json({ ok: false, error: "กรุณาระบุ tenantId" });
+    }
+
+    const col = await getBonustimeUsersCollection();
+
+    // กันซ้ำ
+    const existing = await col.findOne({ tenantId });
+    if (existing) {
+      return res
+        .status(400)
+        .json({ ok: false, error: "Tenant ID นี้มีอยู่แล้ว" });
+    }
+
+    const now = new Date();
+
+    // แปลงวันที่เป็นรูปแบบไทย dd/MM/yyyy (พ.ศ.)
+    const toThaiDate = (d) => {
+      const day = String(d.getDate()).padStart(2, "0");
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const year = d.getFullYear() + 543;
+      return `${day}/${month}/${year}`;
+    };
+
+    const doc = {
+      tenantId: tenantId.trim(),
+      serial_key: "",
+      CHANNEL_ACCESS_TOKEN: "",
+      CHANNEL_SECRET: "",
+      LOGO: "",
+      LOGIN_URL: "",
+      SIGNUP_URL: "",
+      LINE_ADMIN: "",
+      ALLOW_TEXT_PROVIDER: false,
+      LOTTO_ENABLED: !!LOTTO_ENABLED,              // จาก body
+      LICENSE_START_DATE: toThaiDate(now),         // วัน/เดือน/ปี ไทย
+      LICENSE_DURATION_DAYS: 30,
+      LICENSE_DISABLED: false,
+      LICENSE_ALLOW_JSON: false,
+      LICENSE_JSON_PATH: "./license.config.json",
+      LINK: (LINK || "").trim(),                   // จาก body
+      NAME: "",
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const result = await col.insertOne(doc);
+
+    return res.json({
+      ok: true,
+      insertedId: result.insertedId,
+    });
+  } catch (err) {
+    console.error("POST /admin/bonustime/tenant error:", err);
+    return res
+      .status(500)
+      .json({ ok: false, error: "สร้างรายการไม่สำเร็จ กรุณาลองใหม่" });
+  }
+});
+
+// =============================
+// BONUSTIME MONTHLY REPORT (Ultra Mode)
+// =============================
+router.get("/bonustime/monthly.json", async (req, res) => {
+  try {
+    const col = await getBonustimeUsersCollection();
+
+    let { month } = req.query;
+    const now = new Date();
+    let y = now.getFullYear();
+    let m = now.getMonth() + 1;
+
+    if (month && /^\d{4}-\d{2}$/.test(month)) {
+      const [yy, mm] = month.split("-").map(Number);
+      y = yy; m = mm;
+    }
+
+    const start = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0));
+    const end   = new Date(Date.UTC(y, m, 1, 0, 0, 0));
+
+    const orders = await col.find({
+      createdAt: { $gte: start, $lt: end }
+    }).sort({ createdAt: 1 }).toArray();
+
+    // ───── รวมยอดรายเดือน ─────
+    let totalMonth = 0;
+    let pkg1Month = 0;
+    let pkg2Month = 0;
+
+    const daily = {};
+
+    for (const o of orders) {
+      const d = new Date(o.createdAt);
+      const key = d.toISOString().slice(0, 10); // yyyy-mm-dd
+
+      const amount = Number(o.amountTHB || 0);
+      const isPkg2 = o.LOTTO_ENABLED === true;
+
+      totalMonth += amount;
+      if (isPkg2) pkg2Month += amount;
+      else pkg1Month += amount;
+
+      if (!daily[key]) {
+        daily[key] = {
+          date: key,
+          pkg1: 0,
+          pkg2: 0,
+          total: 0,
+        };
+      }
+
+      if (isPkg2) daily[key].pkg2++;
+      else daily[key].pkg1++;
+
+      daily[key].total += amount;
+    }
+
+    const dailyArr = Object.values(daily);
+
+    res.json({
+      ok: true,
+      month: `${y}-${String(m).padStart(2, "0")}`,
+      totalMonth,
+      pkg1Month,
+      pkg2Month,
+      bothPkg: pkg1Month + pkg2Month,
+      daily: dailyArr
+    });
+  } catch (err) {
+    console.error("ERR GET /bonustime/monthly.json", err);
+    res.status(500).json({ ok: false, error: "server-error" });
+  }
+});
+
+// DELETE /admin/bonustime/tenant/:tenantId — ลบ Service ออกจาก Bonustime DB
+router.delete("/bonustime/tenant/:tenantId", async (req, res) => {
+  try {
+    const { tenantId } = req.params;
+    if (!tenantId) {
+      return res
+        .status(400)
+        .json({ ok: false, error: "tenantId ไม่ถูกต้อง" });
+    }
+
+    const col = await getBonustimeUsersCollection();
+
+    const result = await col.deleteOne({ tenantId });
+
+    if (!result.deletedCount) {
+      return res
+        .status(404)
+        .json({ ok: false, error: "ไม่พบ Service นี้ใน Bonustime DB" });
+    }
+
+    return res.json({ ok: true, deleted: true });
+  } catch (err) {
+    console.error("DELETE /admin/bonustime/tenant error:", err);
+    return res
+      .status(500)
+      .json({ ok: false, error: "ลบไม่สำเร็จ กรุณาลองใหม่" });
   }
 });
 

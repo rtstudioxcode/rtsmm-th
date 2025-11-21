@@ -1,0 +1,1893 @@
+<section class="page bonustime container">
+
+  <% if (!serial_key) { %>
+
+    <!-- ========================================= -->
+    <!--       ผู้ใช้ยังไม่มี Serial Key           -->
+    <!-- ========================================= -->
+    <section class="card" style="padding:24px; text-align:center;">
+      <h2 class="mb">เช่าบอทไลน์ช่วยส่งโบนัสไทม์</h2>
+
+      <p class="muted mt">
+        คุณยังไม่มี Serial Key สำหรับใช้งานระบบนี้
+      </p>
+
+      <form action="/bonustime/register" method="post" class="mt">
+        <button class="btn primary">ลงทะเบียนใช้งาน</button>
+      </form>
+    </section>
+
+  <% } else { %>
+
+    <!-- ========================================= -->
+    <!--       ผู้ใช้มี Serial Key แล้ว            -->
+    <!-- ========================================= -->
+    <!-- <h2 class="mb">ระบบ Bonustime</h2> -->
+    <!-- <div class="muted mb-sm">Serial Key ของคุณ: <%= serial_key %></div> -->
+    <div class="bt-tabbar">
+        <button class="bt-tab active" data-tab="order">
+            <span>สั่งซื้อเช่า</span>
+        </button>
+        <button class="bt-tab" data-tab="history">
+            <span>ประวัติการสั่งซื้อ</span>
+        </button>
+        <button class="bt-tab" data-tab="helpers">
+            <span>ช่วยเหลือ</span>
+        </button>
+    </div>
+    <!-- TAB 1 : สั่งซื้อ -->
+    <section id="tab-order" class="tabpane show">
+        <div class="bonustime-order">
+            <!-- <h2 class="mb">สั่งซื้อ / เช่าระบบ Bonustime</h2> -->
+            <p class="muted mb">เลือกแพ็กเกจที่ต้องการ</p>
+            <!-- <div class="muted mb-sm">Serial Key ของคุณ: <%= serial_key %></div> -->
+
+            <div class="bt-package-grid">
+            <!-- แพ็กเกจ 1: สล็อต + บาคาร่า -->
+            <section class="bt-package" id="pkg-normal">
+                <header class="pkg-head">
+                <div class="pkg-title">แพ็กเกจ 1 : สล็อต + บาคาร่า</div>
+                <div class="pkg-remaining" id="pkg-normal-count">กำลังโหลด…</div>
+                </header>
+
+                <div class="pkg-body">
+                    <div class="pkg-thumb">
+                        <img src="/static/bonustime/packgage1.jpg" alt="แพ็กเกจ 1 สล็อต + บาคาร่า">
+                    </div>
+                    <div class="pkg-meta">
+                        <span class="badge">30 วัน</span>
+                    </div>
+                    <p class="pkg-desc">
+                        🔥 BOT LINE ช่วยส่งโบนัสไทม์-ตอบลูกค้าแทนคุณ ใช้ง่าย ประหยัดเวลา คุ้มสุด ๆ<br>
+                        ✅ อัปเดตรูปเกมให้ฟรีตลอดระยะเวลาการใช้งาน<br>
+                        ✅ รองรับเกมสล็อตจากค่ายดังมากมาย<br>
+                        ✅ ระบบตอบคำถามลูกค้าอัตโนมัติ<br>
+                        ✅ ระบบอัปเดตเกมให้ทุก 5 นาทีสำหรับสล็อต<br>
+                        ✅ ระบบอัปเดตห้องให้ทุก 20 วินาทีสำหรับบาคาร่า<br>
+                        ✅ ระบบอัปเดตอัตราการชนะให้ทุกครั้งที่เปลี่ยนเกม &amp; ห้อง<br>
+                    </p>
+                    <div class="pkg-price">฿2,000 / 30 วัน</div>
+                    <div class="pkg-price">(รวมค่าเปิดระบบครั้งแรก 500)</div>
+                </div>
+
+                <footer class="pkg-actions">
+                <button
+                    type="button"
+                    class="bt-btn primary"
+                    id="pkg-normal-btn"
+                    style="width: 100%;"
+                    onclick="openOrder('normal')">
+                    สั่งซื้อแพ็กเกจนี้
+                </button>
+                </footer>
+            </section>
+
+            <!-- แพ็กเกจ 2: สล็อต + บาคาร่า + หวย -->
+            <section class="bt-package" id="pkg-lotto">
+                <header class="pkg-head">
+                <div class="pkg-title">แพ็กเกจ 2 : สล็อต + บาคาร่า + หวย</div>
+                <div class="pkg-remaining" id="pkg-lotto-count">กำลังโหลด…</div>
+                </header>
+
+                <div class="pkg-body">
+                    <div class="pkg-thumb">
+                        <img src="/static/bonustime/packgage2.jpg" alt="แพ็กเกจ 2 สล็อต + บาคาร่า + หวย">
+                    </div>
+                    <div class="pkg-meta">
+                        <span class="badge">30 วัน</span>
+                    </div>
+                    <p class="pkg-desc">
+                        🔥 รวมสล็อต บาคาร่า และหวยในระบบเดียว จัดเต็มฟีเจอร์สายเกม &amp; สายหวย<br>
+                        ✅ อัปเดตรูปเกมให้ฟรีตลอดระยะเวลาการใช้งาน<br>
+                        ✅ อัปเดตรูปเกมให้ฟรีตลอดระยะเวลาการใช้งาน<br>
+                        ✅ รองรับเกมสล็อตจากค่ายดังมากมาย<br>
+                        ✅ ระบบตอบคำถามลูกค้าอัตโนมัติ<br>
+                        ✅ ระบบอัปเดตเกมให้ทุก 5 นาทีสำหรับสล็อต<br>
+                        ✅ ระบบอัปเดตห้องให้ทุก 20 วินาทีสำหรับบาคาร่า<br>
+                        ✅ ระบบอัปเดตอัตราการชนะให้ทุกครั้งที่เปลี่ยนเกม &amp; ห้อง<br>
+                        ✅ ฟีเจอร์ครบครันสำหรับสายหวย<br>
+                        ✅ หวยจะอัปเดตก่อนเวลาหวยออก 20 ชั่วโมง<br>
+                    </p>
+                    <div class="pkg-price">฿2,500 / 30 วัน</div>
+                    <div class="pkg-price">(รวมค่าเปิดระบบครั้งแรก 500)</div>
+                </div>
+
+                <footer class="pkg-actions">
+                <button
+                    type="button"
+                    class="bt-btn primary"
+                    id="pkg-lotto-btn"
+                    style="width: 100%;"
+                    onclick="openOrder('lotto')">
+                    สั่งซื้อแพ็กเกจนี้
+                </button>
+                </footer>
+            </section>
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB 2 : ประวัติ -->
+    <div id="tab-history" class="tabpane">
+        <p class="muted mb">ประวัติการสั่งซื้อ</p>
+        <div id="bonustimeHistory" class="history-list">
+            <p class="muted">กำลังโหลดข้อมูล…</p>
+        </div>
+    </div>
+
+    <!-- TAB 3 : ศูนย์ช่วยเหลือ -->
+    <div id="helpers" class="tabpane">
+      <section class="bt-help">
+        <h2 class="bt-help-title">ศูนย์ช่วยเหลือ</h2>
+        <p class="muted mb-sm">
+          รวมวิธีใช้งานและคำถามที่พบบ่อยเกี่ยวกับการตั้งค่า BOT LINE RTAUTOBOT
+        </p>
+
+        <div class="faq-card">
+          <div class="accordion-clean" id="btHelpList">
+            <ul class="list-unstyled m-0">
+
+              <!-- ข้อ 1: คลิปสอนขอ Channel Access Token / Channel Secret -->
+              <li class="accordion-item active">
+                <div class="accordion-title">
+                  <i class="fa-solid fa-circle-play"></i>
+                  🎥 วิธีขอ Channel Access Token และ Channel Secret
+                </div>
+                <div class="accordion-content">
+                  <p class="muted small mb-sm">
+                    วิดีโอตัวอย่างตั้งแต่สร้าง LINE OA, เปิด Messaging API,
+                    จนถึงคัดลอก Channel Access Token และ Channel Secret
+                    เพื่อนำมาใส่ในฟอร์มสั่งซื้อ Bonustime
+                  </p>
+
+                  <div class="bt-help-video">
+                    <video controls preload="metadata">
+                      <source src="/static/bonustime/line_help.mp4" type="video/mp4" />
+                      เบราว์เซอร์ของคุณไม่รองรับการเล่นวิดีโอ
+                    </video>
+                  </div>
+
+                  <ul class="help-steps">
+                    <li>เข้าสู่ระบบที่ <code>https://developers.line.biz</code></li>
+                    <li>สร้างหรือเลือก LINE Official Account ที่ต้องการใช้กับ BOT</li>
+                    <li>ไปที่เมนู <strong>Messaging API</strong> แล้วกดสร้าง Channel</li>
+                    <li>เมื่อสร้างเสร็จ ให้คัดลอกค่า <strong>Channel secret</strong></li>
+                    <li>เลื่อนลงมาด้านล่าง คัดลอกค่า
+                      <strong>Channel access token (long-lived)</strong></li>
+                    <li>นำ 2 ค่านี้มาใส่ในฟอร์มสั่งซื้อ/แก้ไข Bonustime ในช่อง
+                      <strong>CHANNEL_ACCESS_TOKEN</strong> และ
+                      <strong>CHANNEL_SECRET</strong></li>
+                  </ul>
+                </div>
+              </li>
+
+              <!-- ข้อ 2: ต้องกรอกอะไรบ้างในฟอร์มสั่งซื้อแพ็กเกจ -->
+              <li class="accordion-item">
+                <div class="accordion-title">
+                  <i class="fa-solid fa-circle-plus"></i>
+                  ✏️ ต้องกรอกอะไรบ้างในฟอร์มสั่งซื้อแพ็กเกจ?
+                </div>
+                <div class="accordion-content">
+                  <p class="mb-sm">
+                    ฟอร์มสั่งซื้อจะแสดงเมื่อกดปุ่ม
+                    <strong>“สั่งซื้อแพ็กเกจนี้”</strong> โดยแต่ละช่องมีความหมายดังนี้
+                  </p>
+                  <ul class="help-steps">
+                    <li><strong>ชื่อเว็บ</strong> —
+                      ชื่อหน้าร้าน/เว็บหรือเพจของคุณ ใช้แสดงในประวัติ Bonustime</li>
+                    <li><strong>CHANNEL_ACCESS_TOKEN</strong> —
+                      ค่า token จาก LINE Developers (ตามข้อแรก)</li>
+                    <li><strong>CHANNEL_SECRET</strong> —
+                      ค่า secret จาก LINE Developers (ตามข้อแรก)</li>
+                    <li><strong>โลโก้ (ลิงก์รูป)</strong> —
+                      URL รูปโลโก้ที่จะแสดงในหน้า Flex ของลูกค้า</li>
+                    <li><strong>ลิงก์เข้าสู่ระบบ</strong> —
+                      ลิงก์หน้า Login ของระบบหลักคุณ (ถ้ามี)</li>
+                    <li><strong>ลิงก์สมัครสมาชิก</strong> —
+                      ลิงก์หน้า Register สำหรับลูกค้าใหม่</li>
+                    <li><strong>ลิงก์ไลน์ติดต่อ</strong> —
+                      ลิงก์เพิ่มเพื่อน LINE แอดมิน เช่น
+                      <code>https://line.me/R/ti/p/@xxxxxxx</code></li>
+                  </ul>
+                  <p class="muted small">
+                    แนะนำให้ตรวจสอบลิงก์ทุกช่องโดยลองเปิดในแท็บใหม่ก่อนกดสั่งซื้อจริง
+                    เพื่อลดโอกาสกรอกผิด
+                  </p>
+                </div>
+              </li>
+
+              <!-- ข้อ 3: ลิงก์เชื่อมต่อ (LINK) คืออะไร ใช้ยังไง -->
+              <li class="accordion-item">
+                <div class="accordion-title">
+                    <i class="fa-solid fa-circle-plus"></i>
+                    🔗 ลิงก์เชื่อมต่อ (LINK) คืออะไร ใช้ยังไง?
+                </div>
+                <div class="accordion-content">
+                    <p>
+                        ลิงก์เชื่อมต่อคือ URL ที่ใช้เชื่อมระหว่าง
+                        <strong>เซิร์ฟเวอร์ Bonustime</strong> กับ
+                        <strong>Webhook ของคุณ</strong> ซึ่งระบบจะสร้างให้อัตโนมัติหลังสั่งซื้อ
+                    </p>
+
+                    <ul class="help-steps">
+                        <li>สามารถดูได้ในแท็บ <strong>“ประวัติการสั่งซื้อ”</strong>
+                        แถวของเซิร์ฟเวอร์ที่ต้องการ</li>
+                        <li>กดปุ่ม <strong>“คัดลอก”</strong>
+                        เพื่อนำลิงก์ไปวางในหน้า Webhook ของ LINE Developers</li>
+                        <li>ในหน้า Messaging API ให้ตั้งค่า <strong>Webhook URL</strong>
+                        เป็นลิงก์เชื่อมต่อนี้ แล้วกด <strong>Verify</strong></li>
+                        <li>เมื่อขึ้นสถานะ Success แสดงว่า BOT สามารถรับข้อความจากลูกค้าได้แล้ว</li>
+                    </ul>
+
+                    <!-- ตัวอย่างหน้าจอจากคู่มือการใส่ลิงก์ Webhook -->
+                    <div class="bt-help-pdf mt-sm">
+                        <p class="muted small mb-xs">
+                        ▶ ตัวอย่างหน้าจอจากคู่มือการใส่ลิงก์ Webhook (ดูภาพใหญ่แบบชัด ๆ)
+                        </p>
+                        <div class="pdf-frame">
+                        <iframe
+                            src="/static/bonustime/webhook.pdf#page=1&view=FitH&zoom=130&toolbar=0&navpanes=0"
+                            title="Webhook PDF preview"
+                        ></iframe>
+                        </div>
+                        <a class="link-soft small" href="/static/bonustime/webhook.pdf"
+                        target="_blank" rel="noopener">
+                        เปิดคู่มือ PDF แบบเต็มหน้าจอ
+                        </a>
+                    </div>
+
+                    <!-- ขั้นตอนตั้งค่า Rich Menu ให้เรียกคำสั่ง Bonustime -->
+                    <h4 class="mt-sm" style="font-size:14px; font-weight:600;">
+                        🧩 ขั้นตอนตั้งค่า Rich Menu ให้เรียกคำสั่ง Bonustime
+                    </h4>
+                    <ul class="help-steps">
+                        <li>เข้าสู่ระบบ <strong>LINE Official Admin</strong> ของบัญชีที่ใช้กับ BOT</li>
+                        <li>ไปที่เมนู <strong>ริชเมนู</strong> แล้วสร้างริชเมนูใหม่
+                        หรือเลือกริชเมนูที่ต้องการแก้ไข</li>
+                        <li>กำหนดตำแหน่งปุ่มในริชเมนู (เช่น ปุ่ม BONUSTIME / FOOTBALL / LOTTO)</li>
+                        <li>ที่การตั้งค่าการทำงานของปุ่ม ให้เลือกแบบ
+                        <strong>“ส่งข้อความแชท”</strong> (Text)</li>
+                        <li>ในช่องข้อความ ให้ใส่ <strong>KEYWORD</strong>
+                        เช่น <code>/โบนัสไทม์</code>,
+                        <code>/แนวทางหวย</code> เป็นต้น</li>
+                        <li>หากซื้อ Packgage1 ใส่แค่<strong>/โบนัสไทม์</strong></li>
+                        <li>หากซื้อ Packgage2 ใส่ทั้ง <strong>/โบนัสไทม์</strong> และ <strong>/แนวทางหวย</strong></li>
+                        <li>กด <strong>บันทึก</strong> และเผยแพร่ริชเมนู เมื่อผู้ใช้กดปุ่ม
+                        ระบบจะส่งข้อความ KEYWORD นั้นไปที่ BOT และ BOT จะตอบกลับตามที่ตั้งค่าไว้</li>
+                    </ul>
+
+                    <!-- ตัวอย่างหน้าจอจากคู่มือการตั้งค่า Rich Menu -->
+                    <div class="bt-help-pdf mt-sm">
+                        <p class="muted small mb-xs">
+                        ▶ ตัวอย่างหน้าจอจากคู่มือการตั้งค่า Rich Menu (ดูภาพใหญ่แบบชัด ๆ)
+                        </p>
+                        <div class="pdf-frame">
+                        <iframe
+                            src="/static/bonustime/rich.pdf#page=1&view=FitH&zoom=130&toolbar=0&navpanes=0"
+                            title="Rich Menu PDF preview"
+                        ></iframe>
+                        </div>
+                        <a class="link-soft small" href="/static/bonustime/rich.pdf"
+                        target="_blank" rel="noopener">
+                        เปิดคู่มือริชเมนูแบบเต็มหน้าจอ
+                        </a>
+                    </div>
+                </div>
+              </li>
+
+              <!-- ข้อ 4: วิธีต่ออายุ / อัปเกรดแพ็กเกจ -->
+              <li class="accordion-item">
+                <div class="accordion-title">
+                  <i class="fa-solid fa-circle-plus"></i>
+                  🔄 วิธีต่ออายุ / อัปเกรดแพ็กเกจ
+                </div>
+                <div class="accordion-content">
+                  <ul class="help-steps">
+                    <li>ไปที่แท็บ <strong>“ประวัติการสั่งซื้อ”</strong>
+                      และเลือกเซิร์ฟเวอร์ที่ต้องการต่ออายุ</li>
+                    <li>กดปุ่ม <strong>“ต่ออายุการใช้งาน”</strong>
+                      ระบบจะแสดงตัวเลือกแพ็กเกจตามเวลาที่ต้องการ</li>
+                    <li>เลือกจำนวนวันและยืนยัน ระบบจะต่ออายุให้อัตโนมัติ</li>
+                    <li>ถ้าต้องการเพิ่มฟีเจอร์หวย กดปุ่ม
+                      <strong>“อัปเกรดเพิ่มหวย +฿1,000”</strong>
+                      (ถ้ายังไม่เปิดใช้)</li>
+                  </ul>
+                  <p class="muted small">
+                    หลังต่ออายุสำเร็จ หาก BOT ไม่ตอบ ให้ลองปิด–เปิด Webhook ใน LINE
+                    อีกครั้ง หรือลองส่งข้อความใหม่ทดสอบ
+                  </p>
+                </div>
+              </li>
+
+              <!-- ข้อ 5: วิธีการแนะนำเพื่อน -->
+              <li class="accordion-item">
+                <div class="accordion-title">
+                  <i class="fa-solid fa-user-group"></i>
+                  🤝 วิธีการแนะนำเพื่อน
+                </div>
+                <div class="accordion-content">
+                  <p>
+                    ระบบแนะนำเพื่อนของ <strong>Bonustime</strong>
+                    จะให้คุณสร้างลิงก์ส่วนตัว เพื่อส่งให้เพื่อนหรือคนรู้จักสมัครใช้งาน
+                    และรับค่าตอบแทนเมื่อมีการซื้อแพ็กเกจหรือต่ออายุ
+                  </p>
+                  <ul class="help-steps">
+                    <li>ไปที่เมนู <strong>ข้อมูลผู้ใช้งาน</strong> จากนั้นเลือก
+                      <strong>ข้อมูลส่วนตัว</strong></li>
+                    <li>กดไปที่แท็บ <strong>“แนะนำเพื่อน”</strong></li>
+                    <li>กดปุ่ม <strong>สร้างลิงก์</strong> แล้วนำลิงก์ที่ได้
+                      ส่งให้เพื่อนหรือคนรู้จักสมัครผ่านลิงก์ของคุณ</li>
+                    <li>คุณจะได้รับเงินก็ต่อเมื่อเพื่อนที่คุณแนะนำ
+                      <strong>ซื้อแพ็กเกจ</strong> หรือ <strong>ต่ออายุ</strong> ระบบ Bonustime</li>
+                    <li>เมื่อเพื่อนของคุณ <strong>ซื้อแพ็กเกจครั้งแรก</strong>
+                      คุณจะได้รับเงิน <strong>500 บาท</strong></li>
+                    <li>เมื่อเพื่อนของคุณ <strong>ต่ออายุแพ็กเกจ</strong>
+                      คุณจะได้รับเงิน <strong>200 บาท</strong> ต่อการต่ออายุ 1 ครั้ง</li>
+                  </ul>
+
+                  <div class="bt-help-img mt-sm">
+                    <img src="/static/bonustime/affbt.png"
+                         alt="กิจกรรมแนะนำเพื่อน Bonustime"
+                         loading="lazy">
+                  </div>
+                </div>
+              </li>
+
+            </ul>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  <% } %>
+
+</section>
+
+<!-- Modal สั่งซื้อแพ็กเกจ Bonustime -->
+<dialog id="btOrderModal" class="bt-dialog">
+    <form method="dialog" class="modal bt-modal">
+        <h2 class="mb">สั่งซื้อแพ็กเกจ</h2>
+        <div class="muted mb-sm" id="btOrderTenantLabel">Tenant: —</div>
+        <div class="muted mb">กรอกข้อมูล LINE และลิงก์ต่าง ๆ ให้ถูกต้อง ระบบจะผูกเข้ากับ server นี้ทันที</div>
+
+        <input type="hidden" id="btOrderId">
+        <input type="hidden" id="btOrderType">
+
+        <label class="bt-field">
+        <span>ชื่อเว็บ</span>
+        <textarea id="btOrderName" rows="3" required></textarea>
+        </label>
+
+        <label class="bt-field">
+        <span>CHANNEL_ACCESS_TOKEN</span>
+        <textarea id="btOrderAccessToken" rows="3" required></textarea>
+        </label>
+
+        <label class="bt-field">
+        <span>CHANNEL_SECRET</span>
+        <textarea id="btOrderSecret" rows="2" required></textarea>
+        </label>
+
+        <label class="bt-field">
+        <span>โลโก้ (ลิงก์รูป)</span>
+        <input id="btOrderLogo" type="text" required>
+        </label>
+
+        <label class="bt-field">
+        <span>ลิงก์เข้าสู่ระบบ</span>
+        <input id="btOrderLogin" type="text" required>
+        </label>
+
+        <label class="bt-field">
+        <span>ลิงก์สมัครสมาชิก</span>
+        <input id="btOrderSignup" type="text" required>
+        </label>
+
+        <label class="bt-field">
+        <span>ลิงก์ไลน์ติดต่อ</span>
+        <input id="btOrderLineAdmin" type="text" required>
+        </label>
+
+        <footer class="mt row-end">
+          <button type="button" class="bt-btn ghost" onclick="btOrderModal.close()">ยกเลิก</button>
+          <button type="button" class="bt-btn primary" onclick="submitBonustimeOrder()">ยืนยันสั่งซื้อ</button>
+        </footer>
+    </form>
+</dialog>
+
+<!-- MODAL: แก้ไขข้อมูล -->
+<dialog id="btEditModal" class="bt-dialog">
+  <form method="dialog" class="bt-modal bt-modal--edit">
+    <h2 class="mb">แก้ไขข้อมูล</h2>
+    <p class="muted small mb-sm" id="btEditTenantLabel">Tenant: -</p>
+
+    <input type="hidden" id="btEditId">
+
+    <div class="bt-modal-body">
+      <label class="bt-field">
+        <span>ชื่อเว็บ</span>
+        <textarea id="btEditName" rows="3"></textarea>
+      </label>
+
+      <label class="bt-field">
+        <span>CHANNEL_ACCESS_TOKEN</span>
+        <textarea id="btEditAccessToken" rows="3"></textarea>
+      </label>
+
+      <label class="bt-field">
+        <span>CHANNEL_SECRET</span>
+        <textarea id="btEditSecret" rows="2"></textarea>
+      </label>
+
+      <label class="bt-field">
+        <span>โลโก้ (ลิงก์รูป)</span>
+        <input id="btEditLogo" type="text">
+      </label>
+
+      <label class="bt-field">
+        <span>ลิงก์เข้าสู่ระบบ</span>
+        <input id="btEditLogin" type="text">
+      </label>
+
+      <label class="bt-field">
+        <span>ลิงก์สมัครสมาชิก</span>
+        <input id="btEditSignup" type="text">
+      </label>
+
+      <label class="bt-field">
+        <span>ลิงก์ไลน์ติดต่อ</span>
+        <input id="btEditLineAdmin" type="text">
+      </label>
+    </div>
+
+    <footer class="mt row-end">
+      <button type="submit" value="cancel" class="bt-btn ghost">ยกเลิก</button>
+      <button type="button" class="bt-btn primary" onclick="submitBonustimeEdit()">บันทึก</button>
+    </footer>
+  </form>
+</dialog>
+
+<!-- MODAL: ต่ออายุการใช้งาน -->
+<dialog id="btExtendModal" class="bt-dialog">
+  <form method="dialog" class="bt-modal bt-modal--extend">
+    <h2 class="mb">ต่ออายุการใช้งาน</h2>
+    <p class="muted small mb-sm" id="btExtendTenantLabel">Tenant: -</p>
+
+    <input type="hidden" id="btExtendId">
+    <input type="hidden" id="btExtendIncludeLotto">
+
+    <div class="bt-modal-body">
+      <div class="muted small mb-xs">
+        เลือกแพ็กเกจที่ต้องการต่ออายุ
+      </div>
+
+      <!-- กล่องเลื่อนรายการแพ็กเกจ -->
+      <div class="bt-plan-scroll">
+        <div id="btExtendPlans" class="bt-plan-list">
+          <!-- เติมด้วย JS ตาม LOTTO_ENABLED -->
+        </div>
+      </div>
+
+      <div class="bt-summary">
+        <div class="muted small">สรุปการต่ออายุ</div>
+        <div id="btExtendSummary" class="bt-summary-main">ยังไม่ได้เลือกแพ็กเกจ</div>
+        <div id="btExtendNote" class="bt-summary-note muted small"></div>
+      </div>
+    </div>
+
+    <footer class="mt row-end">
+      <button type="submit" value="cancel" class="bt-btn ghost">ยกเลิก</button>
+      <button type="button" class="bt-btn primary" onclick="submitBonustimeExtend()">ยืนยันต่ออายุ</button>
+    </footer>
+  </form>
+</dialog>
+
+<script>
+// ================== GLOBAL NOTIFY HELPER ==================
+function btNotify(variant, title, text) {
+  // 1) ถ้ามีฟังก์ชัน notify ที่คุณประกาศใน layout
+  if (typeof window.notify === 'function') {
+    return window.notify({ variant, title, text });
+  }
+  // 2) ถ้ามีตัว wrapper แบบที่คุณแปะให้ดู (notify ใน scope ปัจจุบัน)
+  if (typeof notify === 'function') {
+    return notify({ variant, title, text });
+  }
+  // 3) ถ้ามี showMsg (dialog) ก็ใช้ได้
+  if (typeof window.showMsg === 'function') {
+    return window.showMsg({ variant, title, text });
+  }
+  // 4) fallback สุดท้าย — alert ธรรมดา
+  alert((title ? title + '\n' : '') + (text || ''));
+}
+
+// ================== CONFIRM HELPER (ใช้ uiConfirm ถ้ามี) ==================
+async function btConfirm(message) {
+  // ถ้ามี uiConfirm (การ์ดสวย ๆ) ให้ใช้
+  if (window.uiConfirm) {
+    return await window.uiConfirm({
+      variant: "success",
+      title: "ยืนยันอัปเกรดแพ็กเกจ",
+      sub: message,
+      okText: "อัปเกรดเลย",
+      cancelText: "ยกเลิก",
+      focus: "cancel",
+    });
+  }
+
+  // ถ้าไม่มี uiConfirm (เช่น หน้าโหลดไม่ครบ) ใช้ confirm เดิม
+  if (window.originalConfirm) {
+    return window.originalConfirm(message);
+  }
+  return window.confirm(message);
+}
+
+// ================== CACHE + PLAN CONFIG ==================
+const BONUSTIME_CACHE = {};
+
+const PLANS_NORMAL = [ // สล็อต+บาคาร่า
+    { days: 30,  price: 1500,  label: "1 เดือน",   discount: "0%" },
+    { days: 90,  price: 4050,  label: "3 เดือน",  discount: "-10%" },
+    { days: 180, price: 7200,  label: "6 เดือน",  discount: "-20%" },
+    { days: 365, price: 12600, label: "12 เดือน", discount: "-30%" },
+    { days: 730, price: 21600, label: "24 เดือน", discount: "-40%" },
+];
+
+const PLANS_LOTTO = [ // สล็อต+บาคาร่า+หวย
+    { days: 30,  price: 2000,  label: "1 เดือน",   discount: "0%" },
+    { days: 90,  price: 5400,  label: "3 เดือน",  discount: "-10%" },
+    { days: 180, price: 9600,  label: "6 เดือน",  discount: "-20%" },
+    { days: 365, price: 16800, label: "12 เดือน", discount: "-30%" },
+    { days: 730, price: 28800, label: "24 เดือน", discount: "-40%" },
+];
+
+const UPGRADE_LOTTO_PRICE = 1000;
+
+// ================== TABS ==================
+const tabButtons = document.querySelectorAll(".bt-tab");
+const panes = {
+  order:   document.getElementById("tab-order"),
+  history: document.getElementById("tab-history"),
+  helpers: document.getElementById("helpers"),
+};
+
+if (tabButtons.length) {
+  tabButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      // toggle active ปุ่ม
+      tabButtons.forEach((x) => x.classList.remove("active"));
+      btn.classList.add("active");
+
+      // toggle pane ทั้งหมด
+      Object.values(panes).forEach((pane) => {
+        if (pane) pane.classList.remove("show");
+      });
+
+      const name = btn.dataset.tab;
+      if (panes[name]) panes[name].classList.add("show");
+    });
+  });
+}
+
+// ================== HELPERS: วันหมดอายุ ==================
+function calcExpiredDate(start, days) {
+    if (!start || !days) return null;
+    const [d, m, y] = start.split("/").map((v) => parseInt(v));
+    if (!d || !m || !y) return null;
+    const startDate = new Date(y - 543, m - 1, d);
+    return new Date(startDate.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+function calcRemainDays(expiry) {
+    if (!expiry) return 0;
+    const now = new Date();
+    const diff = expiry - now;
+    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+}
+
+// ================== LOAD HISTORY ==================
+async function loadBonustimeHistory() {
+    const box = document.getElementById("bonustimeHistory");
+    if (!box) return;
+
+    box.innerHTML = `<p class="muted">กำลังโหลดข้อมูล…</p>`;
+
+    try {
+    const res = await fetch("/bonustime/history");
+    const data = await res.json();
+
+    if (!data.ok || !Array.isArray(data.records) || !data.records.length) {
+        box.innerHTML = `<p class="muted">ไม่มีประวัติการสั่งซื้อ</p>`;
+        return;
+    }
+
+    box.innerHTML = "";
+    data.records.forEach((rec) => {
+        BONUSTIME_CACHE[rec._id] = rec; // cache ไว้ใช้ตอนเปิด modal
+
+        let statusText = "";
+        if (rec.LICENSE_DISABLED === true) {
+        statusText = "ไม่มีวันหมดอายุ";
+        } else {
+        const expiryDate = calcExpiredDate(
+            rec.LICENSE_START_DATE,
+            rec.LICENSE_DURATION_DAYS
+        );
+        const remainDays = calcRemainDays(expiryDate);
+
+        if (remainDays <= 0) statusText = "หมดอายุแล้ว";
+        else statusText = `เหลืออีก ${remainDays} วัน`;
+        }
+
+        const lottoText = rec.LOTTO_ENABLED ? "เปิด" : "ปิด";
+
+        // ถ้ายังไม่ได้เปิดหวย ให้เตรียมปุ่มอัปเกรดเพิ่ม
+        const upgradeBtnHtml = !rec.LOTTO_ENABLED
+          ? `<button class="bt-btn warn" onclick="upgradeLotto('${rec._id}')">
+               อัปเกรดเพิ่มหวย +฿1,000
+             </button>`
+          : "";
+
+        const el = document.createElement("section");
+        el.className = "bonustime-card";
+
+        el.innerHTML = `
+        <div class="collapse-head">
+            <div class="tenant">${rec.NAME || "-"}</div>
+            <div class="status-pill">${statusText}</div>
+        </div>
+
+        <div class="collapse-body">
+            <div class="bt-grid">
+            <div class="bt-label">Service</div>
+            <div class="bt-value ellipsis" title="${rec.tenantId || ""}">
+                ${rec.tenantId || "-"}
+            </div>
+
+            <div class="bt-label">Serial Key</div>
+            <div class="bt-value ellipsis" title="${rec.serial_key || ""}">
+                ${rec.serial_key || "-"}
+            </div>
+
+            <div class="bt-label">CHANNEL_ACCESS_TOKEN</div>
+            <div class="bt-value ellipsis" title="${rec.CHANNEL_ACCESS_TOKEN || ""}">
+                ${rec.CHANNEL_ACCESS_TOKEN || "-"}
+            </div>
+
+            <div class="bt-label">CHANNEL_SECRET</div>
+            <div class="bt-value ellipsis" title="${rec.CHANNEL_SECRET || ""}">
+                ${rec.CHANNEL_SECRET || "-"}
+            </div>
+
+            <div class="bt-label">โลโก้เว็บ</div>
+            <div class="bt-value ellipsis" title="${rec.LOGO || ""}">
+                ${rec.LOGO || "-"}
+            </div>
+
+            <div class="bt-label">ลิงก์เข้าสู่ระบบ</div>
+            <div class="bt-value ellipsis" title="${rec.LOGIN_URL || ""}">
+                ${rec.LOGIN_URL || "-"}
+            </div>
+
+            <div class="bt-label">ลิงก์สมัครสมาชิก</div>
+            <div class="bt-value ellipsis" title="${rec.SIGNUP_URL || ""}">
+                ${rec.SIGNUP_URL || "-"}
+            </div>
+
+            <div class="bt-label">ลิงก์ไลน์ติดต่อ</div>
+            <div class="bt-value ellipsis" title="${rec.LINE_ADMIN || ""}">
+                ${rec.LINE_ADMIN || "-"}
+            </div>
+
+            <div class="bt-label">เปิดใช้งานหวย</div>
+            <div class="bt-value">${lottoText}</div>
+
+            <div class="bt-label">เริ่มใช้งาน</div>
+            <div class="bt-value">${rec.LICENSE_START_DATE || "-"}</div>
+
+            <div class="bt-label">จำนวนวัน</div>
+            <div class="bt-value">${rec.LICENSE_DURATION_DAYS ?? "-"}</div>
+
+            <div class="bt-label">ลิงก์เชื่อมต่อ</div>
+            <div class="bt-value link-row">
+            <span class="link-text" title="${rec.LINK || ""}">
+                ${rec.LINK || "-"}
+            </span>
+            ${
+                rec.LINK
+                ? `<button
+                    type="button"
+                    class="copy-link-btn"
+                    data-link="${rec.LINK}"
+                    onclick="copyLink(this)">
+                    คัดลอก
+                    </button>`
+                : ""
+            }
+            </div>
+            </div>
+
+            <div class="bt-actions">
+                <button class="bt-btn primary" onclick="openExtend('${rec._id}')">
+                    ต่ออายุการใช้งาน
+                </button>
+                <button class="bt-btn" onclick="openEdit('${rec._id}')">
+                    แก้ไขข้อมูล
+                </button>
+                ${upgradeBtnHtml}
+            </div>
+        </div>
+        `;
+
+        el.querySelector(".collapse-head").addEventListener("click", () => {
+        el.classList.toggle("open");
+        });
+
+        box.appendChild(el);
+    });
+    } catch (err) {
+    console.error(err);
+    box.innerHTML = `<p class="muted">โหลดข้อมูลไม่สำเร็จ</p>`;
+    btNotify('error', 'โหลดประวัติไม่สำเร็จ', 'กรุณาลองใหม่อีกครั้ง');
+    }
+}
+
+function copyLink(btn) {
+  const url = btn.dataset.link || "";
+  if (!url) return;
+
+  navigator.clipboard?.writeText(url)
+    .then(() => btNotify('success', 'คัดลอกลิงก์แล้ว', url))
+    .catch(() => btNotify('error', 'คัดลอกไม่สำเร็จ', 'กรุณาลองใหม่อีกครั้ง'));
+}
+
+async function loadBonustimeProducts() {
+  const normalCard = document.getElementById("pkg-normal");
+  const lottoCard = document.getElementById("pkg-lotto");
+  const normalCountEl = document.getElementById("pkg-normal-count");
+  const lottoCountEl = document.getElementById("pkg-lotto-count");
+  const normalBtn = document.getElementById("pkg-normal-btn");
+  const lottoBtn = document.getElementById("pkg-lotto-btn");
+
+  if (!normalCard || !lottoCard) return;
+
+  normalCountEl.textContent = "กำลังโหลด…";
+  lottoCountEl.textContent = "กำลังโหลด…";
+
+  try {
+    const res = await fetch("/bonustime/products");
+    const data = await res.json();
+
+    if (!data.ok) {
+      normalCountEl.textContent = "โหลดไม่สำเร็จ";
+      lottoCountEl.textContent = "โหลดไม่สำเร็จ";
+      return;
+    }
+
+    const normalCount = data.packages?.normal?.count || 0;
+    const lottoCount = data.packages?.lotto?.count || 0;
+
+    // ปรับ UI แพ็กเกจ 1
+    if (normalCount > 0) {
+      normalCountEl.textContent = `คงเหลือ ${normalCount} รายการ`;
+      normalCard.classList.remove("disabled");
+      normalBtn.disabled = false;
+    } else {
+      normalCountEl.textContent = "สินค้าหมด";
+      normalCard.classList.add("disabled");
+      normalBtn.disabled = true;
+    }
+
+    // ปรับ UI แพ็กเกจ 2
+    if (lottoCount > 0) {
+      lottoCountEl.textContent = `คงเหลือ ${lottoCount} รายการ`;
+      lottoCard.classList.remove("disabled");
+      lottoBtn.disabled = false;
+    } else {
+      lottoCountEl.textContent = "สินค้าหมด";
+      lottoCard.classList.add("disabled");
+      lottoBtn.disabled = true;
+    }
+  } catch (err) {
+    console.error(err);
+    normalCountEl.textContent = "โหลดไม่สำเร็จ";
+    lottoCountEl.textContent = "โหลดไม่สำเร็จ";
+    btNotify('error', 'โหลดข้อมูลสินค้าไม่สำเร็จ', 'กรุณารีโหลดหน้าแล้วลองใหม่');
+  }
+}
+// ================== SUBMIT ORDER ==================
+async function submitBonustimeOrder() {
+  const id = document.getElementById("btOrderId").value;
+  const type = document.getElementById("btOrderType").value || "normal";
+
+  const payload = {
+    bonustimeId: id,
+    packageType: type,
+    NAME: document.getElementById("btOrderName").value.trim(),
+    CHANNEL_ACCESS_TOKEN: document.getElementById("btOrderAccessToken").value.trim(),
+    CHANNEL_SECRET: document.getElementById("btOrderSecret").value.trim(),
+    LOGO: document.getElementById("btOrderLogo").value.trim(),
+    LOGIN_URL: document.getElementById("btOrderLogin").value.trim(),
+    SIGNUP_URL: document.getElementById("btOrderSignup").value.trim(),
+    LINE_ADMIN: document.getElementById("btOrderLineAdmin").value.trim(),
+  };
+
+  // เช็กฟิลด์ว่างคร่าว ๆ
+  if (!payload.CHANNEL_ACCESS_TOKEN || !payload.CHANNEL_SECRET || !payload.NAME) {
+    btNotify(
+        'warn',
+        'กรุณากรอกข้อมูลให้ครบ',
+        'กรุณากรอก CHANNEL_ACCESS_TOKEN และ CHANNEL_SECRET ให้ครบ'
+    );
+    return;
+  }
+
+  try {
+    const res = await fetch("/bonustime/order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+
+    if (!data.ok) {
+        btNotify(
+            'error',
+            'สั่งซื้อไม่สำเร็จ',
+            data.message || 'เกิดข้อผิดพลาด โปรดลองใหม่'
+        );
+        console.warn('order error (ok=false):', data);
+        return;
+    }
+
+    // สำเร็จ
+    const label = data.plan?.label || "แพ็กเกจ Bonustime";
+    const price = data.plan?.price
+        ? `ราคา ฿${data.plan.price.toLocaleString()}`
+        : "";
+    btNotify(
+        'success',
+        'สั่งซื้อสำเร็จ',
+        `${label} ${price}`
+    );
+
+    document.getElementById("btOrderModal").close();
+
+    // รีโหลดสินค้า + ประวัติ
+    loadBonustimeProducts();
+    loadBonustimeHistory();
+
+    // สลับไปแท็บ "ประวัติการสั่งซื้อ"
+    const historyTab = document.querySelector('.bt-tab[data-tab="history"]');
+    if (historyTab) historyTab.click();
+  } catch (err) {
+    console.error(err);
+    btNotify(
+        'error',
+        'สั่งซื้อไม่สำเร็จ',
+        'เกิดข้อผิดพลาดในการสั่งซื้อ โปรดลองใหม่อีกครั้ง'
+    );
+  }
+}
+
+// โหลดทันทีเมื่อเปิดหน้า (มี serialKey แล้ว)
+loadBonustimeHistory();
+loadBonustimeProducts();
+
+// ================== MODAL: ORDER ==================
+async function openOrder(type) {
+  // ป้องกันค่าพิสดาร
+  if (type !== "normal" && type !== "lotto") type = "normal";
+
+  try {
+    // ขอ server ที่ "ว่างตัวถัดไป" จาก backend
+    const res = await fetch(`/bonustime/next?type=${encodeURIComponent(type)}`);
+    const data = await res.json();
+
+    if (!data.ok || !data.item) {
+      btNotify('warn', 'ไม่พบเซิร์ฟเวอร์ว่าง', data.message || 'ไม่พบ server ที่ว่างสำหรับแพ็กเกจนี้');
+      loadBonustimeProducts();
+      return;
+    }
+
+    const item = data.item; // { _id, tenantId }
+    const dlg = document.getElementById("btOrderModal");
+
+    // เก็บ _id ของ server ที่จะขายให้จริง ๆ
+    document.getElementById("btOrderId").value = item._id;
+    document.getElementById("btOrderType").value = type;
+
+    // โชว์ tenantId ที่ backend เลือกจริง ๆ
+    document.getElementById("btOrderTenantLabel").textContent =
+      `Service: ${item.tenantId || "-"}`;
+
+    // เคลียร์ค่าเก่าของฟอร์มทุกครั้งก่อนแสดง
+    document.getElementById("btOrderName").value = "";
+    document.getElementById("btOrderAccessToken").value = "";
+    document.getElementById("btOrderSecret").value = "";
+    document.getElementById("btOrderLogo").value = "";
+    document.getElementById("btOrderLogin").value = "";
+    document.getElementById("btOrderSignup").value = "";
+    document.getElementById("btOrderLineAdmin").value = "";
+
+    dlg.showModal();
+  } catch (err) {
+    console.error(err);
+    btNotify('error', 'ไม่สามารถเปิดฟอร์มสั่งซื้อได้', 'กรุณาลองใหม่อีกครั้ง');
+  }
+}
+
+// ================== MODAL: EDIT ==================
+function openEdit(id) {
+    const rec = BONUSTIME_CACHE[id];
+    if (!rec) return;
+
+    const dlg = document.getElementById("btEditModal");
+    document.getElementById("btEditId").value = id;
+    document.getElementById("btEditTenantLabel").textContent =
+    `Service: ${rec.tenantId || "-"}`;
+    document.getElementById("btEditName").value =
+    rec.NAME || "";
+    document.getElementById("btEditAccessToken").value =
+    rec.CHANNEL_ACCESS_TOKEN || "";
+    document.getElementById("btEditSecret").value =
+    rec.CHANNEL_SECRET || "";
+    document.getElementById("btEditLogo").value = rec.LOGO || "";
+    document.getElementById("btEditLogin").value = rec.LOGIN_URL || "";
+    document.getElementById("btEditSignup").value = rec.SIGNUP_URL || "";
+    document.getElementById("btEditLineAdmin").value =
+    rec.LINE_ADMIN || "";
+
+    dlg.showModal();
+}
+
+async function submitBonustimeEdit() {
+    const id = document.getElementById("btEditId").value;
+    const payload = {
+    NAME: document.getElementById("btEditName").value.trim(),
+    CHANNEL_ACCESS_TOKEN: document.getElementById("btEditAccessToken").value.trim(),
+    CHANNEL_SECRET: document.getElementById("btEditSecret").value.trim(),
+    LOGO: document.getElementById("btEditLogo").value.trim(),
+    LOGIN_URL: document.getElementById("btEditLogin").value.trim(),
+    SIGNUP_URL: document.getElementById("btEditSignup").value.trim(),
+    LINE_ADMIN: document.getElementById("btEditLineAdmin").value.trim(),
+    };
+
+    try {
+    const res = await fetch(`/bonustime/${id}/update`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+
+    if (data.ok) {
+        btNotify(
+            'success',
+            'อัปเดตข้อมูลสำเร็จ',
+            'บันทึกข้อมูลเรียบร้อยแล้ว'
+        );
+        document.getElementById("btEditModal").close();
+        loadBonustimeHistory();
+    } else {
+        btNotify(
+            'error',
+            'อัปเดตไม่สำเร็จ',
+            data.message || 'เกิดข้อผิดพลาด โปรดลองใหม่'
+        );
+    }
+    } catch (err) {
+    console.error(err);
+        btNotify(
+            'error',
+            'อัปเดตไม่สำเร็จ',
+            'เกิดข้อผิดพลาดในการอัปเดตข้อมูล'
+        );
+    }
+}
+
+// ================== MODAL: EXTEND ==================
+function openExtend(id) {
+    const rec = BONUSTIME_CACHE[id];
+    if (!rec) return;
+
+    const dlg = document.getElementById("btExtendModal");
+    const plansBox = document.getElementById("btExtendPlans");
+    const includeLotto = !!rec.LOTTO_ENABLED;
+
+    document.getElementById("btExtendId").value = id;
+    document.getElementById("btExtendIncludeLotto").value =
+    includeLotto ? "1" : "0";
+    document.getElementById("btExtendTenantLabel").textContent =
+    `Service: ${rec.tenantId || "-"}`;
+
+    const plans = includeLotto ? PLANS_LOTTO : PLANS_NORMAL;
+    plansBox.innerHTML = "";
+
+    plans.forEach((p, idx) => {
+    const row = document.createElement("label");
+    row.className = "bt-plan";
+
+    row.innerHTML = `
+        <div class="bt-plan-main">
+        <div class="bt-plan-label">
+            <input type="radio" name="btPlan" value="${p.days}" ${
+        idx === 0 ? "checked" : ""
+    }>
+            ${p.label}
+        </div>
+        <div class="bt-plan-discount">ส่วนลด ${p.discount}</div>
+        </div>
+        <div class="bt-plan-price">฿${p.price.toLocaleString()}</div>
+    `;
+
+    plansBox.appendChild(row);
+    });
+
+    updateExtendSummary(); // สรุปครั้งแรก
+    dlg.showModal();
+}
+
+function updateExtendSummary() {
+    const radios = document.querySelectorAll("input[name='btPlan']");
+    let selected = null;
+    const includeLotto =
+    document.getElementById("btExtendIncludeLotto").value === "1";
+    const planSet = includeLotto ? PLANS_LOTTO : PLANS_NORMAL;
+
+    radios.forEach((r) => {
+    if (r.checked) {
+        const days = Number(r.value);
+        selected = planSet.find((p) => p.days === days);
+    }
+    });
+
+    const sumEl = document.getElementById("btExtendSummary");
+    const noteEl = document.getElementById("btExtendNote");
+
+    if (!selected) {
+    sumEl.textContent = "ยังไม่ได้เลือกแพ็กเกจ";
+    noteEl.textContent = "";
+    return;
+    }
+
+    sumEl.textContent = `${selected.label} — ฿${selected.price.toLocaleString()}`;
+    noteEl.textContent = `ส่วนลด ${selected.discount}`;
+}
+
+document.addEventListener("change", (ev) => {
+    if (ev.target && ev.target.name === "btPlan") {
+    updateExtendSummary();
+    }
+});
+
+async function submitBonustimeExtend() {
+    const id = document.getElementById("btExtendId").value;
+    const includeLotto =
+    document.getElementById("btExtendIncludeLotto").value === "1";
+    const plans = includeLotto ? PLANS_LOTTO : PLANS_NORMAL;
+
+    const checked = document.querySelector("input[name='btPlan']:checked");
+    if (!checked) {
+        btNotify(
+            'warn',
+            'กรุณาเลือกแพ็กเกจ',
+            'กรุณาเลือกแพ็กเกจที่ต้องการต่ออายุ'
+        );
+        return;
+    }
+
+    const days = Number(checked.value);
+    const plan = plans.find((p) => p.days === days);
+
+    const payload = {
+    days: plan.days,
+    includeLotto,
+    };
+
+    try {
+    const res = await fetch(`/bonustime/${id}/extend`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+
+    if (data.ok) {
+        const msg = data.plan && data.plan.price
+            ? `ต่ออายุการใช้งานสำเร็จ — แพ็กเกจ ${data.plan.label} ราคา ฿${data.plan.price.toLocaleString()}`
+            : 'ต่ออายุการใช้งานสำเร็จ';
+
+        btNotify('success', 'ต่ออายุสำเร็จ', msg);
+        document.getElementById("btExtendModal").close();
+        loadBonustimeHistory();
+    } else {
+        btNotify('error', 'ต่ออายุไม่สำเร็จ', data.message || 'ไม่สามารถต่ออายุได้');
+    }
+    } catch (err) {
+    console.error(err);
+        btNotify('error', 'ต่ออายุไม่สำเร็จ', 'เกิดข้อผิดพลาดในการต่ออายุ');
+    }
+}
+
+async function upgradeLotto(id) {
+  const rec = BONUSTIME_CACHE[id];
+  if (!rec) return;
+
+  if (rec.LOTTO_ENABLED) {
+    btNotify('info', 'อัปเกรดไม่ได้', 'แพ็กเกจนี้เปิดใช้งานหวยอยู่แล้ว');
+    return;
+  }
+
+  const price = 1000;
+  const msg = `คุณต้องการอัปเกรดแพ็กเกจนี้ให้รองรับหวยในราคา ฿${price.toLocaleString()} ใช่หรือไม่?`;
+
+  const ok = await btConfirm(msg);
+  if (!ok) return;
+
+  try {
+    const res = await fetch(`/bonustime/${id}/upgrade-lotto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ price }), // ฝั่ง server จะไม่เชื่อ price ฝั่ง client อยู่แล้ว
+    });
+
+    const data = await res.json();
+
+    if (!data.ok) {
+      btNotify('error', 'อัปเกรดไม่สำเร็จ', data.message || 'ไม่สามารถอัปเกรดแพ็กเกจนี้ได้');
+      return;
+    }
+
+    btNotify(
+      'success',
+      'อัปเกรดสำเร็จ',
+      'ระบบได้เปิดใช้งานหวยให้แพ็กเกจนี้แล้ว'
+    );
+
+    // reload history เพื่อให้ปุ่มอัปเกรดหาย และสถานะ LOTTO_ENABLED เป็น 'เปิด'
+    loadBonustimeHistory();
+  } catch (err) {
+    console.error(err);
+    btNotify(
+      'error',
+      'อัปเกรดไม่สำเร็จ',
+      'เกิดข้อผิดพลาดในการอัปเกรดแพ็กเกจ'
+    );
+  }
+}
+
+// ================== Accordion ศูนย์ช่วยเหลือ ==================
+(function () {
+  const root = document.getElementById("btHelpList");
+  if (!root) return;
+
+  root.addEventListener("click", (e) => {
+    const t = e.target.closest(".accordion-title");
+    if (!t) return;
+    const item = t.parentElement;
+    item.classList.toggle("active");
+  });
+})();
+</script>
+
+<style>
+/* ----- Tabs แบบแถบเลือกเหมือนหน้าเติมเงิน ----- */
+.bt-tabbar {
+  display: flex;
+  border-bottom: 1px solid var(--border, #262932);
+  margin: 10px 0 18px;
+}
+
+.bt-tab {
+  flex: 1;
+  position: relative;
+  padding: 8px 10px 10px;
+  border: none;
+  background: transparent;
+  color: var(--muted, #9ca3af);
+  font-size: 14px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.bt-tab span {
+  position: relative;
+  z-index: 1;
+}
+
+/* เส้นขีดด้านล่าง */
+.bt-tab::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: -1px;
+  height: 2px;
+  background: transparent;
+  transition: background 0.18s ease;
+}
+
+/* สถานะ active */
+.bt-tab.active {
+  color: var(--accent, #facc15);
+  font-weight: 500;
+}
+
+.bt-tab.active::after {
+  background: var(--accent, #facc15);
+}
+
+/* pane ของแต่ละแท็บ */
+.tabpane { display: none; }
+.tabpane.show { display: block; }
+
+/* การ์ดประวัติ Bonustime */
+.bonustime-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 16px 18px;
+  margin-bottom: 14px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.bonustime-card .collapse-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding-bottom: 6px;
+}
+.bonustime-card .tenant {
+  font-weight: 500;
+  font-size: 15px;
+  align-items: start;
+}
+.bonustime-card .status-pill {
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--page);
+  color: var(--muted);
+  white-space: nowrap;
+  align-items: end;
+}
+
+.bonustime-card .collapse-body {
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+  padding-top: 10px;
+  display: none;
+}
+
+.bonustime-card.open .collapse-body {
+  display: block;
+}
+
+.bt-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 160px) minmax(0, 1fr);
+  row-gap: 4px;
+  column-gap: 23px;
+}
+
+.bt-label {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.bt-value {
+  font-weight: 400;
+  color: var(--text);
+}
+
+/* ตัด … เมื่อข้อความยาว */
+.bt-value.ellipsis {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ปุ่มด้านล่างการ์ด */
+.bt-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.bt-btn {
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-size: 14px;
+  border: 1px solid var(--border);
+  background: var(--page);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.bt-btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+}
+
+.bt-btn.ghost {
+  background: transparent;
+}
+
+@media (max-width: 768px) {
+  .bt-grid {
+    grid-template-columns: minmax(0, 120px) minmax(0, 1fr);
+  }
+}
+
+/* ====== Card สั่งซื้อแพ็กเกจ ====== */
+.bonustime-order h2 {
+  font-size: 20px;
+}
+
+.bt-package-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.bt-package {
+  background: var(--card, #111316);
+  border: 1px solid var(--border, #25272c);
+  border-radius: 16px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: background .2s, border-color .2s, transform .1s, opacity .2s;
+}
+
+.bt-package.disabled {
+  opacity: .45;
+}
+
+.bt-package.disabled .pkg-actions button {
+  cursor: not-allowed;
+}
+
+.pkg-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.pkg-title {
+  font-weight: 500;
+}
+
+.pkg-remaining {
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--elevated-bg, #181920);
+  color: var(--accent, #63cff0);
+}
+
+.pkg-body {
+  font-size: 14px;
+}
+
+.pkg-meta .badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--accent, #63cff0);
+  font-size: 12px;
+}
+
+.pkg-desc {
+  margin: 8px 0;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+.pkg-price {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--accent, #63cff0);
+}
+
+.pkg-actions {
+  margin-top: 4px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* กล่องรูปแพ็กเกจ */
+.pkg-thumb {
+  width: 100%;
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  background: var(--page, #050608);
+  aspect-ratio: 16 / 9;
+}
+
+.pkg-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@media (max-width: 640px) {
+  .pkg-thumb {
+    aspect-ratio: 4 / 3;
+  }
+}
+
+/* ====== Dialog base (ใช้ร่วมกันทั้งหมด) ====== */
+.bt-dialog {
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+
+.bt-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.65);
+}
+
+/* กล่อง modal หลัก */
+.bt-modal {
+  min-width: min(520px, 100vw - 32px);
+  max-width: 520px;
+  max-height: min(740px, 100vh - 48px);
+  margin: 0;
+  border-radius: 18px;
+  background: var(--card, #101114);
+  border: 1px solid var(--border, #262932);
+  padding: 18px 20px 16px;
+  color: var(--text, #f9fafb);
+  font-size: 14px;
+  box-shadow:
+    0 18px 45px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+}
+
+.bt-modal h2 {
+  font-size: 18px;
+  margin: 0 0 4px;
+}
+
+/* เนื้อหาเลื่อนในตัว ไม่ใช่ลากทั้ง dialog */
+.bt-modal .bt-modal-body {
+  margin-top: 10px;
+  padding-right: 4px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* ฟิลด์ฟอร์ม */
+.bt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.bt-field span {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.bt-field input,
+.bt-field textarea {
+  background: var(--page);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.bt-field textarea {
+  resize: vertical;
+}
+
+/* ปุ่มท้าย modal */
+.bt-modal footer.row-end {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+/* ====== แผงเลือกแพ็กเกจต่ออายุ ====== */
+.bt-plan-scroll {
+  margin-top: 8px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--page);
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.bt-plan-list {
+  display: grid;
+  gap: 6px;
+  padding: 6px;
+}
+
+.bt-plan {
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+
+.bt-plan input {
+  margin-right: 8px;
+}
+
+.bt-plan-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bt-plan-label {
+  font-size: 14px;
+}
+
+.bt-plan-discount {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.bt-plan-price {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* hover / checked */
+.bt-plan:hover {
+  background: rgba(250, 204, 21, 0.05);
+}
+
+.bt-summary {
+  margin-top: 14px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px dashed var(--border);
+  background: var(--page);
+}
+
+.bt-summary-main {
+  font-size: 15px;
+  margin-top: 4px;
+}
+
+.bt-summary-note {
+  margin-top: 2px;
+}
+
+.bt-btn.warn {
+  border-color: #f59e0b;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.08);
+}
+.bt-btn.warn:hover {
+  background: rgba(245, 158, 11, 0.15);
+}
+
+/* ===== ปรับสัดส่วนบนมือถือสำหรับหน้า Bonustime ===== */
+@media (max-width: 768px) {
+  /* หน้า Bonustime กว้างเต็ม ไม่ติด padding ของ .container */
+  .page.bonustime.container {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* แถบแท็บให้ยาวเต็มหน้าจอ (ใน content ดำ) */
+  .page.bonustime .bt-tabbar {
+    width: 100%;
+    margin: 10px 0 18px;
+    padding: 0 16px;
+    box-sizing: border-box;
+  }
+
+  .page.bonustime .bt-tab {
+    flex: 1;
+  }
+
+  /* wrapper ของแต่ละแท็บให้เต็มกว้าง */
+  .page.bonustime #tab-order,
+  .page.bonustime #tab-history {
+    width: 100%;
+  }
+
+  /* เนื้อหาในแท็บ: สั่งซื้อ / ประวัติ = กว้าง ~95% อยู่กลางจอ */
+  .page.bonustime #tab-order > .bonustime-order {
+    width: 95%;
+    max-width: 95%;
+    margin: 0 auto;
+  }
+
+  .page.bonustime #tab-history > .history-list {
+    width: 95%;
+    max-width: 95%;
+    margin: 0 auto;
+  }
+
+  /* ด้านใน history list ให้กินเต็มส่วน 95% */
+  .page.bonustime #bonustimeHistory {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+  }
+
+  .page.bonustime #bonustimeHistory .bonustime-card {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* การ์ดแพ็กเกจให้แสดงทีละใบเต็ม section (95% ของจอ) */
+  .page.bonustime .bt-package-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page.bonustime .bt-package {
+    width: 100%;
+  }
+}
+
+/* แถวลิงก์ + ปุ่มคัดลอก ให้อยู่ติดกัน */
+.bt-value.link-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;              /* ระยะห่างระหว่างลิงก์กับปุ่ม */
+  flex-wrap: wrap;
+}
+
+/* ปุ่มคัดลอกลิงก์ */
+.copy-link-btn {
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--page);
+  color: var(--text);
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.copy-link-btn:hover {
+  border-color: var(--accent, #facc15);
+}
+
+/* ================================
+   DESKTOP LAYOUT — ปรับให้บาลานซ์
+================================== */
+
+/* ลดความกว้างการ์ดลง */
+@media (min-width: 1024px) {
+  .bt-package-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 28px;
+    padding-inline: 20px;
+  }
+
+  .bt-package {
+    max-width: 850px;     /* จำกัดความกว้าง */
+    margin-inline: auto;  /* จัดกลาง */
+    padding: 20px 22px 26px;
+  }
+
+  /* ย้ายรูปให้ลอยขึ้นกลางมากขึ้น */
+  .pkg-thumb {
+    aspect-ratio: 16/7 !important; /* จากเดิม 16/9 → 16/7 เพื่อให้สูงน้อยลง */
+    margin-bottom: 16px;
+    transform: translateY(-12px);  /* ดึงขึ้นนิดนึง */
+  }
+
+  .pkg-thumb img {
+    object-position: center -370px; /* ดันภาพขึ้นไปให้ Mockup อยู่กึ่งกลาง */
+  }
+
+  /* ข้อความด้านล่างดึงขึ้นเล็กน้อย */
+  .pkg-desc {
+    margin-top: 6px;
+  }
+
+  /* ปุ่มให้อยู่ใกล้เนื้อหามากขึ้น */
+  .pkg-actions {
+    margin-top: 10px;
+  }
+}
+
+/* ----- Bonustime Helpers / FAQ ----- */
+.bt-help {
+  margin-top: 8px;
+}
+
+.bt-help-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+/* กล่องเทาที่ครอบ FAQ ทั้งหมด */
+#helpers .faq-card {
+  background: var(--card);
+  border: 1px dashed var(--border);
+  border-radius: 18px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+
+  /* ❗ ไม่ต้องมี padding ซ้ายขวา ให้กล่องเขียวเต็มพอดี */
+  padding: 12px 0 14px;
+}
+
+/* ทำให้ accordion ด้านในกว้างเต็มกล่องเทา */
+#helpers .accordion-clean {
+  width: 99%;       /* เต็มความกว้าง faq-card */
+  max-width: 100%;
+  margin: 0;
+  justify-self: center;
+}
+
+/* กัน ul ไปสร้างระยะเพิ่มเอง */
+#helpers .accordion-clean > ul {
+  margin: 0;
+  padding: 0;
+}
+
+/* แต่ละข้อ FAQ ให้กินเต็มความกว้าง accordion */
+#helpers .accordion-clean .accordion-item {
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--page);
+  margin-bottom: 10px;
+  width: 100%;
+}
+
+/* หัวข้อ FAQ */
+#helpers .accordion-clean .accordion-title {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: 14px 16px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+#helpers .accordion-clean .accordion-title i {
+  color: #4ade80;
+}
+
+#helpers .accordion-clean .accordion-content {
+  display: none;
+  padding: 14px 16px 18px;
+  font-size: 14px;
+  color: var(--text);
+  border-top: 1px dashed var(--border);
+  background: var(--page);
+}
+
+#helpers .accordion-clean .accordion-item.active .accordion-content {
+  display: block;
+}
+
+#helpers .accordion-clean .accordion-item.active .accordion-title {
+  background: rgba(34, 197, 94, 0.16);
+}
+/* ===== Video ===== */
+.bt-help-video {
+  margin: 8px 0 10px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #000;
+}
+
+.bt-help-video video {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+}
+
+/* ===== Steps List ===== */
+.help-steps {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.help-steps li {
+  margin-bottom: 4px;
+}
+
+/* ===== PDF Frame ===== */
+.bt-help-pdf {
+  margin-top: 8px;
+}
+
+.bt-help-pdf .pdf-frame {
+  margin-bottom: 10px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #000;
+  height: min(540px, 70vh);
+  border: 1px solid var(--border);
+}
+
+.bt-help-pdf iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* ===== Image Blocks ===== */
+.bt-help-img {
+  margin-top: 8px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: #000;
+  max-width: 640px;
+}
+
+.bt-help-img img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* มือถือ: FAQ เต็มกล่อง + PDF เห็นทีละหน้าแล้วเลื่อนเอา */
+@media (max-width: 768px) {
+  #helpers .faq-card {
+    padding: 16px 12px;      /* ขยับให้พอดีขอบจอมือถือ */
+  }
+
+  #helpers .accordion-clean {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .bt-help-pdf .pdf-frame {
+    height: 150px;           /* เน้นเห็นทีละหน้า แล้ว scroll ใน iframe */
+  }
+}
+</style>
+

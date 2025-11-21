@@ -1,0 +1,1245 @@
+<section class="page bonustime container bonustime-admin"
+  data-update-endpoint="<%- typeof updateEndpoint !== 'undefined' ? updateEndpoint : '/admin/bonustime/tenant' %>">
+
+  <!-- แถบ Tab แบบเดียวกับหน้า bonustime -->
+  <div class="bt-tabbar">
+    <button class="bt-tab active" data-tab="orders">
+      <span>รายการเช่า Service</span>
+    </button>
+    <button class="bt-tab" data-tab="summary">
+      <span>สรุปยอดขายรายเดือน</span>
+    </button>
+  </div>
+
+  <!-- TAB 1: รายการเช่า / Serial Key -->
+  <section id="tab-orders" class="tabpane show">
+  <%
+    let unsoldTotal = 0;
+    let unsoldPkg1 = 0; // Package 1 = สล็อต+บาคาร่า (LOTTO_ENABLED = false)
+    let unsoldPkg2 = 0; // Package 2 = สล็อต+บาคาร่า+หวย (LOTTO_ENABLED = true)
+
+    if (Array.isArray(records)) {
+      records.forEach(r => {
+        const isSold = !!r.serial_key;
+        if (!isSold) {
+          unsoldTotal++;
+          if (r.LOTTO_ENABLED) {
+            unsoldPkg2++;
+          } else {
+            unsoldPkg1++;
+          }
+        }
+      });
+    }
+  %>
+  <header class="page-head">
+    <div class="bt-head-left">
+      <h1>รายการออเดอร์</h1>
+    </div>
+    <div class="bt-add-wrapper">
+      <button id="btnAddTenant" class="bt-add-btn">
+        <span class="bt-add-icon">＋</span>
+        <span>เพิ่ม Service ใหม่</span>
+      </button>
+    </div>
+  </header>
+
+  <p class="unsold-summary">
+    ยังไม่ได้ขายทั้งหมด
+    <strong><%= unsoldTotal %></strong> ออเดอร์ ·
+    Package 1 (สล็อต+บาคาร่า):
+    <strong><%= unsoldPkg1 %></strong> |
+    Package 2 (สล็อต+บาคาร่า+หวย):
+    <strong><%= unsoldPkg2 %></strong>
+  </p>
+
+  <% if (!records || !records.length) { %>
+    <section class="card">
+      <p class="muted">
+        ยังไม่มีข้อมูลการเช่า Bonustime จากระบบ RT AUTOBOT
+      </p>
+    </section>
+  <% } else { %>
+    <div class="bt-admin-list">
+      <% records.forEach((rec) => { %>
+        <article
+          class="bonustime-card admin"
+          data-tenant-id="<%= rec.tenantId %>"
+          data-serial="<%= rec.serial_key || '' %>">
+
+          <!-- หัวการ์ด (กดตรงไหนก็พับ/ขยายได้) -->
+          <header class="collapse-head">
+            <div class="tenant">
+              <div class="tenant-name">
+                <%= rec.NAME || rec.name || ('Service: ' + (rec.tenantId || '-')) %>
+              </div>
+              <div class="tenant-meta small muted">
+                Service: <span><%= rec.tenantId || '-' %></span>
+                <% if (rec.serial_key) { %>
+                  · Serial: <span><%= rec.serial_key %></span>
+                <% } %>
+                <% if (rec.username) { %>
+                  · Owner: <span><%= rec.username %></span>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="status-right">
+              <% if (rec.serial_key) { %>
+                <div class="status-pill sold">
+                  ขายไปแล้ว
+                  <% if (rec.licenseDisabled) { %>
+                    · ไม่มีวันหมดอายุ
+                  <% } else if (rec.expiresAtLabel) { %>
+                    · หมดอายุ <%= rec.expiresAtLabel %>
+                  <% } %>
+                </div>
+              <% } else { %>
+                <div class="status-pill free">
+                  ยังไม่ขาย
+                </div>
+              <% } %>
+
+              <!-- ปุ่มลบ Service -->
+              <button type="button" class="bt-delete-btn" title="ลบ Service นี้">
+                ลบ
+              </button>
+
+              <div class="collapse-icon" aria-hidden="true">⌃</div>
+            </div>
+          </header>
+
+          <!-- ตัวเนื้อหาข้างใน (แก้ไขแล้ว auto-save) -->
+          <div class="collapse-body">
+            <div class="bt-grid">
+              <div class="bt-field">
+                <label>ชื่อ Server (NAME)</label>
+                <input
+                  class="bt-edit"
+                  data-field="NAME"
+                  type="text"
+                  value="<%= rec.NAME || '' %>"
+                  placeholder="เช่น RT AUTOBOT OFFICIAL">
+              </div>
+
+              <div class="bt-field">
+                <label>Service</label>
+                <input
+                  type="text"
+                  value="<%= rec.tenantId || '' %>"
+                  readonly>
+              </div>
+
+              <div class="bt-field">
+                <label>Serial Key</label>
+                <input
+                  class="bt-edit"
+                  data-field="serial_key"
+                  type="text"
+                  value="<%= rec.serial_key || '' %>"
+                  placeholder="เช่น BT-XXXXXXX">
+              </div>
+
+              <div class="bt-field">
+                <label>เจ้าของ Service</label>
+                <input
+                  type="text"
+                  value="<%= rec.username || '-' %>"
+                  readonly
+                  class="owner-readonly">
+              </div>
+
+              <div class="bt-field">
+                <label>วันหมดอายุ</label>
+                <input
+                  class="bt-edit"
+                  data-field="expiresAt"
+                  type="date"
+                  value="<%= rec.licenseDisabled ? '' : (rec.expiresAtInput || '') %>"
+                  <%= rec.licenseDisabled ? 'disabled' : '' %> >
+                <% if (rec.licenseDisabled) { %>
+                  <div class="muted small">ไม่มีวันหมดอายุ</div>
+                <% } else if (rec.expiresAtLabel) { %>
+                  <div class="muted small">หมดอายุ: <%= rec.expiresAtLabel %></div>
+                <% } %>
+              </div>
+
+              <div class="bt-field bt-field-wide">
+                <label>ชื่อเจ้าของ (Name / Display Name)</label>
+                <input
+                  class="bt-edit"
+                  data-field="ownerName"
+                  type="text"
+                  value="<%= rec.ownerName || '' %>"
+                  placeholder="ชื่อบนระบบหรือชื่อเล่นลูกค้า">
+              </div>
+
+              <div class="bt-field bt-field-wide">
+                <label>ลิงก์เชื่อมต่อ (Webhook / Panel)</label>
+                <div class="link-row">
+                  <input
+                    class="bt-edit"
+                    data-field="LINK"
+                    type="text"
+                    value="<%= rec.LINK || '' %>"
+                    placeholder="https://…/webhook">
+                  <button type="button" class="bt-copy-link" data-link="<%= rec.LINK || '' %>">
+                    คัดลอก
+                  </button>
+                </div>
+              </div>
+
+              <!-- โซน Config จาก RT AUTOBOT -->
+              <div class="bt-field bt-field-wide">
+                <label>โลโก้ (ลิงก์รูป)</label>
+                <input
+                  class="bt-edit"
+                  data-field="LOGO"
+                  type="text"
+                  value="<%= rec.LOGO || '' %>"
+                  placeholder="https://…/logo.png">
+              </div>
+
+              <div class="bt-field">
+                <label>ลิงก์เข้าสู่ระบบ</label>
+                <input
+                  class="bt-edit"
+                  data-field="LOGIN_URL"
+                  type="text"
+                  value="<%= rec.LOGIN_URL || '' %>"
+                  placeholder="https://… หรือ domain.com">
+              </div>
+
+              <div class="bt-field">
+                <label>ลิงก์สมัครสมาชิก</label>
+                <input
+                  class="bt-edit"
+                  data-field="SIGNUP_URL"
+                  type="text"
+                  value="<%= rec.SIGNUP_URL || '' %>"
+                  placeholder="https://…">
+              </div>
+
+              <div class="bt-field">
+                <label>ลิงก์ไลน์ติดต่อ</label>
+                <input
+                  class="bt-edit"
+                  data-field="LINE_ADMIN"
+                  type="text"
+                  value="<%= rec.LINE_ADMIN || '' %>"
+                  placeholder="https://lin.ee/…">
+              </div>
+
+              <div class="bt-field">
+                <label>หวย</label>
+                <select
+                  class="bt-edit"
+                  data-field="LOTTO_ENABLED">
+                  <option value="true"  <%= rec.LOTTO_ENABLED ? 'selected' : '' %>>เปิด</option>
+                  <option value="false" <%= !rec.LOTTO_ENABLED ? 'selected' : '' %>>ปิด</option>
+                </select>
+              </div>
+
+              <div class="bt-field">
+                <label>ระบบวันหมดอายุ</label>
+                <select
+                  class="bt-edit"
+                  data-field="LICENSE_DISABLED">
+                  <!-- LICENSE_DISABLED = false  => ระบบวันหมดอายุ "เปิด" -->
+                  <option value="false" <%= !rec.LICENSE_DISABLED ? 'selected' : '' %>>เปิด</option>
+                  <!-- LICENSE_DISABLED = true   => ระบบวันหมดอายุ "ปิด" (ไม่มีวันหมดอายุ) -->
+                  <option value="true"  <%= rec.LICENSE_DISABLED ? 'selected' : '' %>>ปิด</option>
+                </select>
+
+                <div class="muted small">
+                  <% if (rec.LICENSE_DISABLED) { %>
+                    เมื่อปิดระบบวันหมดอายุ จะถือว่า <strong>ไม่มีวันหมดอายุ</strong>
+                  <% } else { %>
+                    เมื่อเปิดระบบวันหมดอายุ จะใช้วันเริ่มต้น + ระยะเวลาใช้งาน (วัน)
+                  <% } %>
+                </div>
+              </div>
+
+              <div class="bt-field">
+                <label>วันเริ่มต้นใช้งาน</label>
+                <input
+                  class="bt-edit"
+                  data-field="LICENSE_START_DATE"
+                  type="text"
+                  value="<%= rec.LICENSE_START_DATE || '' %>"
+                  placeholder="เช่น 29/09/2568">
+              </div>
+
+              <div class="bt-field">
+                <label>ระยะเวลาใช้งาน (วัน)</label>
+                <input
+                  class="bt-edit"
+                  data-field="LICENSE_DURATION_DAYS"
+                  type="number"
+                  min="0"
+                  value="<%= rec.LICENSE_DURATION_DAYS || 0 %>">
+              </div>
+
+              <div class="bt-field bt-field-wide">
+                <label>CHANNEL_ACCESS_TOKEN</label>
+                <textarea
+                  class="bt-edit"
+                  data-field="CHANNEL_ACCESS_TOKEN"
+                  rows="2"
+                  placeholder="ใส่ค่า Access Token ของ LINE Bot"><%= rec.CHANNEL_ACCESS_TOKEN || '' %></textarea>
+              </div>
+
+              <div class="bt-field bt-field-wide">
+                <label>CHANNEL_SECRET</label>
+                <input
+                  class="bt-edit"
+                  data-field="CHANNEL_SECRET"
+                  type="text"
+                  value="<%= rec.CHANNEL_SECRET || '' %>"
+                  placeholder="ใส่ค่า Channel Secret">
+              </div>
+
+              <div class="bt-field bt-field-wide">
+                <label>โน้ตภายใน (Note)</label>
+                <textarea
+                  class="bt-edit"
+                  data-field="note"
+                  rows="2"
+                  placeholder="บันทึกโน้ตสำหรับทีมแอดมินเท่านั้น"><%= rec.note || '' %></textarea>
+              </div>
+            </div>
+          </div>
+        </article>
+      <% }) %>
+    </div>
+  <% } %>
+  </section>
+
+  <!-- Modal เพิ่มรายการ Bonustime -->
+  <dialog id="addTenantModal">
+    <form method="dialog" class="modal-form" id="addTenantForm">
+      <h2 style="text-align:center;">เพิ่ม Service ใหม่</h2>
+
+      <label>
+        Service
+        <input name="tenantId" type="text" required placeholder="เช่น RTAUTOBOT-OFFICIAL">
+      </label>
+
+      <label>
+        หวย
+        <select name="lotto" required>
+          <option value="true">เปิด</option>
+          <option value="false" selected>ปิด</option>
+        </select>
+      </label>
+
+      <label>
+        ลิงก์เชื่อมต่อ (Webhook / Panel)
+        <input name="link" type="text" placeholder="https://…/webhook">
+      </label>
+
+      <div class="modal-actions">
+        <button type="button" class="btn" id="btnAddTenantCancel">ยกเลิก</button>
+        <button type="submit" class="btn primary">บันทึก</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- TAB 2: Ultra Mode Summary -->
+  <section id="tab-summary" class="tabpane ultra-summary">
+
+    <!-- MONTH SELECTOR -->
+    <div class="ultra-month-select">
+      <label>เลือกเดือน</label>
+      <select id="monthSelect">
+        <option value="2025-11" selected>พฤศจิกายน 2025</option>
+        <option value="2025-10">ตุลาคม 2025</option>
+        <option value="2025-09">กันยายน 2025</option>
+      </select>
+    </div>
+
+    <!-- SUMMARY CARDS (mock ตอนนี้) -->
+    <div class="ultra-cards">
+      <section class="ultra-card glass">
+        <h3>ยอดขายรวมเดือนนี้</h3>
+        <div class="ultra-value">฿ 120,450</div>
+        <div class="ultra-trend up">▲ +12.5% จากเดือนก่อน</div>
+        <canvas class="spark" id="sparkTotal"></canvas>
+      </section>
+
+      <section class="ultra-card glass">
+        <h3>Package 1 (สล็อต+บาคาร่า)</h3>
+        <div class="ultra-value">฿ 75,200</div>
+        <div class="ultra-trend down">▼ -3.2% จากเดือนก่อน</div>
+        <canvas class="spark" id="sparkPkg1"></canvas>
+      </section>
+
+      <section class="ultra-card glass">
+        <h3>Package 2 (สล็อต+บาคาร่า+หวย)</h3>
+        <div class="ultra-value">฿ 45,250</div>
+        <div class="ultra-trend up">▲ +28.4% จากเดือนก่อน</div>
+        <canvas class="spark" id="sparkPkg2"></canvas>
+      </section>
+
+      <section class="ultra-card glass">
+        <h3>จำนวนออเดอร์รวม</h3>
+        <div class="ultra-value">84 ออเดอร์</div>
+        <div class="ultra-trend up">▲ +6 ออเดอร์ จากเดือนก่อน</div>
+        <canvas class="spark" id="sparkOrders"></canvas>
+      </section>
+    </div>
+
+    <!-- MAIN CHART: DAILY SALES -->
+    <section class="ultra-chart glass">
+      <h3>ยอดขายรายวัน (รวม)</h3>
+      <canvas id="chartDaily"></canvas>
+    </section>
+
+    <!-- SUB CHART: PKG COMPARISON -->
+    <section class="ultra-chart glass">
+      <h3>ยอดขายแยกตามแพ็กเกจ</h3>
+      <canvas id="chartPkgCompare"></canvas>
+    </section>
+
+    <!-- TOP 5 DAYS -->
+    <section class="ultra-topdays glass">
+      <h3>Top 5 วันขายดีที่สุดในเดือนนี้</h3>
+
+      <div id="topDaysList" class="topdays-list">
+        <!-- เติมจาก JS -->
+      </div>
+    </section>
+  </section>
+</section>
+
+<!-- SCRIPT: GRAPH LOGIC -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+// ================== TAB SWITCH ==================
+(function () {
+  const tabs = document.querySelectorAll(".bt-tabbar .bt-tab");
+  const panes = document.querySelectorAll(".tabpane");
+
+  tabs.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tab = btn.dataset.tab;
+      tabs.forEach((b) => b.classList.toggle("active", b === btn));
+      panes.forEach((p) => {
+        p.classList.toggle("show", p.id === "tab-" + tab);
+      });
+    });
+  });
+})();
+
+// ================== ACCORDION ==================
+(function () {
+  const root = document.querySelector(".bonustime-admin");
+  if (!root) return;
+
+  root.addEventListener("click", (e) => {
+    const card = e.target.closest(".bonustime-card.admin");
+    if (!card) return;
+
+    // ไม่ toggle ถ้าคลิกบน input/textarea/button/label/a/select
+    if (e.target.closest("input, textarea, button, label, a, select")) return;
+
+    card.classList.toggle("open");
+  });
+})();
+
+// ================== AUTO-SAVE ==================
+(function () {
+  const root = document.querySelector(".bonustime-admin");
+  if (!root) return;
+
+  const endpointBase = root.dataset.updateEndpoint || "/admin/bonustime/tenant";
+  const DEBOUNCE_MS = 500;
+  const timers = new Map();
+
+  function queueSave(input) {
+    const card = input.closest(".bonustime-card.admin");
+    if (!card) return;
+
+    const tenantId = card.dataset.tenantId;
+    const field = input.dataset.field;
+    if (!tenantId || !field) return;
+
+    const key = tenantId + "::" + field;
+    if (timers.has(key)) clearTimeout(timers.get(key));
+
+    const value = input.value;
+    input.classList.add("saving");
+
+    const t = setTimeout(() => {
+      saveField(tenantId, field, value, input);
+      timers.delete(key);
+    }, DEBOUNCE_MS);
+
+    timers.set(key, t);
+  }
+
+  async function saveField(tenantId, field, value, input) {
+    try {
+      const res = await fetch(
+        endpointBase + "/" + encodeURIComponent(tenantId),
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ field, value }),
+        }
+      );
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "บันทึกไม่สำเร็จ");
+      }
+
+      input.classList.remove("saving");
+      input.classList.add("saved");
+      setTimeout(() => input.classList.remove("saved"), 900);
+
+      if (window.notify && notify.success) {
+        notify.success("บันทึกสำเร็จ", "อัปเดตข้อมูลเรียบร้อยแล้ว");
+      }
+    } catch (err) {
+      console.error(err);
+      input.classList.remove("saving");
+      input.classList.add("error");
+      if (window.notify && notify.error) {
+        notify.error("บันทึกไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
+      } else {
+        alert("บันทึกไม่สำเร็จ");
+      }
+    }
+  }
+
+  root.addEventListener("input", (e) => {
+    const el = e.target.closest(".bt-edit");
+    if (!el) return;
+    queueSave(el);
+  });
+
+  root.addEventListener("change", (e) => {
+    const el = e.target.closest(".bt-edit");
+    if (!el) return;
+    queueSave(el);
+  });
+})();
+
+// ================== ADD NEW TENANT ==================
+(function () {
+  const root = document.querySelector(".bonustime-admin");
+  if (!root) return;
+
+  const endpointBase = root.dataset.updateEndpoint || "/admin/bonustime/tenant";
+
+  const btnAdd = document.getElementById("btnAddTenant");
+  const dlg = document.getElementById("addTenantModal");
+  const form = document.getElementById("addTenantForm");
+  const btnCancel = document.getElementById("btnAddTenantCancel");
+
+  if (!btnAdd || !dlg || !form) return;
+
+  btnAdd.addEventListener("click", () => {
+    form.reset();
+    dlg.showModal();
+  });
+
+  btnCancel.addEventListener("click", () => dlg.close());
+
+  dlg.addEventListener("click", (e) => {
+    if (e.target === dlg) dlg.close();
+  });
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const fd = new FormData(form);
+    const tenantId = (fd.get("tenantId") || "").toString().trim();
+    const lotto = (fd.get("lotto") || "false").toString();
+    const link = (fd.get("link") || "").toString().trim();
+
+    if (!tenantId) {
+      alert("กรุณากรอก Tenant ID");
+      return;
+    }
+
+    try {
+      const res = await fetch(endpointBase, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId,
+          LOTTO_ENABLED: lotto === "true",
+          LINK: link,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "สร้างรายการไม่สำเร็จ");
+      }
+
+      dlg.close();
+      if (window.notify && notify.success) {
+        notify.success("เพิ่ม Service แล้ว", "สร้าง Tenant ใหม่สำเร็จ");
+      }
+      window.location.reload();
+    } catch (err) {
+      console.error(err);
+      if (window.notify && notify.error) {
+        notify.error("สร้างรายการไม่สำเร็จ", err.message || "กรุณาลองใหม่อีกครั้ง");
+      } else {
+        alert("สร้างรายการไม่สำเร็จ: " + (err.message || ""));
+      }
+    }
+  });
+})();
+
+// ================== DELETE TENANT (ปุ่มลบ Service) ==================
+(function () {
+  const root = document.querySelector(".bonustime-admin");
+  if (!root) return;
+
+  const endpointBase = root.dataset.updateEndpoint || "/admin/bonustime/tenant";
+
+  root.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".bt-delete-btn");
+    if (!btn) return;
+
+    const card = btn.closest(".bonustime-card.admin");
+    if (!card) return;
+
+    const tenantId = card.dataset.tenantId;
+    if (!tenantId) return;
+
+    const name = card.querySelector(".tenant-name")?.textContent?.trim() || tenantId;
+
+    if (!confirm(`คุณต้องการลบ Service นี้ (${name}) ออกจากระบบถาวรหรือไม่ ?`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `${endpointBase}/${encodeURIComponent(tenantId)}`,
+        { method: "DELETE" }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "ลบไม่สำเร็จ");
+      }
+
+      card.remove();
+
+      if (window.notify && notify.success) {
+        notify.success("ลบสำเร็จ", "ลบ Service นี้ออกจากรายชื่อเรียบร้อยแล้ว");
+      }
+    } catch (err) {
+      console.error(err);
+      if (window.notify && notify.error) {
+        notify.error("ลบไม่สำเร็จ", err.message || "กรุณาลองใหม่อีกครั้ง");
+      } else {
+        alert("ลบไม่สำเร็จ: " + (err.message || ""));
+      }
+    }
+  });
+})();
+
+// ================== COPY LINK BUTTON ==================
+(function () {
+  const root = document.querySelector(".bonustime-admin");
+  if (!root) return;
+
+  root.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".bt-copy-link");
+    if (!btn) return;
+
+    const link = btn.dataset.link || btn.previousElementSibling?.value || "";
+    if (!link) {
+      if (window.notify && notify.error) {
+        notify.error("คัดลอกไม่สำเร็จ", "ยังไม่มีลิงก์ให้คัดลอก");
+      } else {
+        alert("ยังไม่มีลิงก์ให้คัดลอก");
+      }
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(link);
+      if (window.notify && notify.success) {
+        notify.success("คัดลอกแล้ว", "คัดลอกลิงก์เชื่อมต่อเรียบร้อย");
+      }
+    } catch {
+      if (window.notify && notify.error) {
+        notify.error("คัดลอกไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
+      }
+    }
+  });
+})();
+
+// ================== SCRIPT: GRAPH LOGIC (Mock) ==================
+const mockDaily = [
+  1200, 1800, 900, 2000, 3100, 2800, 1500,
+  4000, 5400, 3000, 2000, 2500, 1000, 700,
+  1500, 1900, 2900, 3400, 4700, 4300, 3200,
+  3900, 6100, 5800, 4400, 3000, 2000, 1500, 1000
+];
+const mockPkg1 = mockDaily.map(x => x * 0.63);
+const mockPkg2 = mockDaily.map(x => x * 0.37);
+
+const mockTop = [
+  { day: 23, amount: 6100 },
+  { day: 9,  amount: 5400 },
+  { day: 24, amount: 5800 },
+  { day: 19, amount: 4700 },
+  { day: 20, amount: 4300 }
+];
+
+function makeSpark(id, arr, color) {
+  new Chart(document.getElementById(id), {
+    type: "line",
+    data: {
+      labels: arr.map((_, i) => i + 1),
+      datasets: [
+        {
+          data: arr,
+          borderColor: color,
+          borderWidth: 2,
+          fill: false,
+          tension: 0.3
+        }
+      ]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: { x: { display: false }, y: { display: false } },
+      responsive: true,
+      animation: { duration: 600 }
+    }
+  });
+}
+
+function makeMainCharts() {
+  new Chart(document.getElementById("chartDaily"), {
+    type: "line",
+    data: {
+      labels: mockDaily.map((_, i) => i + 1),
+      datasets: [{
+        label: "ยอดรวม (บาท)",
+        data: mockDaily,
+        borderColor: "#facc15",
+        backgroundColor: "rgba(250, 204, 21, 0.18)",
+        borderWidth: 2,
+        fill: true,
+        tension: 0.35
+      }]
+    },
+    options: {
+      plugins: { legend: { display: true } },
+      scales: { y: { beginAtZero: true } },
+      animation: { duration: 700 }
+    }
+  });
+
+  new Chart(document.getElementById("chartPkgCompare"), {
+    type: "bar",
+    data: {
+      labels: mockDaily.map((_, i) => i + 1),
+      datasets: [
+        {
+          label: "Package 1",
+          data: mockPkg1,
+          backgroundColor: "rgba(56, 189, 248, 0.6)"
+        },
+        {
+          label: "Package 2",
+          data: mockPkg2,
+          backgroundColor: "rgba(250, 204, 21, 0.6)"
+        }
+      ]
+    },
+    options: {
+      plugins: { legend: { display: true } },
+      scales: { y: { beginAtZero: true } },
+      animation: { duration: 700 }
+    }
+  });
+
+  const list = document.getElementById("topDaysList");
+  list.innerHTML = "";
+  mockTop.forEach((d, idx) => {
+    const pct = (d.amount / mockTop[0].amount) * 100;
+
+    list.innerHTML += `
+      <div class="top-item">
+        <div class="rank">${idx + 1}</div>
+        <div class="label">วันที่ ${d.day}</div>
+        <div class="bar"><div style="width:${pct}%"></div></div>
+        <div class="amount">฿${d.amount.toLocaleString()}</div>
+      </div>
+    `;
+  });
+}
+
+makeSpark("sparkTotal", mockDaily, "#facc15");
+makeSpark("sparkPkg1", mockPkg1, "#38bdf8");
+makeSpark("sparkPkg2", mockPkg2, "#fbbf24");
+makeSpark("sparkOrders", mockDaily.map(x => x * 0.02), "#a78bfa");
+
+makeMainCharts();
+</script>
+
+<style>
+.bonustime-admin {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+/* Tab bar */
+.bonustime-admin .bt-tabbar {
+  display: flex;
+  border-bottom: 1px solid var(--border, #262932);
+  margin: 10px 0 18px;
+}
+.bonustime-admin .bt-tab {
+  flex: 1;
+  position: relative;
+  padding: 8px 10px 10px;
+  border: none;
+  background: transparent;
+  color: var(--muted, #9ca3af);
+  font-size: 14px;
+  cursor: pointer;
+  text-align: center;
+}
+.bonustime-admin .bt-tab span {
+  position: relative;
+  z-index: 1;
+}
+.bonustime-admin .bt-tab::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: -1px;
+  height: 2px;
+  background: transparent;
+  transition: background 0.18s ease;
+}
+.bonustime-admin .bt-tab.active {
+  color: var(--accent, #facc15);
+  font-weight: 300;
+}
+.bonustime-admin .bt-tab.active::after {
+  background: var(--accent, #facc15);
+}
+.bonustime-admin .tabpane {
+  display: none;
+}
+.bonustime-admin .tabpane.show {
+  display: block;
+}
+
+/* List */
+.bonustime-admin .bt-admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.bonustime-admin .bonustime-card.admin {
+  background: var(--card);
+  border: 1px solid #facc1540;
+  border-radius: 18px;
+  padding: 14px 16px;
+  font-size: 14px;
+  color: var(--text);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+  width: 100%;
+  max-width: 1980px;
+  margin-inline: auto;
+}
+.bonustime-admin .bonustime-card.admin:hover {
+  border-color: var(--accent, #facc15);
+  box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.08);
+}
+.bonustime-admin .bonustime-card.admin .collapse-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  cursor: pointer;
+  gap: 12px;
+}
+.bonustime-admin .bonustime-card.admin .tenant-name {
+  font-weight: 300;
+  font-size: 15px;
+}
+.bonustime-admin .bonustime-card.admin .tenant-meta {
+  margin-top: 2px;
+}
+.bonustime-admin .bonustime-card.admin .status-right {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.bonustime-admin .bonustime-card.admin .status-pill {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--page);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.bonustime-admin .bonustime-card.admin .status-pill.sold {
+  background: rgba(34, 197, 94, 0.08);
+  color: #4ade80;
+  border-color: rgba(34, 197, 94, 0.4);
+}
+.bonustime-admin .bonustime-card.admin .status-pill.free {
+  background: rgba(148, 163, 184, 0.1);
+  color: #e5e7eb;
+}
+
+/* ปุ่มลบ Service */
+.bt-delete-btn {
+  border-radius: 999px;
+  border: 1px solid rgba(248, 113, 113, 0.6);
+  background: rgba(127, 29, 29, 0.9);
+  color: #fee2e2;
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.1s ease,
+    box-shadow 0.1s ease;
+}
+.bt-delete-btn:hover {
+  background: rgba(185, 28, 28, 1);
+  border-color: rgba(248, 113, 113, 1);
+  box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.4);
+}
+.bt-delete-btn:active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+/* caret */
+.bonustime-admin .bonustime-card.admin .collapse-icon {
+  font-size: 12px;
+  transform: rotate(180deg);
+  transition: transform 0.15s ease;
+  opacity: 0.7;
+}
+.bonustime-admin .bonustime-card.admin .collapse-body {
+  border-top: 1px solid var(--border);
+  margin-top: 10px;
+  padding-top: 10px;
+  display: none;
+}
+.bonustime-admin .bonustime-card.admin.open .collapse-body {
+  display: block;
+}
+.bonustime-admin .bonustime-card.admin.open .collapse-icon {
+  transform: rotate(0deg);
+}
+
+/* grid */
+.bonustime-admin .bt-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+.bonustime-admin .bt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+.bonustime-admin .bt-field-wide {
+  grid-column: 1 / -1;
+}
+.bonustime-admin .bt-field label {
+  color: var(--muted);
+}
+.bonustime-admin .bt-field input,
+.bonustime-admin .bt-field textarea,
+.bonustime-admin .bt-field select {
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--page);
+  color: var(--text);
+  padding: 6px 8px;
+  font: inherit;
+  resize: vertical;
+}
+.bonustime-admin .bt-field input[readonly] {
+  opacity: 0.8;
+  cursor: default;
+}
+
+/* row link + copy */
+.link-row {
+  display: flex;
+  gap: 8px;
+}
+.bt-copy-link {
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--page);
+  color: var(--accent);
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.bt-copy-link:hover {
+  border-color: var(--accent);
+}
+
+/* สถานะ input ขณะบันทึก */
+.bonustime-admin .bt-edit.saving {
+  border-color: rgba(59, 130, 246, 0.7);
+}
+.bonustime-admin .bt-edit.saved {
+  border-color: rgba(34, 197, 94, 0.85);
+}
+.bonustime-admin .bt-edit.error {
+  border-color: rgba(239, 68, 68, 0.85);
+}
+
+/* Add button + modal */
+.bt-add-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin: 8px 0 18px;
+}
+.bt-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(135deg, #facc15, #fbbf24);
+  color: #111827;
+  font-size: 14px;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  box-shadow: 0 8px 18px rgba(250, 204, 21, 0.25);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease,
+    filter 0.15s ease;
+}
+.bt-add-btn .bt-add-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(17, 24, 39, 0.08);
+  font-size: 16px;
+}
+.bt-add-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(250, 204, 21, 0.3);
+  filter: brightness(1.02);
+}
+.bt-add-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45);
+  filter: brightness(0.96);
+}
+
+#addTenantModal {
+  border: none;
+  border-radius: 16px;
+  padding: 0;
+  background: transparent;
+}
+#addTenantModal::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+#addTenantForm.modal-form {
+  background: var(--card);
+  color: var(--text);
+  padding: 18px 18px 14px;
+  border-radius: 16px;
+  min-width: min(360px, 90vw);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+#addTenantForm label {
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+}
+#addTenantForm input,
+#addTenantForm select {
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--page);
+  color: var(--text);
+  padding: 6px 8px;
+  font: inherit;
+}
+#addTenantForm .modal-actions {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ULTRA MODE SUMMARY */
+.ultra-summary {
+  padding: 10px 0 40px;
+}
+.ultra-month-select {
+  margin-bottom: 18px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.ultra-month-select select {
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--page);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.ultra-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.ultra-card.glass {
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  position: relative;
+  overflow: hidden;
+  animation: fadeIn 0.3s ease;
+}
+.ultra-card h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  color: var(--muted);
+}
+.ultra-card .ultra-value {
+  font-size: 22px;
+  font-weight: 300;
+  margin-bottom: 6px;
+}
+.ultra-card .ultra-trend {
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.ultra-card .ultra-trend.up { color: #4ade80; }
+.ultra-card .ultra-trend.down { color: #f87171; }
+.spark {
+  width: 100%;
+  height: 48px;
+}
+.ultra-chart.glass {
+  padding: 18px;
+  border-radius: 16px;
+  margin-bottom: 24px;
+}
+.ultra-chart h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+.ultra-topdays.glass {
+  padding: 18px;
+  border-radius: 16px;
+}
+.topdays-list {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.top-item {
+  display: grid;
+  grid-template-columns: 30px 1fr 120px 100px;
+  gap: 10px;
+  align-items: center;
+}
+.top-item .rank {
+  /* font-weight: bold; */
+  color: var(--accent);
+}
+.top-item .bar {
+  width: 100%;
+  height: 8px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.top-item .bar div {
+  height: 100%;
+  background: linear-gradient(90deg, #facc15, #fbbf24);
+}
+
+/* Motion */
+@keyframes fadeIn {
+  from { opacity:0; transform: translateY(4px); }
+  to   { opacity:1; transform: translateY(0); }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .bonustime-admin {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .bonustime-admin .bt-tabbar {
+    width: 100%;
+    margin: 0 0 16px 0;
+    padding-inline: 12px;
+  }
+  .bonustime-admin .bt-tab {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+  .bonustime-admin .bt-admin-list {
+    align-items: center;
+  }
+  .bonustime-admin .bonustime-card.admin {
+    width: 99%;
+    max-width: 720px;
+    padding: 12px 12px;
+  }
+  .bonustime-admin .bt-grid {
+    grid-template-columns: 1fr;
+  }
+  .bonustime-admin .bonustime-card.admin .status-right {
+    align-items: flex-start;
+  }
+}
+@media (max-width: 480px) {
+  .bonustime-admin .bt-tabbar {
+    padding-inline: 8px;
+  }
+  .bonustime-admin .bonustime-card.admin {
+    width: 99%;
+    max-width: 100%;
+    border-radius: 14px;
+  }
+}
+</style>

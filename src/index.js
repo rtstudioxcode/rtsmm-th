@@ -43,6 +43,7 @@ import otp24Routes from './routes/otp24.js';
 import { startOtp24ProcessingSweeper } from './jobs/otp24ProcessingSweeper.js';
 import cookieParser from 'cookie-parser';
 import { startOrderStatusJob } from './jobs/orderStatusJob.js';
+import bonustimeRouter from "./routes/bonustime.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -312,6 +313,7 @@ app.use("/api", apiPricingRouter);
 app.use(adminReport);
 app.use("/blog", blogRoutes);
 app.use('/otp24', otp24Routes);
+app.use(bonustimeRouter);
 
 // Healthcheck (optional)
 app.get("/healthz", (_req, res) => res.json({ ok: true }));

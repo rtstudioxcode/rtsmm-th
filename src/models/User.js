@@ -29,6 +29,7 @@ const UserSchema = new mongoose.Schema({
   totalOrdersPaid: { type: Number, default: 0 },
   totalSpentRaw:   { type: Number, default: 0 },
   totalSpent:      { type: Number, default: 0 },
+  btSpent:         { type: Number, default: 0 },
   redeemedSpent:   { type: Number, default: 0 },
 
   // ── เลเวล ───────────────────────────────────────────────
@@ -60,6 +61,9 @@ const UserSchema = new mongoose.Schema({
     linkCreatedAt: { type: Date },
     rateLockedPct: { type: Number, min: 0, max: 100 }
   },
+
+  // ── Bonustime ─────────────────────────────────────────────
+  serial_key: { type: String, default: null },
 
 }, { timestamps: true });
 

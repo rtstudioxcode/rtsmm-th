@@ -149,6 +149,8 @@ router.get("/account", async (req, res, next) => {
     if (!me) return res.redirect("/login");
 
     // (2) รีคำนวณยอด/เลเวล/แต้ม + คำนวณรายได้แนะนำเพื่อน แบบสด ๆ
+    const btSpent = Number(me.btSpent || 0);
+    
     const [snap, affTotals] = await Promise.all([
       recalcUserTotals(me._id, { force: true }),
       computeAffiliateTotals(me._id).catch(e => {
@@ -178,7 +180,9 @@ router.get("/account", async (req, res, next) => {
       // ใช้ค่าที่คำนวณล่าสุด
       level: String(levelNum),
       levelName,
-      totalSpent: Number(totalSpent ?? me.totalSpent ?? 0),
+      totalSpent: (typeof totalSpent === 'number')
+        ? Number(totalSpent)
+        : round2(Number(me.totalSpent || 0) + btSpent),
       points: Number(points ?? me.points ?? 0),
       pointRateTHB: Number(pointRateTHB ?? me.pointRateTHB ?? 0),
       pointValueTHB: Number(pointValueTHB ?? me.pointValueTHB ?? 0),
@@ -201,7 +205,10 @@ router.get("/account", async (req, res, next) => {
       userDoc: viewUser,
       agg: {
         totalSpent: viewUser.totalSpent,
-        totalSpentRaw: Number(totalSpentRaw ?? me.totalSpentRaw ?? 0),
+        totalSpentRaw:
+          typeof totalSpentRaw === 'number'
+            ? Number(totalSpentRaw)
+            : round2(Number(me.totalSpentRaw || 0) + btSpent),
         redeemedSpent: Number(redeemedSpent ?? me.redeemedSpent ?? 0),
         points: viewUser.points,
         pointRateTHB: viewUser.pointRateTHB,
@@ -625,23 +632,47 @@ router.get('/account/affiliate/stats', async (req, res) => {
     const uid = getAuthUserId(req);
     if (!uid) return res.status(401).json({ ok:false });
 
+    // รวมยอดจากออเดอร์ (SMM + OTP) ตาม logic เดิม
     const totals = await computeAffiliateTotals(uid);
+
+    // ✅ ดึงข้อมูลเพื่อนที่เราชวนมา จาก users
+    const friends = await User.find({ referredBy: uid })
+      .select('btSpent totalOrders')
+      .lean();
+
+    // ✅ ยอดใช้จ่าย Bonustime ของเพื่อนทั้งหมด (btSpent)
+    const btSpentFriends = friends.reduce(
+      (sum, u) => sum + (Number(u.btSpent) || 0),
+      0
+    );
+
+    // ✅ จำนวนออเดอร์ทั้งหมดของเพื่อน (ใช้ totalOrders จาก user โดยตรง)
+    const ordersFriends = friends.reduce(
+      (sum, u) => sum + (Number(u.totalOrders) || 0),
+      0
+    );
+
+    // ✅ ใช้ totals.spentTHB (SMM+OTP) + btSpent ของเพื่อน เฉพาะตอนแสดงผล
+    const displaySpentTHB = Number(
+      ((totals.spentTHB || 0) + btSpentFriends).toFixed(2)
+    );
 
     res.json({
       ok: true,
       summary: {
-        ratePct: totals.ratePct,
-        referredCount: totals.referredCount,
-        orders: totals.orders,
-        spentTHB: totals.spentTHB,
-        earningsTHB: totals.earningsTHB,
-        paidTHB: totals.paidTHB,
-        withdrawableTHB: totals.withdrawableTHB
+        ratePct:         totals.ratePct,
+        referredCount:   totals.referredCount,
+        // ⬇️ ใช้ ordersFriends แทน totals.orders เพื่อให้ตรงกับหน้าเพื่อน
+        orders:          ordersFriends,
+        spentTHB:        displaySpentTHB,
+        earningsTHB:     totals.earningsTHB,
+        paidTHB:         totals.paidTHB,
+        withdrawableTHB: totals.withdrawableTHB,
       },
       tier: totals.tier,
-      list: []
     });
   } catch (e) {
+    console.error('GET /account/affiliate/stats error:', e);
     res.status(500).json({ ok:false });
   }
 });

@@ -4,6 +4,7 @@ import { User } from '../models/User.js';
 import { Order } from '../models/Order.js';
 import { Otp24Order } from '../models/Otp24Order.js';
 import { LEVELS as LV_LOYALTY, getRateForLevelIndex as _getRate } from './loyalty.js';
+import { BonustimeOrder } from '../models/BonustimeOrder.js';
 
 // ─────────────────────────────────────────────────────────────
 export async function reconcileUserByOrderEvent(orderId, { force = true } = {}) {
@@ -269,15 +270,16 @@ export async function recalcUserTotals(userId, opts = {}) {
 
   const userMatch = buildUserMatch(userId);
 
-  const [ordAll, ordPaid, otpAll, otpPaid] = await Promise.all([
+  const [ordAll, ordPaid, otpAll, otpPaid, btAll] = await Promise.all([
     Order.countDocuments({ ...userMatch }),
     Order.countDocuments({ ...userMatch, status: { $in: PAID_STATUSES } }),
     Otp24Order.countDocuments({ ...userMatch }),
     Otp24Order.countDocuments({ ...userMatch, status: { $in: OTP24_PAID_STATUSES } }),
+    BonustimeOrder.countDocuments({ ...userMatch }),
   ]);
 
-  const totalOrders = ordAll + otpAll;
-  const totalOrdersPaid = ordPaid + otpPaid;
+  const totalOrders     = ordAll + otpAll + btAll;
+  const totalOrdersPaid = ordPaid + otpPaid + btAll;
 
   let smmDelta = 0, otpDelta = 0;
   if (fullRescan) {
@@ -290,11 +292,15 @@ export async function recalcUserTotals(userId, opts = {}) {
   }
   const sumDelta = round2(nz(smmDelta) + nz(otpDelta));
 
-  const u = await User.findById(userId).select('totalSpentRaw redeemedSpent pointsRedeemed').lean();
+  const u = await User.findById(userId)
+    .select('totalSpentRaw redeemedSpent pointsRedeemed btSpent')
+    .lean();
 
-  const totalSpentRaw = round2(nz(u?.totalSpentRaw));
+  const baseSpentRaw = round2(nz(u?.totalSpentRaw));
+  const btSpent      = round2(nz(u?.btSpent));
+  const totalSpentRaw = round2(baseSpentRaw + btSpent);
   const redeemedSpent = round2(nz(u?.redeemedSpent));
-  const effectiveSpent = round2(Math.max(0, totalSpentRaw - redeemedSpent));
+  const effectiveSpent = round2(Math.max(0, (baseSpentRaw + btSpent) - redeemedSpent));
 
   const level = computeLevel(effectiveSpent);
   const lvMeta = decideLevel(effectiveSpent);
@@ -328,14 +334,20 @@ export async function recalcUserTotals(userId, opts = {}) {
       $set: {
         totalOrders,
         totalOrdersPaid,
-        totalSpentRaw,
+
+        // DB ใช้เฉพาะ base SMM/OTP ไม่รวม Bonustime
+        totalSpentRaw: baseSpentRaw,
+
+        // สำหรับ UI + level + points
         totalSpent: effectiveSpent,
+
         level,
         levelIndex: lvMeta.index,
         levelName: lvMeta.name,
         levelNeed: lvMeta.need,
         nextLevelName: lvMeta.nextName,
         toNextLevel: lvMeta.toNext,
+
         lastSpentAt: lastPaidAt,
         points,
         pointsAccrued,

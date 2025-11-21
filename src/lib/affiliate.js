@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { User } from '../models/User.js';
 import { Order } from '../models/Order.js';
 import { Otp24Order } from '../models/Otp24Order.js';
+import { BonustimeOrder } from '../models/BonustimeOrder.js';
 
 /* ───────────────────────── Config / Tiers ───────────────────────── */
 
@@ -126,7 +127,7 @@ export async function computeAffiliateTotals(uid) {
   let spentTHB = 0;
 
   if (refIds.length) {
-    // โหลดออเดอร์ของเพื่อนทั้งหมดที่ “มีสิทธิ์นับ” (ฟิลเตอร์สถานะตั้งแต่ DB)
+    // โหลดออเดอร์ของเพื่อนทั้งหมดที่ “มีสิทธิ์นับ”
     const [smmOrders, otpOrders] = await Promise.all([
       Order.find({ userId: { $in: refIds }, status: { $in: Array.from(SMM_OK) } })
            .select('userId user status quantity rate rateAtOrder cost estCost charged refundAmount partialRefunds remains startCount currentCount providerResponse.lastStatus.remains')
@@ -136,20 +137,39 @@ export async function computeAffiliateTotals(uid) {
                 .lean(),
     ]);
 
-    // นับใบ + รวมยอดด้วยสูตรเดียวกับ spend.js
     orders   += smmOrders.length + otpOrders.length;
     spentTHB += smmOrders.reduce((s, o) => s + calcOrderNetTHB(o), 0);
     spentTHB += otpOrders.reduce((s, o) => s + calcOtp24NetTHB(o), 0);
   }
 
-  // อัตรา/การถอน
+  // 🔹 รวม “โบนัสจาก Bonustime” ที่จ่ายเป็น affiliateRewardTHB
+  let btBonusTHB = 0;
+  const oid = toOid(uid);
+  if (oid) {
+    const btAgg = await BonustimeOrder.aggregate([
+      { $match: { referrer: oid } },
+      {
+        $group: {
+          _id: null,
+          reward: { $sum: '$affiliateRewardTHB' },
+        },
+      },
+    ]);
+
+    btBonusTHB = round2(btAgg?.[0]?.reward || 0);
+  }
+
+  // อัตรา/การถอน (คง logic เดิม)
   const paidTHB   = Number(me?.affiliate?.paidTHB || 0);
   const refCount  = referred.length;
   const tier      = tierRateFor(refCount, spentTHB);
   const adminRate = Number(me?.affiliate?.ratePct ?? NaN);
   const ratePct   = Math.max(tier, Number.isFinite(adminRate) ? adminRate : 0, 5);
 
-  const earnings        = round2(spentTHB * (ratePct / 100));
+  // ✅ รายได้จากยอดใช้จ่ายของเพื่อน + โบนัส Bonustime
+  const baseEarnings = round2(spentTHB * (ratePct / 100));
+  const earnings     = round2(baseEarnings + btBonusTHB);
+
   const withdrawableTHB = Math.max(0, round2(earnings - paidTHB));
 
   // อัปเดต cache เบา ๆ
@@ -160,6 +180,8 @@ export async function computeAffiliateTotals(uid) {
         'affiliate.referredCount': refCount,
         'affiliate.earningsTHB': earnings,
         'affiliate.lastCalcAt': new Date(),
+        // จะเก็บ field แยกไว้ debug ก็ได้ ถ้าอยาก
+        // 'affiliate.btBonusTHB': btBonusTHB,
       },
     }
   );
@@ -172,6 +194,7 @@ export async function computeAffiliateTotals(uid) {
     earningsTHB: earnings,
     paidTHB: round2(paidTHB),
     withdrawableTHB,
+    // bonusTHB: btBonusTHB, // เผื่อเอาไปโชว์หน้าเว็บ
   };
 }
 
