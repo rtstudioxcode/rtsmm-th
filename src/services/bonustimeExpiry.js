@@ -57,15 +57,28 @@ export async function checkAndSendBonustimeExpiryMails(opts = {}) {
   const docs = await BonustimeUser.find({
     serial_key: { $nin: [null, ""] },
     LICENSE_DISABLED: { $ne: true },
+    expiryNotifySent: { 
+        $ne: new Date().toISOString().slice(0, 10)
+    }
   }).lean();
 
   const targets = [];
   for (const d of docs) {
     const remain = calcRemainDaysFromDoc(d);
     if (remain == null) continue;
+
+    // ตรวจสอบว่าไม่เคยส่งในวันนี้
+    const lastSent = d.expiryNotifySent ? new Date(d.expiryNotifySent) : null;
+    const today = new Date();
+
+    if (lastSent && lastSent.toISOString().slice(0, 10) === today.toISOString().slice(0, 10)) {
+        console.log(`[BonustimeExpiry] Email already sent today for ${d.serial_key}, skipping.`);
+        continue; // ข้ามการส่ง
+    }
+
     // เงื่อนไข: เหลือ 1–3 วัน
-    if (remain >= 1 && remain <= 3) {
-      targets.push({ doc: d, remainDays: remain });
+    if (remain === 3 || remain === 2 || remain === 1 || remain === 0) {
+        targets.push({ doc: d, remainDays: remain });
     }
   }
 
@@ -82,14 +95,13 @@ export async function checkAndSendBonustimeExpiryMails(opts = {}) {
   for (const { doc, remainDays } of targets) {
     let user = userCache.get(doc.serial_key);
     if (user === undefined) {
-      user = await User.findOne({ serial_key: doc.serial_key }).lean();
-      userCache.set(doc.serial_key, user || null);
+        user = await User.findOne({ serial_key: doc.serial_key }).lean();
+        userCache.set(doc.serial_key, user || null);
     }
+
     if (!user || !user.email) {
-      console.warn(
-        `${logPrefix} skip tenant=${doc.tenantId} serial=${doc.serial_key} (no user/email)`
-      );
-      continue;
+        console.warn(`${logPrefix} skip tenant=${doc.tenantId} serial=${doc.serial_key} (no user/email)`);
+        continue;
     }
 
     const expiry = calcExpiry(doc);
@@ -108,21 +120,23 @@ export async function checkAndSendBonustimeExpiryMails(opts = {}) {
     const lineUrl = doc.LINE_ADMIN ? normalizeUrl(doc.LINE_ADMIN) : "";
     const webhook = doc.LINK ? normalizeUrl(doc.LINK) : "";
 
-    const subject = `แจ้งเตือนการหมดอายุเซิร์ฟ Bonustime (เหลืออีก ${remainDays} วัน)`;
+    const subject = `แจ้งเตือนการหมดอายุ Service (${tenantLabel}) — ${serviceName} (เหลืออีก ${remainDays} วัน)`;
 
     const html = `
 <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#020617;padding:32px 16px;color:#e5e7eb;">
   <div style="max-width:720px;margin:0 auto;">
-    <div style="text-align:center;margin-bottom:24px;">
-      <img src="${SITE_URL}/static/assets/logo/logo-rtssm-th.png" alt="RTSMM-TH" style="height:40px;margin-bottom:8px;" />
-    </div>
 
     <div style="background:#020617;border-radius:24px;border:1px solid #111827;padding:28px 24px;">
-      <h1 style="margin:0 0 8px;font-size:20px;color:#fde68a;">
-        แจ้งเตือนการหมดอายุเซิร์ฟ Bonustime
+      <div style="text-align: center; margin-bottom: 3px;">
+        <img src="${SITE_URL}/static/assets/logo/logo-rtssm-th.png" alt="RTSMM-TH" style="height:200px; margin-bottom:3px;" />
+      </div>
+
+      <h1 style="margin: 4px 0 8px; font-size:20px; color:#fde68a;">
+        แจ้งเตือนการหมดอายุ Service (${tenantLabel})
       </h1>
+
       <p style="margin:0 0 16px;font-size:14px;color:#9ca3af;line-height:1.6;">
-        ระบบตรวจพบว่าเซิร์ฟเวอร์ Bonustime ของคุณกำลังเข้าใกล้วันหมดอายุ เพื่อไม่ให้การทำงานของบอทสะดุด
+        ระบบตรวจพบว่าService (${tenantLabel}) ของคุณกำลังเข้าใกล้วันหมดอายุ เพื่อไม่ให้การทำงานของบอทสะดุด
         แนะนำให้ต่ออายุล่วงหน้าอย่างน้อย <strong>1 วัน</strong> ครับ
       </p>
 
@@ -153,7 +167,7 @@ export async function checkAndSendBonustimeExpiryMails(opts = {}) {
       </p>
 
       <div style="margin-top:20px;padding-top:10px;border-top:1px dashed #1f2937;font-size:12px;color:#6b7280;">
-        <div style="margin-bottom:4px;"><strong>ลิงก์ที่อยู่ในอีเมลนี้:</strong></div>
+        <div style="margin-bottom:4px;"><strong>ลิงก์ที่อยู่ใน Service นี้:</strong></div>
         ${
           loginUrl
             ? `<div><a href="${loginUrl}" style="color:#60a5fa;" target="_blank" rel="noopener">${doc.LOGIN_URL}</a></div>`
@@ -164,24 +178,24 @@ export async function checkAndSendBonustimeExpiryMails(opts = {}) {
             ? `<div><a href="${lineUrl}" style="color:#60a5fa;" target="_blank" rel="noopener">${doc.LINE_ADMIN}</a></div>`
             : ""
         }
+        <div style="margin-bottom:4px;"><strong>ลิงก์เชื่อมต่อ Webhook ของ Service นี้:</strong></div>
         ${
           webhook
             ? `<div><a href="${webhook}" style="color:#60a5fa;" target="_blank" rel="noopener">${doc.LINK}</a></div>`
             : ""
         }
-      </div>
-
-      <p style="margin-top:14px;font-size:11px;color:#4b5563;line-height:1.6;">
+        <p style="margin-top:14px;font-size:11px;color:#4b5563;line-height:1.6;">
         อีเมลนี้เป็นการแจ้งเตือนอัตโนมัติจากระบบ RTSMM-TH หากคุณได้รับโดยไม่ได้เกี่ยวข้องกับบริการนี้
         สามารถมองข้ามอีเมลฉบับนี้ได้ครับ
       </p>
+      </div>
     </div>
   </div>
 </div>
     `.trim();
 
     const text = [
-      "แจ้งเตือนการหมดอายุเซิร์ฟ Bonustime",
+      "แจ้งเตือนการหมดอายุ Service Bonustime",
       "",
       `Service: (${tenantLabel}) — ${serviceName}`,
       `Serial Key: ${serialKey}`,
@@ -199,10 +213,9 @@ export async function checkAndSendBonustimeExpiryMails(opts = {}) {
         text,
       });
 
-      // บันทึกว่าได้ส่งอีเมลแล้ว เพื่อหลีกเลี่ยงการส่งซ้ำ
       await BonustimeUser.updateOne(
         { _id: doc._id },
-        { $set: { expiryNotifySent: true } }
+        { $set: { expiryNotifySent: new Date().toISOString() } }
       );
 
       sent += 1;

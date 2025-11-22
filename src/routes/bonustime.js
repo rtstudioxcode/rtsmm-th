@@ -651,18 +651,4 @@ router.post("/bonustime/check-expiry-mail", async (req, res) => {
   }
 });
 
-// router.get("/debug/test-mail", async (req, res) => {
-//   try {
-//     await sendEmail({
-//       to: "อีเมลของคุณ",
-//       subject: "RTSMM-TH Test Mail",
-//       html: "<p>ทดสอบส่งเมลจาก RTSMM-TH</p>",
-//     });
-//     res.json({ ok: true });
-//   } catch (e) {
-//     console.error("Test mail error", e);
-//     res.status(500).json({ ok: false, message: e.message });
-//   }
-// });
-
 export default router;
