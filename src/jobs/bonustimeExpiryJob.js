@@ -50,7 +50,7 @@ export function initBonustimeExpiryJob() {
 //       timezone: "Asia/Bangkok",
 //     }
 //   );
-}
+// }
 
 // export function initBonustimeExpiryJob() {
 //   const spec = process.env.BONUSTIME_CRON || "5 * * * *"; // นาทีที่ 5 ของทุกชั่วโมง
