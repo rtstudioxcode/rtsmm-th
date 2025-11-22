@@ -367,6 +367,7 @@ router.get("/users", async (req, res) => {
       totalOrders: 1,
       createdAt: 1,
       updatedAt: 1,
+      serial_key: 1,
     }
   )
     .sort({ createdAt: -1 })
@@ -1282,6 +1283,7 @@ router.patch("/bonustime/tenant/:tenantId", async (req, res) => {
 
       "CHANNEL_ACCESS_TOKEN",
       "CHANNEL_SECRET",
+      "serial_key",
     ]);
 
     if (!allowed.has(field)) {
@@ -1357,6 +1359,11 @@ router.patch("/bonustime/tenant/:tenantId", async (req, res) => {
 
     } else if (field === "CHANNEL_SECRET") {
       update.CHANNEL_SECRET = String(value || "");
+
+    } else if (field === "serial_key") {
+      update.serial_key = String(value || "").trim();
+      // ถ้าอยากบังคับให้ไม่ว่างก็เพิ่มเช็คตรงนี้ได้ภายหลัง
+      // if (!update.serial_key) { ... return error ... }
     }
 
     const result = await col.updateOne(

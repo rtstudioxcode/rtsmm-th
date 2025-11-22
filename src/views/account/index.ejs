@@ -43,6 +43,14 @@
           <div>ระดับบัญชี</div>
           <div><span class="badge warn"><%= userDoc.levelName || `เลเวล ${userDoc.level || '1'}` %></span></div>
         </div>
+        <% if (userDoc.serial_key) { %>
+        <div class="kv">
+          <div>Serial Key</div>
+          <div>
+            <span class="badge ok"><%= userDoc.serial_key %></span>
+          </div>
+        </div>
+        <% } %>
         <div class="kv">
           <div>ยอดคงเหลือ</div>
           <div><span class="badge balance"><%= balanceText %></span></div>

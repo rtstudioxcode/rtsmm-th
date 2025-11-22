@@ -664,11 +664,28 @@
     const tenantId = card.dataset.tenantId;
     if (!tenantId) return;
 
-    const name = card.querySelector(".tenant-name")?.textContent?.trim() || tenantId;
+    const name =
+      card.querySelector(".tenant-name")?.textContent?.trim() || tenantId;
 
-    if (!confirm(`คุณต้องการลบ Service นี้ (${name}) ออกจากระบบถาวรหรือไม่ ?`)) {
-      return;
+    // ใช้ uiConfirm จาก layout.ejs ถ้ามี
+    let confirmed = false;
+    if (window.uiConfirm) {
+      confirmed = await uiConfirm({
+        variant: "danger",
+        title: "ยืนยันลบ Service",
+        sub: `คุณต้องการลบ Service นี้ (${name}) ออกจากระบบถาวรหรือไม่ ?`,
+        okText: "ลบ Service",
+        cancelText: "ยกเลิก",
+        focus: "cancel",
+      });
+    } else {
+      // fallback ถ้า uiConfirm ใช้ไม่ได้
+      confirmed = window.confirm(
+        `คุณต้องการลบ Service นี้ (${name}) ออกจากระบบถาวรหรือไม่ ?`
+      );
     }
+
+    if (!confirmed) return;
 
     try {
       const res = await fetch(
