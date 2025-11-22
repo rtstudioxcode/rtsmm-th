@@ -57,7 +57,6 @@ export async function checkAndSendBonustimeExpiryMails(opts = {}) {
   const docs = await BonustimeUser.find({
     serial_key: { $nin: [null, ""] },
     LICENSE_DISABLED: { $ne: true },
-    expiryNotifySent: { $ne: true },
   }).lean();
 
   const targets = [];
@@ -75,7 +74,7 @@ export async function checkAndSendBonustimeExpiryMails(opts = {}) {
     return { ok: true, sent: 0, users: 0 };
   }
 
-  const userCache = new Map(); // serial_key -> user
+  const userCache = new Map();
   const userIdsSent = new Set();
 
   let sent = 0;
@@ -200,6 +199,7 @@ export async function checkAndSendBonustimeExpiryMails(opts = {}) {
         text,
       });
 
+      // บันทึกว่าได้ส่งอีเมลแล้ว เพื่อหลีกเลี่ยงการส่งซ้ำ
       await BonustimeUser.updateOne(
         { _id: doc._id },
         { $set: { expiryNotifySent: true } }
