@@ -3,19 +3,19 @@ import cron from "node-cron";
 import { checkAndSendBonustimeExpiryMails } from "../services/bonustimeExpiry.js";
 
 export function initBonustimeExpiryJob() {
-  // รันทุกชั่วโมงนับนาทีที่ 5 (เช่น 00:05, 01:05, 02:05, ...)
+  const spec = process.env.BONUSTIME_CRON || "5 * * * *"; // นาทีที่ 5 ของทุกชั่วโมง
+  console.log("[BonustimeExpiryJob] init with spec =", spec);
+
   cron.schedule(
-    "5 * * * *",
+    spec,
     async () => {
+      const now = new Date().toISOString();
+      console.log("[BonustimeExpiryJob] tick at", now);
       try {
         const result = await checkAndSendBonustimeExpiryMails({
           logPrefix: "[BonustimeExpiryJob]",
         });
-        if (result.sent > 0) {
-          console.log(
-            `[BonustimeExpiryJob] sent ${result.sent} emails to ${result.users} users`
-          );
-        }
+        console.log("[BonustimeExpiryJob] result =", result);
       } catch (err) {
         console.error("[BonustimeExpiryJob] error:", err);
       }
@@ -24,6 +24,4 @@ export function initBonustimeExpiryJob() {
       timezone: "Asia/Bangkok",
     }
   );
-
-  console.log("[BonustimeExpiryJob] scheduled: every hour at minute 5 (Asia/Bangkok)");
 }
