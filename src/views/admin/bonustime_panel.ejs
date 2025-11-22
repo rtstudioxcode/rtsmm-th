@@ -345,69 +345,119 @@
     </form>
   </dialog>
 
-  <!-- TAB 2: Ultra Mode Summary -->
+  <!-- Tab 2: Ultra Mode Summary -->
   <section id="tab-summary" class="tabpane ultra-summary">
+    <!-- HEADER + MONTH SELECTOR -->
+    <header class="ultra-summary-head">
+        <div class="ultra-summary-title">
+        <h2>สรุปยอด Bonustime รายเดือน</h2>
+        <p class="muted small">เลือกเดือนด้านขวาเพื่อดูยอดขายจาก RT AUTOBOT</p>
+        </div>
 
-    <!-- MONTH SELECTOR -->
-    <div class="ultra-month-select">
-      <label>เลือกเดือน</label>
-      <select id="monthSelect">
-        <option value="2025-11" selected>พฤศจิกายน 2025</option>
-        <option value="2025-10">ตุลาคม 2025</option>
-        <option value="2025-09">กันยายน 2025</option>
-      </select>
-    </div>
+        <div class="ultra-month-select">
+        <label for="monthSelect">เลือกเดือน</label>
+        <select id="monthSelect">
+            <!-- options เติมจาก JS -->
+        </select>
+        </div>
+    </header>
 
-    <!-- SUMMARY CARDS (mock ตอนนี้) -->
+    <!-- SUMMARY CARDS -->
     <div class="ultra-cards">
-      <section class="ultra-card glass">
+        <!-- ยอดขายรวม -->
+        <section class="ultra-card glass">
         <h3>ยอดขายรวมเดือนนี้</h3>
-        <div class="ultra-value">฿ 120,450</div>
-        <div class="ultra-trend up">▲ +12.5% จากเดือนก่อน</div>
+        <div class="ultra-value">
+            ฿ <span id="totalRevenue"><%= totalRevenue.toLocaleString() %></span>
+        </div>
+        <div class="ultra-trend <%= totalRevenue > 0 ? 'up' : 'flat' %>">
+            <span class="dot"></span>
+            <span class="label"><%= totalRevenue > 0 ? 'มีรายได้' : 'ยังไม่มีรายการ' %></span>
+        </div>
         <canvas class="spark" id="sparkTotal"></canvas>
-      </section>
+        </section>
 
-      <section class="ultra-card glass">
+        <!-- Package 1 -->
+        <section class="ultra-card glass">
         <h3>Package 1 (สล็อต+บาคาร่า)</h3>
-        <div class="ultra-value">฿ 75,200</div>
-        <div class="ultra-trend down">▼ -3.2% จากเดือนก่อน</div>
+        <div class="ultra-value">
+            ฿ <span id="pkg1Revenue"><%= pkg1Revenue.toLocaleString() %></span>
+        </div>
+        <div class="ultra-trend <%= pkg1Revenue > 0 ? 'up' : 'flat' %>">
+            <span class="dot"></span>
+            <span class="label"><%= pkg1Revenue > 0 ? 'มีการขาย' : 'ยังไม่มีการขาย' %></span>
+        </div>
         <canvas class="spark" id="sparkPkg1"></canvas>
-      </section>
+        </section>
 
-      <section class="ultra-card glass">
+        <!-- Package 2 -->
+        <section class="ultra-card glass">
         <h3>Package 2 (สล็อต+บาคาร่า+หวย)</h3>
-        <div class="ultra-value">฿ 45,250</div>
-        <div class="ultra-trend up">▲ +28.4% จากเดือนก่อน</div>
+        <div class="ultra-value">
+            ฿ <span id="pkg2Revenue"><%= pkg2Revenue.toLocaleString() %></span>
+        </div>
+        <div class="ultra-trend <%= pkg2Revenue > 0 ? 'up' : 'flat' %>">
+            <span class="dot"></span>
+            <span class="label"><%= pkg2Revenue > 0 ? 'มีการขาย' : 'ยังไม่มีการขาย' %></span>
+        </div>
         <canvas class="spark" id="sparkPkg2"></canvas>
-      </section>
+        </section>
 
-      <section class="ultra-card glass">
+        <!-- จำนวนออเดอร์ -->
+        <section class="ultra-card glass">
         <h3>จำนวนออเดอร์รวม</h3>
-        <div class="ultra-value">84 ออเดอร์</div>
-        <div class="ultra-trend up">▲ +6 ออเดอร์ จากเดือนก่อน</div>
+        <div class="ultra-value">
+            <span id="orderCount"><%= orderCount %></span> ออเดอร์
+        </div>
+        <div class="ultra-trend <%= orderCount > 0 ? 'up' : 'flat' %>">
+            <span class="dot"></span>
+            <span class="label"><%= orderCount > 0 ? 'มีคำสั่งซื้อ' : 'ยังไม่มีคำสั่งซื้อ' %></span>
+        </div>
         <canvas class="spark" id="sparkOrders"></canvas>
-      </section>
+        </section>
     </div>
 
-    <!-- MAIN CHART: DAILY SALES -->
-    <section class="ultra-chart glass">
-      <h3>ยอดขายรายวัน (รวม)</h3>
-      <canvas id="chartDaily"></canvas>
-    </section>
+    <!-- CHARTS GRID -->
+    <div class="ultra-charts-grid">
+        <!-- MAIN CHART: DAILY SALES -->
+        <section class="ultra-chart glass">
+        <div class="ultra-chart-head">
+            <h3>ยอดขายรายวัน (รวม)</h3>
+        </div>
+        <div class="ultra-chart-body">
+            <canvas id="chartDaily"></canvas>
+        </div>
+        </section>
 
-    <!-- SUB CHART: PKG COMPARISON -->
-    <section class="ultra-chart glass">
-      <h3>ยอดขายแยกตามแพ็กเกจ</h3>
-      <canvas id="chartPkgCompare"></canvas>
-    </section>
+        <!-- SUB CHART: PKG COMPARISON -->
+        <section class="ultra-chart glass">
+        <div class="ultra-chart-head">
+            <h3>ยอดขายแยกตามแพ็กเกจ</h3>
+        </div>
+        <div class="ultra-chart-body">
+            <canvas id="chartPkgCompare"></canvas>
+        </div>
+        </section>
+    </div>
 
     <!-- TOP 5 DAYS -->
     <section class="ultra-topdays glass">
-      <h3>Top 5 วันขายดีที่สุดในเดือนนี้</h3>
-
-      <div id="topDaysList" class="topdays-list">
-        <!-- เติมจาก JS -->
-      </div>
+        <h3>Top 5 วันขายดีที่สุดในเดือนนี้</h3>
+        <div id="topDaysList" class="topdays-list">
+        <%
+            const topDays = JSON.parse(top5);
+            topDays.forEach((day, index) => {
+        %>
+            <div class="top-item">
+            <div class="rank"><%= index + 1 %></div>
+            <div class="label">วันที่ <%= day.day %></div>
+            <div class="bar">
+                <div style="width: <%= totalRevenue > 0 ? (day.amount / totalRevenue) * 100 : 0 %>%"></div>
+            </div>
+            <div class="amount">฿ <%= day.amount.toLocaleString() %></div>
+            </div>
+        <% }) %>
+        </div>
     </section>
   </section>
 </section>
@@ -678,116 +728,605 @@
   });
 })();
 
-// ================== SCRIPT: GRAPH LOGIC (Mock) ==================
-const mockDaily = [
-  1200, 1800, 900, 2000, 3100, 2800, 1500,
-  4000, 5400, 3000, 2000, 2500, 1000, 700,
-  1500, 1900, 2900, 3400, 4700, 4300, 3200,
-  3900, 6100, 5800, 4400, 3000, 2000, 1500, 1000
-];
-const mockPkg1 = mockDaily.map(x => x * 0.63);
-const mockPkg2 = mockDaily.map(x => x * 0.37);
-
-const mockTop = [
-  { day: 23, amount: 6100 },
-  { day: 9,  amount: 5400 },
-  { day: 24, amount: 5800 },
-  { day: 19, amount: 4700 },
-  { day: 20, amount: 4300 }
+// ================== SCRIPT: GRAPH LOGIC ==================
+const monthNamesTH = [
+  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
 ];
 
-function makeSpark(id, arr, color) {
-  new Chart(document.getElementById(id), {
+const currentDate = new Date();
+const currentYearBE = currentDate.getFullYear() + 543;
+const currentMonth = currentDate.getMonth() + 1;
+
+// สร้าง select เดือน (ปีเป็น พ.ศ.)
+const monthSelect = document.getElementById("monthSelect");
+if (monthSelect) {
+  monthNamesTH.forEach((month, index) => {
+    const option = document.createElement("option");
+    const monthValue = `${index + 1}-${currentYearBE}`;
+    option.value = monthValue;
+    option.textContent = `${month} ${currentYearBE}`;
+    if (index + 1 === currentMonth) option.selected = true;
+    monthSelect.appendChild(option);
+  });
+}
+
+// ================== MONTH CHANGE HANDLING ==================
+function updateMonthData() {
+  const monthSelect = document.getElementById("monthSelect");
+  if (!monthSelect) return;
+
+  const selectedMonth = monthSelect.value; // "M-YYYY(BE)"
+  const [monthStr, yearBE] = selectedMonth.split("-");
+  const month = parseInt(monthStr, 10) || 1;
+  const year = (parseInt(yearBE, 10) || (new Date().getFullYear() + 543)) - 543;
+
+  loadMonthData(year, month);
+}
+
+document.getElementById("monthSelect")?.addEventListener("change", updateMonthData);
+
+// ================== FUNCTION TO LOAD DATA ==================
+async function loadMonthData(year, month) {
+  try {
+    const monthParam = `${year}-${String(month).padStart(2, "0")}`;
+
+    const res = await fetch(
+      `/admin/bonustime/monthly.json?month=${encodeURIComponent(monthParam)}`
+    );
+    const raw = await res.json().catch(() => ({}));
+
+    if (!res.ok || !raw.ok) {
+      console.warn("No data for month", monthParam, raw);
+      applyZeroMonth();
+      return;
+    }
+
+    const daily = Array.isArray(raw.daily) ? raw.daily : [];
+
+    // ====== สร้าง label วันที่จาก daily[].date หรือ daily[].day ======
+    const apiDailyLabels = daily
+      .map((d, idx) => {
+        if (typeof d.day === "number") return String(d.day);
+        if (d.date) {
+          const dt = new Date(d.date);
+          if (!isNaN(dt)) return String(dt.getUTCDate());
+        }
+        return String(idx + 1);
+      });
+
+    const mapped = {
+      totalRevenue: Number(raw.totalMonth || 0),
+      pkg1Revenue : Number(raw.pkg1Month || 0),
+      pkg2Revenue : Number(raw.pkg2Month || 0),
+      orderCount  : daily.reduce(
+        (sum, d) => sum + Number(d.pkg1 || 0) + Number(d.pkg2 || 0),
+        0
+      ),
+      dailyData   : daily.map(d => Number(d.total || 0)),
+      pkg1Data    : daily.map(d => Number(d.pkg1 || 0)),
+      pkg2Data    : daily.map(d => Number(d.pkg2 || 0)),
+      dailyLabels : apiDailyLabels,
+    };
+
+    if (!mapped.dailyData.length) {
+      applyZeroMonth();
+      return;
+    }
+
+    updateCharts(mapped);
+    updateSummary(mapped);
+  } catch (err) {
+    console.error("Error loading month data:", err);
+    applyZeroMonth();
+  }
+}
+
+function applyZeroMonth() {
+  const zeroPayload = {
+    totalRevenue: 0,
+    pkg1Revenue : 0,
+    pkg2Revenue : 0,
+    orderCount  : 0,
+    dailyData   : [0],
+    pkg1Data    : [0],
+    pkg2Data    : [0],
+    dailyLabels : ["1"],
+  };
+  updateCharts(zeroPayload);
+  updateSummary(zeroPayload);
+}
+
+// ================== BOOTSTRAP DATA จาก SERVER (EJS) ==================
+let dailyLabels = <%- typeof dailyLabels !== 'undefined'
+  ? JSON.stringify(dailyLabels)
+  : "[]" %>;
+
+let rawDailyData = <%- typeof dailyData !== 'undefined'
+  ? JSON.stringify(dailyData)
+  : "[]" %>;
+
+let rawPkg1Data = <%- typeof pkg1Data !== 'undefined'
+  ? JSON.stringify(pkg1Data)
+  : "[]" %>;
+
+let rawPkg2Data = <%- typeof pkg2Data !== 'undefined'
+  ? JSON.stringify(pkg2Data)
+  : "[]" %>;
+
+let topDaysData = <%- top5 %>;
+
+// ---- helper แปลงเป็น array ตัวเลข ----
+function toNumArray(src) {
+  if (Array.isArray(src)) return src.map(n => Number(n || 0));
+  if (src && typeof src === "object") return Object.values(src).map(n => Number(n || 0));
+  return [];
+}
+
+let dailyData = toNumArray(rawDailyData);
+let pkg1Data  = toNumArray(rawPkg1Data);
+let pkg2Data  = toNumArray(rawPkg2Data);
+
+if (!Array.isArray(topDaysData)) {
+  topDaysData = topDaysData ? [topDaysData] : [];
+}
+
+function ensureAtLeastTwo(arr) {
+  if (arr.length === 1) return [arr[0], arr[0]];
+  return arr;
+}
+
+dailyData = ensureAtLeastTwo(dailyData);
+pkg1Data  = ensureAtLeastTwo(pkg1Data);
+pkg2Data  = ensureAtLeastTwo(pkg2Data);
+
+console.log("dailyData (boot):", dailyData);
+console.log("pkg1Data (boot):", pkg1Data);
+console.log("pkg2Data (boot):", pkg2Data);
+
+// ================== FUNCTION TO UPDATE CHARTS ==================
+function updateCharts(data) {
+  // อัปเดต labels จาก API ถ้ามี
+  if (Array.isArray(data.dailyLabels) && data.dailyLabels.length) {
+    dailyLabels = data.dailyLabels.slice();
+  } else if (!Array.isArray(dailyLabels) || !dailyLabels.length) {
+    dailyLabels = (data.dailyData || []).map((_, i) => String(i + 1));
+  }
+
+  // อัปเดต datasets
+  dailyData = Array.isArray(data.dailyData) ? data.dailyData.slice() : [];
+  pkg1Data  = Array.isArray(data.pkg1Data)  ? data.pkg1Data.slice()  : [];
+  pkg2Data  = Array.isArray(data.pkg2Data)  ? data.pkg2Data.slice()  : [];
+
+  dailyData = ensureAtLeastTwo(dailyData);
+  pkg1Data  = ensureAtLeastTwo(pkg1Data);
+  pkg2Data  = ensureAtLeastTwo(pkg2Data);
+
+  if (!dailyData.length) {
+    console.warn("No daily data after updateCharts");
+    return;
+  }
+
+  // spark line
+  makeSpark("sparkTotal",  dailyData, "#facc15");
+  makeSpark("sparkPkg1",   pkg1Data,  "#38bdf8");
+  makeSpark("sparkPkg2",   pkg2Data,  "#fbbf24");
+  makeSpark("sparkOrders", dailyData.map(x => x * 0.02), "#a78bfa");
+
+  makeMainCharts();
+}
+
+// ================== FUNCTION TO UPDATE SUMMARY ==================
+function updateSummary(data) {
+  const totalEl = document.getElementById("totalRevenue");
+  const pkg1El  = document.getElementById("pkg1Revenue");
+  const pkg2El  = document.getElementById("pkg2Revenue");
+  const orderEl = document.getElementById("orderCount");
+
+  if (totalEl) totalEl.textContent = Number(data.totalRevenue || 0).toLocaleString();
+  if (pkg1El)  pkg1El.textContent  = Number(data.pkg1Revenue || 0).toLocaleString();
+  if (pkg2El)  pkg2El.textContent  = Number(data.pkg2Revenue || 0).toLocaleString();
+  if (orderEl) orderEl.textContent = Number(data.orderCount  || 0).toLocaleString();
+}
+
+// ================== DESTROY CHART HELPER ==================
+function destroyChart(chartId) {
+  const chartElement = document.getElementById(chartId);
+  if (chartElement) {
+    const chart = Chart.getChart(chartId);
+    if (chart) chart.destroy();
+  }
+}
+
+// ================== SPARK TOOLTIP ==================
+function getOrCreateSparkTooltip(chart) {
+  let tooltipEl = chart.canvas.__sparkTooltipEl;
+  if (!tooltipEl) {
+    tooltipEl = document.createElement("div");
+    tooltipEl.className = "spark-tooltip";
+    tooltipEl.style.position = "absolute";
+    tooltipEl.style.pointerEvents = "none";
+    tooltipEl.style.zIndex = 20;
+    tooltipEl.style.transform = "translate(-50%, -170%)";
+    document.body.appendChild(tooltipEl);
+    chart.canvas.__sparkTooltipEl = tooltipEl;
+  }
+  return tooltipEl;
+}
+
+function externalSparkTooltip(context) {
+  const { chart, tooltip } = context;
+  const tooltipEl = getOrCreateSparkTooltip(chart);
+
+  if (!tooltip || tooltip.opacity === 0 || !tooltip.dataPoints?.length) {
+    tooltipEl.style.opacity = 0;
+    return;
+  }
+
+  const dp = tooltip.dataPoints[0];
+  const raw = Number(dp.raw || 0);
+  const valueText = "฿ " + raw.toLocaleString();
+  const color = dp.dataset.borderColor || "#facc15";
+
+  tooltipEl.innerHTML = valueText;
+  tooltipEl.style.opacity = 1;
+  tooltipEl.style.background = "rgba(0, 0, 0, 0.9)";
+  tooltipEl.style.border = "1px solid " + color;
+  tooltipEl.style.borderRadius = "999px";
+  tooltipEl.style.padding = "4px 10px";
+  tooltipEl.style.color = "#fff";
+  tooltipEl.style.fontFamily =
+    "'Prompt', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+  tooltipEl.style.fontSize = "10px";
+  tooltipEl.style.fontWeight = "600";
+  tooltipEl.style.whiteSpace = "nowrap";
+  tooltipEl.style.boxShadow = "0 0 12px rgba(0,0,0,0.45)";
+
+  const canvasRect = chart.canvas.getBoundingClientRect();
+  const left = canvasRect.left + window.pageXOffset + tooltip.caretX;
+  const top  = canvasRect.top  + window.pageYOffset + tooltip.caretY;
+
+  tooltipEl.style.left = left + "px";
+  tooltipEl.style.top  = top  + "px";
+}
+
+// ================== SPARK LINES ==================
+function makeSpark(canvasId, data, color) {
+  const el = document.getElementById(canvasId);
+  if (!el || !Array.isArray(data) || !data.length) return;
+
+  let arr = data.slice();
+  if (arr.length === 1) arr = [arr[0], arr[0]];
+
+  if (el.__chart) el.__chart.destroy();
+
+  el.__chart = new Chart(el, {
     type: "line",
     data: {
       labels: arr.map((_, i) => i + 1),
-      datasets: [
-        {
-          data: arr,
-          borderColor: color,
-          borderWidth: 2,
-          fill: false,
-          tension: 0.3
-        }
-      ]
+      datasets: [{
+        data: arr,
+        borderColor: color,
+        borderWidth: 1.8,
+        fill: false,
+        tension: 0.35,
+        pointRadius: 0,
+        pointHitRadius: 8,
+      }],
     },
     options: {
-      plugins: { legend: { display: false } },
-      scales: { x: { display: false }, y: { display: false } },
       responsive: true,
-      animation: { duration: 600 }
-    }
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          enabled: false,
+          external: externalSparkTooltip,
+        },
+      },
+      interaction: { mode: "index", intersect: false },
+      scales: {
+        x: { display: false, grid: { display: false } },
+        y: { display: false, grid: { display: false }, beginAtZero: false },
+      },
+      layout: { padding: { left: 4, right: 4, top: 4, bottom: 4 } },
+    },
   });
 }
 
+// ================== MAIN CHARTS ==================
 function makeMainCharts() {
-  new Chart(document.getElementById("chartDaily"), {
-    type: "line",
-    data: {
-      labels: mockDaily.map((_, i) => i + 1),
-      datasets: [{
-        label: "ยอดรวม (บาท)",
-        data: mockDaily,
-        borderColor: "#facc15",
-        backgroundColor: "rgba(250, 204, 21, 0.18)",
-        borderWidth: 2,
-        fill: true,
-        tension: 0.35
-      }]
-    },
-    options: {
-      plugins: { legend: { display: true } },
-      scales: { y: { beginAtZero: true } },
-      animation: { duration: 700 }
+  // -------- DAILY LINE --------
+  destroyChart("chartDaily");
+  const c1 = document.getElementById("chartDaily");
+  if (c1 && Array.isArray(dailyData) && dailyData.length) {
+    const ctx1 = c1.getContext("2d");
+
+    const labels =
+      Array.isArray(dailyLabels) &&
+      dailyLabels.length === dailyData.length
+        ? dailyLabels
+        : dailyData.map((_, i) => i + 1);
+
+    const minVal = Math.min(...dailyData);
+    const maxVal = Math.max(...dailyData);
+    const range = maxVal - minVal || maxVal || 1;
+    const suggestedMin = Math.max(0, minVal - range * 0.3);
+    const suggestedMax = maxVal + range * 0.15;
+
+    const bgGradient = ctx1.createLinearGradient(0, 0, 0, c1.height);
+    bgGradient.addColorStop(0, "rgba(250,204,21,0.30)");
+    bgGradient.addColorStop(0.4, "rgba(250,204,21,0.10)");
+    bgGradient.addColorStop(1, "rgba(15,23,42,0)");
+
+    const pointRadius = labels.length > 20 ? 0 : 3;
+
+    new Chart(c1, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          label: "ยอดรวม (บาท)",
+          data: dailyData,
+          borderColor: "#facc15",
+          backgroundColor: bgGradient,
+          borderWidth: 2.6,
+          fill: true,
+          tension: 0.35,
+          cubicInterpolationMode: "monotone",
+          pointRadius,
+          pointHoverRadius: pointRadius ? pointRadius + 1 : 4,
+          pointBackgroundColor: "#facc15",
+          pointBorderColor: "#020617",
+          pointBorderWidth: 1,
+          spanGaps: true,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            labels: {
+              usePointStyle: true,
+              boxWidth: 10,
+              color: "rgba(229,229,229,0.9)",
+            },
+          },
+          tooltip: {
+            mode: "index",
+            intersect: false,
+            displayColors: false,
+            backgroundColor: "rgba(15,15,23,0.96)",
+            borderColor: "#facc15",
+            borderWidth: 1,
+            padding: 10,
+            cornerRadius: 10,
+            bodyFont: {
+              family: "'Prompt', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+              size: 13,
+              weight: "600",
+            },
+            titleFont: {
+              family: "'Prompt', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+              size: 12,
+              weight: "500",
+            },
+            callbacks: {
+              label(ctx) {
+                const v = Number(ctx.raw || 0);
+                return "ยอดรวม: ฿ " + v.toLocaleString();
+              },
+              title(items) {
+                if (!items.length) return "";
+                const dayLabel = items[0].label;
+                return "วันที่ " + dayLabel;
+              },
+            },
+          },
+        },
+        interaction: { mode: "index", intersect: false },
+        scales: {
+          x: {
+            grid: { color: "rgba(39,39,42,0.35)", drawBorder: false },
+            ticks: { color: "rgba(161,161,170,0.95)", maxTicksLimit: 10 },
+          },
+          y: {
+            beginAtZero: false,
+            suggestedMin,
+            suggestedMax,
+            grid: { color: "rgba(63,63,70,0.55)", drawBorder: false },
+            ticks: {
+              color: "rgba(161,161,170,0.95)",
+              callback(value) { return Number(value).toLocaleString(); },
+            },
+          },
+        },
+        layout: { padding: { top: 8, right: 12, bottom: 4, left: 6 } },
+        animation: { duration: 650, easing: "easeOutCubic" },
+      },
+    });
+  }
+
+  // -------- PKG COMPARISON --------
+  destroyChart("chartPkgCompare");
+  const c2 = document.getElementById("chartPkgCompare");
+  if (!c2) return;
+
+  const baseLabels =
+    Array.isArray(dailyLabels) && dailyLabels.length
+      ? dailyLabels
+      : (dailyData || []).map((_, i) => i + 1);
+
+  const rawPkg1 = baseLabels.map((_, i) => Number(pkg1Data?.[i] || 0));
+  const rawPkg2 = baseLabels.map((_, i) => Number(pkg2Data?.[i] || 0));
+
+  const fLabels = [];
+  const fPkg1   = [];
+  const fPkg2   = [];
+  const fTotal  = [];
+
+  baseLabels.forEach((lbl, i) => {
+    const v1 = rawPkg1[i] || 0;
+    const v2 = rawPkg2[i] || 0;
+    if (v1 !== 0 || v2 !== 0) {
+      fLabels.push(lbl);
+      fPkg1.push(v1);
+      fPkg2.push(v2);
+      fTotal.push(v1 + v2);
     }
   });
 
-  new Chart(document.getElementById("chartPkgCompare"), {
+  const labels    = fLabels.length ? fLabels : baseLabels;
+  const safePkg1  = fLabels.length ? fPkg1   : rawPkg1;
+  const safePkg2  = fLabels.length ? fPkg2   : rawPkg2;
+  const totalData = fLabels.length
+    ? fTotal
+    : labels.map((_, i) => safePkg1[i] + safePkg2[i]);
+
+  const ctx2 = c2.getContext("2d");
+
+  const gradPkg1 = ctx2.createLinearGradient(0, 0, 0, c2.height);
+  gradPkg1.addColorStop(0, "rgba(56,189,248,0.95)");
+  gradPkg1.addColorStop(1, "rgba(15,23,42,0.10)");
+
+  const gradPkg2 = ctx2.createLinearGradient(0, 0, 0, c2.height);
+  gradPkg2.addColorStop(0, "rgba(251,146,60,0.95)");
+  gradPkg2.addColorStop(1, "rgba(15,23,42,0.10)");
+
+  new Chart(c2, {
     type: "bar",
     data: {
-      labels: mockDaily.map((_, i) => i + 1),
+      labels,
       datasets: [
         {
+          type: "bar",
           label: "Package 1",
-          data: mockPkg1,
-          backgroundColor: "rgba(56, 189, 248, 0.6)"
+          data: safePkg1,
+          backgroundColor: gradPkg1,
+          borderColor: "rgba(56,189,248,1)",
+          borderWidth: 1.4,
+          borderRadius: 8,
+          borderSkipped: false,
+          barPercentage: 0.45,
+          categoryPercentage: 0.55,
         },
         {
+          type: "bar",
           label: "Package 2",
-          data: mockPkg2,
-          backgroundColor: "rgba(250, 204, 21, 0.6)"
-        }
-      ]
+          data: safePkg2,
+          backgroundColor: gradPkg2,
+          borderColor: "rgba(251,146,60,1)",
+          borderWidth: 1.4,
+          borderRadius: 8,
+          borderSkipped: false,
+          barPercentage: 0.45,
+          categoryPercentage: 0.55,
+        },
+        {
+          type: "line",
+          label: "ยอดรวมต่อวัน",
+          data: totalData,
+          borderColor: "#facc15",
+          backgroundColor: "rgba(250,204,21,0.15)",
+          borderWidth: 2.2,
+          fill: false,
+          tension: 0.35,
+          cubicInterpolationMode: "monotone",
+          pointRadius: 3,
+          pointBackgroundColor: "#facc15",
+          pointBorderColor: "#020617",
+          pointBorderWidth: 1,
+          yAxisID: "y",
+        },
+      ],
     },
     options: {
-      plugins: { legend: { display: true } },
-      scales: { y: { beginAtZero: true } },
-      animation: { duration: 700 }
-    }
-  });
-
-  const list = document.getElementById("topDaysList");
-  list.innerHTML = "";
-  mockTop.forEach((d, idx) => {
-    const pct = (d.amount / mockTop[0].amount) * 100;
-
-    list.innerHTML += `
-      <div class="top-item">
-        <div class="rank">${idx + 1}</div>
-        <div class="label">วันที่ ${d.day}</div>
-        <div class="bar"><div style="width:${pct}%"></div></div>
-        <div class="amount">฿${d.amount.toLocaleString()}</div>
-      </div>
-    `;
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          labels: { usePointStyle: true, boxWidth: 10, color: "#e5e5e5" },
+        },
+        tooltip: {
+          mode: "index",
+          intersect: false,
+          backgroundColor: "rgba(15,15,23,0.96)",
+          borderColor: "#334155",
+          borderWidth: 1,
+          padding: 10,
+          cornerRadius: 10,
+          callbacks: {
+            title(ctx) {
+              if (!ctx.length) return "";
+              const dayLabel = ctx[0].label;
+              return "วันที่ " + dayLabel;
+            },
+            label(ctx) {
+              const label = ctx.dataset.label || "";
+              const v = Number(ctx.raw || 0);
+              return `${label}: ฿ ${v.toLocaleString()}`;
+            },
+          },
+        },
+      },
+      interaction: { mode: "index", intersect: false },
+      scales: {
+        x: {
+          grid: { color: "rgba(39,39,42,0.45)" },
+          ticks: {
+            color: "rgba(161,161,170,0.95)",
+            autoSkip: false,
+            maxRotation: 0,
+          },
+        },
+        y: {
+          id: "y",
+          beginAtZero: true,
+          grid: { color: "rgba(63,63,70,0.55)" },
+          ticks: {
+            color: "rgba(161,161,170,0.95)",
+            callback(value) { return Number(value).toLocaleString(); },
+          },
+        },
+      },
+      layout: { padding: { top: 8, right: 12, bottom: 4, left: 6 } },
+      animation: { duration: 650, easing: "easeOutCubic" },
+    },
   });
 }
 
-makeSpark("sparkTotal", mockDaily, "#facc15");
-makeSpark("sparkPkg1", mockPkg1, "#38bdf8");
-makeSpark("sparkPkg2", mockPkg2, "#fbbf24");
-makeSpark("sparkOrders", mockDaily.map(x => x * 0.02), "#a78bfa");
+// ================== TOP 5 DAYS ==================
+const list = document.getElementById("topDaysList");
+if (list) {
+  list.innerHTML = "";
+  if (Array.isArray(topDaysData) && topDaysData.length) {
+    topDaysData.forEach((d, idx) => {
+      const pct = (d.amount / topDaysData[0].amount) * 100;
+      list.innerHTML += `
+        <div class="top-item">
+          <div class="rank">${idx + 1}</div>
+          <div class="label">วันที่ ${d.day}</div>
+          <div class="bar"><div style="width:${pct}%"></div></div>
+          <div class="amount">฿${d.amount.toLocaleString()}</div>
+        </div>
+      `;
+    });
+  } else {
+    list.innerHTML = `<div class="top-item muted">ยังไม่มีข้อมูลในเดือนนี้</div>`;
+  }
+}
 
-makeMainCharts();
+// ================== INITIAL RENDER (หน้าตอนโหลดครั้งแรก) ==================
+if (dailyData.length) {
+  makeSpark("sparkTotal",  dailyData, "#facc15");
+  makeSpark("sparkPkg1",   pkg1Data,  "#38bdf8");
+  makeSpark("sparkPkg2",   pkg2Data,  "#fbbf24");
+  makeSpark("sparkOrders", dailyData.map(x => x * 0.02), "#a78bfa");
+  makeMainCharts();
+}
 </script>
 
 <style>
@@ -1101,107 +1640,6 @@ makeMainCharts();
   gap: 8px;
 }
 
-/* ULTRA MODE SUMMARY */
-.ultra-summary {
-  padding: 10px 0 40px;
-}
-.ultra-month-select {
-  margin-bottom: 18px;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-.ultra-month-select select {
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: var(--page);
-  color: var(--text);
-  border: 1px solid var(--border);
-}
-.ultra-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 14px;
-  margin-bottom: 24px;
-}
-.ultra-card.glass {
-  padding: 16px;
-  border-radius: 16px;
-  background: rgba(255,255,255,0.04);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.12);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-  position: relative;
-  overflow: hidden;
-  animation: fadeIn 0.3s ease;
-}
-.ultra-card h3 {
-  margin: 0 0 6px;
-  font-size: 15px;
-  color: var(--muted);
-}
-.ultra-card .ultra-value {
-  font-size: 22px;
-  font-weight: 300;
-  margin-bottom: 6px;
-}
-.ultra-card .ultra-trend {
-  font-size: 12px;
-  margin-bottom: 4px;
-}
-.ultra-card .ultra-trend.up { color: #4ade80; }
-.ultra-card .ultra-trend.down { color: #f87171; }
-.spark {
-  width: 100%;
-  height: 48px;
-}
-.ultra-chart.glass {
-  padding: 18px;
-  border-radius: 16px;
-  margin-bottom: 24px;
-}
-.ultra-chart h3 {
-  margin-top: 0;
-  margin-bottom: 10px;
-}
-.ultra-topdays.glass {
-  padding: 18px;
-  border-radius: 16px;
-}
-.topdays-list {
-  margin-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.top-item {
-  display: grid;
-  grid-template-columns: 30px 1fr 120px 100px;
-  gap: 10px;
-  align-items: center;
-}
-.top-item .rank {
-  /* font-weight: bold; */
-  color: var(--accent);
-}
-.top-item .bar {
-  width: 100%;
-  height: 8px;
-  background: rgba(255,255,255,0.08);
-  border-radius: 8px;
-  overflow: hidden;
-}
-.top-item .bar div {
-  height: 100%;
-  background: linear-gradient(90deg, #facc15, #fbbf24);
-}
-
-/* Motion */
-@keyframes fadeIn {
-  from { opacity:0; transform: translateY(4px); }
-  to   { opacity:1; transform: translateY(0); }
-}
-
 /* Responsive */
 @media (max-width: 768px) {
   .bonustime-admin {
@@ -1241,5 +1679,268 @@ makeMainCharts();
     max-width: 100%;
     border-radius: 14px;
   }
+}
+
+/* ================================
+ * ULTRA SUMMARY TAB (BONUSTIME)
+ * ================================ */
+.ultra-summary {
+  --ultra-gap: 8px;
+  --ultra-radius: 18px;
+  --ultra-card-bg: var(--card, #14151a);
+  --ultra-border: var(--border, #262730);
+  --ultra-text: var(--text, #ffffff);
+  --ultra-muted: var(--muted, #a1a1aa);
+  --ultra-accent: var(--accent, #facc15);
+  --ultra-bg-soft: rgba(250, 204, 21, 0.06);
+
+  padding-top: 10px;
+  padding-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ultra-gap);
+}
+
+/* HEADER */
+.ultra-summary-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.ultra-summary-title h2 {
+  font-size: clamp(18px, 2.2vw, 22px);
+  margin: 0;
+}
+
+.ultra-summary-title p {
+  margin: 4px 0 0;
+  color: var(--ultra-muted);
+}
+
+/* MONTH SELECTOR */
+.ultra-month-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.ultra-month-select label {
+  color: var(--ultra-muted);
+}
+
+.ultra-month-select select {
+  background: var(--ultra-card-bg);
+  color: var(--ultra-text);
+  border-radius: 999px;
+  border: 1px solid var(--ultra-border);
+  padding: 6px 14px;
+  font-size: 14px;
+}
+
+/* SUMMARY CARDS */
+.ultra-cards {
+  display: grid;
+  margin-bottom: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: var(--ultra-gap);
+}
+
+.ultra-card.glass {
+  background: linear-gradient(135deg, rgba(24, 24, 27, 0.96), rgba(15, 23, 42, 0.96));
+  border-radius: var(--ultra-radius);
+  border: 1px solid var(--ultra-border);
+  padding: 14px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ultra-card h3 {
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0;
+  color: var(--ultra-muted);
+}
+
+.ultra-card .ultra-value {
+  font-size: clamp(22px, 2.4vw, 26px);
+  font-weight: 600;
+  color: var(--ultra-text);
+}
+
+.ultra-card .ultra-value span {
+  font-variant-numeric: tabular-nums;
+}
+
+.ultra-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ultra-muted);
+}
+
+.ultra-trend .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--ultra-muted);
+}
+
+.ultra-trend.up .dot {
+  background: #4ade80;
+}
+
+.ultra-trend.flat .dot {
+  background: #a1a1aa;
+}
+
+/* mini spark charts on cards */
+.ultra-card .spark {
+  margin-top: 8px;
+  width: 100% !important;
+  height: 60px !important;   /* ถ้าเตี้ยไป/สูงไปลอง 50–70px ตามชอบ */
+}
+
+/* CHART GRID */
+.ultra-charts-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  margin-bottom: 22px;  
+  gap: var(--ultra-gap);
+}
+
+@media (max-width: 960px) {
+  .ultra-charts-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* MAIN / SUB CHART SECTIONS */
+.ultra-chart.glass {
+  background: radial-gradient(circle at top left, rgba(250, 204, 21, 0.12), transparent 46%),
+              var(--ultra-card-bg);
+  border-radius: var(--ultra-radius);
+  border: 1px solid var(--ultra-border);
+  padding: 12px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 230px;
+}
+
+.ultra-chart-head h3 {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ultra-muted);
+}
+
+.ultra-chart-body {
+  margin-top: 4px;
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+}
+
+.ultra-chart-body canvas {
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: 16 / 7;
+  max-height: 260px;
+  display: block;
+}
+
+/* TOP 5 DAYS */
+.ultra-topdays.glass {
+  background: var(--ultra-card-bg);
+  border-radius: var(--ultra-radius);
+  border: 1px solid var(--ultra-border);
+  padding: 14px 16px;
+  margin-top: 4px;
+}
+
+.ultra-topdays h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: var(--ultra-muted);
+}
+
+.topdays-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.topdays-list .top-item {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1.4fr) minmax(0, 2fr) max-content;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.topdays-list .rank {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--ultra-bg-soft);
+  color: var(--ultra-accent);
+  font-size: 12px;
+}
+
+.topdays-list .label {
+  color: var(--ultra-text);
+}
+
+.topdays-list .bar {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(39, 39, 42, 0.9);
+  overflow: hidden;
+}
+
+.topdays-list .bar > div {
+  height: 100%;
+  background: linear-gradient(90deg, #facc15, #fb923c);
+  border-radius: inherit;
+}
+
+.topdays-list .amount {
+  font-variant-numeric: tabular-nums;
+  color: var(--ultra-muted);
+  white-space: nowrap;
+}
+
+/* small screens */
+@media (max-width: 640px) {
+  .ultra-summary-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .topdays-list .top-item {
+    grid-template-columns: 24px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    column-gap: 8px;
+    row-gap: 4px;
+  }
+  .topdays-list .bar {
+    grid-column: 2 / -1;
+  }
+  .topdays-list .amount {
+    grid-column: 2 / -1;
+    justify-self: flex-end;
+  }
+}
+
+.spark-tooltip {
+  pointer-events: none;
+  will-change: transform, opacity;
 }
 </style>
