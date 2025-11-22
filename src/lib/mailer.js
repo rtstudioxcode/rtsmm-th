@@ -5,6 +5,10 @@
 import nodemailer from 'nodemailer';
 import { config } from '../config.js';
 
+
+const BRAND_URL  = 'https://rtsmm-th.com';
+const BRAND_LOGO = `${BRAND_URL}/static/assets/logo/logo-rtssm-th.png`;
+
 // โครงสร้างที่คาดหวัง
 // config.mail = {
 //   host, port, user, pass, from,
@@ -294,6 +298,205 @@ export function buildVerifyEmailHTML({
   </table>
 </body>
 </html>`;
+}
+
+export function emailTemplateBonustimeExpiry({
+  daysLeft,        // 1 / 2 / 3
+  tenantId,        // เช่น "Server6"
+  name,            // NAME: "OG999"
+  serialKey,       // serial_key
+  licenseStart,    // LICENSE_START_DATE (string ไทย)
+  licenseEnd,      // วันหมดอายุแบบไทยแล้ว "21/12/2568"
+  loginUrl,        // LOGIN_URL
+  lineAdminUrl,    // LINE_ADMIN
+  link,            // LINK (webhook)
+  extendUrl        // ลิงก์ไปหน้า /bonustime?extend=Server6
+}) {
+  const LOGO_H_DESKTOP = 128;
+  const LOGO_H_MOBILE  = 98;
+
+  const safe = (v) => v || "-";
+
+  return `
+  <!doctype html>
+  <html lang="th">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="x-apple-disable-message-reformatting">
+    <style>
+      html,body{margin:0!important;padding:0!important;background:#0b1019!important}
+      img{border:0;outline:none;text-decoration:none;display:block;line-height:0}
+      table,td{border-collapse:collapse!important}
+      a{color:#2563eb}
+      .container{width:640px;max-width:100%}
+      .head{background:#020617;padding:4px 16px;text-align:center;line-height:0;mso-line-height-rule:exactly}
+      .brand-logo{height:${LOGO_H_DESKTOP}px;width:auto;max-width:100%;margin:0 auto}
+      @media(max-width:600px){
+        .container{width:100%!important}
+        .px{padding-left:16px!important;padding-right:16px!important}
+        .head{padding:0px 12px!important}
+        .brand-logo{height:${LOGO_H_MOBILE}px!important}
+      }
+      .btn{
+        background:#facc15;
+        border-radius:999px;
+        color:#111827!important;
+        display:inline-block;
+        font-weight:700;
+        text-decoration:none;
+        padding:12px 28px;
+        font-size:14px;
+      }
+      .pill{
+        display:inline-block;
+        padding:4px 10px;
+        border-radius:999px;
+        background:#0f172a;
+        color:#e5e7eb;
+        font-size:12px;
+      }
+      .muted{color:#6b7280;font-size:13px}
+      .label{color:#9ca3af;font-size:12px}
+      .value{color:#e5e7eb;font-size:13px}
+    </style>
+  </head>
+  <body style="margin:0;padding:0;background:#020617;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:20px 0;font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial,sans-serif;">
+      <tr>
+        <td align="center">
+          <table role="presentation" class="container" cellpadding="0" cellspacing="0" style="background:#020617;border-radius:16px;overflow:hidden;border:1px solid #111827;">
+            <tr>
+              <td class="head">
+                <a href="${BRAND_URL}" target="_blank" style="text-decoration:none">
+                  <img src="${BRAND_LOGO}" alt="RTSMM-TH" class="brand-logo">
+                </a>
+              </td>
+            </tr>
+
+            <tr>
+              <td class="px" style="padding:20px 24px 10px;color:#e5e7eb;background:#020617;">
+                <h2 style="margin:0 0 6px;font-size:20px">
+                  แจ้งเตือนการหมดอายุเซอร์วิส Bonustime
+                </h2>
+                <p style="margin:0;color:#9ca3af;font-size:13px">
+                  เราพบว่าเซอร์วิส Bonustime ของคุณกำลังเข้าใกล้วันหมดอายุ
+                  เพื่อไม่ให้การทำงานของบอทสะดุด แนะนำให้ต่ออายุก่อนถึงกำหนดอย่างน้อย 1 วัน
+                </p>
+              </td>
+            </tr>
+
+            <!-- กล่องข้อมูลหลัก -->
+            <tr>
+              <td class="px" style="padding:10px 24px 4px;background:#020617;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#020617;">
+                  <tr>
+                    <td style="padding:10px 0;">
+                      <div class="pill">
+                        Service: (${safe(tenantId)}) – ${safe(name)}
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:4px 0;">
+                      <div class="label">Serial Key</div>
+                      <div class="value" style="font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;">
+                        ${safe(serialKey)}
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:4px 0;">
+                      <div class="label">ช่วงเวลาการใช้งาน</div>
+                      <div class="value">
+                        ${safe(licenseStart)} – ${safe(licenseEnd)}
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:4px 0;">
+                      <div class="label">สถานะปัจจุบัน</div>
+                      <div class="value">
+                        เหลือระยะเวลาใช้งานอีก <strong>${daysLeft} วัน</strong>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- ปุ่มต่ออายุ -->
+            <tr>
+              <td style="padding:16px 24px 8px;background:#020617;" align="center">
+                <a href="${extendUrl}" target="_blank" class="btn">
+                  ต่ออายุเซอร์วิส Bonustime
+                </a>
+              </td>
+            </tr>
+
+            <!-- ข้อมูลเสริม / ความน่าเชื่อถือ -->
+            <tr>
+              <td class="px" style="padding:0 24px 18px;background:#020617;">
+                <p class="muted" style="margin:0 0 8px;">
+                  เมื่อกดปุ่ม “ต่ออายุเซอร์วิส Bonustime” ระบบจะพาคุณไปยังหน้า
+                  <strong>Bonustime</strong> ภายใน RTSMM-TH โดยอัตโนมัติ
+                  และเปิดหน้าต่างเลือกแพ็กเกจต่ออายุของ Service (${safe(tenantId)}) – ${safe(name)} ให้ทันที
+                </p>
+                <p class="muted" style="margin:0 0 8px;">
+                  หลังจากชำระด้วยเครดิตสำเร็จ บอทของคุณจะทำงานต่อเนื่องโดยไม่ต้องตั้งค่าซ้ำ
+                  หากคุณมีการเปลี่ยนแปลงโครงสร้างเว็บ ลิงก์ หรือระบบสมาชิกในอนาคต
+                  สามารถกลับมาแก้ไขข้อมูลการเชื่อมต่อได้จากเมนู <strong>Bonustime</strong> เมื่อใดก็ได้
+                </p>
+                <p class="muted" style="margin:0;">
+                  หากคุณได้ต่ออายุไปแล้วหรือไม่ต้องการใช้งานต่อ สามารถเมินอีเมลฉบับนี้ได้
+                </p>
+              </td>
+            </tr>
+
+            <!-- ข้อมูลลิงก์ที่เกี่ยวข้อง (ออปชันแนบไว้ด้านล่าง) -->
+            <tr>
+              <td class="px" style="padding:10px 24px 18px;background:#020617;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:12px;color:#9ca3af;background:#020617;">
+                  <tr>
+                    <td style="padding:4px 0;">
+                      <strong>ลิงก์เข้าสู่ระบบหลัก:</strong><br>
+                      <a href="${safe(loginUrl)}" target="_blank" style="color:#38bdf8;word-break:break-all;">
+                        ${safe(loginUrl)}
+                      </a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:4px 0;">
+                      <strong>ลิงก์ไลน์ติดต่อแอดมิน:</strong><br>
+                      <a href="${safe(lineAdminUrl)}" target="_blank" style="color:#38bdf8;word-break:break-all;">
+                        ${safe(lineAdminUrl)}
+                      </a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:4px 0;">
+                      <strong>Webhook ที่ใช้เชื่อมต่อ:</strong><br>
+                      <a href="${safe(link)}" target="_blank" style="color:#38bdf8;word-break:break-all;">
+                        ${safe(link)}
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="background:#020617;color:#4b5563;padding:10px 20px;text-align:center;font-size:11px;border-top:1px solid #111827;">
+                อีเมลฉบับนี้ถูกส่งจากระบบอัตโนมัติของ RTSMM-TH เพื่อแจ้งเตือนการหมดอายุเซอร์วิส Bonustime<br>
+                © RTSMM-TH
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+  </html>`;
 }
 
 // ============================================================

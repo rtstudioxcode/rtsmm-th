@@ -527,6 +527,8 @@ function btNotify(variant, title, text) {
   alert((title ? title + '\n' : '') + (text || ''));
 }
 
+let PENDING_EXTEND_TENANT = null;
+
 // ================== CONFIRM HELPER (ใช้ uiConfirm ถ้ามี) ==================
 async function btConfirm(message) {
   // ถ้ามี uiConfirm (การ์ดสวย ๆ) ให้ใช้
@@ -612,6 +614,19 @@ function calcRemainDays(expiry) {
 }
 
 // ================== LOAD HISTORY ==================
+// อ่านค่า ?extend= จาก URL ไว้ก่อน (เช่น /bonustime?extend=Server1)
+(function readExtendFromQuery() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const ext = params.get("extend");
+    if (ext) {
+      PENDING_EXTEND_TENANT = String(ext).trim();
+    }
+  } catch (e) {
+    console.warn("cannot parse extend query", e);
+  }
+})();
+
 async function loadBonustimeHistory() {
     const box = document.getElementById("bonustimeHistory");
     if (!box) return;
@@ -751,6 +766,34 @@ async function loadBonustimeHistory() {
 
         box.appendChild(el);
     });
+
+    // <<< เพิ่มบล็อกนี้หลังจากเติมการ์ดเสร็จ >>>
+    if (PENDING_EXTEND_TENANT) {
+      const targetId = Object.keys(BONUSTIME_CACHE).find((id) => {
+        const r = BONUSTIME_CACHE[id];
+        if (!r) return false;
+
+        // เทียบได้ทั้ง tenantId และ _id เผื่ออนาคตเปลี่ยนใจใช้แบบอื่น
+        return (
+          (r.tenantId && String(r.tenantId) === PENDING_EXTEND_TENANT) ||
+          String(id) === PENDING_EXTEND_TENANT
+        );
+      });
+
+      if (targetId) {
+        // สลับไปแท็บประวัติ
+        const historyTab = document.querySelector('.bt-tab[data-tab="history"]');
+        if (historyTab) historyTab.click();
+
+        // เปิด Modal ต่ออายุ
+        openExtend(targetId);
+      }
+
+      // เคลียร์ไม่ให้ยิงซ้ำใน reload ถัดไป
+      PENDING_EXTEND_TENANT = null;
+    }
+    // <<< จบส่วนเพิ่ม >>>
+
     } catch (err) {
     console.error(err);
     box.innerHTML = `<p class="muted">โหลดข้อมูลไม่สำเร็จ</p>`;
@@ -897,9 +940,42 @@ async function submitBonustimeOrder() {
   }
 }
 
+// ================== CHECK & SEND EXPIRY MAIL ==================
+async function checkBonustimeExpiryMail() {
+  try {
+    const res = await fetch("/bonustime/check-expiry-mail", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+    });
+
+    const data = await res.json();
+
+    if (!data.ok) {
+      // ไม่ต้อง notify แรง เพราะ user อาจยังไม่มีอีเมล / serial ก็ได้
+      console.warn("check-expiry-mail not ok:", data);
+      return;
+    }
+
+    if (typeof data.sent === "number" && data.sent > 0) {
+      btNotify(
+        "success",
+        "ส่งอีเมลแจ้งเตือนแล้ว",
+        `ระบบได้ส่งอีเมลแจ้งเตือนการหมดอายุให้กับ Service ที่ใกล้หมดอายุ ${data.sent} รายการ`
+      );
+    }
+  } catch (err) {
+    console.error("checkBonustimeExpiryMail error", err);
+    // เงียบไว้ก็ได้ จะได้ไม่รบกวน user
+  }
+}
+
 // โหลดทันทีเมื่อเปิดหน้า (มี serialKey แล้ว)
 loadBonustimeHistory();
 loadBonustimeProducts();
+checkBonustimeExpiryMail();
 
 // ================== MODAL: ORDER ==================
 async function openOrder(type) {

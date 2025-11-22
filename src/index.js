@@ -44,6 +44,7 @@ import { startOtp24ProcessingSweeper } from './jobs/otp24ProcessingSweeper.js';
 import cookieParser from 'cookie-parser';
 import { startOrderStatusJob } from './jobs/orderStatusJob.js';
 import bonustimeRouter from "./routes/bonustime.js";
+import { initBonustimeExpiryJob } from "./jobs/bonustimeExpiryJob.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -469,6 +470,7 @@ app.use((req, res) => res.status(404).send("Not found"));
 
 initDailyChangeSync();
 startOtp24ProcessingSweeper();
+initBonustimeExpiryJob();
 
 /* ------------------------------------------------------------------ */
 /* 5) ใช้ PORT จาก DB ก่อน ถ้าไม่มีค่อย fallback env/config           */

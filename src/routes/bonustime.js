@@ -5,6 +5,9 @@ import { User } from "../models/User.js";
 import { BonustimeUser } from "../models/BonustimeUser.js";
 import { BonustimeOrder } from "../models/BonustimeOrder.js";
 import { recalcUserTotals } from "../services/spend.js";
+import { sendEmail } from "../lib/mailer.js";
+import { config } from "../config.js";
+import { checkAndSendBonustimeExpiryMails } from "../services/bonustimeExpiry.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -100,6 +103,16 @@ function findPlan(days, includeLotto) {
   const daysNum = Number(days) || 0;
   const list = includeLotto ? PLANS_LOTTO : PLANS_NORMAL;
   return list.find((p) => p.days === daysNum) || null;
+}
+
+
+function calcRemainDaysFromDoc(doc) {
+  const exp = calcExpiry(doc);
+  if (!exp) return null;
+  const now = new Date();
+  const diff = exp.getTime() - now.getTime();
+  const days = Math.ceil(diff / DAY_MS);
+  return days;
 }
 
 // ===== routes =====
@@ -619,6 +632,22 @@ router.post("/bonustime/:id/extend", async (req, res) => {
     return res
       .status(500)
       .json({ ok: false, message: "เกิดข้อผิดพลาดระหว่างต่ออายุ" });
+  }
+});
+
+// === ส่งเมลแจ้งเตือน service ใกล้หมดอายุ ===
+// เงื่อนไข: เหลือ 1–3 วัน และยังไม่เคยส่งเมลเตือน (expiryNotifySent != true)
+router.post("/bonustime/check-expiry-mail", async (req, res) => {
+  try {
+    const result = await checkAndSendBonustimeExpiryMails({
+      logPrefix: "[BonustimeExpiryRoute]",
+    });
+    return res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error("POST /bonustime/check-expiry-mail error:", err);
+    return res
+      .status(500)
+      .json({ ok: false, message: "ไม่สามารถเช็กและส่งเมลแจ้งเตือนได้" });
   }
 });
 

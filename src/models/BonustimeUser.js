@@ -18,6 +18,7 @@ const BonustimeUserSchema = new mongoose.Schema(
     LICENSE_DURATION_DAYS: Number,
     LICENSE_DISABLED: Boolean,
     LINK: String,
+    expiryNotifySent: { type: Boolean, default: false },
   },
   { collection: "users" }
 );
