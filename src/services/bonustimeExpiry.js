@@ -1,18 +1,20 @@
 // src/services/bonustimeExpiry.js
-import { User } from "../models/User.js";
 import { BonustimeUser } from "../models/BonustimeUser.js";
+import { User } from "../models/User.js";
 import { sendEmail } from "../lib/mailer.js";
 import { config } from "../config.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const SITE_URL = config?.siteUrl || "https://rtsmm-th.com";
 
+// ---------- helper: แปลงวันที่ไทย ----------
 function parseThaiDate(str) {
   if (!str) return null;
   const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(str).trim());
   if (!m) return null;
   let [, d, mo, y] = m;
   let year = Number(y);
-  if (year > 2400) year -= 543; // พ.ศ. → ค.ศ.
+  if (year > 2400) year -= 543; // พ.ศ. -> ค.ศ.
   return new Date(year, Number(mo) - 1, Number(d));
 }
 
@@ -30,7 +32,7 @@ function calcExpiry(doc) {
   return new Date(start.getTime() + duration * DAY_MS);
 }
 
-function calcRemainDays(doc) {
+function calcRemainDaysFromDoc(doc) {
   const exp = calcExpiry(doc);
   if (!exp) return null;
   const now = new Date();
@@ -38,159 +40,177 @@ function calcRemainDays(doc) {
   return Math.ceil(diff / DAY_MS);
 }
 
-/**
- * เช็ก Bonustime ที่ใกล้หมดอายุแล้วส่งอีเมลแจ้งเตือน
- * เงื่อนไข:
- *   - serial_key มีค่า
- *   - ไม่ disabled
- *   - เหลือ 1–3 วัน
- *   - expiryNotifySent != true (ยังไม่เคยส่ง)
- */
-export async function checkAndSendBonustimeExpiryMails(options = {}) {
-  const { logPrefix = "[BonustimeExpiry]" } = options;
+function normalizeUrl(u) {
+  if (!u) return "";
+  const s = String(u).trim();
+  if (!s) return "";
+  if (/^https?:\/\//i.test(s)) return s;
+  return "https://" + s;
+}
 
-  const baseUrl = (config.publicBaseUrl || "https://rtsmm-th.com").replace(
-    /\/+$/,
-    ""
-  );
-  const brandName = config.brandName || "RTSMM-TH";
+// ---------- main ----------
+export async function checkAndSendBonustimeExpiryMails(opts = {}) {
+  const logPrefix = opts.logPrefix || "[BonustimeExpiry]";
+  const now = new Date();
 
-  // ดึง service ที่มี serial_key และยังไม่ถูก mark ว่าส่งเมลแล้ว
+  // หา service ที่มี serial_key, ยังไม่ disabled และยังไม่เคยส่งเมลเตือน
   const docs = await BonustimeUser.find({
     serial_key: { $nin: [null, ""] },
     LICENSE_DISABLED: { $ne: true },
-    $or: [{ expiryNotifySent: { $exists: false } }, { expiryNotifySent: false }],
+    expiryNotifySent: { $ne: true },
   }).lean();
 
-  if (!docs.length) {
-    return { sent: 0, users: 0 };
-  }
-
-  // กรองเฉพาะตัวที่เหลือ 1–3 วัน
-  const bySerial = new Map(); // serial_key => [docs...]
-  for (const doc of docs) {
-    const remain = calcRemainDays(doc);
+  const targets = [];
+  for (const d of docs) {
+    const remain = calcRemainDaysFromDoc(d);
     if (remain == null) continue;
-    if (remain < 1 || remain > 3) continue;
-
-    if (!bySerial.has(doc.serial_key)) bySerial.set(doc.serial_key, []);
-    bySerial.get(doc.serial_key).push({ doc, remain });
+    // เงื่อนไข: เหลือ 1–3 วัน
+    if (remain >= 1 && remain <= 3) {
+      targets.push({ doc: d, remainDays: remain });
+    }
   }
 
-  if (!bySerial.size) {
-    return { sent: 0, users: 0 };
+  if (!targets.length) {
+    console.log(`${logPrefix} no expiring services (1–3 days)`);
+    return { ok: true, sent: 0, users: 0 };
   }
 
-  // หา user ตาม serial_key
-  const serialKeys = [...bySerial.keys()];
-  const users = await User.find({
-    serial_key: { $in: serialKeys },
-    email: { $exists: true, $ne: "" },
-  }).lean();
+  const userCache = new Map(); // serial_key -> user
+  const userIdsSent = new Set();
 
-  const userBySerial = new Map();
-  for (const u of users) userBySerial.set(u.serial_key, u);
+  let sent = 0;
 
-  let totalSent = 0;
-  const docsToMark = [];
-
-  for (const [serial, list] of bySerial.entries()) {
-    const user = userBySerial.get(serial);
-    if (!user || !user.email) continue;
-
-    // สร้าง rows + เก็บ doc._id สำหรับ mark ส่งแล้ว
-    let rowsHtml = "";
-    for (const { doc, remain } of list) {
-      const exp = calcExpiry(doc);
-      const expStr = exp ? formatThaiDate(exp) : "-";
-
-      const serviceName = doc.NAME || doc.tenantId || "-";
-      const extendTarget =
-        doc.tenantId || (doc._id ? String(doc._id) : "");
-
-      const extendUrl = `${baseUrl}/bonustime?extend=${encodeURIComponent(
-        extendTarget
-      )}`;
-
-      rowsHtml += `
-        <tr>
-          <td style="padding:6px 10px; border:1px solid #e5e7eb;">${serviceName}</td>
-          <td style="padding:6px 10px; border:1px solid #e5e7eb; text-align:center;">${remain} วัน</td>
-          <td style="padding:6px 10px; border:1px solid #e5e7eb; text-align:center;">${expStr}</td>
-          <td style="padding:6px 10px; border:1px solid #e5e7eb; text-align:center;">
-            <a href="${extendUrl}"
-               style="display:inline-block; padding:6px 12px; border-radius:999px;
-                      background:#facc15; color:#111827; font-size:13px; font-weight:600;
-                      text-decoration:none;">
-              ต่ออายุการใช้งาน
-            </a>
-          </td>
-        </tr>
-      `;
-
-      docsToMark.push(doc._id);
+  for (const { doc, remainDays } of targets) {
+    let user = userCache.get(doc.serial_key);
+    if (user === undefined) {
+      user = await User.findOne({ serial_key: doc.serial_key }).lean();
+      userCache.set(doc.serial_key, user || null);
+    }
+    if (!user || !user.email) {
+      console.warn(
+        `${logPrefix} skip tenant=${doc.tenantId} serial=${doc.serial_key} (no user/email)`
+      );
+      continue;
     }
 
-    if (!rowsHtml) continue;
+    const expiry = calcExpiry(doc);
+    const endStr = expiry ? formatThaiDate(expiry) : "-";
+    const startStr = doc.LICENSE_START_DATE || "-";
+
+    const serviceName = doc.NAME || "ไม่ระบุชื่อ";
+    const tenantLabel = doc.tenantId || "-";
+    const serialKey = doc.serial_key || "-";
+
+    const extendUrl = `${SITE_URL}/bonustime?extend=${encodeURIComponent(
+      doc.tenantId || ""
+    )}`;
+
+    const loginUrl = doc.LOGIN_URL ? normalizeUrl(doc.LOGIN_URL) : "";
+    const lineUrl = doc.LINE_ADMIN ? normalizeUrl(doc.LINE_ADMIN) : "";
+
+    const subject = `แจ้งเตือนการหมดอายุเซิร์ฟ Bonustime (เหลืออีก ${remainDays} วัน)`;
 
     const html = `
-      <div style="font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size:14px; color:#111827;">
-        <p>สวัสดีคุณ ${user.displayName || user.username || user.email},</p>
-        <p>
-          ระบบตรวจพบว่า Service Bonustime ของคุณบางส่วนกำลังจะหมดอายุในไม่กี่วันนี้
-          กรุณาตรวจสอบรายละเอียดด้านล่าง และต่ออายุก่อนหมดอายุเพื่อให้บอททำงานได้อย่างต่อเนื่อง:
-        </p>
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#020617;padding:32px 16px;color:#e5e7eb;">
+  <div style="max-width:720px;margin:0 auto;">
+    <div style="text-align:center;margin-bottom:24px;">
+      <img src="${SITE_URL}/static/logo/rtlogolg.png" alt="RTSMM-TH" style="height:40px;margin-bottom:8px;" />
+    </div>
 
-        <table style="border-collapse:collapse; margin:12px 0; width:100%; max-width:640px;">
-          <thead>
-            <tr style="background:#f3f4f6;">
-              <th style="padding:6px 10px; border:1px solid #e5e7eb; text-align:left;">Service</th>
-              <th style="padding:6px 10px; border:1px solid #e5e7eb; text-align:center;">เหลืออีก (วัน)</th>
-              <th style="padding:6px 10px; border:1px solid #e5e7eb; text-align:center;">วันหมดอายุ (โดยประมาณ)</th>
-              <th style="padding:6px 10px; border:1px solid #e5e7eb; text-align:center;">ดำเนินการ</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHtml}
-          </tbody>
-        </table>
+    <div style="background:#020617;border-radius:24px;border:1px solid #111827;padding:28px 24px;">
+      <h1 style="margin:0 0 8px;font-size:20px;color:#fde68a;">
+        แจ้งเตือนการหมดอายุเซิร์ฟ Bonustime
+      </h1>
+      <p style="margin:0 0 16px;font-size:14px;color:#9ca3af;line-height:1.6;">
+        ระบบตรวจพบว่าเซิร์ฟเวอร์ Bonustime ของคุณกำลังเข้าใกล้วันหมดอายุ เพื่อไม่ให้การทำงานของบอทสะดุด
+        แนะนำให้ต่ออายุล่วงหน้าอย่างน้อย <strong>1 วัน</strong> ครับ
+      </p>
 
-        <p style="margin-top:16px;">
-          คุณสามารถต่ออายุได้ที่หน้า <strong>Bonustime &gt; ประวัติการสั่งซื้อ</strong> โดยปุ่ม
-          <strong>“ต่ออายุการใช้งาน”</strong> ของแต่ละ Service
-        </p>
-
-        <p style="font-size:12px; color:#6b7280; margin-top:24px;">
-          อีเมลนี้เป็นการแจ้งเตือนอัตโนมัติจากระบบ ${brandName} หากคุณต่ออายุเรียบร้อยแล้ว สามารถมองข้ามอีเมลฉบับนี้ได้
-        </p>
+      <div style="margin:18px 0 14px;font-size:14px;line-height:1.7;">
+        <div><strong>Service:</strong> (${tenantLabel}) — ${serviceName}</div>
+        <div><strong>Serial Key:</strong> ${serialKey}</div>
+        <div><strong>ช่วงเวลาการใช้งาน:</strong> ${startStr} – ${endStr}</div>
+        <div><strong>สถานะปัจจุบัน:</strong> เหลือระยะเวลาใช้งานอีก ${remainDays} วัน</div>
       </div>
-    `;
+
+      <div style="text-align:center;margin:24px 0 18px;">
+        <a href="${extendUrl}"
+           style="display:inline-block;padding:12px 32px;border-radius:999px;
+                  background:#facc15;color:#000;font-weight:600;font-size:14px;
+                  text-decoration:none;">
+          ต่ออายุเซิร์ฟ Bonustime
+        </a>
+      </div>
+
+      <p style="margin:0 0 8px;font-size:13px;color:#9ca3af;line-height:1.6;">
+        เมื่อต้องการต่ออายุ ให้คลิกปุ่ม <strong>“ต่ออายุเซิร์ฟ Bonustime”</strong> ระบบจะพาคุณไปยังหน้า
+        <strong>Bonustime &gt; ประวัติการสั่งซื้อ</strong> ในเว็บ RTSMM-TH แล้วเปิดหน้าต่าง
+        <strong>“ต่ออายุการใช้งาน”</strong> ของ Service นี้ให้อัตโนมัติ
+      </p>
+      <p style="margin:0 0 16px;font-size:13px;color:#9ca3af;line-height:1.6;">
+        หากปล่อยให้เซิร์ฟหมดอายุ BOT อาจหยุดตอบลูกค้าชั่วคราว และลูกค้าอาจไม่ได้รับข้อมูลตามปกติ
+        จึงแนะนำให้ต่ออายุก่อนวันหมดอายุอย่างน้อย 1 วัน เพื่อความต่อเนื่องของระบบของคุณ
+      </p>
+
+      <div style="margin-top:20px;padding-top:10px;border-top:1px dashed #1f2937;font-size:12px;color:#6b7280;">
+        <div style="margin-bottom:4px;"><strong>ลิงก์ที่อยู่ในอีเมลนี้:</strong></div>
+        ${
+          loginUrl
+            ? `<div><a href="${loginUrl}" style="color:#60a5fa;" target="_blank" rel="noopener">${doc.LOGIN_URL}</a></div>`
+            : ""
+        }
+        ${
+          lineUrl
+            ? `<div><a href="${lineUrl}" style="color:#60a5fa;" target="_blank" rel="noopener">${doc.LINE_ADMIN}</a></div>`
+            : ""
+        }
+      </div>
+
+      <p style="margin-top:14px;font-size:11px;color:#4b5563;line-height:1.6;">
+        อีเมลนี้เป็นการแจ้งเตือนอัตโนมัติจากระบบ RTSMM-TH หากคุณได้รับโดยไม่ได้เกี่ยวข้องกับบริการนี้
+        สามารถมองข้ามอีเมลฉบับนี้ได้ครับ
+      </p>
+    </div>
+  </div>
+</div>
+    `.trim();
+
+    const text = [
+      "แจ้งเตือนการหมดอายุเซิร์ฟ Bonustime",
+      "",
+      `Service: (${tenantLabel}) — ${serviceName}`,
+      `Serial Key: ${serialKey}`,
+      `ช่วงเวลาการใช้งาน: ${startStr} – ${endStr}`,
+      `สถานะปัจจุบัน: เหลือระยะเวลาใช้งานอีก ${remainDays} วัน`,
+      "",
+      `ต่ออายุได้ที่: ${extendUrl}`,
+    ].join("\n");
 
     try {
       await sendEmail({
         to: user.email,
-        subject: `แจ้งเตือน Service Bonustime ใกล้หมดอายุ`,
+        subject,
         html,
+        text,
       });
-      totalSent++;
-      console.log(`${logPrefix} sent expiry mail to ${user.email}`);
+
+      await BonustimeUser.updateOne(
+        { _id: doc._id },
+        { $set: { expiryNotifySent: true } }
+      );
+
+      sent += 1;
+      userIdsSent.add(String(user._id));
+      console.log(
+        `${logPrefix} sent to ${user.email} for tenant=${tenantLabel}, remain=${remainDays}d`
+      );
     } catch (err) {
-      console.error(`${logPrefix} sendEmail error to ${user.email}:`, err);
+      console.error(
+        `${logPrefix} failed to send email to ${user.email} for tenant=${tenantLabel}`,
+        err
+      );
     }
   }
 
-  // mark ว่าส่งแล้ว
-  if (docsToMark.length) {
-    await BonustimeUser.updateMany(
-      { _id: { $in: docsToMark } },
-      {
-        $set: {
-          expiryNotifySent: true,
-          expiryNotifyLastSentAt: new Date(),
-        },
-      }
-    );
-  }
-
-  return { sent: totalSent, users: userBySerial.size };
+  return { ok: true, sent, users: userIdsSent.size };
 }
