@@ -107,6 +107,7 @@ export async function checkAndSendBonustimeExpiryMails(opts = {}) {
 
     const loginUrl = doc.LOGIN_URL ? normalizeUrl(doc.LOGIN_URL) : "";
     const lineUrl = doc.LINE_ADMIN ? normalizeUrl(doc.LINE_ADMIN) : "";
+    const webhook = doc.LINK ? normalizeUrl(doc.LINK) : "";
 
     const subject = `แจ้งเตือนการหมดอายุเซิร์ฟ Bonustime (เหลืออีก ${remainDays} วัน)`;
 
@@ -114,7 +115,7 @@ export async function checkAndSendBonustimeExpiryMails(opts = {}) {
 <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#020617;padding:32px 16px;color:#e5e7eb;">
   <div style="max-width:720px;margin:0 auto;">
     <div style="text-align:center;margin-bottom:24px;">
-      <img src="${SITE_URL}/static/logo/rtlogolg.png" alt="RTSMM-TH" style="height:40px;margin-bottom:8px;" />
+      <img src="${SITE_URL}/static/assets/logo/logo-rtssm-th.png" alt="RTSMM-TH" style="height:40px;margin-bottom:8px;" />
     </div>
 
     <div style="background:#020617;border-radius:24px;border:1px solid #111827;padding:28px 24px;">
@@ -162,6 +163,11 @@ export async function checkAndSendBonustimeExpiryMails(opts = {}) {
         ${
           lineUrl
             ? `<div><a href="${lineUrl}" style="color:#60a5fa;" target="_blank" rel="noopener">${doc.LINE_ADMIN}</a></div>`
+            : ""
+        }
+        ${
+          webhook
+            ? `<div><a href="${webhook}" style="color:#60a5fa;" target="_blank" rel="noopener">${doc.LINK}</a></div>`
             : ""
         }
       </div>
