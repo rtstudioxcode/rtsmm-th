@@ -1,0 +1,970 @@
+<%
+// canEdit = dev เท่านั้น (ส่งมาจาก route)
+// secure  = doc จาก collection secure_config
+// wallets = list จาก Topup (type: DEPOSIT)
+const cfg = secure || {};
+const ipv  = cfg.ipv  || {};
+const mail = cfg.mail || {};
+const otp  = cfg.otp  || {};
+const otp24 = cfg.otp24 || {};
+const turnstile = cfg.turnstile || {};
+// รายชื่อธนาคาร/วอลเล็ท (จะใช้ banks จาก route ถ้ามีส่งมา, ถ้าไม่มีก็ใช้ default นี้)
+const BANKS_LIST = (typeof banks !== 'undefined' && Array.isArray(banks) && banks.length)
+  ? banks
+  : [
+      { code: "bbl",   label: "ธนาคารกรุงเทพ" },
+      { code: "kbank", label: "ธนาคารกสิกรไทย" },
+      { code: "ktb",   label: "ธนาคารกรุงไทย" },
+      { code: "bay",   label: "ธนาคารกรุงศรีอยุธยา" },
+      { code: "scb",   label: "ธนาคารไทยพาณิชย์" },
+      { code: "tmb",   label: "ธนาคารทหารไทยธนชาต (TTB)" },
+      { code: "cimb",  label: "ธนาคารซีไอเอ็มบีไทย" },
+      { code: "uob",   label: "ธนาคารยูโอบี" },
+      { code: "gsb",   label: "ธนาคารออมสิน" },
+      { code: "baac",  label: "ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร" },
+      { code: "sme",   label: "ธนาคารพัฒนาวิสาหกิจขนาดกลางและขนาดย่อมแห่งประเทศไทย" },
+      { code: "tisco", label: "ธนาคารทิสโก้" },
+      { code: "kkb",   label: "ธนาคารเกียรตินาคินภัทร" },
+      { code: "lhfg",  label: "ธนาคารแลนด์ แอนด์ เฮ้าส์" },
+      { code: "icbl",  label: "ธนาคารไอซีบีซี (ไทย)" },
+      { code: "mizuho",label: "ธนาคารมิซูโฮ คอร์ปอเรต" },
+      { code: "scbt", label: "ธนาคารสแตนดาร์ดชาร์เตอร์ด (ไทย)" },
+      { code: "citi", label: "ธนาคารซิตี้แบงก์ ประเทศไทย" },
+      { code: "tw",   label: "TrueMoney Wallet" },
+    ];
+%>
+
+<section class="page container admin-settings">
+
+  <h1 class="page-title mb-lg">ตั้งค่าเว็บไซต์</h1>
+
+  <!-- แถบแท็บแบบยาวเต็มหน้าจอ -->
+  <div class="bt-tabbar bt-tabbar--full">
+    <button class="bt-tab active" data-tab="site">
+      <span>ตั้งค่าข้อมูลเว็บไซต์</span>
+    </button>
+    <button class="bt-tab" data-tab="wallets">
+      <span>ตั้งค่าบัญชีเว็บ</span>
+    </button>
+  </div>
+
+  <!-- ========== TAB 1: secure_config ========== -->
+  <section id="tab-site" class="tabpane show">
+    <form class="card mt admin-card" method="post" action="/admin/settings/secure">
+      <input type="hidden" name="_section" value="secure">
+
+      <header class="admin-card__header">
+        <div>
+          <h2>คอนฟิกหลักของระบบ</h2>
+          <!-- <p class="muted">
+            ดึงจาก collection <code>secure_config</code> ใช้สำหรับเชื่อมต่อผู้ให้บริการหลักของเว็บ
+          </p> -->
+        </div>
+        <div class="admin-card__badge <%= canEdit ? 'admin-card__badge--ok' : 'admin-card__badge--readonly' %>">
+          <%= canEdit ? 'DEV MODE — สามารถแก้ไขได้' : 'READONLY — ต้องเป็น DEV เท่านั้น' %>
+        </div>
+      </header>
+
+      <!-- IPlusView -->
+      <div class="fieldset mt-lg">
+        <div class="fieldset__header">
+          <h3>IPlusView API</h3>
+          <p class="muted">ตั้งค่า API สำหรับยิงคำสั่งไปยังผู้ให้บริการ IPlusView</p>
+        </div>
+        <div class="grid cols-2 gap-md fieldset__grid">
+          <div class="form-group">
+            <label>ipv.apiBase</label>
+            <input
+              type="text"
+              name="ipv_apiBase"
+              value="<%= ipv.apiBase || '' %>"
+              <%= canEdit ? '' : 'readonly' %>
+            >
+          </div>
+          <div class="form-group">
+            <label>ipv.apiKey</label>
+            <input
+              type="text"
+              name="ipv_apiKey"
+              value="<%= ipv.apiKey || '' %>"
+              <%= canEdit ? '' : 'readonly' %>
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- MAIL -->
+      <div class="fieldset mt-lg">
+        <div class="fieldset__header">
+          <h3>อีเมล (SMTP)</h3>
+          <p class="muted">ใช้สำหรับส่ง OTP / แจ้งเตือนไปยังผู้ใช้</p>
+        </div>
+        <div class="grid cols-2 gap-md fieldset__grid">
+          <div class="form-group">
+            <label>mail.host</label>
+            <input
+              type="text"
+              name="mail_host"
+              value="<%= mail.host || '' %>"
+              <%= canEdit ? '' : 'readonly' %>
+            >
+          </div>
+          <div class="form-group">
+            <label>mail.port</label>
+            <input
+              type="number"
+              name="mail_port"
+              value="<%= mail.port || '' %>"
+              <%= canEdit ? '' : 'readonly' %>
+            >
+          </div>
+        </div>
+        <div class="grid cols-2 gap-md mt-sm fieldset__grid">
+          <div class="form-group">
+            <label>mail.user</label>
+            <input
+              type="text"
+              name="mail_user"
+              value="<%= mail.user || '' %>"
+              <%= canEdit ? '' : 'readonly' %>
+            >
+          </div>
+          <div class="form-group">
+            <label>mail.pass</label>
+            <input
+              type="text"
+              name="mail_pass"
+              value="<%= mail.pass || '' %>"
+              <%= canEdit ? '' : 'readonly' %>
+            >
+          </div>
+        </div>
+        <div class="form-group mt-sm fieldset__single">
+          <label>mail.from</label>
+          <input
+            type="text"
+            name="mail_from"
+            value="<%= mail.from || '' %>"
+            <%= canEdit ? '' : 'readonly' %>
+          >
+        </div>
+      </div>
+
+      <!-- OTP -->
+      <div class="fieldset mt-lg">
+        <div class="fieldset__header">
+          <h3>OTP ภายในเว็บ</h3>
+          <p class="muted">ควบคุมอายุ OTP, คูลดาวน์ และจำนวนครั้งที่พิมพ์ผิดได้</p>
+        </div>
+        <div class="grid cols-3 gap-md fieldset__grid">
+          <div class="form-group">
+            <label>otp.ttlSec (อายุ OTP วินาที)</label>
+            <input
+              type="number"
+              name="otp_ttlSec"
+              value="<%= otp.ttlSec || '' %>"
+              <%= canEdit ? '' : 'readonly' %>
+            >
+          </div>
+          <div class="form-group">
+            <label>otp.resendCooldownSec</label>
+            <input
+              type="number"
+              name="otp_resendCooldownSec"
+              value="<%= otp.resendCooldownSec || '' %>"
+              <%= canEdit ? '' : 'readonly' %>
+            >
+          </div>
+          <div class="form-group">
+            <label>otp.maxAttempts</label>
+            <input
+              type="number"
+              name="otp_maxAttempts"
+              value="<%= otp.maxAttempts || '' %>"
+              <%= canEdit ? '' : 'readonly' %>
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- General -->
+      <div class="fieldset mt-lg">
+        <div class="fieldset__header">
+          <h3>ค่าทั่วไปของเว็บ</h3>
+          <p class="muted">พอร์ตที่ใช้รันเซิร์ฟเวอร์และ secret ต่าง ๆ ของระบบ</p>
+        </div>
+        <div class="grid cols-2 gap-md fieldset__grid">
+          <div class="form-group">
+            <label>port</label>
+            <input
+              type="number"
+              name="port"
+              value="<%= cfg.port || '' %>"
+              <%= canEdit ? '' : 'readonly' %>
+            >
+          </div>
+          <div class="form-group">
+            <label>sessionSecret</label>
+            <input
+              type="text"
+              name="sessionSecret"
+              value="<%= cfg.sessionSecret || '' %>"
+              <%= canEdit ? '' : 'readonly' %>
+            >
+          </div>
+        </div>
+        <div class="form-group mt-sm fieldset__single">
+          <label>TW_GEN_LINK_SECRET</label>
+          <input
+            type="text"
+            name="TW_GEN_LINK_SECRET"
+            value="<%= cfg.TW_GEN_LINK_SECRET || '' %>"
+            <%= canEdit ? '' : 'readonly' %>
+          >
+        </div>
+      </div>
+
+      <!-- OTP24 -->
+      <div class="fieldset mt-lg">
+        <div class="fieldset__header">
+          <h3>OTP24hr API</h3>
+          <p class="muted">ใช้สำหรับซื้อเบอร์ OTP ผ่านระบบ OTP24hr</p>
+        </div>
+        <div class="grid cols-2 gap-md fieldset__grid">
+          <div class="form-group">
+            <label>otp24.apiBase</label>
+            <input
+              type="text"
+              name="otp24_apiBase"
+              value="<%= otp24.apiBase || '' %>"
+              <%= canEdit ? '' : 'readonly' %>
+            >
+          </div>
+          <div class="form-group">
+            <label>otp24.apiKey</label>
+            <input
+              type="text"
+              name="otp24_apiKey"
+              value="<%= otp24.apiKey || '' %>"
+              <%= canEdit ? '' : 'readonly' %>
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- Turnstile -->
+      <div class="fieldset mt-lg">
+        <div class="fieldset__header">
+          <h3>Cloudflare Turnstile</h3>
+          <p class="muted">ตั้งค่า CAPTCHA ป้องกันบอทตอนสมัคร / ล็อกอิน</p>
+        </div>
+        <div class="grid cols-2 gap-md fieldset__grid">
+          <div class="form-group">
+            <label>turnstile.siteKey</label>
+            <input
+              type="text"
+              name="turnstile_siteKey"
+              value="<%= turnstile.siteKey || '' %>"
+              <%= canEdit ? '' : 'readonly' %>
+            >
+          </div>
+          <div class="form-group">
+            <label>turnstile.secretKey</label>
+            <input
+              type="text"
+              name="turnstile_secretKey"
+              value="<%= turnstile.secretKey || '' %>"
+              <%= canEdit ? '' : 'readonly' %>
+            >
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-xl admin-card__footer">
+        <button
+            type="submit"
+            class="btn primary settings-save-btn"
+            <%= canEdit ? '' : 'disabled' %>
+            >
+            <span class="settings-save-btn__glow"></span>
+            <span class="settings-save-btn__label">บันทึกข้อมูล</span>
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <!-- ========== TAB 2: บัญชีเว็บ (Topup) ========== -->
+  <section id="tab-wallets" class="tabpane">
+    <form class="card mt admin-card" method="post" action="/admin/settings/wallets">
+        <input type="hidden" name="_section" value="wallets">
+
+        <header class="admin-card__header">
+        <div>
+            <h2>ตั้งค่าบัญชีรับเงินของเว็บ</h2>
+            <p class="muted">
+            TrueWallet / KBank / SCB ฯลฯ จาก collection <code>topups</code> ใช้สำหรับระบบเติมเงินอัตโนมัติ
+            </p>
+        </div>
+        <div class="admin-card__badge <%= canEdit ? 'admin-card__badge--ok' : 'admin-card__badge--readonly' %>">
+            <%= canEdit ? 'DEV MODE — สามารถแก้ไขได้' : 'READONLY — ต้องเป็น DEV เท่านั้น' %>
+        </div>
+        </header>
+
+        <!-- ───────── SECTION 1: บัญชีที่มีอยู่ ───────── -->
+        <div class="fieldset">
+        <div class="fieldset__header">
+            <h3>บัญชีที่มีอยู่ในระบบ</h3>
+            <p class="muted">แก้ไขชื่อบัญชี เลขบัญชี และสถานะการใช้งานได้จากตรงนี้</p>
+        </div>
+
+        <div class="grid cards gap-md wallets-grid">
+            <% (wallets || []).forEach(function(w, idx){ 
+            const typeLabel = (w.type === 'WITHDRAW') ? 'บัญชีถอน' : 'บัญชีฝาก';
+            %>
+            <div class="card bank-card">
+                <input type="hidden" name="wallets[<%= idx %>][id]" value="<%= w._id %>">
+                <input type="hidden" name="wallets[<%= idx %>][accountCode]" value="<%= w.accountCode %>">
+                <input type="hidden" name="wallets[<%= idx %>][type]" value="<%= w.type || 'DEPOSIT' %>">
+
+                <div class="bank-card__header">
+                    <div class="bank-card__title">
+                        <span class="bank-code"><%= (w.accountCode || '').toUpperCase() %></span>
+                        <span class="bank-type">(<%= typeLabel %>)</span>
+                    </div>
+
+                    <div class="bank-card__actions">
+                        <div class="bank-pill <%= w.isActive ? 'bank-pill--on' : 'bank-pill--off' %>">
+                        <%= w.isActive ? 'กำลังใช้งาน' : 'ปิดใช้งาน' %>
+                        </div>
+
+                        <% if (canEdit) { %>
+                        <button
+                            type="submit"
+                            name="wallets[<%= idx %>][_delete]"
+                            value="1"
+                            class="bank-delete-btn"
+                            onclick="return confirm('ยืนยันลบบัญชีนี้หรือไม่ ?');"
+                        >
+                            ลบบัญชี
+                        </button>
+                        <% } %>
+                    </div>
+                </div>
+
+                <div class="form-group mt-sm">
+                <label>ชื่อบัญชี</label>
+                <input
+                    type="text"
+                    name="wallets[<%= idx %>][accountName]"
+                    value="<%= w.accountName || '' %>"
+                    <%= canEdit ? '' : 'readonly' %>
+                >
+                </div>
+
+                <div class="form-group mt-xs">
+                <label>เลขบัญชี / เบอร์</label>
+                <input
+                    type="text"
+                    name="wallets[<%= idx %>][accountNumber]"
+                    value="<%= w.accountNumber || '' %>"
+                    <%= canEdit ? '' : 'readonly' %>
+                >
+                </div>
+
+                <div class="grid cols-3 gap-sm mt-sm toggles">
+                <label class="checkbox">
+                    <input
+                    type="checkbox"
+                    name="wallets[<%= idx %>][isActive]"
+                    value="1"
+                    <%= w.isActive ? 'checked' : '' %>
+                    <%= canEdit ? '' : 'disabled' %>
+                    >
+                    <span>ใช้งาน</span>
+                </label>
+                <label class="checkbox">
+                    <input
+                    type="checkbox"
+                    name="wallets[<%= idx %>][isSMS]"
+                    value="1"
+                    <%= w.isSMS ? 'checked' : '' %>
+                    <%= canEdit ? '' : 'disabled' %>
+                    >
+                    <span>อ่าน SMS</span>
+                </label>
+                <label class="checkbox">
+                    <input
+                    type="checkbox"
+                    name="wallets[<%= idx %>][isAuto]"
+                    value="1"
+                    <%= w.isAuto ? 'checked' : '' %>
+                    <%= canEdit ? '' : 'disabled' %>
+                    >
+                    <span>Auto Topup</span>
+                </label>
+                </div>
+
+                <div class="form-group mt-sm">
+                <label>secret</label>
+                <input
+                    type="text"
+                    name="wallets[<%= idx %>][secret]"
+                    value="<%= w.secret || '' %>"
+                    <%= canEdit ? '' : 'readonly' %>
+                >
+                </div>
+            </div>
+            <% }); %>
+        </div>
+        </div>
+
+        <% if (canEdit) { %>
+        <!-- ───────── SECTION 2: เพิ่มบัญชีใหม่ ───────── -->
+        <div class="fieldset mt-xl">
+        <div class="fieldset__header">
+            <h3>เพิ่มบัญชีใหม่</h3>
+            <p class="muted">สร้างบัญชีธนาคารหรือ TrueMoney Wallet สำหรับใช้เติมเงิน/ถอนเงิน</p>
+        </div>
+
+        <div class="grid cols-2 gap-md">
+            <div class="form-group">
+            <label>ชื่อบัญชี</label>
+            <input
+                type="text"
+                name="newWallet[accountName]"
+                placeholder="เช่น บัญชีเติมเงินหลัก"
+            >
+            </div>
+
+            <div class="form-group">
+            <label>ประเภทบัญชี</label>
+            <select name="newWallet[type]">
+                <option value="DEPOSIT" selected>บัญชีฝาก</option>
+                <option value="WITHDRAW">บัญชีถอน</option>
+            </select>
+            </div>
+        </div>
+
+        <div class="grid cols-2 gap-md mt-sm">
+            <div class="form-group">
+            <label>บัญชีธนาคาร / Wallet</label>
+            <select name="newWallet[accountCode]">
+                <option value="" disabled selected>เลือกธนาคารหรือ TrueMoney Wallet</option>
+                <% BANKS_LIST.forEach(function(b){ %>
+                <option value="<%= b.code %>"><%= b.label %></option>
+                <% }); %>
+            </select>
+            </div>
+
+            <div class="form-group">
+            <label>เลขบัญชี / เบอร์</label>
+            <input
+                type="text"
+                name="newWallet[accountNumber]"
+                placeholder="เลขบัญชีหรือเบอร์มือถือ"
+            >
+            </div>
+        </div>
+
+        <div class="form-group mt-sm">
+            <label>secret</label>
+            <input
+            type="text"
+            name="newWallet[secret]"
+            placeholder="โทเคน / secret key"
+            >
+        </div>
+
+        <div class="grid cols-3 gap-sm mt-sm toggles">
+            <label class="checkbox">
+            <input type="checkbox" name="newWallet[isActive]" value="1" checked>
+            <span>ใช้งาน</span>
+            </label>
+            <label class="checkbox">
+            <input type="checkbox" name="newWallet[isSMS]" value="1">
+            <span>อ่าน SMS</span>
+            </label>
+            <label class="checkbox">
+            <input type="checkbox" name="newWallet[isAuto]" value="1">
+            <span>Auto Topup</span>
+            </label>
+        </div>
+        </div>
+        <% } %>
+
+        <div class="mt-xl admin-card__footer">
+        <button
+            type="submit"
+            class="btn primary settings-save-btn"
+            <%= canEdit ? '' : 'disabled' %>
+        >
+            <span class="settings-save-btn__glow"></span>
+            <span class="settings-save-btn__label">บันทึกข้อมูล</span>
+        </button>
+        </div>
+    </form>
+  </section>
+</section>
+
+<script>
+  // ================== TAB SWITCH ==================
+  (function () {
+    const tabs = document.querySelectorAll(".bt-tabbar .bt-tab");
+    const panes = document.querySelectorAll(".tabpane");
+
+    tabs.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const tab = btn.dataset.tab;
+
+        // เปลี่ยน active ที่ปุ่ม
+        tabs.forEach((b) => b.classList.toggle("active", b === btn));
+
+        // โชว์/ซ่อน pane ตาม id = "tab-" + data-tab
+        panes.forEach((p) => {
+          p.classList.toggle("show", p.id === "tab-" + tab);
+        });
+      });
+    });
+  })();
+</script>
+
+<style>
+/* ───────────────── ADMIN SETTINGS LAYOUT ───────────────── */
+
+.admin-settings .admin-card {
+  background: #111217;
+  border: 1px solid #2b2c32;
+  border-radius: 16px;
+  padding: 20px 22px 18px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
+}
+
+.admin-settings .admin-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  margin-bottom: 18px;
+}
+
+.admin-settings .admin-card__header h2 {
+  font-size: 18px;
+  margin: 0 0 4px;
+}
+
+.admin-settings .admin-card__badge {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.admin-settings .admin-card__badge--ok {
+  background: rgba(233, 198, 111, 0.14);
+  color: #f3d783;
+  border: 1px solid rgba(233, 198, 111, 0.7);
+}
+
+.admin-settings .admin-card__badge--readonly {
+  background: rgba(120, 120, 120, 0.16);
+  color: #bbb;
+  border: 1px solid rgba(120, 120, 120, 0.7);
+}
+
+.admin-settings .admin-card__footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ทำให้ select หน้าตาเข้าชุดกับ input */
+.admin-settings select {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #34353d;
+  background: #050608;
+  color: #f5f5f5;
+  font-size: 12px;
+}
+
+.admin-settings select:focus {
+  outline: none;
+  border-color: #e9c66f;
+  box-shadow: 0 0 0 1px rgba(233, 198, 111, 0.35);
+}
+
+/* การ์ดเพิ่มบัญชีใหม่ */
+.admin-settings .bank-card--new {
+  border-style: dashed;
+  border-color: rgba(233, 198, 111, 0.6);
+  background: radial-gradient(circle at top left, rgba(233,198,111,0.12), #14151c);
+}
+
+.admin-settings .bank-card__header--new {
+  margin-bottom: 10px;
+}
+
+.admin-settings .bank-card--new .bank-code {
+  font-weight: 600;
+  color: #f3d783;
+}
+
+.admin-settings .bank-add-hint {
+  font-size: 11px;
+  color: #c8c8c8;
+}
+
+/* ให้ span bank-type ใช้ข้อความไทยที่เราใส่ใน template แล้ว */
+.admin-settings .bank-card .bank-type {
+  font-size: 11px;
+  color: #c1c1c1;
+}
+
+/* ───────────────── FIELDSETS ───────────────── */
+
+.admin-settings .fieldset {
+  padding-top: 10px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.06);
+}
+
+.admin-settings .fieldset__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin-bottom: 10px;
+}
+
+.admin-settings .fieldset__header h3 {
+  font-size: 15px;
+  margin: 0;
+}
+
+.admin-settings .fieldset__header p {
+  font-size: 12px;
+  margin: 0;
+}
+
+.admin-settings .fieldset__grid {
+  margin-top: 8px;
+}
+
+.admin-settings .fieldset__single {
+  max-width: 520px;
+}
+
+/* ───────────────── FORM / INPUT ───────────────── */
+
+.admin-settings .form-group label {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 4px;
+  color: #d0d0d0;
+}
+
+.admin-settings input[type="text"],
+.admin-settings input[type="number"] {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #34353d;
+  background: #050608;
+  color: #f5f5f5;
+  font-size: 12px;
+}
+
+.admin-settings input[type="text"]:focus,
+.admin-settings input[type="number"]:focus {
+  outline: none;
+  border-color: #e9c66f;
+  box-shadow: 0 0 0 1px rgba(233, 198, 111, 0.35);
+}
+
+.admin-settings input[readonly] {
+  opacity: 0.75;
+  cursor: default;
+}
+
+/* ───────────────── BANK CARDS ───────────────── */
+
+.admin-settings .wallets-grid {
+  margin-top: 10px;
+}
+
+.admin-settings .bank-card {
+  background: #14151c;
+  border-radius: 16px;
+  border: 1px solid #2c2e37;
+  padding: 14px 16px 12px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+}
+
+.admin-settings .bank-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.admin-settings .bank-card__title {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.admin-settings .bank-card .bank-code {
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.admin-settings .bank-card .bank-type {
+  font-size: 11px;
+  color: #c1c1c1;
+}
+
+.admin-settings .bank-pill {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.admin-settings .bank-pill--on {
+  background: rgba(109, 201, 126, 0.12);
+  color: #76e596;
+  border-color: rgba(109, 201, 126, 0.8);
+}
+
+.admin-settings .bank-pill--off {
+  background: rgba(150, 150, 150, 0.16);
+  color: #d0d0d0;
+  border-color: rgba(150, 150, 150, 0.7);
+}
+
+.admin-settings .toggles .checkbox {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+}
+
+/* ───────────────── TAB BAR ───────────────── */
+
+.bt-tabbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  border-bottom: 1px solid #333;
+  margin-bottom: 16px;
+}
+
+.bt-tabbar.bt-tabbar--full {
+  width: 100%;
+}
+
+.bt-tabbar .bt-tab {
+  flex: 1;
+  text-align: center;
+  padding: 10px 0 6px;
+  background: transparent;
+  border: none;
+  color: #e9c66f;
+  font-size: 14px;
+  cursor: pointer;
+  position: relative;
+}
+
+.bt-tabbar .bt-tab span {
+  position: relative;
+  z-index: 1;
+}
+
+/* เส้นด้านล่าง */
+.bt-tabbar .bt-tab::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 100%;
+  height: 2px;
+  background: #333;
+  transition: background 0.2s ease, opacity 0.2s ease;
+  opacity: 0.6;
+}
+
+/* แท็บที่ active = เส้นทอง */
+.bt-tabbar .bt-tab.active::after {
+  background: #e9c66f;
+  opacity: 1;
+}
+
+/* ───────────────── TAB PANES ───────────────── */
+
+.tabpane {
+  display: none;
+}
+
+.tabpane.show {
+  display: block;
+}
+
+/* ───────────────── RESPONSIVE ───────────────── */
+
+@media (max-width: 960px) {
+  .admin-settings .admin-card {
+    padding: 16px 14px 14px;
+  }
+
+  .admin-settings .admin-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .admin-settings .grid.cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-settings .grid.cols-2,
+  .admin-settings .grid.cols-3 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+
+  .bt-tabbar .bt-tab {
+    font-size: 13px;
+    padding: 8px 0 5px;
+  }
+}
+
+/* ───────────────── SAVE BUTTON ───────────────── */
+
+.admin-settings .settings-save-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 22px;
+  border-radius: 999px;
+  border: 0;
+  background: linear-gradient(135deg, #f0ce78, #e9c66f);
+  color: #1a1a1a;
+  font-weight: 600;
+  width: 100%;
+  margin-top: 10px;
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    filter 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.admin-settings .settings-save-btn__label {
+  position: relative;
+  z-index: 1;
+}
+
+/* จุดวิ่ง ๆ ด้านซ้าย */
+.admin-settings .settings-save-btn__glow {
+  position: relative;
+  z-index: 1;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 0 12px rgba(255, 255, 255, 0.9),
+    0 0 24px rgba(233, 198, 111, 0.9);
+}
+
+/* แถบไฮไลต์วิ่งผ่านปุ่ม */
+.admin-settings .settings-save-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    rgba(255, 255, 255, 0.3),
+    transparent 40%,
+    transparent 60%,
+    rgba(255, 255, 255, 0.3)
+  );
+  transform: translateX(-120%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.admin-settings .settings-save-btn:hover:not([disabled]) {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.85);
+}
+
+.admin-settings .settings-save-btn:hover:not([disabled])::before {
+  opacity: 1;
+  animation: saveBtnShine 1s ease-out;
+}
+
+@keyframes saveBtnShine {
+  0% {
+    transform: translateX(-120%);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+}
+
+/* disabled = จางลง + ปิด hover */
+.admin-settings .settings-save-btn[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
+  filter: grayscale(0.3);
+}
+
+.admin-settings .bank-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ปุ่มลบบัญชี */
+.admin-settings .bank-delete-btn {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 92, 92, 0.8);
+  background: rgba(255, 92, 92, 0.12);
+  color: #ffb4b4;
+  font-size: 11px;
+  cursor: pointer;
+  line-height: 1.2;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.admin-settings .bank-delete-btn:hover {
+  background: rgba(255, 92, 92, 0.22);
+  border-color: rgba(255, 120, 120, 1);
+  transform: translateY(-1px);
+}
+
+.admin-settings .bank-delete-btn:active {
+  transform: translateY(0);
+}
+</style>

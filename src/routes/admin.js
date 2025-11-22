@@ -15,7 +15,7 @@ import { Otp24Setting } from '../models/Otp24Setting.js';
 import { Otp24Product } from "../models/Otp24Product.js";
 import { Otp24Order } from '../models/Otp24Order.js';
 import { BonustimeOrder } from "../models/BonustimeOrder.js";
-import { config, connectMongoIfNeeded } from "../config.js";
+import { config, connectMongoIfNeeded, refreshConfigFromDB } from "../config.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -28,6 +28,24 @@ const USER_FIELDS = 'username email avatarUrl avatarVer';
 let SYNC_LOCK = false;
 let SYNC_STARTED_AT = 0;
 const MAX_RUN_MS = 15 * 60 * 1000; // 15 นาที
+
+
+export const isDevUser = async (req) => {
+  // ดึง userId จาก session หรือ req.user แค่ใช้เป็น key หาใน DB เท่านั้น
+  const userId =
+    req.session?.user?._id ||
+    req.user?._id;
+
+  if (!userId) return false;
+
+  try {
+    const user = await User.findById(userId).select("dev").lean();
+    return !!(user && user.dev === true);
+  } catch (err) {
+    console.error("[isDevUser] failed to load user", err);
+    return false;
+  }
+};
 
 // ─────────────────────────────────────────────────────────────
 // BONUSTIME helpers — ใช้ connection เดิมของ mongoose แล้วสลับ db เป็น rtautobot
@@ -1634,6 +1652,184 @@ router.delete("/bonustime/tenant/:tenantId", async (req, res) => {
     return res
       .status(500)
       .json({ ok: false, error: "ลบไม่สำเร็จ กรุณาลองใหม่" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// ADMIN SETTINGS PAGE
+// ─────────────────────────────────────────────────────────────
+router.get("/settings", async (req, res) => {
+  try {
+    await connectMongoIfNeeded();
+
+    const canEdit = isDevUser(req);
+
+    // secure_config: เอา doc แรก
+    const db = mongoose.connection.db;
+    const secureCol = db.collection("secure_config");
+    const secure = await secureCol.findOne({}) || {};
+
+    // topup accounts: เฉพาะ type = DEPOSIT
+    const wallets = await Topup.find({ type: "DEPOSIT" })
+      .sort({ accountCode: 1 })
+      .lean();
+
+    res.render("admin/admin_setting", {
+      title: "ตั้งค่าเว็บไซต์",
+      secure,
+      wallets,
+      canEdit,
+    });
+  } catch (err) {
+    console.error("GET /admin/settings error:", err);
+    res.status(500).send("เกิดข้อผิดพลาดในระบบ");
+  }
+});
+
+// บันทึก secure_config (dev เท่านั้น)
+router.post("/settings/secure", async (req, res) => {
+  try {
+    if (!isDevUser(req)) {
+      return res.status(403).send("เฉพาะ dev เท่านั้นที่สามารถแก้ไขได้");
+    }
+
+    await connectMongoIfNeeded();
+    const db = mongoose.connection.db;
+    const secureCol = db.collection("secure_config");
+
+    const body = req.body || {};
+
+    // map จากฟอร์ม → โครงสร้าง secure_config
+    const doc = {
+      ipv: {
+        apiBase: String(body.ipv_apiBase || "").trim(),
+        apiKey:  String(body.ipv_apiKey  || "").trim(),
+      },
+      mail: {
+        host: String(body.mail_host || "").trim(),
+        port: Number(body.mail_port || 0) || 587,
+        user: String(body.mail_user || "").trim(),
+        pass: String(body.mail_pass || "").trim(),
+        from: String(body.mail_from || "").trim(),
+      },
+      otp: {
+        ttlSec: Number(body.otp_ttlSec || 0) || 600,
+        resendCooldownSec: Number(body.otp_resendCooldownSec || 0) || 60,
+        maxAttempts: Number(body.otp_maxAttempts || 0) || 5,
+      },
+      port: Number(body.port || 0) || 3000,
+      sessionSecret: String(body.sessionSecret || "").trim(),
+      TW_GEN_LINK_SECRET: String(body.TW_GEN_LINK_SECRET || "").trim(),
+      otp24: {
+        apiBase: String(body.otp24_apiBase || "").trim(),
+        apiKey:  String(body.otp24_apiKey  || "").trim(),
+      },
+      turnstile: {
+        siteKey:   String(body.turnstile_siteKey   || "").trim(),
+        secretKey: String(body.turnstile_secretKey || "").trim(),
+      },
+    };
+
+    // หา doc แรก ถ้ามีแล้วก็อัปเดต
+    const existing = await secureCol.findOne({});
+    if (existing) {
+      await secureCol.updateOne(
+        { _id: existing._id },
+        { $set: doc }
+      );
+    } else {
+      await secureCol.insertOne(doc);
+    }
+
+    // รีโหลด config ใน memory (ถ้าใช้)
+    if (typeof refreshConfigFromDB === "function") {
+      try { await refreshConfigFromDB(); } catch {}
+    }
+
+    res.redirect("/admin/settings");
+  } catch (err) {
+    console.error("POST /admin/settings/secure error:", err);
+    res.status(500).send("บันทึกไม่สำเร็จ");
+  }
+});
+
+// บันทึกบัญชี topups (dev เท่านั้น)
+router.post("/settings/wallets", async (req, res) => {
+  try {
+    if (!isDevUser(req)) {
+      return res.status(403).send("เฉพาะ dev เท่านั้นที่สามารถแก้ไขได้");
+    }
+
+    // -------------------- อัปเดต / ลบบัญชีเดิม --------------------
+    const raw = req.body.wallets || [];
+    const list = Array.isArray(raw) ? raw : Object.values(raw);
+
+    for (const row of list) {
+      if (!row || !row.id) continue;
+
+      // ถ้ามี flag _delete ให้ลบบัญชีนี้ออกแล้วข้ามการอัปเดต
+      const wantDelete =
+        row._delete === "1" ||
+        row._delete === "true" ||
+        row._delete === "on";
+
+      if (wantDelete) {
+        await Topup.findByIdAndDelete(row.id);
+        continue;
+      }
+
+      const update = {
+        accountName:   String(row.accountName || "").trim(),
+        accountNumber: String(row.accountNumber || "").trim(),
+        accountCode:   String(row.accountCode || "").trim(),
+        secret:        String(row.secret || "").trim(),
+      };
+
+      // checkbox → boolean
+      update.isActive = !!row.isActive;
+      update.isSMS    = !!row.isSMS;
+      update.isAuto   = !!row.isAuto;
+
+      // type (DEPOSIT / WITHDRAW)
+      if (row.type === "WITHDRAW" || row.type === "DEPOSIT") {
+        update.type = row.type;
+      }
+
+      await Topup.findByIdAndUpdate(
+        row.id,
+        { $set: update },
+        { new: true }
+      );
+    }
+
+    // -------------------- เพิ่มบัญชีใหม่ (newWallet) --------------------
+    const nw = req.body.newWallet || {};
+
+    const newAccountName   = String(nw.accountName || "").trim();
+    const newAccountCode   = String(nw.accountCode || "").trim();
+    const newAccountNumber = String(nw.accountNumber || "").trim();
+    const newSecret        = String(nw.secret || "").trim();
+
+    // มีข้อมูลครบพอสมควรค่อยสร้าง
+    if (newAccountName && newAccountCode && newAccountNumber) {
+      const doc = new Topup({
+        accountName:   newAccountName,
+        accountNumber: newAccountNumber,
+        accountCode:   newAccountCode,
+        secret:        newSecret,
+        type:          nw.type === "WITHDRAW" ? "WITHDRAW" : "DEPOSIT",
+        isActive:      !!nw.isActive,
+        isSMS:         !!nw.isSMS,
+        isAuto:        !!nw.isAuto,
+      });
+
+      await doc.save();
+    }
+
+    res.redirect("/admin/settings");
+  } catch (err) {
+    console.error("POST /admin/settings/wallets error:", err);
+    res.status(500).send("บันทึกไม่สำเร็จ");
   }
 });
 
