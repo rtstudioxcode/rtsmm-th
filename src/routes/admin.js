@@ -1111,7 +1111,9 @@ router.get("/bonustime-panel", async (req, res) => {
 
     let ownerByTenant = {};
     let ownerBySerial = {};
+    let ownerDisplayBySerial = {};
 
+    // ---------- 1) จาก BonustimeOrder ----------
     try {
       const btOrders = await BonustimeOrder.find({
         $or: [
@@ -1125,23 +1127,60 @@ router.get("/bonustime-panel", async (req, res) => {
 
       for (const o of btOrders || []) {
         const uName = o.user?.username || null;
+        const dName = o.user?.name || o.user?.username || null;
         if (uName) {
           const t = o.tenantId || o.tenant || null;
           const sk = o.serial_key || o.serialKey || null;
-          if (t) ownerByTenant[t] = uName;
-          if (sk) ownerBySerial[sk] = uName;
+          if (t) {
+            ownerByTenant[t] = uName;               // เจ้าของ Service ตาม tenantId
+          }
+          if (sk) {
+            ownerBySerial[sk] = uName;              // เจ้าของตาม serial
+            ownerDisplayBySerial[sk] = dName;       // display name ของ user
+          }
         }
       }
     } catch (err) {
       console.warn("Owner map error:", err.message);
     }
+    // ---------- 2) จาก User.serial_key โดยตรง ----------
+    try {
+      if (serialKeys.length) {
+        const users = await User.find({
+          serial_key: { $in: serialKeys }
+        })
+          .select("username name serial_key")
+          .lean();
 
+        for (const u of users || []) {
+          const sk = u.serial_key;
+          if (!sk) continue;
+
+          // ถ้า map จาก order ยังไม่มี ให้เติมจาก user
+          if (!ownerBySerial[sk]) {
+            ownerBySerial[sk] = u.username;
+          }
+          if (!ownerDisplayBySerial[sk]) {
+            ownerDisplayBySerial[sk] = u.name || u.username;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Owner map (users) error:", err.message);
+    }
+
+    // ---------- สร้าง records ส่งเข้า EJS ----------
     const records = docs.map((doc) => {
       const expiry = computeLicenseExpiry(doc);
 
       const ownerUsername =
         ownerByTenant[doc.tenantId] ||
         ownerBySerial[doc.serial_key] ||
+        null;
+
+      const ownerDisplayName =
+        doc.ownerName ||
+        ownerDisplayBySerial[doc.serial_key] ||
         null;
 
       return {
@@ -1160,7 +1199,7 @@ router.get("/bonustime-panel", async (req, res) => {
         CHANNEL_SECRET: doc.CHANNEL_SECRET || "",
         LINK: doc.LINK || "",
         username: ownerUsername,
-        ownerName: doc.ownerName || "",
+        ownerName: ownerDisplayName,
         note: doc.note || "",
         createdAtLabel: fmtDateLabel(doc.createdAt),
         updatedAtLabel: fmtDateLabel(doc.updatedAt),

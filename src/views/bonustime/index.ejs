@@ -674,7 +674,10 @@ async function loadBonustimeHistory() {
 
         el.innerHTML = `
         <div class="collapse-head">
-            <div class="tenant">${rec.NAME || "-"}</div>
+            <div class="tenant-block">
+              <div class="tenant">${rec.NAME || "-"}</div>
+              <div class="tenant-hint muted small">กดขายเพื่อดูรายละเอียด Service</div>
+            </div>
             <div class="status-pill">${statusText}</div>
         </div>
 
@@ -1982,6 +1985,17 @@ async function upgradeLotto(id) {
   .bt-help-pdf .pdf-frame {
     height: 150px;           /* เน้นเห็นทีละหน้า แล้ว scroll ใน iframe */
   }
+}
+
+.tenant-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tenant-hint {
+  font-size: 11px;
+  opacity: 0.75;
 }
 </style>
 
