@@ -1684,3 +1684,199 @@ async function startCancel(orderId) {
   });
 })();
 </script>
+
+<style>
+/* ===== Tabs: แบบเส้นใต้ยาวทั้งแถว ===== */
+.tabs{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  gap:0;
+  margin:0 0 12px;
+  border-bottom:1px solid #2b2b2f;  /* เส้นเทาเข้มยาวทั้งแถว */
+  position:relative;
+}
+
+.tab{
+  flex:1 1 0;
+  background:transparent;
+  border:0;
+  border-radius:0;
+  padding:8px 0 10px;
+  text-align:center;
+  cursor:pointer;
+
+  font-size:13px;
+  font-weight:500;
+  letter-spacing:.3px;
+  color:#e3b863;                 /* สีทองกลาง ๆ เหมือนเมนู */
+  position:relative;
+  transition:color .15s ease;
+}
+
+/* เส้นทองใต้แท็บที่ active */
+.tab::after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:-1px;
+  height:2px;
+  background:transparent;
+  transition:background-color .18s ease, transform .18s ease;
+  transform-origin:left;
+  transform:scaleX(0);
+}
+
+/* hover แค่เน้นตัวหนังสือ */
+.tab:hover{
+  color:#ffd47a;
+}
+
+/* แท็บที่เลือกอยู่ */
+.tab.active{
+  color:#ffd47a;
+}
+
+.tab.active::after{
+  background:#e3b863;
+  transform:scaleX(1);          /* เส้นทองเต็มความกว้าง */
+}
+
+/* ซ่อน/โชว์เนื้อหาแท็บเหมือนเดิม */
+.tabpane{ display:none; }
+.tabpane.show{ display:block; }
+
+/* แถบแท็บบนประวัติคำสั่งซื้อ */
+.orders-history.tabs {
+  display: flex;
+  justify-content: space-between;   /* กระจายเต็มความกว้างแบบรูป */
+  align-items: flex-end;
+  gap: 12px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+  position: relative;
+  margin-bottom: 8px;
+}
+
+/* แท็บแต่ละอัน */
+.orders-history .tab {
+  position: relative;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 22px 12px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: color .15s ease, transform .12s ease;
+}
+
+/* hover นิด ๆ */
+.orders-history .tab:hover {
+  color: #f5d37a;
+  transform: translateY(-1px);
+}
+
+/* แท็บ active */
+.orders-history .tab.active {
+  color: #f5d37a; /* เหลืองแบบรูป */
+}
+
+/* เส้นใต้แท็บ active */
+.orders-history .tab::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 3px;
+  border-radius: 999px;
+  background: transparent;
+  transform-origin: center;
+  transform: scaleX(0);
+  transition: transform .18s ease-out, background-color .18s ease-out;
+}
+
+/* เวลา active ให้โชว์เส้น */
+.orders-history .tab.active::after {
+  background: #f5d37a;
+  transform: scaleX(1);
+}
+
+/* มือถือให้ชิดซ้าย/เลื่อนข้างได้ */
+@media (max-width: 768px) {
+  .orders-history.tabs {
+    justify-content: space-between;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    /* gap: 6px; */
+  }
+
+  .orders-history.tabs .tab {
+    flex: 0 0 auto;          /* ไม่ให้ยืดจนต้องตัดคำ */
+    white-space: nowrap;     /* ห้ามขึ้นบรรทัดใหม่ในปุ่ม */
+    padding: 6px 10px 10px;  /* ลด padding หน่อยให้เนื้อที่พอ */
+  }
+
+  .orders-history.tabs .tab-label {
+    font-size: 11px;         /* ย่อฟอนต์ลงนิดนึง */
+  }
+}
+/* กลุ่มแท็บสถานะ */
+.orders-history.tabs {
+  display: flex;
+  justify-content: space-between;
+  gap: 32px;
+}
+
+/* ปุ่มแท็บ */
+.orders-history.tabs .tab {
+  position: relative;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  padding: 18px 0 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+/* ข้อความ */
+.orders-history.tabs .tab-label {
+  font-size: 13px;
+}
+
+/* icon (แก้ไม่ให้ลอย) */
+.orders-history.tabs .tab-ico {
+  width: 28px;
+  height: 28px;
+  background-image: var(--tab-ico);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
+/* เส้นขีดด้านล่างแท็บที่ active */
+.orders-history.tabs .tab::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.orders-history.tabs .tab.active {
+  color: var(--accent);
+}
+
+.orders-history.tabs .tab.active::after {
+  background: var(--accent);
+}
+</style>
