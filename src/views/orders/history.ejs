@@ -91,15 +91,14 @@ function fmtTHDate(d){
 <% } %>
 
 <!-- แท็บตัวกรองสถานะ -->
-<div class="orders-history tabs chips" id="statusTabs">
-  <button class="chip active" data-st="all">ทั้งหมด</button>
-  <button class="chip" data-st="processing">รอดำเนินการ</button>
-  <button class="chip" data-st="inprogress">ดำเนินการ</button>
-  <button class="chip" data-st="completed">เสร็จสิ้น</button>
-  <button class="chip" data-st="partial">คืนบางส่วน</button>
-  <button class="chip" data-st="canceled">ยกเลิก</button>
+<div class="orders-history tabs" id="statusTabs">
+  <button class="tab active" data-st="all">ทั้งหมด</button>
+  <button class="tab" data-st="processing">รอดำเนินการ</button>
+  <button class="tab" data-st="inprogress">ดำเนินการ</button>
+  <button class="tab" data-st="completed">เสร็จสิ้น</button>
+  <button class="tab" data-st="partial">คืนบางส่วน</button>
+  <button class="tab" data-st="canceled">ยกเลิก</button>
 </div>
-
 <!-- ฟิลเตอร์ -->
 <form class="orders-history filters card" method="get">
   <div class="row wrap">
@@ -1157,43 +1156,6 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
       ? { label:'เสร็จสิ้น', donePct:100, showPct:false, isDone:true }
       : { label:`ดำเนินการ ~ ${donePct.toFixed(2)}%`, donePct, showPct:true, isDone:false };
   };
-  // window.decideDisplay = function(o){
-  //   const qty = Number(o.quantity)||0;
-  //   const st  = String(o.status||'').toLowerCase();
-
-  //   if (st === 'canceling') {
-  //     return { label: 'กำลังส่งยกเลิก…', donePct: 0, showPct: false, isDone: false };
-  //   }
-
-  //   if (st === 'canceled') {
-  //     return { label: 'ยกเลิก', donePct: 0, showPct: false, isDone: false };
-  //   }
-
-  //   if (st === 'partial') {
-  //     return { label: 'คืนบางส่วน', donePct: 0, showPct: false, isDone: false };
-  //   }
-
-  //   const isWaiting =
-  //     st === 'processing' &&
-  //     (o.progress == null) &&
-  //     ((typeof o.remains === 'number' ? o.remains >= qty : true) || o.currentCount == null);
-
-  //   if (isWaiting) return { label: 'รอดำเนินการ', donePct: 0, showPct: false, isDone: false };
-
-  //   let donePct = 0;
-  //   if (typeof o.progress === 'number') {
-  //     donePct = Math.max(0, Math.min(100, o.progress));
-  //   } else if (typeof o.remains === 'number' && qty > 0) {
-  //     donePct = Math.max(0, Math.min(100, (1 - Math.max(0, o.remains)/qty) * 100));
-  //   } else if (typeof o.startCount === 'number' && typeof o.currentCount === 'number' && qty > 0) {
-  //     donePct = Math.max(0, Math.min(100, ((o.currentCount - o.startCount)/qty) * 100));
-  //   }
-  //   const isDone = (st === 'completed') || donePct >= 99.995;
-
-  //   return isDone
-  //     ? { label: 'เสร็จสิ้น', donePct: 100, showPct: false, isDone: true }
-  //     : { label: `ดำเนินการ ~ ${donePct.toFixed(2)}%`, donePct, showPct: true, isDone: false };
-  // };
 
   /* ---------- สั่งซ้ำ (Repeat) ---------- */
   async function repeatOrder(btn){
@@ -1361,48 +1323,6 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
     }
   }
 
-  // async function refreshOneOrder(orderId, triggerBtn) {
-  //   if (!orderId) return;
-  //   setBtnBusy(triggerBtn, true);
-  //   try {
-  //     const res = await fetch(`/api/orders/${orderId}/refresh`, { method: 'POST' });
-  //     const data = await res.json();
-
-  //     // สร้าง patch แล้วอัปเดต DOM ผ่าน applyOrderPatch
-  //     const patch = {
-  //       _id: orderId,
-  //       status:        data.status,
-  //       progress:      data.progress,
-  //       remains:       data.remains,
-  //       startCount:    data.start_count,
-  //       currentCount:  data.current_count,
-  //       updatedAt:     data.updatedAt || new Date().toISOString(),
-  //       refundAmount:  data.refundAmount,
-  //       refundType:    data.refundType
-  //     };
-  //     window.applyOrderPatch?.(patch);
-
-  //     // อัปเดต cache modal (__ORDERS__) ถ้ามี
-  //     const arr = window.__ORDERS__ || [];
-  //     const idx = arr.findIndex(x => x._id === orderId);
-  //     if (idx > -1) {
-  //       const o = arr[idx];
-  //       o.status        = (patch.status        ?? o.status);
-  //       o.progress      = (typeof patch.progress      === 'number') ? patch.progress      : o.progress;
-  //       o.remains       = (typeof patch.remains       === 'number') ? patch.remains       : o.remains;
-  //       o.startCount    = (typeof patch.startCount    === 'number') ? patch.startCount    : o.startCount;
-  //       o.currentCount  = (typeof patch.currentCount  === 'number') ? patch.currentCount  : o.currentCount;
-  //       o.updatedAt     = patch.updatedAt || o.updatedAt;
-  //       if (typeof patch.refundAmount === 'number') o.refundAmount = patch.refundAmount;
-  //       if (typeof patch.refundType   === 'string') o.refundType   = patch.refundType;
-  //     }
-  //   } catch (e) {
-  //     console.error('refresh one failed:', e);
-  //   } finally {
-  //     setBtnBusy(triggerBtn, false);
-  //   }
-  // }
-
   // /* ---------- เปลี่ยน handler ปุ่มรีเฟรชใต้สถานะให้รีเฟรชเฉพาะออเดอร์ ---------- */
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('.btn-refresh');
@@ -1464,17 +1384,25 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
     });
   });
 
-  /* ---------- ตัวกรองสถานะ ---------- */
+  /* ---------- ตัวกรองสถานะ (ใช้ .tab) ---------- */
   $('#statusTabs')?.addEventListener('click', e=>{
-    const b = e.target.closest('.chip'); if(!b) return;
-    $('#statusTabs').querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
-    b.classList.add('active');
-    const st = b.dataset.st;
-    const ok = el => (st==='all') || (el.dataset.status===st);
-    $$('#orderTable tbody tr').forEach(tr=>tr.style.display = ok(tr) ? '' : 'none');
-    $$('#orderCards .o-card').forEach(c=>c.style.display = ok(c) ? '' : 'none');
-  });
+    const b = e.target.closest('.tab'); 
+    if (!b) return;
 
+    $('#statusTabs').querySelectorAll('.tab')
+      .forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+
+    const st = b.dataset.st;
+    const ok = el => (st === 'all') || (el.dataset.status === st);
+
+    $$('#orderTable tbody tr').forEach(tr => {
+      tr.style.display = ok(tr) ? '' : 'none';
+    });
+    $$('#orderCards .o-card').forEach(card => {
+      card.style.display = ok(card) ? '' : 'none';
+    });
+  });
   /* ---------- คัดลอกลิงก์ ---------- */
   document.addEventListener('click', e=>{
     const btn = e.target.closest('.btn-copy'); if(!btn) return;
@@ -1525,39 +1453,40 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
 </script>
 
 <script>
-/* ===== Inject external icons into status tabs ===== */
+/* ===== Inject icons into status .tab ===== */
 (function(){
   const wrap = document.getElementById('statusTabs');
   if (!wrap) return;
 
-  // ← เปลี่ยน URL ไอคอนตามที่คุณมีได้เลย (SVG/PNG ก็ได้)
   const ICONS = {
     all:        '/static/assets/status/all.png',
-    processing: '/static/assets/status/processing.png',   // นาฬิกา
-    inprogress: '/static/assets/status/inprogress.png',   // กำลังทำ
-    completed:  '/static/assets/status/completed.png',    // เช็คถูก
-    partial:    '/static/assets/status/partial.png',      // คืนบางส่วน
-    canceled:   '/static/assets/status/canceled.png'      // กากบาท
+    processing: '/static/assets/status/processing.png',
+    inprogress: '/static/assets/status/inprogress.png',
+    completed:  '/static/assets/status/completed.png',
+    partial:    '/static/assets/status/partial.png',
+    canceled:   '/static/assets/status/canceled.png'
   };
 
-  wrap.querySelectorAll('.chip').forEach(btn => {
+  wrap.querySelectorAll('.tab').forEach(btn => {
     const st = String(btn.dataset.st || '').toLowerCase();
     const src = ICONS[st];
     if (!src) return;
 
-    // กันซ้อน ถ้าเคยใส่แล้วไม่ต้องใส่ซ้ำ
-    if (btn.querySelector('img.chip-ico')) return;
+    if (btn.querySelector('.tab-ico')) return;
 
-    const img = document.createElement('img');
-    img.className = 'chip-ico';
-    img.src = src;
-    img.alt = '';
-    img.width = 16;
-    img.height = 16;
-    img.loading = 'lazy';
+    const labelText = btn.textContent.trim();
+    btn.textContent = '';
 
-    // ใส่ไว้หน้าข้อความ
-    btn.prepend(img);
+    const ico = document.createElement('span');
+    ico.className = 'tab-ico';
+    ico.style.setProperty('--tab-ico', `url("${src}")`);
+
+    const label = document.createElement('span');
+    label.className = 'tab-label';
+    label.textContent = labelText;
+
+    btn.appendChild(ico);
+    btn.appendChild(label);
   });
 })();
 </script>

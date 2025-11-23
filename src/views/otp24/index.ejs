@@ -1280,11 +1280,6 @@ window.addEventListener('resize', () => {
 </script>
 
 <style>
-.otp24 .tabs{ display:flex; gap:10px; }
-.otp24 .tab{ padding:10px 14px; border-radius:12px; border:1px solid #2e2f35; background:#151518; color:#fff; cursor:pointer; }
-.otp24 .tab.active{ background:#63cff0; border-color:#63cff0; }
-.tabpane{ display:none; } .tabpane.show{ display:block; }
-
 .grid.cards{ display:grid; gap:18px; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); }
 .card.app{ position:relative; text-align:center; padding:14px; border-radius:16px; background:#17181b; border:1px solid #2b2d31; }
 .price-badge{ position:absolute; top:8px; right:8px; background:#63cff0; color:#fff; padding:4px 10px; border-radius:999px; font-weight:700; font-size:12px; }
@@ -1319,11 +1314,6 @@ window.addEventListener('resize', () => {
 
 dialog::backdrop{ background: rgba(0,0,0,.5); }
 .modal{ min-width:460px; padding:20px; border-radius:14px; border:1px solid #2e2f35; background:#17181b; }
-/* ── Tabs/Lists (ของเดิมคงไว้) ─────────────────────────── */
-.otp24 .tabs{ display:flex; gap:10px; }
-.otp24 .tab{ padding:10px 14px; border-radius:12px; border:1px solid var(--elevated-border,#2e2f35); background:var(--elevated-bg,#151518); color:var(--text-primary,#fff); cursor:pointer; }
-.otp24 .tab.active{ background:var(--accent,#63cff0); border-color:var(--accent,#63cff0); color:var(--accent-contrast,#fff); }
-.tabpane{ display:none; } .tabpane.show{ display:block; }
 
 .grid.cards{ display:grid; gap:18px; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); }
 .card.app{ position:relative; text-align:center; padding:14px; border-radius:16px; background:var(--elevated-bg,#17181b); border:1px solid var(--elevated-border,#2b2d31); }
@@ -1708,12 +1698,6 @@ body[data-theme="light"] #buyModal .flag.active{ box-shadow:0 0 0 4px rgba(42,13
     max-width: none;
     padding-left: 0px;
     padding-right: 0px;
-  }
-
-  /* แท็บไม่ทิ้งขอบเยอะเกิน */
-  .otp24 .tabs{
-    margin-left: -20px;
-    margin-right: -20px;
   }
 
   /* ลิสต์มือถือกินเต็มจอมากขึ้น */
@@ -2486,18 +2470,6 @@ html[data-theme="light"] dialog::backdrop {
 }
 .orders-wrap .flag img,
 .m-orders .flag img { border-radius: 6px; }
-
-/* แท็บ OTP24 ให้ตัดฉากใน Light */
-.otp24 .tab {
-  background: var(--elevated-bg);
-  border: 1px solid var(--elevated-border);
-  color: var(--text-primary);
-}
-.otp24 .tab.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-contrast);
-}
 
 /* โฟกัส/โฮเวอร์การ์ดแอปให้ชัดเจนใน Light */
 .card.app {
