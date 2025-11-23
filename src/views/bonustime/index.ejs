@@ -37,94 +37,121 @@
     </div>
     <!-- TAB 1 : สั่งซื้อ -->
     <section id="tab-order" class="tabpane show">
-        <div class="bonustime-order">
-            <!-- <h2 class="mb">สั่งซื้อ / เช่าระบบ Bonustime</h2> -->
-            <p class="muted mb">เลือกแพ็กเกจที่ต้องการ</p>
-            <!-- <div class="muted mb-sm">Serial Key ของคุณ: <%= serial_key %></div> -->
+      <div class="bonustime-order">
+        <!-- <h2 class="mb">สั่งซื้อ / เช่าระบบ Bonustime</h2> -->
+        <p class="muted mb">เลือกแพ็กเกจที่ต้องการ</p>
 
-            <div class="bt-package-grid">
-            <!-- แพ็กเกจ 1: สล็อต + บาคาร่า -->
-            <section class="bt-package" id="pkg-normal">
-                <header class="pkg-head">
-                <div class="pkg-title">แพ็กเกจ 1 : สล็อต + บาคาร่า</div>
-                <div class="pkg-remaining" id="pkg-normal-count">กำลังโหลด…</div>
-                </header>
+        <div class="bt-package-grid">
+          <!-- แพ็กเกจ 1: สล็อต + บาคาร่า -->
+          <section class="bt-package" id="pkg-normal">
+            <header class="pkg-head">
+              <div class="pkg-title">แพ็กเกจ 1 : สล็อต + บาคาร่า</div>
+              <div class="pkg-remaining" id="pkg-normal-count">กำลังโหลด…</div>
+            </header>
 
-                <div class="pkg-body">
-                    <div class="pkg-thumb">
-                        <img src="/static/bonustime/packgage1.jpg" alt="แพ็กเกจ 1 สล็อต + บาคาร่า">
-                    </div>
-                    <div class="pkg-meta">
-                        <span class="badge">30 วัน</span>
-                    </div>
-                    <p class="pkg-desc">
-                        🔥 BOT LINE ช่วยส่งโบนัสไทม์-ตอบลูกค้าแทนคุณ ใช้ง่าย ประหยัดเวลา คุ้มสุด ๆ<br>
-                        ✅ อัปเดตรูปเกมให้ฟรีตลอดระยะเวลาการใช้งาน<br>
-                        ✅ รองรับเกมสล็อตจากค่ายดังมากมาย<br>
-                        ✅ ระบบตอบคำถามลูกค้าอัตโนมัติ<br>
-                        ✅ ระบบอัปเดตเกมให้ทุก 5 นาทีสำหรับสล็อต<br>
-                        ✅ ระบบอัปเดตห้องให้ทุก 20 วินาทีสำหรับบาคาร่า<br>
-                        ✅ ระบบอัปเดตอัตราการชนะให้ทุกครั้งที่เปลี่ยนเกม &amp; ห้อง<br>
-                    </p>
-                    <div class="pkg-price">฿2,000 / 30 วัน</div>
-                    <div class="pkg-price">(รวมค่าเปิดระบบครั้งแรก 500)</div>
-                </div>
+            <div class="pkg-body">
+              <div class="pkg-thumb">
+                <img
+                  src="/static/bonustime/packgage1.jpg"
+                  alt="แพ็กเกจ 1 สล็อต + บาคาร่า"
+                />
+              </div>
 
-                <footer class="pkg-actions">
-                <button
-                    type="button"
-                    class="bt-btn primary"
-                    id="pkg-normal-btn"
-                    style="width: 100%;"
-                    onclick="openOrder('normal')">
-                    สั่งซื้อแพ็กเกจนี้
-                </button>
-                </footer>
-            </section>
+              <div class="pkg-meta">
+                <span class="badge">30 วัน</span>
+              </div>
 
-            <!-- แพ็กเกจ 2: สล็อต + บาคาร่า + หวย -->
-            <section class="bt-package" id="pkg-lotto">
-                <header class="pkg-head">
-                <div class="pkg-title">แพ็กเกจ 2 : สล็อต + บาคาร่า + หวย</div>
-                <div class="pkg-remaining" id="pkg-lotto-count">กำลังโหลด…</div>
-                </header>
+              <!-- hint กดดูรายละเอียด -->
+              <div class="pkg-hint muted small">
+                กดดูรายละเอียดเพิ่มเติม
+              </div>
 
-                <div class="pkg-body">
-                    <div class="pkg-thumb">
-                        <img src="/static/bonustime/packgage2.jpg" alt="แพ็กเกจ 2 สล็อต + บาคาร่า + หวย">
-                    </div>
-                    <div class="pkg-meta">
-                        <span class="badge">30 วัน</span>
-                    </div>
-                    <p class="pkg-desc">
-                        🔥 รวมสล็อต บาคาร่า และหวยในระบบเดียว จัดเต็มฟีเจอร์สายเกม &amp; สายหวย<br>
-                        ✅ อัปเดตรูปเกมให้ฟรีตลอดระยะเวลาการใช้งาน<br>
-                        ✅ อัปเดตรูปเกมให้ฟรีตลอดระยะเวลาการใช้งาน<br>
-                        ✅ รองรับเกมสล็อตจากค่ายดังมากมาย<br>
-                        ✅ ระบบตอบคำถามลูกค้าอัตโนมัติ<br>
-                        ✅ ระบบอัปเดตเกมให้ทุก 5 นาทีสำหรับสล็อต<br>
-                        ✅ ระบบอัปเดตห้องให้ทุก 20 วินาทีสำหรับบาคาร่า<br>
-                        ✅ ระบบอัปเดตอัตราการชนะให้ทุกครั้งที่เปลี่ยนเกม &amp; ห้อง<br>
-                        ✅ ฟีเจอร์ครบครันสำหรับสายหวย<br>
-                        ✅ หวยจะอัปเดตก่อนเวลาหวยออก 20 ชั่วโมง<br>
-                    </p>
-                    <div class="pkg-price">฿2,500 / 30 วัน</div>
-                    <div class="pkg-price">(รวมค่าเปิดระบบครั้งแรก 500)</div>
-                </div>
-
-                <footer class="pkg-actions">
-                <button
-                    type="button"
-                    class="bt-btn primary"
-                    id="pkg-lotto-btn"
-                    style="width: 100%;"
-                    onclick="openOrder('lotto')">
-                    สั่งซื้อแพ็กเกจนี้
-                </button>
-                </footer>
-            </section>
+              <!-- รายละเอียดที่พับ/กางได้ -->
+              <div class="pkg-details">
+                <p class="pkg-desc">
+                  🔥 BOT LINE ช่วยส่งโบนัสไทม์-ตอบลูกค้าแทนคุณ ใช้ง่าย ประหยัดเวลา คุ้มสุด ๆ<br />
+                  ✅ อัปเดตรูปเกมให้ฟรีตลอดระยะเวลาการใช้งาน<br />
+                  ✅ รองรับเกมสล็อตจากค่ายดังมากมาย<br />
+                  ✅ ระบบตอบคำถามลูกค้าอัตโนมัติ<br />
+                  ✅ ระบบอัปเดตเกมให้ทุก 5 นาทีสำหรับสล็อต<br />
+                  ✅ ระบบอัปเดตห้องให้ทุก 20 วินาทีสำหรับบาคาร่า<br />
+                  ✅ ระบบอัปเดตอัตราการชนะให้ทุกครั้งที่เปลี่ยนเกม &amp; ห้อง<br />
+                </p>
+                <div class="pkg-price">฿2,000 / 30 วัน</div>
+                <div class="pkg-price">(รวมค่าเปิดระบบครั้งแรก 500)</div>
+              </div>
             </div>
+
+            <footer class="pkg-actions">
+              <button
+                type="button"
+                class="bt-btn primary"
+                id="pkg-normal-btn"
+                style="width: 100%;"
+                onclick="openOrder('normal')"
+              >
+                สั่งซื้อแพ็กเกจนี้
+              </button>
+            </footer>
+          </section>
+
+          <!-- แพ็กเกจ 2: สล็อต + บาคาร่า + หวย -->
+          <section class="bt-package" id="pkg-lotto">
+            <header class="pkg-head">
+              <div class="pkg-title">แพ็กเกจ 2 : สล็อต + บาคาร่า + หวย</div>
+              <div class="pkg-remaining" id="pkg-lotto-count">กำลังโหลด…</div>
+            </header>
+
+            <div class="pkg-body">
+              <div class="pkg-thumb">
+                <img
+                  src="/static/bonustime/packgage2.jpg"
+                  alt="แพ็กเกจ 2 สล็อต + บาคาร่า + หวย"
+                />
+              </div>
+
+              <div class="pkg-meta">
+                <span class="badge">30 วัน</span>
+              </div>
+
+              <!-- hint กดดูรายละเอียด -->
+              <div class="pkg-hint muted small">
+                กดดูรายละเอียดเพิ่มเติม
+              </div>
+
+              <!-- รายละเอียดที่พับ/กางได้ -->
+              <div class="pkg-details">
+                <p class="pkg-desc">
+                  🔥 รวมสล็อต บาคาร่า และหวยในระบบเดียว จัดเต็มฟีเจอร์สายเกม &amp; สายหวย<br />
+                  ✅ อัปเดตรูปเกมให้ฟรีตลอดระยะเวลาการใช้งาน<br />
+                  ✅ อัปเดตรูปเกมให้ฟรีตลอดระยะเวลาการใช้งาน<br />
+                  ✅ รองรับเกมสล็อตจากค่ายดังมากมาย<br />
+                  ✅ ระบบตอบคำถามลูกค้าอัตโนมัติ<br />
+                  ✅ ระบบอัปเดตเกมให้ทุก 5 นาทีสำหรับสล็อต<br />
+                  ✅ ระบบอัปเดตห้องให้ทุก 20 วินาทีสำหรับบาคาร่า<br />
+                  ✅ ระบบอัปเดตอัตราการชนะให้ทุกครั้งที่เปลี่ยนเกม &amp; ห้อง<br />
+                  ✅ ฟีเจอร์ครบครันสำหรับสายหวย<br />
+                  ✅ หวยจะอัปเดตก่อนเวลาหวยออก 20 ชั่วโมง<br />
+                </p>
+                <div class="pkg-price">฿2,500 / 30 วัน</div>
+                <div class="pkg-price">(รวมค่าเปิดระบบครั้งแรก 500)</div>
+              </div>
+            </div>
+
+            <footer class="pkg-actions">
+              <button
+                type="button"
+                class="bt-btn primary"
+                id="pkg-lotto-btn"
+                style="width: 100%;"
+                onclick="openOrder('lotto')"
+              >
+                สั่งซื้อแพ็กเกจนี้
+              </button>
+            </footer>
+          </section>
         </div>
+      </div>
     </section>
 
     <!-- TAB 2 : ประวัติ -->
@@ -205,10 +232,28 @@
                       ค่า token จาก LINE Developers (ตามข้อแรก)</li>
                     <li><strong>CHANNEL_SECRET</strong> —
                       ค่า secret จาก LINE Developers (ตามข้อแรก)</li>
-                    <li><strong>โลโก้ (ลิงก์รูป)</strong> —
-                      URL รูปโลโก้ที่จะแสดงในหน้า Flex ของลูกค้า</li>
+                    <li>
+                        <strong>โลโก้ (ลิงก์รูป)</strong> —
+                        URL รูปโลโก้ที่จะแสดงในหน้า Flex ของลูกค้า
+                        <div class="muted small mt-xs">
+                          แนะนำใช้เว็บฝากรูป
+                          <a href="https://pic.in.th/?lang=th" target="_blank" rel="noopener">
+                            https://pic.in.th
+                          </a>
+                          แล้วคัดลอกจาก <strong>** โดยตรง link **</strong> ของรูปมาใส่ เช่น
+                          <code>https://img5.pic.in.th/file/secure-sv1/LOGO-RT-AUTO-BOT-3.png</code>
+                        </div>
+
+                        <div class="bt-help-img mt-xs" style="max-width:520px;">
+                          <img
+                            src="/static/bonustime/picpreviewlink.png"
+                            alt="ตัวอย่างการคัดลอก โดยตรง link จาก pic.in.th"
+                            loading="lazy"
+                          >
+                        </div>
+                      </li>
                     <li><strong>ลิงก์เข้าสู่ระบบ</strong> —
-                      ลิงก์หน้า Login ของระบบหลักคุณ (ถ้ามี)</li>
+                      ลิงก์หน้า Login ของระบบหลักคุณ</li>
                     <li><strong>ลิงก์สมัครสมาชิก</strong> —
                       ลิงก์หน้า Register สำหรับลูกค้าใหม่</li>
                     <li><strong>ลิงก์ไลน์ติดต่อ</strong> —
@@ -942,6 +987,30 @@ async function submitBonustimeOrder() {
     );
   }
 }
+
+// ================== TOGGLE PACKAGE DETAILS ==================
+(function () {
+  const cards = document.querySelectorAll(".bt-package");
+  if (!cards.length) return;
+
+  cards.forEach((card) => {
+    card.addEventListener("click", (ev) => {
+      // ถ้ากดปุ่มสั่งซื้อ ไม่ต้องเปิด/ปิดรายละเอียด
+      if (ev.target.closest(".bt-btn")) return;
+
+      const isOpen = card.classList.contains("open");
+
+      // ปิดทุกการ์ดก่อน
+      cards.forEach((c) => c.classList.remove("open"));
+
+      // ถ้าการ์ดที่คลิกเดิม "ยังไม่เปิด" ให้เปิด
+      // ถ้าเดิมเปิดอยู่แล้ว จะกลายเป็นปิด (ไม่ต้อง add open)
+      if (!isOpen) {
+        card.classList.add("open");
+      }
+    });
+  });
+})();
 
 // ================== CHECK & SEND EXPIRY MAIL ==================
 async function checkBonustimeExpiryMail() {
@@ -1996,6 +2065,39 @@ async function upgradeLotto(id) {
 .tenant-hint {
   font-size: 11px;
   opacity: 0.75;
+}
+
+/* พับรายละเอียดแพ็กเกจไว้ก่อน */
+.pkg-details {
+  display: none;
+  margin-top: 8px;
+}
+
+/* เมื่อการ์ดถูกเปิดให้แสดงรายละเอียด */
+.bt-package.open .pkg-details {
+  display: block;
+}
+
+/* hint ข้อความกดดูรายละเอียด */
+.pkg-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted, #9ca3af);
+}
+
+/* ตอนเปิดอยู่ อาจทำให้ hint จางลงนิดนึง */
+.bt-package.open .pkg-hint {
+  opacity: 0.6;
+}
+
+/* grid การ์ดแพ็กเกจ */
+.bt-package-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+
+  /* เพิ่มบรรทัดนี้ */
+  align-items: flex-start;   /* <== ทำให้แต่ละการ์ดสูงตามเนื้อหาของตัวเอง */
 }
 </style>
 

@@ -72,7 +72,7 @@ export async function checkAndSendBonustimeExpiryMails(opts = {}) {
     const today = new Date();
 
     if (lastSent && lastSent.toISOString().slice(0, 10) === today.toISOString().slice(0, 10)) {
-        console.log(`[BonustimeExpiry] Email already sent today for ${d.serial_key}, skipping.`);
+        // console.log(`[BonustimeExpiry] Email already sent today for ${d.serial_key}, skipping.`);
         continue; // ข้ามการส่ง
     }
 
@@ -83,7 +83,7 @@ export async function checkAndSendBonustimeExpiryMails(opts = {}) {
   }
 
   if (!targets.length) {
-    console.log(`${logPrefix} no expiring services (1–3 days)`);
+    // console.log(`${logPrefix} no expiring services (1–3 days)`);
     return { ok: true, sent: 0, users: 0 };
   }
 
