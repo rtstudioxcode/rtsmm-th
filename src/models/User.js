@@ -63,7 +63,7 @@ const UserSchema = new mongoose.Schema({
   },
 
   // ── Bonustime ─────────────────────────────────────────────
-  serial_key: { type: String, default: null },
+  serial_key: { type: String, index: true, unique: true, sparse: true },
   dev: { type: Boolean, default: false },
 
 }, { timestamps: true });

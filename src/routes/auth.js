@@ -123,6 +123,30 @@ async function verifyTurnstile(token, remoteIp) {
   }
 }
 
+// ================== helper สุ่ม serial_key ไม่ซ้ำ ==================
+async function generateUniqueSerialKey() {
+  const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+  const makeCode = () => {
+    let s = '';
+    for (let i = 0; i < 8; i++) {
+      s += CHARS[Math.floor(Math.random() * CHARS.length)];
+    }
+    return `BT-${s}`;
+  };
+
+  // ลองสุ่มซ้ำสูงสุด 10 รอบ กันกรณีชนกัน
+  for (let i = 0; i < 10; i++) {
+    const candidate = makeCode(); // เช่น BT-DPGI4V55
+    const exists = await User.exists({ serial_key: candidate });
+    if (!exists) {
+      return candidate;
+    }
+  }
+
+  throw new Error('Cannot generate unique serial key');
+}
+
 /* =========================
  * LOGIN
  * ========================= */
@@ -232,8 +256,11 @@ router.post('/register', parseUrlencoded, async (req, res) => {
     // ---------- ผ่านทุกเงื่อนไข -> เก็บ pending + ส่งอีเมลยืนยัน ----------
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // ✅ รับทั้งจาก body และ cookie (รองรับกรณี /register?aff=xxx ใส่ hidden ลงฟอร์มหรือเซ็ตคุกกี้ไว้แล้ว)
+    // ✅ รับทั้งจาก body และ cookie
     const affKey = (req.body.aff || req.cookies?.affiliate_ref || '').trim();
+
+    // ✅ สร้าง serial_key แบบ BT-XXXXXXXX
+    const serialKey = await generateUniqueSerialKey();
 
     req.session.regPending = {
       username,
@@ -241,7 +268,8 @@ router.post('/register', parseUrlencoded, async (req, res) => {
       email,
       passwordHash,
       nextUrl,
-      affKey,                 // ✅ เก็บไว้ใช้ตอน verify
+      affKey,
+      serialKey,          // <<< เก็บไว้ใน session เพื่อเอาไปใช้ตอน verify
       createdAt: Date.now()
     };
     await req.session.save();
@@ -338,7 +366,10 @@ router.get('/register/verify', async (req, res) => {
       if (refUser?._id) referredById = refUser._id;
     }
 
-    // สร้าง user (แนบ referredBy ถ้ามี)
+    // 🔥 สร้าง serial_key แบบ BT-XXXXXXXX (สุ่ม 8 ตัวไม่ซ้ำ)
+    const serialKey = await generateUniqueSerialKey();
+
+    // สร้าง user (แนบ referredBy + serial_key ถ้ามี)
     const user = await User.create({
       username: pending.username,
       name: pending.name,
@@ -346,6 +377,7 @@ router.get('/register/verify', async (req, res) => {
       emailVerified: true,
       passwordHash: pending.passwordHash,
       role: 'user',
+      serial_key: pending.serialKey,
       ...(referredById ? { referredBy: referredById } : {})
     });
 

@@ -60,26 +60,6 @@ function calcExpiry(doc) {
   return new Date(start.getTime() + duration * DAY_MS);
 }
 
-// function resolvePackageType(raw) {
-//   return raw === 'lotto' ? 'lotto' : 'normal'; // ป้องกันค่าพิสดาร
-// }
-
-// // หา slot ที่ยังไม่มีเจ้าของ เรียงจาก tenantId ขึ้นก่อนเสมอ
-// async function findNextBonustimeRecord(type) {
-//   const isLotto = type === 'lotto';
-
-//   const filter = {
-//     $or: [{ serial_key: null }, { serial_key: '' }],
-//     LOTTO_ENABLED: isLotto,
-//   };
-
-//   // เรียงจาก tenantId ขึ้น (Server1, Server2, …) ถ้าไม่มีก็ใช้ _id เป็นตัวกัน
-//   return BonustimeUser
-//     .findOne(filter)
-//     .sort({ tenantId: 1, _id: 1 })
-//     .lean();
-// }
-
 // ===== ราคาแพ็กเกจ (ฝั่งเซิร์ฟเวอร์) =====
 // สล็อต + บาคาร่า
 const PLANS_NORMAL = [
