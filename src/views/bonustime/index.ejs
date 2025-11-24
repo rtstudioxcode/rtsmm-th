@@ -249,6 +249,7 @@
                             src="/static/bonustime/picpreviewlink.png"
                             alt="ตัวอย่างการคัดลอก โดยตรง link จาก pic.in.th"
                             loading="lazy"
+                            class="previewable"
                           >
                         </div>
                       </li>
@@ -588,6 +589,11 @@
     </footer>
   </form>
 </dialog>
+
+<!-- Image Preview Modal -->
+<div id="imgPreviewModal" class="img-modal">
+  <img id="imgPreviewTarget" class="img-modal-content">
+</div>
 
 <script>
 (function(){
@@ -1448,6 +1454,22 @@ async function upgradeLotto(id) {
   });
 })();
 
+// ================== Modal ขยายรูป ==================
+document.addEventListener("click", function (e) {
+  // ถ้าคลิกที่รูปที่ขยายได้
+  if (e.target.classList.contains("previewable")) {
+    const modal = document.getElementById("imgPreviewModal");
+    const imgTarget = document.getElementById("imgPreviewTarget");
+
+    imgTarget.src = e.target.src;
+    modal.style.display = "flex";
+  }
+});
+
+// คลิกพื้นที่ว่าง = ปิด modal
+document.getElementById("imgPreviewModal").addEventListener("click", function () {
+  this.style.display = "none";
+});
 </script>
 
 <style>
@@ -2215,5 +2237,38 @@ async function upgradeLotto(id) {
   opacity: 0.9;
 }
 
+
+/* Modal BG */
+.img-modal {
+  display: none;
+  position: fixed;
+  z-index: 9999;
+  inset: 0;
+  backdrop-filter: blur(12px);
+  background: rgba(0, 0, 0, 0.35);
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+}
+
+/* รูปที่ขยาย */
+.img-modal-content {
+  max-width: 90vw;
+  max-height: 90vh;
+  border-radius: 8px;
+  cursor: zoom-out;
+  box-shadow: 0 0 25px rgba(0,0,0,0.5);
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.93); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ให้ cursor เป็น zoom-in ตอนยังไม่ได้ขยาย */
+.previewable {
+  cursor: zoom-in;
+}
 </style>
 
