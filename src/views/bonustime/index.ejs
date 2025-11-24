@@ -428,7 +428,11 @@
     <div class="toast-body">
       <ul style="margin:0 0 0 18px; padding:10px 0; color:var(--t-muted); line-height:1.5">
         <li>ก่อนทำการสั่งซื้อให้</li>
-        <li>ลูกค้าสามารถดูข้อมูลต่างๆได้ที่แท็บ "ช่วยเหลือ" ก่อนทำการสั่งซื้อ</li>
+        <li>
+          ลูกค้าสามารถดูข้อมูลต่างๆได้ที่แท็บ
+          <span id="btNoticeHelpLink" class="bt-inline-link">"ช่วยเหลือ"</span>
+          ก่อนทำการสั่งซื้อ
+        </li>
         <li>หากกรอกข้อมูลตอนสั่งซื้อผิดสามารถกดแก้ไขข้อมูลของ Service ได้ทุกเมื่อไม่มีค่าบริการเพิ่มเติม</li>
         <li style="color: #f59e0b;">หากพบปัญหาการใช้งานให้ติดต่อแอดมินทันที</li>
       </ul>
@@ -440,7 +444,7 @@
     </div>
 
     <div class="toast-actions" style="padding-top:8px;">
-      <button class="pill" id="btNoticeCloseCancel" hidden>ยกเลิก</button>
+      <!-- <button class="pill" id="btNoticeCloseCancel" hidden>ยกเลิก</button> -->
       <button class="pill primary" id="btNoticeClose">ปิดและยอมรับ</button>
     </div>
   </div>
@@ -630,6 +634,24 @@
   modal?.addEventListener('cancel', (ev)=> {
     ev.preventDefault();
     try { modal.close(); } catch(e){}
+  });
+
+  // 👇 เพิ่มบล็อกนี้
+  const helpLink = document.getElementById("btNoticeHelpLink");
+  helpLink?.addEventListener("click", () => {
+    // ถ้าเช็ก "ไม่แสดงอีกในวันนี้" ก็ให้จำไว้เหมือนกดปุ่มปิด
+    if (chk && chk.checked) setSuppressFor1Day();
+
+    // ปิด modal ทันที
+    try {
+      if (modal.open) modal.close();
+    } catch (e) {}
+
+    // สลับไปแท็บ "ช่วยเหลือ"
+    const helpTabBtn = document.querySelector('.bt-tab[data-tab="helpers"]');
+    if (helpTabBtn) {
+      helpTabBtn.click();
+    }
   });
 })();
 </script>
@@ -1425,6 +1447,7 @@ async function upgradeLotto(id) {
     item.classList.toggle("active");
   });
 })();
+
 </script>
 
 <style>
@@ -2180,5 +2203,17 @@ async function upgradeLotto(id) {
   /* เพิ่มบรรทัดนี้ */
   align-items: flex-start;   /* <== ทำให้แต่ละการ์ดสูงตามเนื้อหาของตัวเอง */
 }
+
+.bt-inline-link {
+  color: var(--accent, #facc15);
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.bt-inline-link:hover {
+  opacity: 0.9;
+}
+
 </style>
 
