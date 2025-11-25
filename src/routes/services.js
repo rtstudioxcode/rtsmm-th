@@ -1,11 +1,9 @@
-// // /src/routes/services.js
+// src/routes/services.js
 import express from 'express';
 import mongoose from 'mongoose';
 import { Service } from '../models/Service.js';
 import { Category } from '../models/Category.js';
 import { Subcategory } from '../models/Subcategory.js';
-
-// ✅ ใช้ตัวคำนวณราคาตามกฎแบบ per-user (ไม่แตะ DB)
 import { computeEffectiveRate } from '../lib/pricing.js';
 
 export const servicesRouter = express.Router();
@@ -62,7 +60,6 @@ function inferPlatformFromNames({ explicit, catName = '', subName = '', title = 
   return 'Other';
 }
 
-/** ทำชื่อหมวดให้อ่านง่าย: ตัด platform ที่พิมพ์นำหน้า + ลูกศร/อีโมจิที่ใช้เป็น separator ออก */
 function normalizeCategoryTitle(platform, raw = '') {
   let s = String(raw || '').trim();
   if (platform) {
@@ -77,153 +74,160 @@ function normalizeCategoryTitle(platform, raw = '') {
   return s || raw || 'ทั่วไป';
 }
 
-servicesRouter.get('/', async (req, res) => {
-  try {
-    const me = req.user || res.locals.me || req.session?.user || null;
-    const userId = me?._id ? String(me._id) : null;
+/** ฟังก์ชันหลักที่ดึง service ทั้งหมด (ใช้ร่วมกันได้หลาย route) */
+async function buildFlatServicesForUser(userId){
+  const cacheKey = `services:flat:${userId || 'guest'}`;
+  const cached = getCache(cacheKey);
+  if (cached) return cached;
 
-    // ---- page cache per user ----
-    const cacheKey = `services:flat:${userId || 'guest'}`;
-    const cached = getCache(cacheKey);
-    if (cached) {
-      return res.render('catalog/services', {
-        title: 'บริการทั้งหมด',
-        servicesFlat: cached
+  const rows = await Service.aggregate([
+    { $match: {} },
+    { $lookup: {
+        from: Category.collection.name,
+        localField: 'category',
+        foreignField: '_id',
+        as: 'cat'
+    }},
+    { $lookup: {
+        from: Subcategory.collection.name,
+        localField: 'subcategory',
+        foreignField: '_id',
+        as: 'sub'
+    }},
+    { $addFields: {
+        cat: { $first: '$cat' },
+        sub: { $first: '$sub' },
+        currency: { $ifNull: ['$currency', 'THB'] }
+    }},
+    { $unwind: {
+        path: '$details.services',
+        preserveNullAndEmptyArrays: false
+    }},
+    { $project: {
+        _id: 1,
+        name: 1,
+        category: 1,
+        subcategory: 1,
+        rate: 1,
+        step: 1,
+        type: 1,
+        average_delivery: 1,
+        currency: 1,
+        'cat.name': 1, 'cat.platform': 1,
+        'sub.name': 1, 'sub.platform': 1,
+        'details.id': 1, 'details.name': 1,
+        'details.services.id': 1,
+        'details.services.name': 1,
+        'details.services.description': 1,
+        'details.services.currency': 1,
+        'details.services.rate': 1,
+        'details.services.min': 1,
+        'details.services.max': 1,
+        'details.services.step': 1,
+        'details.services.dripfeed': 1,
+        'details.services.refill': 1,
+        'details.services.cancel': 1,
+        'details.services.average_delivery': 1,
+        'details.services.type': 1
+    }}
+  ]).allowDiskUse(true);
+
+  const limit = pLimit(8);
+
+  const flat = await Promise.all(rows.map(r => limit(async () => {
+    const catName = r?.cat?.name || '';
+    const subName = r?.sub?.name || '';
+    const explicitPlat = r?.cat?.platform || r?.sub?.platform || null;
+
+    const platform = inferPlatformFromNames({
+      explicit: explicitPlat,
+      catName,
+      subName,
+      title: r?.name || ''
+    });
+
+    const categoryTitle = normalizeCategoryTitle(platform, r?.name || '');
+    const providerCategoryId = r?.details?.id ?? null;
+    const providerCategoryName = r?.details?.name || r?.name || '';
+
+    const svc = r.details?.services || {};
+    const baseRate = Number(svc.rate ?? r.rate ?? 0);
+
+    let effectiveRate = baseRate;
+    try {
+      effectiveRate = await computeEffectiveRate({
+        service: r,
+        childId: svc.id,
+        userId,
+        baseRate
       });
+    } catch {
+      // ใช้ baseRate ต่อ
     }
 
-    // ✅ ทำงานหนักใน MongoDB: แตก services[] เป็นแถวด้วย $unwind แทนลูป JS
-    const rows = await Service.aggregate([
-      { $match: {} },
-      { $lookup: {
-          from: Category.collection.name,
-          localField: 'category',
-          foreignField: '_id',
-          as: 'cat'
-      }},
-      { $lookup: {
-          from: Subcategory.collection.name,
-          localField: 'subcategory',
-          foreignField: '_id',
-          as: 'sub'
-      }},
-      { $addFields: {
-          cat: { $first: '$cat' },
-          sub: { $first: '$sub' },
-          currency: { $ifNull: ['$currency', 'THB'] }
-      }},
-      // แตก services เป็นแถว
-      { $unwind: {
-          path: '$details.services',
-          preserveNullAndEmptyArrays: false
-      }},
-      // เลือกเฉพาะฟิลด์ที่ต้องใช้จริง ลด payload
-      { $project: {
-          _id: 1,
-          name: 1,
-          category: 1,
-          subcategory: 1,
-          rate: 1,
-          step: 1,
-          type: 1,
-          average_delivery: 1,
-          currency: 1,
-          'cat.name': 1, 'cat.platform': 1,
-          'sub.name': 1, 'sub.platform': 1,
-          'details.id': 1, 'details.name': 1,
-          'details.services.id': 1,
-          'details.services.name': 1,
-          'details.services.description': 1,
-          'details.services.currency': 1,
-          'details.services.rate': 1,
-          'details.services.min': 1,
-          'details.services.max': 1,
-          'details.services.step': 1,
-          'details.services.dripfeed': 1,
-          'details.services.refill': 1,
-          'details.services.cancel': 1,
-          'details.services.average_delivery': 1,
-          'details.services.type': 1
-      }}
-    ]).allowDiskUse(true); // ✅ กันเมมล้นสำหรับข้อมูลเยอะ
+    return {
+      platform,
+      categoryName: categoryTitle,
+      providerCategoryId,
+      providerCategoryName,
+      _id: `${r._id}:${svc.id}`,
+      providerServiceId: svc.id,
+      name: svc.name || '',
+      description: svc.description || '',
+      baseRate,
+      rate: effectiveRate,
+      displayRate: effectiveRate,
+      currency: svc.currency || r.currency || 'THB',
+      min: svc.min ?? 0,
+      max: svc.max ?? 0,
+      step: svc.step ?? r.step ?? 1,
+      dripfeed: !!svc.dripfeed,
+      refill: !!svc.refill,
+      cancel: !!svc.cancel,
+      average_delivery: svc.average_delivery || r.average_delivery || '',
+      type: svc.type || r.type || 'Default',
+      sourceId: String(r._id)
+    };
+  })));
 
-    // ---- เตรียม limit concurrency สำหรับ computeEffectiveRate ----
-    const limit = pLimit(8); // ปรับ 6-12 ตามสเปคเครื่อง/จำนวนคอร์
+  setCache(cacheKey, flat);
+  return flat;
+}
 
-    // ---- คำนวณและแม็ปเป็น flat พร้อมกันแบบจำกัดจำนวน ----
-    const flat = await Promise.all(rows.map(r => limit(async () => {
-      const catName = r?.cat?.name || '';
-      const subName = r?.sub?.name || '';
-      const explicitPlat = r?.cat?.platform || r?.sub?.platform || null;
+// ----------------- ROUTES -----------------
 
-      const platform = inferPlatformFromNames({
-        explicit: explicitPlat,
-        catName,
-        subName,
-        title: r?.name || ''
-      });
-
-      const categoryTitle = normalizeCategoryTitle(platform, r?.name || '');
-      const providerCategoryId = r?.details?.id ?? null;
-      const providerCategoryName = r?.details?.name || r?.name || '';
-
-      const svc = r.details?.services || {};
-      const baseRate = Number(svc.rate ?? r.rate ?? 0);
-
-      let effectiveRate = baseRate;
-      try {
-        effectiveRate = await computeEffectiveRate({
-          service: r,               // ใช้แถวที่มี field พอเพียงแล้ว
-          childId: svc.id,
-          userId,
-          baseRate
-        });
-      } catch {
-        // ใช้ baseRate ต่อ
-      }
-
-      return {
-        // group keys
-        platform,
-        categoryName: categoryTitle,
-
-        // provider category (หัวกลุ่ม)
-        providerCategoryId,
-        providerCategoryName,
-
-        // line item (บริการย่อยจริง)
-        _id: `${r._id}:${svc.id}`,
-        providerServiceId: svc.id,
-        name: svc.name || '',
-        description: svc.description || '',
-
-        baseRate,
-        rate: effectiveRate,
-        displayRate: effectiveRate,
-        currency: svc.currency || r.currency || 'THB',
-
-        min: svc.min ?? 0,
-        max: svc.max ?? 0,
-        step: svc.step ?? r.step ?? 1,
-        dripfeed: !!svc.dripfeed,
-        refill: !!svc.refill,
-        cancel: !!svc.cancel,
-        average_delivery: svc.average_delivery || r.average_delivery || '',
-        type: svc.type || r.type || 'Default',
-
-        sourceId: String(r._id)
-      };
-    })));
-
-    // ---- เก็บ cache 60 วิ ----
-    setCache(cacheKey, flat);
-
+// 1) หน้า HTML หลัก: ส่งแต่ shell ไปก่อน (ไม่ query หนัก)
+servicesRouter.get('/', async (req, res) => {
+  try {
     return res.render('catalog/services', {
       title: 'บริการทั้งหมด',
-      servicesFlat: flat
+      servicesFlat: []   // ให้ front ไปโหลดเองทีหลัง
     });
   } catch (err) {
     console.error('GET /services error:', err);
     res.status(500).send('Internal Server Error');
+  }
+});
+
+// 2) API data: front-end เรียกทีหลัง เพื่อดึง services ทั้งหมดแบบ JSON
+servicesRouter.get('/data', async (req, res) => {
+  try {
+    const me = req.user || res.locals.me || req.session?.user || null;
+    const userId = me?._id ? String(me._id) : null;
+
+    const flat = await buildFlatServicesForUser(userId);
+
+    // defaultPlatform เลือก Discord ถ้ามี ไม่มีก็ null
+    const hasDiscord = flat.some(s => s.platform === 'Discord');
+    const defaultPlatform = hasDiscord ? 'Discord' : null;
+
+    res.json({
+      ok: true,
+      defaultPlatform,
+      services: flat
+    });
+  } catch (err) {
+    console.error('GET /services/data error:', err);
+    res.status(500).json({ ok:false, message:'Internal Server Error' });
   }
 });

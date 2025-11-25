@@ -1,22 +1,130 @@
-<!-- //layout.ejs -->
+<!-- src/views/layout.ejs -->
 <!doctype html>
 <html lang="th">
-<% const _bodyClass = (typeof bodyClass !== 'undefined' ? bodyClass : (locals.bodyClass || '')); %>
+<%
+  const _bodyClass = (typeof bodyClass !== 'undefined'
+    ? bodyClass
+    : (locals.bodyClass || ''));
+
+  // --------- TITLE & META DEFAULTS (กัน error + SEO) ----------
+  const pageTitle = (
+    typeof title !== 'undefined' && title
+      ? title
+      : 'RTSSM-TH.COM | บริการ OTP24ชั่วโมง และการตลาดออนไลน์ระดับสากล'
+  );
+
+  const pageDescription = (
+    typeof metaDescription !== 'undefined' && metaDescription
+      ? metaDescription
+      : 'RTSSM-TH.COM ศูนย์รวมบริการปั้มวิว ปั้มไลค์ ปั้มผู้ติดตาม ระบบ OTP24ชั่วโมง และการตลาดออนไลน์ครบวงจร ใช้งานง่าย มาตรฐานมืออาชีพ ดูแลลูกค้าทั่วโลก'
+  );
+
+  const pageKeywords = (
+    typeof metaKeywords !== 'undefined' && metaKeywords
+      ? metaKeywords
+      : 'ปั้มวิว, ปั้มไลค์, ปั้มผู้ติดตาม, ปั้มวิว tiktok, ปั้มซับ youtube, เพิ่มผู้ติดตาม, โฆษณาออนไลน์, OTP24 ชั่วโมง, ระบบ OTP'
+  );
+
+  const ogImage = (
+    typeof metaOgImage !== 'undefined' && metaOgImage
+      ? metaOgImage
+      : 'https://rtsmm-th.com/static/og/og-default.png'
+  );
+
+  const ogType = (
+    typeof metaOgType !== 'undefined' && metaOgType
+      ? metaOgType
+      : 'website'
+  );
+
+  const robotsMeta = (
+    typeof metaRobots !== 'undefined' && metaRobots
+      ? metaRobots
+      : 'index,follow'
+  );
+
+  const currentPath = (typeof req !== 'undefined' && req.originalUrl)
+    ? req.originalUrl
+    : '/';
+
+  const fullUrl = 'https://rtsmm-th.com' + currentPath;
+%>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-    <script>
-    window.onTurnstileLoad = function () {
-      // ให้ทุกหน้าที่สนใจสามารถรอ event นี้ได้
-      window.dispatchEvent(new Event('turnstile-ready'));
-    };
-  </script>
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onTurnstileLoad" async defer></script>
+
+  <!-- Primary Title -->
+  <title><%= pageTitle %></title>
+
+  <!-- Canonical & language -->
+  <meta http-equiv="content-language" content="th" />
+  <link rel="canonical" href="<%= fullUrl %>" />
+
+  <!-- Basic SEO -->
+  <meta name="description" content="<%= pageDescription %>">
+  <meta name="keywords" content="<%= pageKeywords %>">
+  <meta name="robots" content="<%= robotsMeta %>">
+
+  <!-- Open Graph (Facebook / LINE / etc.) -->
+  <meta property="og:locale" content="th_TH">
+  <meta property="og:site_name" content="RTSSM-TH.COM">
+  <meta property="og:type" content="<%= ogType %>">
+  <meta property="og:title" content="<%= pageTitle %>">
+  <meta property="og:description" content="<%= pageDescription %>">
+  <meta property="og:url" content="<%= fullUrl %>">
+  <meta property="og:image" content="<%= ogImage %>">
+  <meta property="og:image:alt" content="RTSSM-TH.COM การตลาดออนไลน์และโซเชียล">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="<%= pageTitle %>">
+  <meta name="twitter:description" content="<%= pageDescription %>">
+  <meta name="twitter:image" content="<%= ogImage %>">
+
   <!-- Favicon -->
   <link rel="icon" href="/static/logo/icon-logo.png" type="image/png">
   <link rel="shortcut icon" href="/static/logo/icon-logo.png" type="image/png">
   <link rel="apple-touch-icon" href="/static/logo/icon-logo.png">
-  <title><%= (typeof title !== 'undefined' ? title : 'RTSSM-TH.COM ผู้ให้บริการ OTP24ชั่วโมง การตลาดออนไลน์และโซเชียลระดับสากล มาตรฐานมืออาชีพ ดูแลลูกค้าทั่วโลก') %></title>
+
+  <!-- Structured Data: Website (JSON-LD) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "RTSSM-TH.COM",
+    "url": "https://rtsmm-th.com",
+    "inLanguage": "th-TH",
+    "description": "<%- pageDescription.replace(/"/g, '\\"') %>",
+    "publisher": {
+      "@type": "Organization",
+      "name": "RTSSM-TH",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://rtsmm-th.com/static/logo/logo-rtssm-th.png"
+      }
+    },
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://rtsmm-th.com/search?q={search_term}",
+      "query-input": "required name=search_term"
+    }
+  }
+  </script>
+
+  <!-- Optional: Page-level Breadcrumb (ถ้าหน้าไหนส่ง breadcrumbJsonLd มา) -->
+  <% if (typeof breadcrumbJsonLd !== 'undefined' && breadcrumbJsonLd) { %>
+    <script type="application/ld+json">
+    <%- breadcrumbJsonLd %>
+    </script>
+  <% } %>
+
+  <!-- Cloudflare Turnstile (global) -->
+  <script>
+    window.onTurnstileLoad = function () {
+      window.dispatchEvent(new Event('turnstile-ready'));
+    };
+  </script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onTurnstileLoad" async defer></script>
 
   <!-- THEME MANAGER: แหล่งความจริงเดียว -->
   <script>
@@ -55,10 +163,13 @@
       return next;
     };
   })();
-</script>
+  </script>
 
   <!-- CSS หลัก -->
   <link rel="stylesheet" href="/static/css/styles.css?v=32">
+
+  <!-- ช่องให้หน้าอื่น inject meta เพิ่ม (เช่น noindex, custom og ฯลฯ) -->
+  <%- typeof extraHead !== 'undefined' ? extraHead : '' %>
 </head>
 <body class="<%- _bodyClass %>">
   <!-- Sidebar -->

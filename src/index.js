@@ -190,6 +190,7 @@ app.use(
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(compression());
+app.use(express.static("public", { maxAge: "30d" }));
 
 
 // Session — ใช้ secret จาก DB ก่อน

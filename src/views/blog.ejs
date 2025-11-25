@@ -5,9 +5,74 @@
   <meta http-equiv="content-language" content="th" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <title><%= pageTitle || 'บทความ | RTSMM-TH' %></title>
-  <meta name="description" content="รวมบทความการตลาดออนไลน์ ปั้มวิว ปั้มไลค์ เพิ่มผู้ติดตาม เทคนิคไวรัล อัปเดต 2025" />
-  <meta name="keywords" content="บทความ, การตลาดออนไลน์, ปั้มวิว, ปั้มไลค์, เพิ่มผู้ติดตาม, TikTok, YouTube" />
+  <% 
+    const defaultPageTitle = 'บทความการตลาดออนไลน์ 2025 | ปั้มวิว ปั้มไลค์ เพิ่มผู้ติดตาม | RTSMM-TH';
+    const headTitle = pageTitle || defaultPageTitle;
+    const headDesc  = (typeof metaDescription !== 'undefined' && metaDescription) 
+      ? metaDescription 
+      : 'รวมบทความสายการตลาดออนไลน์ ปั้มวิว ปั้มไลค์ เพิ่มผู้ติดตาม เทคนิคไวรัล TikTok, YouTube, Instagram, Facebook และการทำคอนเทนต์ให้โตแบบยั่งยืน อัปเดตปี 2025';
+    const canonicalUrl = 'https://rtsmm-th.com/blog';
+    const ogImage = 'https://rtsmm-th.com/static/assets/img/main-pic-3.png';
+  %>
+
+  <!-- ================= BASIC SEO ================= -->
+  <title><%= headTitle %></title>
+  <meta name="description" content="<%= headDesc %>" />
+  <meta name="keywords" content="บทความ, การตลาดออนไลน์, ปั้มวิว, ปั้มไลค์, เพิ่มผู้ติดตาม, TikTok, YouTube, Instagram, Facebook, SEO, SMM Panel ไทย" />
+  <meta name="author" content="RTSSM-TH.COM" />
+  <meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large,max-video-preview:-1" />
+  <link rel="canonical" href="<%= canonicalUrl %>" />
+
+  <!-- ================= OPEN GRAPH ================= -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="RTSSM-TH.COM" />
+  <meta property="og:locale" content="th_TH" />
+  <meta property="og:title" content="<%= headTitle %>" />
+  <meta property="og:description" content="<%= headDesc %>" />
+  <meta property="og:url" content="<%= canonicalUrl %>" />
+  <meta property="og:image" content="<%= ogImage %>" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+
+  <!-- ================= TWITTER CARD ================= -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="<%= headTitle %>" />
+  <meta name="twitter:description" content="<%= headDesc %>" />
+  <meta name="twitter:image" content="<%= ogImage %>" />
+
+  <!-- ================= STRUCTURED DATA (BLOG) ================= -->
+  <script type="application/ld+json">
+  <%
+    const blogSchema = {
+      "@context": "https://schema.org",
+      "@type": "Blog",
+      "name": "บทความการตลาดออนไลน์ | RTSMM-TH",
+      "description": headDesc,
+      "url": canonicalUrl,
+      "publisher": {
+        "@type": "Organization",
+        "name": "RTSSM-TH.COM",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://rtsmm-th.com/static/logo/icon-logo.png"
+        }
+      },
+      "blogPost": (posts || []).slice(0, 8).map(p => ({
+        "@type": "BlogPosting",
+        "headline": p.title,
+        "description": p.excerpt || headDesc,
+        "url": "https://rtsmm-th.com/blog/" + p.slug,
+        "image": p.thumbnail || ogImage,
+        "datePublished": p.dateISO || p.dateText || undefined,
+        "author": {
+          "@type": "Person",
+          "name": p.author || "RTSSM-TH"
+        }
+      }))
+    };
+  %>
+  <%- JSON.stringify(blogSchema, null, 2) %>
+  </script>
 
   <!-- Favicon -->
   <link rel="icon" href="/static/logo/icon-logo.png" type="image/png">
@@ -16,11 +81,14 @@
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
   <!-- Bootstrap & Icons -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/css/flag-icons.min.css"/>
+
   <!-- Effects -->
   <link rel="stylesheet" href="https://iplusview.store/assets-landing/css/animate.min.css">
   <link rel="stylesheet" href="https://iplusview.store/assets-landing/css/main.css">
@@ -60,7 +128,7 @@
   })();
   </script>
 
-  <!-- Dark tokens + overrides (เหมือน index.ejs) -->
+  <!-- Dark tokens + overrides (ของเดิมนาย) -->
   <style>
     :root{
       --pv-primary:var(--theme-primary,#22c55e);
@@ -130,6 +198,7 @@
       .container, .container-fluid{ max-width:100vw!important; padding-left:2rem; padding-right:2rem; }
     }
   </style>
+
   <script>
     (function syncBsTheme(){
       const html=document.documentElement;

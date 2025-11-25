@@ -1,3 +1,45 @@
+<%
+  const pageTitle = `${article.title} | เทคนิคเพิ่มวิว TikTok ติด FYP 2025 | RTSMM-TH`;
+  const pageDesc  = article.excerpt 
+    || 'สรุปเทคนิคเพิ่มวิว TikTok ให้ติด FYP ในปี 2025 ทั้งเรื่องคอนเทนต์ แฮชแท็ก จังหวะโพสต์ และการสร้างตัวตนระยะยาวบน TikTok แบบเข้าใจอัลกอริทึมจริง ๆ';
+  const canonicalPath = `/blog/${article.slug || article._id || ''}`;
+
+  // ส่งค่าให้ layout.ejs ใช้ใน <head>
+  title       = pageTitle;
+  description = pageDesc;
+  ogTitle     = pageTitle;
+  ogDesc      = pageDesc;
+  ogImage     = article.image;
+%>
+
+<script type="application/ld+json">
+<%- JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": article.title,
+  "description": pageDesc,
+  "image": article.image,
+  "author": {
+    "@type": "Person",
+    "name": article.author
+  },
+  "datePublished": article.dateISO || article.date,
+  "dateModified": article.updatedAt || article.dateISO || article.date,
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://rtsmm-th.com" + canonicalPath
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "RTSSM-TH.COM",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://rtsmm-th.com/static/logo/icon-logo.png"
+    }
+  }
+}, null, 2) %>
+</script>
+
 <section class="page blog-detail container" style="max-width:980px; margin:0 auto; padding:24px 16px;">
   <header class="blog-hero">
     <h1 class="title"><%= article.title %></h1>
@@ -8,7 +50,11 @@
     </div>
 
     <figure class="cover">
-      <img src="<%= article.image %>" alt="<%= article.title %>" loading="lazy">
+      <img
+        src="<%= article.image %>"
+        alt="บทความเพิ่มวิว TikTok 2025: <%= article.title %>"
+        loading="lazy"
+      >
     </figure>
   </header>
 
