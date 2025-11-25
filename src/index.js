@@ -45,6 +45,7 @@ import cookieParser from 'cookie-parser';
 import { startOrderStatusJob } from './jobs/orderStatusJob.js';
 import bonustimeRouter from "./routes/bonustime.js";
 import { initBonustimeExpiryJob } from "./jobs/bonustimeExpiryJob.js";
+import sitemapRouter from "./routes/sitemap.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -191,6 +192,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(compression());
 app.use(express.static("public", { maxAge: "30d" }));
+app.use("/", sitemapRouter);
 
 
 // Session — ใช้ secret จาก DB ก่อน
