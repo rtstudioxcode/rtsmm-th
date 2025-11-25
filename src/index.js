@@ -46,6 +46,7 @@ import { startOrderStatusJob } from './jobs/orderStatusJob.js';
 import bonustimeRouter from "./routes/bonustime.js";
 import { initBonustimeExpiryJob } from "./jobs/bonustimeExpiryJob.js";
 import sitemapRouter from "./routes/sitemap.js";
+import robotsRoute from "./routes/robots.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -193,7 +194,7 @@ app.use(express.json());
 app.use(compression());
 app.use(express.static("public", { maxAge: "30d" }));
 app.use("/", sitemapRouter);
-
+app.use(robotsRoute);
 
 // Session — ใช้ secret จาก DB ก่อน
 app.use(
