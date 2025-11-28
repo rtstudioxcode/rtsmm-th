@@ -220,7 +220,9 @@ async function updateOneOrder(o) {
 
   if (typeof start === 'number') patch.startCount   = start;
   if (typeof curr  === 'number') patch.currentCount = curr;
-  if (typeof rem   === 'number') patch.remains      = rem;
+  if (typeof rem   === 'number') {
+    patch.remains = Math.max(0, rem);
+  }
 
   if (patch.progress == null) {
     const qty = Number(o.quantity) || 0;

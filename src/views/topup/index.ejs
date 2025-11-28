@@ -562,10 +562,10 @@
       const amtEl = document.getElementById('qrAmount');
       if (amtEl) amtEl.textContent = finalAmount.toLocaleString(undefined,{ minimumFractionDigits:2 });
 
-      openQrModal('bank', j.expiresIn || 300);
+      openQrModal('bank', 300);
 
       // 🔔 เริ่มเฝ้าสถานะ: webhook เคลียร์ปุ๊บ → ปิด modal + reload
-      startTxWatcher(currentTxId, j.expiresIn || 300);
+      startTxWatcher(currentTxId, 300);
     } catch (err) {
       const msg = `ขัดข้อง: ${err.message}`;
       window.showMsg ? window.showMsg({ variant:'error', title:'ไม่สำเร็จ', text: msg }) : alert(msg);
@@ -802,10 +802,10 @@
       ));
 
       // เปิด modal โหมด TW + เริ่มจับเวลา
-      openQrModal('tw', c?.expiresIn || 300);
+      openQrModal('tw', 300);
 
       // 6) เริ่มเฝ้าสถานะ (webhook สำเร็จ → watcher ปิด modal + reload)
-      startTxWatcher(window.currentTxId, c?.expiresIn || 300);
+      startTxWatcher(window.currentTxId, 300);
 
       return false;
     } catch(err){

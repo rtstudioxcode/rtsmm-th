@@ -15,11 +15,12 @@ export function getBonustimeDb() {
     throw new Error("Bonustime Mongo URI missing");
   }
 
-  bonustimeConn = mongoose.createConnection(uri, {
-    // dbName,
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  });
+  // เตรียม options แยก (เผื่ออนาคตจะใส่ dbName หรือ config อื่นเพิ่ม)
+  const opts = {};
+  // ถ้าอยากใช้ dbName แยก collection จริง ๆ ค่อยเปิดบรรทัดนี้
+  // if (dbName) opts.dbName = dbName;
+
+  bonustimeConn = mongoose.createConnection(uri, opts);
 
   // bonustimeConn.on("connected", () => {
   //   console.log("🔥 Bonustime DB connected:", dbName);

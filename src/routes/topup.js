@@ -301,7 +301,7 @@ topupRouter.post("/create", async (req, res) => {
     if (!uid) return res.status(401).json({ ok: false, error: "unauthorized" });
 
     const base = Number(req.body.amount);
-    const walletCode = String(req.body.walletCode || "tw").toLowerCase(); // 'tw' | 'kbank' | ...
+    const walletCode = String(req.body.walletCode || "tw").toLowerCase();
     if (!Number.isFinite(base) || base < 10) {
       return res.status(400).json({ ok: false, error: "invalid_amount_min_10" });
     }
@@ -360,7 +360,7 @@ topupRouter.post("/create", async (req, res) => {
       amountCents: uniqueCents,
       expectedAmount: uniqueAmt,
       status: "pending",
-      expiresAt: new Date(now + 5 * 60 * 1000), // 5 นาที
+      expiresAt: new Date(now + 12 * 60 * 60 * 1000),
     });
 
     // ธนาคาร: ใช้ QR KBANK อย่างเดียว / TW: null (ไป gen link เอง)
