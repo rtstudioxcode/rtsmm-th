@@ -1,10 +1,13 @@
+# ไฟล์ src หลัก
 node_modules/
 package-lock.json
-
 .env
 .env.*
 !.env.example
-
 *.py
 
+# ไฟล์ scripts
 scripts/
+fixNegativeRemains.js
+recount-totals.js
+secure-update.js
