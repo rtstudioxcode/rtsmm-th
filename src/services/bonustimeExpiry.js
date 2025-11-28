@@ -141,7 +141,8 @@ export async function checkAndSendBonustimeExpiryMails(opts = {}) {
       </p>
 
       <div style="margin:18px 0 14px;font-size:14px;line-height:1.7;">
-        <div><strong>Service:</strong> (${tenantLabel}) — ${serviceName}</div>
+        <div><strong>Service:</strong> ${tenantLabel}</div>
+        <div><strong>เว็บ:</strong> ${serviceName}</div>
         <div><strong>Serial Key:</strong> ${serialKey}</div>
         <div><strong>ช่วงเวลาการใช้งาน:</strong> ${startStr} – ${endStr}</div>
         <div><strong>สถานะปัจจุบัน:</strong> เหลือระยะเวลาใช้งานอีก ${remainDays} วัน</div>
