@@ -39,7 +39,7 @@
     <section id="tab-order" class="tabpane show">
       <div class="bonustime-order">
         <!-- <h2 class="mb">สั่งซื้อ / เช่าระบบ Bonustime</h2> -->
-        <p class="muted mb">เลือกแพ็กเกจที่ต้องการ</p>
+        <p class="muted mb" style="text-align: center;">เลือกแพ็กเกจที่ต้องการ</p>
 
         <div class="bt-package-grid">
           <!-- แพ็กเกจ 1: สล็อต + บาคาร่า -->
@@ -156,7 +156,7 @@
 
     <!-- TAB 2 : ประวัติ -->
     <div id="tab-history" class="tabpane">
-        <p class="muted mb">ประวัติการสั่งซื้อ</p>
+        <p class="muted mb" style="text-align: center;">ประวัติการสั่งซื้อ</p>
         <div id="bonustimeHistory" class="history-list">
             <p class="muted">กำลังโหลดข้อมูล…</p>
         </div>
@@ -165,8 +165,8 @@
     <!-- TAB 3 : ศูนย์ช่วยเหลือ -->
     <div id="helpers" class="tabpane">
       <section class="bt-help">
-        <h2 class="bt-help-title">ศูนย์ช่วยเหลือ</h2>
-        <p class="muted mb-sm">
+        <h2 class="bt-help-title" style="text-align: center;"> ศูนย์ช่วยเหลือ</h2>
+        <p class="muted mb-sm" style="text-align: center;">
           รวมวิธีใช้งานและคำถามที่พบบ่อยเกี่ยวกับการตั้งค่า BOT LINE RTAUTOBOT
         </p>
 
@@ -767,6 +767,87 @@ function calcRemainDays(expiry) {
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 }
 
+// ================== CountDown นับถอยหลัง ==================
+let BT_COUNTDOWN_TIMER = null;
+
+function formatRemainFull(msDiff) {
+  if (msDiff <= 0) return null;
+
+  const totalSec = Math.floor(msDiff / 1000);
+  const days = Math.floor(totalSec / 86400);
+  const hours = Math.floor((totalSec % 86400) / 3600);
+  const mins = Math.floor((totalSec % 3600) / 60);
+
+  if (days > 0) {
+    return `อีก ${days} วัน ${hours} ชม. ${mins} นาที`;
+  }
+  if (hours > 0) {
+    return `อีก ${hours} ชม. ${mins} นาที`;
+  }
+  return `อีก ${mins} นาที`;
+}
+
+function applyCountdownColor(el, daysLeft) {
+  el.classList.remove(
+    "bt-countdown-pill--safe",
+    "bt-countdown-pill--warn15",
+    "bt-countdown-pill--warn7",
+    "bt-countdown-pill--warn3"
+  );
+
+  if (daysLeft < 3) {
+    el.classList.add("bt-countdown-pill--warn3");
+  } else if (daysLeft < 7) {
+    el.classList.add("bt-countdown-pill--warn7");
+  } else if (daysLeft < 15) {
+    el.classList.add("bt-countdown-pill--warn15");
+  } else {
+    el.classList.add("bt-countdown-pill--safe");
+  }
+}
+
+function initBonustimeCountdowns() {
+  const nodes = document.querySelectorAll(".bt-countdown-pill[data-expiry]");
+  if (!nodes.length) {
+    if (BT_COUNTDOWN_TIMER) {
+      clearInterval(BT_COUNTDOWN_TIMER);
+      BT_COUNTDOWN_TIMER = null;
+    }
+    return;
+  }
+
+  function tick() {
+    const now = Date.now();
+    nodes.forEach((el) => {
+      const iso = el.dataset.expiry;
+      if (!iso) return;
+      const exp = new Date(iso).getTime();
+      const diff = exp - now;
+
+      if (diff <= 0) {
+        // หมดอายุแล้ว ไม่ต้องแสดง countdown
+        el.remove();
+        return;
+      }
+
+      const label = formatRemainFull(diff);
+      if (!label) return;
+
+      el.textContent = label;
+
+      // แปลงเป็นวันเพื่อเลือกสี
+      const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
+      applyCountdownColor(el, daysLeft);
+    });
+  }
+
+  // อัปเดตทันที 1 รอบ
+  tick();
+
+  if (BT_COUNTDOWN_TIMER) clearInterval(BT_COUNTDOWN_TIMER);
+  BT_COUNTDOWN_TIMER = setInterval(tick, 30000);
+}
+
 // ================== LOAD HISTORY ==================
 // อ่านค่า ?extend= จาก URL ไว้ก่อน (เช่น /bonustime?extend=Server1)
 (function readExtendFromQuery() {
@@ -798,30 +879,62 @@ async function loadBonustimeHistory() {
 
     box.innerHTML = "";
     data.records.forEach((rec) => {
-        BONUSTIME_CACHE[rec._id] = rec; // cache ไว้ใช้ตอนเปิด modal
+        BONUSTIME_CACHE[rec._id] = rec;
 
         let statusText = "";
+        let expiryDate = null;
+        let remainDays = null;
+        
         if (rec.LICENSE_DISABLED === true) {
-        statusText = "ไม่มีวันหมดอายุ";
+          statusText = "ไม่มีวันหมดอายุ";
         } else {
-        const expiryDate = calcExpiredDate(
+          expiryDate = calcExpiredDate(
             rec.LICENSE_START_DATE,
             rec.LICENSE_DURATION_DAYS
-        );
-        const remainDays = calcRemainDays(expiryDate);
+          );
+          if (expiryDate) {
+            const now = new Date();
+            const diff = expiryDate - now;
+            remainDays = Math.ceil(diff / (1000 * 60 * 60 * 24));
+          }
 
-        if (remainDays <= 0) statusText = "หมดอายุแล้ว";
-        else statusText = `เหลืออีก ${remainDays} วัน`;
+          if (!expiryDate || (remainDays !== null && remainDays <= 0)) {
+            statusText = "หมดอายุแล้ว";
+          } else {
+            statusText = `เหลืออีก ${remainDays} วัน`;
+          }
         }
 
         const lottoText = rec.LOTTO_ENABLED ? "เปิด" : "ปิด";
-
         // ถ้ายังไม่ได้เปิดหวย ให้เตรียมปุ่มอัปเกรดเพิ่ม
         const upgradeBtnHtml = !rec.LOTTO_ENABLED
           ? `<button class="bt-btn warn" onclick="upgradeLotto('${rec._id}')">
                อัปเกรดเพิ่มหวย +฿1,000
              </button>`
           : "";
+
+        // ถ้า LICENSE_DISABLED เป็น true หรือไม่มีวันหมดอายุ -> ไม่แสดงปุ่มต่ออายุ
+        const canExtend = rec.LICENSE_DISABLED !== true;
+        const extendBtnHtml = canExtend
+          ? `<button class="bt-btn primary" onclick="openExtend('${rec._id}')">
+               ต่ออายุการใช้งาน
+             </button>`
+          : "";
+        
+        const updatedataAllowed = true;
+        const updatedataBtnHtml = updatedataAllowed
+            ? `
+              <button class="bt-btn updatedata" onclick="openEdit('${rec._id}')">
+                แก้ไขข้อมูล
+              </button>
+            `
+            : "";
+
+        // ถ้ายังไม่หมดอายุและมี expiryDate ให้สร้าง countdown pill
+        const countdownHtml =
+          expiryDate && remainDays > 0
+            ? `<div class="bt-countdown-pill" data-expiry="${expiryDate.toISOString()}"></div>`
+            : "";
 
         const el = document.createElement("section");
         el.className = "bonustime-card";
@@ -832,7 +945,10 @@ async function loadBonustimeHistory() {
               <div class="tenant">${rec.NAME || "-"}</div>
               <div class="tenant-hint muted small">กดขายเพื่อดูรายละเอียด Service</div>
             </div>
-            <div class="status-pill">${statusText}</div>
+            <div class="bt-status-wrap">
+              <div class="status-pill">${statusText}</div>
+              ${countdownHtml}
+            </div>
         </div>
 
         <div class="collapse-body">
@@ -905,13 +1021,9 @@ async function loadBonustimeHistory() {
             </div>
             </div>
 
-            <div class="bt-actions">
-                <button class="bt-btn primary" onclick="openExtend('${rec._id}')">
-                    ต่ออายุการใช้งาน
-                </button>
-                <button class="bt-btn" onclick="openEdit('${rec._id}')">
-                    แก้ไขข้อมูล
-                </button>
+             <div class="bt-actions">
+                ${extendBtnHtml}
+                ${updatedataBtnHtml}
                 ${upgradeBtnHtml}
             </div>
         </div>
@@ -923,6 +1035,8 @@ async function loadBonustimeHistory() {
 
         box.appendChild(el);
     });
+
+    initBonustimeCountdowns();
 
     // <<< เพิ่มบล็อกนี้หลังจากเติมการ์ดเสร็จ >>>
     if (PENDING_EXTEND_TENANT) {
@@ -1270,6 +1384,8 @@ async function submitBonustimeEdit() {
     }
 }
 
+
+
 // ================== MODAL: EXTEND ==================
 function openExtend(id) {
     const rec = BONUSTIME_CACHE[id];
@@ -1608,12 +1724,52 @@ document.getElementById("imgPreviewModal").addEventListener("click", function ()
   background: var(--page);
   color: var(--text);
   cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition:
+    background 0.2s ease-out,
+    box-shadow 0.2s ease-out,
+    transform 0.15s ease-out;
+}
+/* กดแล้วยุบลงนิดหน่อย */
+.bt-btn:active {
+  transform: translateY(1px) scale(0.99);
 }
 
+/* ===== PRIMARY (เหลือง) ===== */
 .bt-btn.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #000;
+  background: linear-gradient(135deg, #eab308, #facc15);
+  color: #111827 !important;          /* ตัวหนังสือเข้มอ่านง่าย */
+  text-shadow: 0 0 2px rgba(255,255,255,0.4);
+  font-weight: 500;
+}
+.bt-btn.primary:hover {
+  background: linear-gradient(135deg, #facc15, #fde047);
+  box-shadow: 0 0 18px rgba(250, 204, 21, 0.45);
+}
+
+/* ===== UPDATEDATA (ปุ่มกลางดำ) ===== */
+.bt-btn.updatedata {
+  background: radial-gradient(circle at top left, #1f2937 0%, #020617 65%);
+  border: 1px solid #0a2347;
+  color: #f9fafb !important;          /* ขาวสว่างตัดกับพื้นดำ */
+  text-shadow: 0 0 3px rgba(0,0,0,0.8);
+}
+.bt-btn.updatedata:hover {
+  background: radial-gradient(circle at top left, #111827 0%, #020617 70%);
+  box-shadow: 0 0 14px rgba(248, 250, 252, 0.22);
+}
+
+/* ===== WARN (ส้มเตือน) ===== */
+.bt-btn.warn {
+  background: linear-gradient(135deg, #f97316, #fbbf24);
+  color: #111827 !important;          /* ใช้ตัวหนังสือเข้มเหมือนปุ่มเหลือง */
+  text-shadow: 0 0 2px rgba(255,255,255,0.4);
+  font-weight: 600;
+}
+.bt-btn.warn:hover {
+  background: linear-gradient(135deg, #fb923c, #fde68a);
+  box-shadow: 0 0 18px rgba(249, 115, 22, 0.5);
 }
 
 .bt-btn.ghost {
@@ -1625,6 +1781,31 @@ document.getElementById("imgPreviewModal").addEventListener("click", function ()
     grid-template-columns: minmax(0, 120px) minmax(0, 1fr);
   }
 }
+
+/* .bt-btn.warn {
+  border-color: #f59e0b;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.08);
+}
+.bt-btn.warn:hover {
+  background: rgba(245, 158, 11, 0.15);
+} */
+/* .bt-btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+}
+.bt-btn.primary:hover {
+  background: #ffd000;
+} */
+/* .bt-btn.updatedata {
+  background: var(--accent2);
+  border-color: var(--accent2);
+  color: var(--accent);
+}
+.bt-btn.updatedata:hover {
+  background: rgba(245, 158, 11, 0.15);
+} */
 
 /* ====== Card สั่งซื้อแพ็กเกจ ====== */
 .bonustime-order h2 {
@@ -1877,15 +2058,6 @@ document.getElementById("imgPreviewModal").addEventListener("click", function ()
 
 .bt-summary-note {
   margin-top: 2px;
-}
-
-.bt-btn.warn {
-  border-color: #f59e0b;
-  color: #fbbf24;
-  background: rgba(245, 158, 11, 0.08);
-}
-.bt-btn.warn:hover {
-  background: rgba(245, 158, 11, 0.15);
 }
 
 /* ===== ปรับสัดส่วนบนมือถือสำหรับหน้า Bonustime ===== */
@@ -2269,6 +2441,55 @@ document.getElementById("imgPreviewModal").addEventListener("click", function ()
 /* ให้ cursor เป็น zoom-in ตอนยังไม่ได้ขยาย */
 .previewable {
   cursor: zoom-in;
+}
+
+.bonustime-card .bt-status-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bonustime-card .bt-status-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* base */
+.bt-countdown-pill {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+/* > 15 วัน → เขียว */
+.bt-countdown-pill--safe {
+  border: 1px solid #22c55e;
+  background: rgba(34, 197, 94, 0.22);
+  color: #bbf7d0;
+}
+
+/* < 15 วัน → เหลือง */
+.bt-countdown-pill--warn15 {
+  border: 1px solid #eab308;
+  background: rgba(234, 179, 8, 0.20);
+  color: #fef9c3;
+}
+
+/* < 7 วัน → ส้ม */
+.bt-countdown-pill--warn7 {
+  border: 1px solid #f97316;
+  background: rgba(249, 115, 22, 0.24);
+  color: #ffedd5;
+}
+
+/* < 3 วัน → แดง */
+.bt-countdown-pill--warn3 {
+  border: 1px solid #ef4444;
+  background: rgba(239, 68, 68, 0.26);
+  color: #fee2e2;
 }
 </style>
 

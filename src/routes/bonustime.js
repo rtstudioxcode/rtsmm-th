@@ -5,8 +5,6 @@ import { User } from "../models/User.js";
 import { BonustimeUser } from "../models/BonustimeUser.js";
 import { BonustimeOrder } from "../models/BonustimeOrder.js";
 import { recalcUserTotals } from "../services/spend.js";
-import { sendEmail } from "../lib/mailer.js";
-import { config } from "../config.js";
 import { checkAndSendBonustimeExpiryMails } from "../services/bonustimeExpiry.js";
 
 const router = Router();
@@ -287,6 +285,12 @@ router.post("/bonustime/order", async (req, res) => {
     record.LICENSE_START_DATE = thaiDateString(new Date());
     record.LICENSE_DURATION_DAYS = pack.days;
     record.LICENSE_DISABLED = false;
+
+    if (type === "lotto") {
+      record.note = "แพ็กเกจ 2 (สล็อต+บาคาร่า+หวย)";
+    } else {
+      record.note = "แพ็กเกจ 1 (สล็อต+บาคาร่า)";
+    }
 
     await record.save();
 

@@ -1,15 +1,15 @@
 <!-- 🟣 Tab-style header buttons -->
-<div class="card soft topup-tab-header">
-  <button class="block tab-switch-btn btn mt-lg primary" data-tab="tab-topup">
+<div class="tabs">
+  <button class="tab active" data-tab="tab-topup">
     การเติมเครดิต
   </button>
-  <button class="block tab-switch-btn btn mt-lg" data-tab="tab-history">
+  <button class="tab" data-tab="tab-history">
     ประวัติการเติมเงิน
   </button>
 </div>
 
 <!-- 🧩 Tab content wrapper -->
-<div id="tab-topup" class="tab-section active">
+<section id="tab-topup" class="tabpane show">
   <p class="muted">เลือกวิธีเติมเงิน และกรอกจำนวนที่ต้องการเติม</p>
 
   <section class="card soft">
@@ -236,8 +236,8 @@
 
     <div id="resp" class="mt"></div>
   </section>
-</div>
-<div id="tab-history" class="tab-section">
+</section>
+<section id="tab-history" class="tabpane">
   <p class="muted">รายการประวัติการเติมเงินของคุณจะปรากฏที่นี่</p>
 
   <div class="history-wrapper card soft">
@@ -372,7 +372,7 @@
       </div>
     <% } %>
   </div>
-</div>
+</section>
 
 <!-- topup Notice Modal -->
 <dialog id="topupNoticeModal" class="toast-modal" aria-labelledby="topupNoticeTitle" aria-describedby="topupNoticeText">
@@ -582,17 +582,23 @@
     });
 
   /* 🟡 Header tab switching (เติมเครดิต / ประวัติการเติมเงิน) */
-  document.querySelectorAll(".tab-switch-btn").forEach((btn) => {
+  document.querySelectorAll(".tabs .tab").forEach((btn) => {
     btn.addEventListener("click", () => {
+      // ปรับสถานะปุ่ม
       document
-        .querySelectorAll(".tab-switch-btn")
-        .forEach((b) => b.classList.remove("primary"));
+        .querySelectorAll(".tabs .tab")
+        .forEach((b) => b.classList.remove("active"));
+
+      // ซ่อนเนื้อหาเดิม
       document
-        .querySelectorAll(".tab-section")
-        .forEach((c) => c.classList.remove("active"));
-      btn.classList.add("primary");
+        .querySelectorAll(".tabpane")
+        .forEach((p) => p.classList.remove("show"));
+
+      // แท็บที่เลือก
+      btn.classList.add("active");
       const tabId = btn.dataset.tab;
-      document.getElementById(tabId)?.classList.add("active");
+      const pane = document.getElementById(tabId);
+      if (pane) pane.classList.add("show");
     });
   });
 
@@ -897,621 +903,621 @@
 </script>
 
 <style>
-  /* 🟡 Header tab switcher */
-  .topup-tab-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    background: #0e0e0e;
-    padding: 0.5rem 1rem;
-    border-radius: 1rem;
-    margin-bottom: 1.2rem;
-  }
+/* 🟡 Header tab switcher */
+.topup-tab-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #0e0e0e;
+  padding: 0.5rem 1rem;
+  border-radius: 1rem;
+  margin-bottom: 1.2rem;
+}
 
-  .tab-switch-btn {
-    flex: 1;
-    text-align: center;
-    font-weight: 400;
-    font-size: 0.95rem;
-    border: none;
-    border-radius: 0.75rem;
-    padding: 0.6rem 0.8rem;
-    cursor: pointer;
-    transition: all 0.25s ease;
-  }
+.tab-switch-btn {
+  flex: 1;
+  text-align: center;
+  font-weight: 400;
+  font-size: 0.95rem;
+  border: none;
+  border-radius: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
 
-  .tab-section {
-    display: none;
-  }
+.tab-section {
+  display: none;
+}
 
-  .tab-section.active {
-    display: block;
-  }
+.tab-section.active {
+  display: block;
+}
 
-  /* 🟢 Wallet tab bar */
-  .tab-bar {
-    display: flex;
-    gap: 0.5rem;
-    border-bottom: 1px solid var(--border-color, #333);
-    margin-bottom: 1rem;
-    overflow-x: auto;
-  }
+/* 🟢 Wallet tab bar */
+.tab-bar {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--border-color, #333);
+  margin-bottom: 1rem;
+  overflow-x: auto;
+}
 
-  .tab-btn {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 10px;
-    border: none;
-    background: transparent;
-    color: var(--text, #aaa);
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    transition: 0.2s;
-  }
+.tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text, #aaa);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: 0.2s;
+}
 
-  .tab-btn.active {
-    color: var(--accent, #3bd);
-    border-color: var(--accent, #3bd);
-  }
+.tab-btn.active {
+  color: var(--accent, #3bd);
+  border-color: var(--accent, #3bd);
+}
 
-  .tab-btn img {
-    width: 24px;
-    height: 24px;
-  }
+.tab-btn img {
+  width: 24px;
+  height: 24px;
+}
 
-  .tab-content {
-    display: none;
-  }
+.tab-content {
+  display: none;
+}
 
-  .tab-content.active {
-    display: block;
-  }
+.tab-content.active {
+  display: block;
+}
 
-  /* 💰 Amount form */
-  .method-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 1rem;
-  }
+/* 💰 Amount form */
+.method-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+}
 
-  .method-tile {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--border-color, #444);
-    border-radius: 1rem;
-    padding: 1rem;
-  }
+.method-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color, #444);
+  border-radius: 1rem;
+  padding: 1rem;
+}
 
-  .method-tile img {
-    width: 48px;
-    height: 48px;
-    object-fit: contain;
-    margin-bottom: 0.5rem;
-  }
+.method-tile img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  margin-bottom: 0.5rem;
+}
 
-  /* ให้กระดาน (list) เป็นคอลัมน์เดียวเสมอ */
-  .methods-grid, .method-list {
-    display: grid;
-    grid-template-columns: 1fr;
-  }
+/* ให้กระดาน (list) เป็นคอลัมน์เดียวเสมอ */
+.methods-grid, .method-list {
+  display: grid;
+  grid-template-columns: 1fr;
+}
 
-  /* ให้ tile กินเต็มแถวใน grid ใด ๆ */
-  .method-tile {
-    grid-column: 1 / -1;   /* full row */
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 16px 18px;
-    border: 1px solid var(--border, #2a2f36);
-    background: var(--card, #1c1f24);
-    border-radius: 14px;
-  }
+/* ให้ tile กินเต็มแถวใน grid ใด ๆ */
+.method-tile {
+  grid-column: 1 / -1;   /* full row */
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--border, #2a2f36);
+  background: var(--card, #1c1f24);
+  border-radius: 14px;
+}
 
-  /* โลโก้และข้อความ */
-  .method-tile img {
-    width: 44px;
-    height: 44px;
-    object-fit: contain;
-  }
-  .method-tile > div {
-    font-weight: 400;
-  }
-  .method-tile small {
-    display: block;
-    color: var(--muted, #a7b0bb);
-    margin-top: 2px;
-  }
+/* โลโก้และข้อความ */
+.method-tile img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+.method-tile > div {
+  font-weight: 400;
+}
+.method-tile small {
+  display: block;
+  color: var(--muted, #a7b0bb);
+  margin-top: 2px;
+}
 
-  /* เผื่ออยู่ใน layout ที่ไม่ใช่ grid */
-  .method-tile { max-width: 100%; }
+/* เผื่ออยู่ใน layout ที่ไม่ใช่ grid */
+.method-tile { max-width: 100%; }
 
-  /* 🧾 Steps */
-  .steps {
-    list-style: decimal inside;
-    padding-left: 1rem;
-    margin-top: 0.5rem;
-    margin-bottom: 0.5rem;
-    line-height: 1.7;
-  }
+/* 🧾 Steps */
+.steps {
+  list-style: decimal inside;
+  padding-left: 1rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.7;
+}
 
-  .steps li {
-    margin-bottom: 0.3rem;
-  }
+.steps li {
+  margin-bottom: 0.3rem;
+}
 
-  .steps b {
-    color: var(--accent, #3bd);
-  }
+.steps b {
+  color: var(--accent, #3bd);
+}
 
-  /* 🪟 Modal */
-  .modal.hidden {
-    display: none;
-  }
+/* 🪟 Modal */
+.modal.hidden {
+  display: none;
+}
 
-  .modal {
-    position: fixed;
-    inset: 0;
-    z-index: 60;
-  }
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+}
 
-  .modal .overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.55);
-  }
+.modal .overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+}
 
-  .modal .dialog {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+.modal .dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 420px;
+  width: calc(100% - 24px);
+  background: var(--card, #1c1f24);
+  border: 1px solid var(--border, #2a2f36);
+  border-radius: 14px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.4);
+  padding: 16px 18px 18px;
+  animation: modalFadeIn 0.25s ease-out;
+  z-index: 200;
+}
+
+.modal .hdr {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: center;
+}
+
+.modal .title {
+  font-weight: 400;
+  font-size: 16px;
+  text-align: center;
+  align-items: center;
+}
+
+.modal .icon.close {
+  border: 0;
+  background: transparent;
+  font-size: 22px;
+  color: var(--text, #fff);
+  cursor: pointer;
+}
+
+.modal .sep {
+  border: 0;
+  border-top: 1px solid var(--border, #2a2f36);
+  margin: 12px 0;
+}
+
+.modal .body {
+  font-size: 14px;
+  line-height: 1.6;
+  max-height: 60vh;
+  overflow: auto;
+}
+
+/* --- Table Layout for Transaction History --- */
+.history-wrapper {
+  margin-top: 1.5rem;
+  border-radius: 1rem;
+  overflow: hidden;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  font-size: 0.95rem;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.history-table th,
+.history-table td {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #2a2a2a;
+  vertical-align: middle;
+}
+
+.history-table th {
+  font-weight: 400;
+  text-transform: none;
+  font-size: 0.95rem;
+}
+
+.history-table tr:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.history-table img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  vertical-align: middle;
+  margin-right: 8px;
+  border-radius: 4px;
+}
+
+.method {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 300;
+}
+
+.amount {
+  color: #ffe99b;
+  font-weight: 300;
+}
+
+.status {
+  text-align: center;
+  font-weight: 300;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+}
+
+.status.completed {
+  color: #6aff6a;
+}
+
+.status.pending {
+  color: #ffcc00;
+}
+
+.status.failed {
+  color: #ff6767;
+}
+
+.status.cancelled {
+  color: #aaa;
+}
+
+.empty-history {
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.empty-history img {
+  width: 120px;
+  opacity: 0.6;
+  margin-bottom: 0.75rem;
+}
+
+#topupNoticeModal .toast-body ul { margin-left: 1rem; }
+
+/* ===== QR Modal Polished ===== */
+.qr-dialog{
+  /* กว้างพอดีทุกจอ: clamp(min, preferred, max) */
+  width: clamp(320px, 92vw, 440px);
+  border-radius: 16px;
+  padding: 16px 18px 18px;
+  background: var(--card, #1c1f24);
+  border: 1px solid var(--border, #2a2f36);
+  box-shadow: 0 20px 60px rgba(0,0,0,.45);
+}
+
+
+.qr-frame{
+  display: inline-block;
+  background: #fff;                 /* พื้นขาวให้ตัดกับ QR */
+  border-radius: 14px;              /* โค้งมนกรอบ */
+  padding: 10px;
+  box-shadow: 0 10px 28px rgba(0,0,0,.25);
+  align-items: center;
+}
+
+.qr-frame img{
+  display: block;
+  width: min(320px, 72vw);          /* ยืดหยุ่นตามจอ */
+  height: auto;
+  border-radius: 10px;              /* โค้งมนตัวรูปด้วย */
+  align-items: center;
+}
+
+/* ข้อความใต้ QR จัดกลาง ระยะห่างกำลังดี */
+.qr-meta{
+  margin-top: 14px;
+  text-align: center;
+  line-height: 1.7;
+  font-size: 14px;
+}
+
+/* ปุ่มยืนยัน: กึ่งกลาง + กว้างกำลังดี */
+.qr-dialog .footer{
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
+.qr-confirm{
+  width: min(280px, 80%);
+}
+
+/* Mobile tuning */
+@media (max-width: 480px){
+  .qr-dialog{ width: 92vw; }
+  .qr-frame img{ width: min(280px, 80vw); }
+  .qr-confirm{ width: 88%; }
+}
+
+.qr-dialog{ animation: popIn .18s ease-out; }
+@keyframes popIn{
+  from{ transform: translate(-50%, -50%) scale(.96); opacity: .0; }
+  to  { transform: translate(-50%, -50%) scale(1);    opacity: 1; }
+}
+
+/* ===== QR Modal Centering & Responsive ===== */
+#qrModal .body{
+  display: flex;
+  flex-direction: column;
+  align-items: center;        /* จัดกึ่งกลางแนวนอน */
+  gap: 14px;
+  text-align: center;
+}
+
+.qr-img-wrap{
+  display: flex;
+  justify-content: center;    /* จัดรูปกลางใน wrap อีกชั้น */
+  width: 100%;
+}
+
+.qr-img{
+  display: block;
+  width: min(320px, 80vw);
+  height: auto;
+  border-radius: 20px;
+  background: var(--qr-bg, #0f1116);
+  padding: 8px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.35);
+}
+
+html[data-theme="dark"]  { --qr-bg: color-mix(in srgb, var(--card, #0d2153) 85%, rgb(255, 254, 254) 15%); }
+html[data-theme="light"] { --qr-bg: color-mix(in srgb, var(--card, #e7864d) 85%, #fc7100 15%); }
+
+.qr-meta{
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+@media (max-width: 768px){
+  #qrModal .dialog{
+    width: 92vw;              /* ไม่เต็มจอเกินไป */
     max-width: 420px;
-    width: calc(100% - 24px);
-    background: var(--card, #1c1f24);
-    border: 1px solid var(--border, #2a2f36);
-    border-radius: 14px;
-    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.4);
-    padding: 16px 18px 18px;
-    animation: modalFadeIn 0.25s ease-out;
-    z-index: 200;
   }
+  .qr-img{ width: min(300px, 78vw); }
+}
 
-  .modal .hdr {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    text-align: center;
-  }
+/* ===== History table base ===== */
+.history-wrapper .title{ margin-bottom:12px; }
 
-  .modal .title {
-    font-weight: 400;
-    font-size: 16px;
-    text-align: center;
-    align-items: center;
-  }
+.history-table{
+  width:100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow:hidden;
+  border-radius: 14px;
+  background: var(--elevated-bg,#141518);
+  border:1px solid var(--elevated-border,#24262b);
+  box-shadow: 0 10px 24px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.04);
+}
 
-  .modal .icon.close {
-    border: 0;
-    background: transparent;
-    font-size: 22px;
-    color: var(--text, #fff);
-    cursor: pointer;
-  }
+.history-table thead th{
+  text-align:left;
+  font-weight:400;
+  padding:14px 16px;
+  border-bottom:1px solid var(--elevated-border,#24262b);
+  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(0,0,0,.12));
+}
+.history-table .right{ text-align:right; }
 
-  .modal .sep {
-    border: 0;
-    border-top: 1px solid var(--border, #2a2f36);
-    margin: 12px 0;
-  }
+.history-table tbody td{
+  padding:14px 16px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  vertical-align: middle;
+}
+.history-table tbody tr:last-child td{ border-bottom:0; }
 
-  .modal .body {
-    font-size: 14px;
-    line-height: 1.6;
-    max-height: 60vh;
-    overflow: auto;
-  }
+.history-table tbody tr:hover{
+  background: rgba(255,255,255,.03);
+}
 
-  /* --- Table Layout for Transaction History --- */
-  .history-wrapper {
-    margin-top: 1.5rem;
-    border-radius: 1rem;
-    overflow: hidden;
-  }
+/* Method column */
+.history-table .method{
+  display:flex; align-items:center; gap:10px;
+}
+.history-table .method-ico{
+  border-radius:8px; box-shadow: 0 2px 6px rgba(0,0,0,.25);
+  width:22px; height:22px; object-fit:contain;
+}
 
-  .history-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 1rem;
-    font-size: 0.95rem;
-    border-radius: 0.75rem;
-    overflow: hidden;
-  }
+/* Amount */
+.history-table .amount .money{
+  font-weight:300;
+  letter-spacing:.2px;
+}
 
-  .history-table th,
-  .history-table td {
-    text-align: left;
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid #2a2a2a;
-    vertical-align: middle;
-  }
+/* ===== Status pill (fixed color scheme; ไม่อิงธีม) ===== */
+.pill{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:8px 12px; border-radius:999px;
+  line-height:1; font-weight:300;
+  letter-spacing:.2px;
+  color:#f5f7fa;
+  border:1px solid rgba(255,255,255,.10);
+  box-shadow:
+    inset 1px 1px 2px rgba(255,255,255,0.12),
+    inset -2px -2px 4px rgba(0,0,0,0.42),
+    0 4px 12px rgba(0,0,0,.28);
+  background: #30343a; /* default dark */
+}
+.pill.sm{ padding:6px 10px; font-size:.95rem; }
+.pill .st-ico{
+  width:16px; height:16px; border-radius:50%;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.25);
+  background: center/contain no-repeat;
+  flex:0 0 16px;
+}
 
-  .history-table th {
-    font-weight: 400;
-    text-transform: none;
-    font-size: 0.95rem;
-  }
+/* completed (เขียวเข้มเมทัล) */
+.pill.st-completed{
+  background: linear-gradient(145deg,#0b3d2e,#144f3d);
+  border-color: rgba(255,255,255,.08);
+}
+.pill.st-completed .st-ico{ background-image:url("/static/assets/status/completed.png"); }
 
-  .history-table tr:hover {
-    background: rgba(255, 255, 255, 0.05);
-  }
+/* pending (เทาเข้มเมทัล) — สีคงที่ */
+.pill.st-pending{
+  background: linear-gradient(145deg,#2e3136,#383c42);
+  border-color: rgba(255,255,255,.10);
+  color:#e8ebef;
+}
+.pill.st-pending .st-ico{ background-image:url("/static/assets/status/processing.png"); }
 
-  .history-table img {
-    width: 26px;
-    height: 26px;
-    object-fit: contain;
-    vertical-align: middle;
-    margin-right: 8px;
-    border-radius: 4px;
-  }
+/* failed (แดงเข้ม) */
+.pill.st-failed{
+  background: linear-gradient(145deg,#6f1f1f,#4d0f10);
+  border-color: rgba(255,255,255,.08);
+}
+.pill.st-failed .st-ico{ background-image:url("/static/assets/status/failed.png"); }
 
-  .method {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 300;
-  }
+/* canceled (แดงเลือดหมูเมทัล; ขอบกลืนกล่อง) */
+.pill.st-canceled{
+  background: linear-gradient(145deg,#6a1b1b,#3b0e0f);
+  border-color: rgba(255,255,255,.06);
+  box-shadow:
+    inset 1px 1px 2px rgba(255,255,255,0.10),
+    inset -2px -2px 4px rgba(0,0,0,0.50),
+    0 4px 14px rgba(84,12,12,.35);
+}
+.pill.st-canceled .st-ico{ background-image:url("/static/assets/status/canceled.png"); }
 
-  .amount {
-    color: #ffe99b;
-    font-weight: 300;
-  }
-
-  .status {
-    text-align: center;
-    font-weight: 300;
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.5rem;
-  }
-
-  .status.completed {
-    color: #6aff6a;
-  }
-
-  .status.pending {
-    color: #ffcc00;
-  }
-
-  .status.failed {
-    color: #ff6767;
-  }
-
-  .status.cancelled {
-    color: #aaa;
-  }
-
-  .empty-history {
-    text-align: center;
-    padding: 2rem 1rem;
-  }
-
-  .empty-history img {
-    width: 120px;
-    opacity: 0.6;
-    margin-bottom: 0.75rem;
-  }
-
-  #topupNoticeModal .toast-body ul { margin-left: 1rem; }
-
-  /* ===== QR Modal Polished ===== */
-  .qr-dialog{
-    /* กว้างพอดีทุกจอ: clamp(min, preferred, max) */
-    width: clamp(320px, 92vw, 440px);
-    border-radius: 16px;
-    padding: 16px 18px 18px;
-    background: var(--card, #1c1f24);
-    border: 1px solid var(--border, #2a2f36);
-    box-shadow: 0 20px 60px rgba(0,0,0,.45);
-  }
-
-
-  .qr-frame{
-    display: inline-block;
-    background: #fff;                 /* พื้นขาวให้ตัดกับ QR */
-    border-radius: 14px;              /* โค้งมนกรอบ */
-    padding: 10px;
-    box-shadow: 0 10px 28px rgba(0,0,0,.25);
-    align-items: center;
-  }
-
-  .qr-frame img{
-    display: block;
-    width: min(320px, 72vw);          /* ยืดหยุ่นตามจอ */
-    height: auto;
-    border-radius: 10px;              /* โค้งมนตัวรูปด้วย */
-    align-items: center;
-  }
-
-  /* ข้อความใต้ QR จัดกลาง ระยะห่างกำลังดี */
-  .qr-meta{
-    margin-top: 14px;
-    text-align: center;
-    line-height: 1.7;
-    font-size: 14px;
-  }
-
-  /* ปุ่มยืนยัน: กึ่งกลาง + กว้างกำลังดี */
-  .qr-dialog .footer{
-    display: flex;
-    justify-content: center;
-    margin-top: 10px;
-  }
-  .qr-confirm{
-    width: min(280px, 80%);
-  }
-
-  /* Mobile tuning */
-  @media (max-width: 480px){
-    .qr-dialog{ width: 92vw; }
-    .qr-frame img{ width: min(280px, 80vw); }
-    .qr-confirm{ width: 88%; }
-  }
-
-  .qr-dialog{ animation: popIn .18s ease-out; }
-  @keyframes popIn{
-    from{ transform: translate(-50%, -50%) scale(.96); opacity: .0; }
-    to  { transform: translate(-50%, -50%) scale(1);    opacity: 1; }
-  }
-
-  /* ===== QR Modal Centering & Responsive ===== */
-  #qrModal .body{
-    display: flex;
-    flex-direction: column;
-    align-items: center;        /* จัดกึ่งกลางแนวนอน */
-    gap: 14px;
-    text-align: center;
-  }
-
-  .qr-img-wrap{
-    display: flex;
-    justify-content: center;    /* จัดรูปกลางใน wrap อีกชั้น */
-    width: 100%;
-  }
-
-  .qr-img{
-    display: block;
-    width: min(320px, 80vw);
-    height: auto;
-    border-radius: 20px;
-    background: var(--qr-bg, #0f1116);
-    padding: 8px;
-    box-shadow: 0 6px 24px rgba(0,0,0,.35);
-  }
-
-  html[data-theme="dark"]  { --qr-bg: color-mix(in srgb, var(--card, #0d2153) 85%, rgb(255, 254, 254) 15%); }
-  html[data-theme="light"] { --qr-bg: color-mix(in srgb, var(--card, #e7864d) 85%, #fc7100 15%); }
-
-  .qr-meta{
-    font-size: 14px;
-    line-height: 1.6;
-  }
-
-  @media (max-width: 768px){
-    #qrModal .dialog{
-      width: 92vw;              /* ไม่เต็มจอเกินไป */
-      max-width: 420px;
-    }
-    .qr-img{ width: min(300px, 78vw); }
-  }
-
-  /* ===== History table base ===== */
-  .history-wrapper .title{ margin-bottom:12px; }
-
-  .history-table{
-    width:100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    overflow:hidden;
-    border-radius: 14px;
-    background: var(--elevated-bg,#141518);
+/* ===== Mobile: แปลงเป็น “การ์ด” อัตโนมัติ ===== */
+@media (max-width:640px){
+  .history-table thead{ display:none; }
+  .history-table, .history-table tbody, .history-table tr, .history-table td{ display:block; width:100%; }
+  .history-table tbody tr{
     border:1px solid var(--elevated-border,#24262b);
-    box-shadow: 0 10px 24px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.04);
-  }
-
-  .history-table thead th{
-    text-align:left;
-    font-weight:400;
-    padding:14px 16px;
-    border-bottom:1px solid var(--elevated-border,#24262b);
-    background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(0,0,0,.12));
-  }
-  .history-table .right{ text-align:right; }
-
-  .history-table tbody td{
-    padding:14px 16px;
-    border-bottom:1px solid rgba(255,255,255,.06);
-    vertical-align: middle;
-  }
-  .history-table tbody tr:last-child td{ border-bottom:0; }
-
-  .history-table tbody tr:hover{
-    background: rgba(255,255,255,.03);
-  }
-
-  /* Method column */
-  .history-table .method{
-    display:flex; align-items:center; gap:10px;
-  }
-  .history-table .method-ico{
-    border-radius:8px; box-shadow: 0 2px 6px rgba(0,0,0,.25);
-    width:22px; height:22px; object-fit:contain;
-  }
-
-  /* Amount */
-  .history-table .amount .money{
-    font-weight:300;
-    letter-spacing:.2px;
-  }
-
-  /* ===== Status pill (fixed color scheme; ไม่อิงธีม) ===== */
-  .pill{
-    display:inline-flex; align-items:center; gap:8px;
-    padding:8px 12px; border-radius:999px;
-    line-height:1; font-weight:300;
-    letter-spacing:.2px;
-    color:#f5f7fa;
-    border:1px solid rgba(255,255,255,.10);
-    box-shadow:
-      inset 1px 1px 2px rgba(255,255,255,0.12),
-      inset -2px -2px 4px rgba(0,0,0,0.42),
-      0 4px 12px rgba(0,0,0,.28);
-    background: #30343a; /* default dark */
-  }
-  .pill.sm{ padding:6px 10px; font-size:.95rem; }
-  .pill .st-ico{
-    width:16px; height:16px; border-radius:50%;
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,.25);
-    background: center/contain no-repeat;
-    flex:0 0 16px;
-  }
-
-  /* completed (เขียวเข้มเมทัล) */
-  .pill.st-completed{
-    background: linear-gradient(145deg,#0b3d2e,#144f3d);
-    border-color: rgba(255,255,255,.08);
-  }
-  .pill.st-completed .st-ico{ background-image:url("/static/assets/status/completed.png"); }
-
-  /* pending (เทาเข้มเมทัล) — สีคงที่ */
-  .pill.st-pending{
-    background: linear-gradient(145deg,#2e3136,#383c42);
-    border-color: rgba(255,255,255,.10);
-    color:#e8ebef;
-  }
-  .pill.st-pending .st-ico{ background-image:url("/static/assets/status/processing.png"); }
-
-  /* failed (แดงเข้ม) */
-  .pill.st-failed{
-    background: linear-gradient(145deg,#6f1f1f,#4d0f10);
-    border-color: rgba(255,255,255,.08);
-  }
-  .pill.st-failed .st-ico{ background-image:url("/static/assets/status/failed.png"); }
-
-  /* canceled (แดงเลือดหมูเมทัล; ขอบกลืนกล่อง) */
-  .pill.st-canceled{
-    background: linear-gradient(145deg,#6a1b1b,#3b0e0f);
-    border-color: rgba(255,255,255,.06);
-    box-shadow:
-      inset 1px 1px 2px rgba(255,255,255,0.10),
-      inset -2px -2px 4px rgba(0,0,0,0.50),
-      0 4px 14px rgba(84,12,12,.35);
-  }
-  .pill.st-canceled .st-ico{ background-image:url("/static/assets/status/canceled.png"); }
-
-  /* ===== Mobile: แปลงเป็น “การ์ด” อัตโนมัติ ===== */
-  @media (max-width:640px){
-    .history-table thead{ display:none; }
-    .history-table, .history-table tbody, .history-table tr, .history-table td{ display:block; width:100%; }
-    .history-table tbody tr{
-      border:1px solid var(--elevated-border,#24262b);
-      border-radius:12px;
-      margin:10px 0;
-      padding:10px 12px;
-      background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(0,0,0,.14));
-      box-shadow: 0 8px 20px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.03);
-    }
-    .history-table tbody td{
-      border:0; padding:8px 2px;
-      display:flex; align-items:center; justify-content:space-between; gap:10px;
-    }
-    .history-table .cell-label{
-      display:inline-block; font-size:12px; color:var(--text-muted,#a7b0bb);
-    }
-    .history-table .right{ text-align:left; }
-    .history-table .method{ gap:8px; }
-  }
-  /* ซ่อนไว้/แสดงตามอุปกรณ์ */
-  .d-desktop{ display: table; }
-  .d-mobile{ display: none; }
-
-  @media (max-width:640px){
-    .d-desktop{ display: none !important; }
-    .d-mobile{ display: block !important; }
-  }
-
-  /* การ์ดมือถือ */
-  .hx-card{
-    border:1px solid var(--elevated-border,#24262b);
+    border-radius:12px;
+    margin:10px 0;
+    padding:10px 12px;
     background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(0,0,0,.14));
-    border-radius:14px;
-    margin:12px 0;
-    box-shadow: 0 10px 24px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.03);
-    overflow:hidden;
+    box-shadow: 0 8px 20px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.03);
   }
-  .hx-head{
-    display:flex; align-items:center; justify-content:space-between;
-    padding:12px 14px;
-    list-style:none; cursor:pointer;
+  .history-table tbody td{
+    border:0; padding:8px 2px;
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
   }
-  .hx-head::-webkit-details-marker{ display:none; }
-  .hx-toggle{
-    border:0; background:transparent; color:var(--text-muted,#a7b0bb);
-    font-size:18px; line-height:1; padding:2px 6px; border-radius:8px;
+  .history-table .cell-label{
+    display:inline-block; font-size:12px; color:var(--text-muted,#a7b0bb);
   }
-  .hx-card[open] .hx-toggle{ content:"−"; }
-  .hx-card .hx-toggle::before{ content:"＋"; display:inline-block; }
-  .hx-card[open] .hx-toggle::before{ content:"−"; }
+  .history-table .right{ text-align:left; }
+  .history-table .method{ gap:8px; }
+}
+/* ซ่อนไว้/แสดงตามอุปกรณ์ */
+.d-desktop{ display: table; }
+.d-mobile{ display: none; }
 
-  .hx-body{
-    padding:12px 14px 14px;
-    border-top:1px dashed rgba(255,255,255,.08);
-    animation: hxFade .18s ease-out;
+@media (max-width:640px){
+  .d-desktop{ display: none !important; }
+  .d-mobile{ display: block !important; }
+}
+
+/* การ์ดมือถือ */
+.hx-card{
+  border:1px solid var(--elevated-border,#24262b);
+  background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(0,0,0,.14));
+  border-radius:14px;
+  margin:12px 0;
+  box-shadow: 0 10px 24px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.03);
+  overflow:hidden;
+}
+.hx-head{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 14px;
+  list-style:none; cursor:pointer;
+}
+.hx-head::-webkit-details-marker{ display:none; }
+.hx-toggle{
+  border:0; background:transparent; color:var(--text-muted,#a7b0bb);
+  font-size:18px; line-height:1; padding:2px 6px; border-radius:8px;
+}
+.hx-card[open] .hx-toggle{ content:"−"; }
+.hx-card .hx-toggle::before{ content:"＋"; display:inline-block; }
+.hx-card[open] .hx-toggle::before{ content:"−"; }
+
+.hx-body{
+  padding:12px 14px 14px;
+  border-top:1px dashed rgba(255,255,255,.08);
+  animation: hxFade .18s ease-out;
+}
+@keyframes hxFade { from{opacity:.4; transform: translateY(-2px);} to{opacity:1; transform:none;} }
+
+.hx-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:7px 0; }
+.hx-label{ color:var(--text-muted,#a7b0bb); }
+.hx-val.money{ font-weight:300; letter-spacing:.2px; }
+.hx-val .method{ display:flex; align-items:center; gap:8px; }
+
+/* ===== Mobile compact width (leave small side gutters) ===== */
+@media (max-width: 640px) {
+  :root { --gutter: 15px; }            /* ระยะเว้นขอบซ้าย-ขวา */
+
+  /* ปิดกฎ full-bleed เก่าด้วยความเฉพาะเจาะจง + !important */
+  #tab-history .history-wrapper,
+  #tab-history .history-table,
+  #tab-history .history-list {
+    width: calc(95vw - (var(--gutter) * 2)) !important; /* ขนาดตามภาพ */
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding-left: var(--gutter);
+    padding-right: var(--gutter);
+    border-radius: 16px;
   }
-  @keyframes hxFade { from{opacity:.4; transform: translateY(-2px);} to{opacity:1; transform:none;} }
 
-  .hx-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:7px 0; }
-  .hx-label{ color:var(--text-muted,#a7b0bb); }
-  .hx-val.money{ font-weight:300; letter-spacing:.2px; }
-  .hx-val .method{ display:flex; align-items:center; gap:8px; }
-  
-  /* ===== Mobile compact width (leave small side gutters) ===== */
-  @media (max-width: 640px) {
-    :root { --gutter: 15px; }            /* ระยะเว้นขอบซ้าย-ขวา */
-
-    /* ปิดกฎ full-bleed เก่าด้วยความเฉพาะเจาะจง + !important */
-    #tab-history .history-wrapper,
-    #tab-history .history-table,
-    #tab-history .history-list {
-      width: calc(95vw - (var(--gutter) * 2)) !important; /* ขนาดตามภาพ */
-      margin-left: auto !important;
-      margin-right: auto !important;
-      padding-left: var(--gutter);
-      padding-right: var(--gutter);
-      border-radius: 16px;
-    }
-
-    /* การ์ดในประวัติ (details/summary) */
-    #tab-history .history-list .hx-card {
-      width: 95%;                        /* เท่ากับกล่องแม่ด้านบน */
-      margin: 10px 0;
-      border-radius: 16px;
-    }
-    #tab-history .hx-head {
-      display: flex; align-items: center; gap: 10px;
-    }
-    #tab-history .hx-date { flex: 1; min-width: 0; }
-    #tab-history .hx-toggle { flex: 0 0 auto; }
-
-    /* ปุ่ม/อินพุตให้ยืดตามความกว้างกล่อง */
-    #tab-topup .btn,
-    #tab-topup .input,
-    #tab-topup input[type="text"],
-    #tab-topup input[type="number"] {
-      width: 95%;
-    }
+  /* การ์ดในประวัติ (details/summary) */
+  #tab-history .history-list .hx-card {
+    width: 95%;                        /* เท่ากับกล่องแม่ด้านบน */
+    margin: 10px 0;
+    border-radius: 16px;
   }
+  #tab-history .hx-head {
+    display: flex; align-items: center; gap: 10px;
+  }
+  #tab-history .hx-date { flex: 1; min-width: 0; }
+  #tab-history .hx-toggle { flex: 0 0 auto; }
+
+  /* ปุ่ม/อินพุตให้ยืดตามความกว้างกล่อง */
+  #tab-topup .btn,
+  #tab-topup .input,
+  #tab-topup input[type="text"],
+  #tab-topup input[type="number"] {
+    width: 95%;
+  }
+}
 </style>

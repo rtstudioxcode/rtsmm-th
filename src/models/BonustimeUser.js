@@ -1,3 +1,4 @@
+// models/BonustimeUser.js
 import mongoose from "mongoose";
 import { getBonustimeDb } from "../db/mongoBonustime.js";
 
@@ -19,6 +20,7 @@ const BonustimeUserSchema = new mongoose.Schema(
     LICENSE_DISABLED: Boolean,
     LINK: String,
     expiryNotifySent: Date,
+    note: String,
   },
   { collection: "users" }
 );

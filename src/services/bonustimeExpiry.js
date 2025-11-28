@@ -82,7 +82,7 @@ export async function checkAndSendBonustimeExpiryMails(opts = {}) {
     // เงื่อนไขใหม่:
     //   เหลือ 1–3 วัน → เมลเตือนใกล้หมดอายุ
     //   เหลือ 0, -1, -2, -3 วัน → เมล "หมดอายุแล้ว"
-    if (remain === 3 || remain === 2 || remain === 1 || remain === 0 || remain === -1 || remain === 2 || remain === -3) {
+    if (remain === 3 || remain === 2 || remain === 1 || remain === 0 || remain === -1 || remain === -2 || remain === -3) {
         targets.push({ doc: d, remainDays: remain });
     }
   }
