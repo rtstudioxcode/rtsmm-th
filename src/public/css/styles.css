@@ -4393,3 +4393,115 @@ html[data-theme="dark"]{ --pv-bg: var(--page, #0b1620); --pv-border: var(--borde
   color: var(--text);
   font-weight: 500;
 }
+
+/* ===== Compact Order Modal ===== */
+
+/* ตัวกล่อง modal ให้สูงสุดแค่ 90% ของหน้าจอ แล้วให้เนื้อหาข้างในスク롤แทน */
+.omodal-dialog {
+  max-width: 720px;           /* ไม่ให้กว้างไป */
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* หัว + ท้าย ใช้ padding บางลง */
+.omodal-head,
+.omodal-foot {
+  padding: 10px 18px;
+}
+
+/* .om-cost {
+  color: #15ff00cb;
+  margin-top: 2px;
+  margin-left: -60px !important;
+} */
+
+/* เนื้อหาให้ scroll ได้ และลด padding ลง */
+.omodal-body {
+  padding: 12px 18px;
+  overflow-y: auto;
+  max-height: calc(90vh - 90px); /* เผื่อพื้นที่หัว+ท้าย */
+}
+
+/* แต่ละ section เตี้ยลง ไม่กินพื้นที่ */
+.omodal-sec {
+  margin: 0 0 10px;
+  padding: 8px 0 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.omodal-sec:last-of-type {
+  border-bottom: none;
+}
+
+/* หัวข้อ section เล็กลงนิดนึง */
+.omodal-sec h4 {
+  font-size: 14px;
+  margin: 0 0 6px;
+}
+
+/* จัด "ค่าใช้จ่าย ทั้งหมด" กับยอดเงินให้ชิดกันมากขึ้น */
+.omodal-sec:first-of-type .ometa {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;              /* อยากชิดกว่านี้ลดเลขได้ เช่น 4 */
+  flex-wrap: wrap;       /* กันข้อความล้นบนจอแคบ */
+}
+
+/* ยอดเงิน: ใช้ id ตาม HTML จริง (#om-cost) */
+.omodal-sec:first-of-type #om-cost {
+  color: #15ff00cb;
+  font-weight: 600;
+}
+
+/* Timeline ให้แน่นขึ้น */
+.otimeline {
+  padding: 6px 10px;
+}
+.ot-item {
+  margin: 3px 0;
+}
+.ot-item div {
+  font-size: 13px;
+}
+
+/* รายละเอียดคำสั่งซื้อ ย่อช่องว่างลง */
+.ometa {
+  row-gap: 4px;
+}
+.ometa .muted {
+  margin-top: 2px;
+  font-size: 13px;
+}
+
+/* แถบ progress ให้บางลง */
+.opbar {
+  height: 4px;
+}
+.o-left-summary {
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+/* กล่อง Comments: 1 comment ต่อ 1 บรรทัด + เลื่อนแนวตั้งได้ */
+.om-comments-scroll {
+  max-height: 120px;               /* ความสูงกล่องคอมเมนต์ */
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.08);
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  counter-reset: cm;
+}
+
+/* ฟอนต์รวมใน modal เล็กลงนิดหน่อย */
+#orderModal {
+  font-size: 13px;
+}
+#orderModal .mono {
+  font-size: 12px;
+}

@@ -68,548 +68,592 @@ function fmtTHDate(d){
   } catch { return '-'; }
 }
 %>
+<!-- ===== แท็บด้านบน ===== -->
+<div class="tabs">
+  <button type="button" class="tab" data-tab="order">
+    สั่งซื้อบริการ
+  </button>
+  <button type="button" class="tab active" data-tab="history">
+    ประวัติคำสั่งซื้อ
+  </button>
+</div>
 
-<section class="orders-history page-head">
-  <div class="page-title">
-    <h1>ประวัติการใช้บริการ Social</h1>
-    <small class="muted">หน้าหลัก → ประวัติการใช้บริการ Social</small>
-  </div>
-
-  <!-- <div class="right-actions">
-    <button id="btnSync" class="btn primary">
-      <span style="font-size:14px;">🔄</span> อัปเดตสถานะล่าสุด
-    </button>
-  </div> -->
+<!-- ===== TAB 1: สั่งซื้อบริการ (ของเดิมทั้งหมด) ===== -->
+<section id="tab-order" class="tabpane">
+  <!-- ไปที่หน้า /orders/new แทน  -->
 </section>
 
-<% if (typeof syncError === 'string' && syncError) { %>
-  <div class="orders-history alert error">⚠️ <%= syncError %></div>
-<% } else { %>
-  <div class="orders-history alert info">
-    ℹ️ ระบบจะอัปเดตสถานะอัตโนมัติทุก ~ 1 นาที 
-  </div>
-<% } %>
-
-<!-- แท็บตัวกรองสถานะ -->
-<div class="orders-history tabs" id="statusTabs">
-  <button class="tab active" data-st="all">ทั้งหมด</button>
-  <button class="tab" data-st="processing">รอดำเนินการ</button>
-  <button class="tab" data-st="inprogress">ดำเนินการ</button>
-  <button class="tab" data-st="completed">เสร็จสิ้น</button>
-  <button class="tab" data-st="partial">คืนบางส่วน</button>
-  <button class="tab" data-st="canceled">ยกเลิก</button>
-</div>
-<!-- ฟิลเตอร์ -->
-<form class="orders-history filters card" method="get">
-  <div class="row wrap">
-    <div class="inline">
-      <label class="muted">ช่วงเวลา</label>
-      <input class="input" type="date" name="from" value="<%= from || '' %>" />
-      <span class="muted">–</span>
-      <input class="input" type="date" name="to"   value="<%= to || '' %>" />
+<!-- ===== TAB 2: ประวัติคำสั่งซื้อ ===== -->
+<section id="tab-history" class="tabpane show">
+  <section class="orders-history page-head">
+    <div class="page-title">
+      <h1>ประวัติการใช้บริการ Social</h1>
+      <small class="muted">หน้าหลัก → ประวัติการใช้บริการ Social</small>
     </div>
 
-    <div class="inline">
-      <label class="muted">ค้นหาแบบละเอียด</label>
-      <div class="searchbox">
-        <span aria-hidden="true">🔎</span>
-        <input class="input" name="q" id="q" placeholder="ค้นหา ID/ลิงก์/บริการ…" value="<%= q||'' %>">
-        <button class="btn">ค้นหา</button>
+    <!-- <div class="right-actions">
+      <button id="btnSync" class="btn primary">
+        <span style="font-size:14px;">🔄</span> อัปเดตสถานะล่าสุด
+      </button>
+    </div> -->
+  </section>
+
+  <% if (typeof syncError === 'string' && syncError) { %>
+    <div class="orders-history alert error">⚠️ <%= syncError %></div>
+  <% } else { %>
+    <div class="orders-history alert info">
+      ℹ️ ระบบจะอัปเดตสถานะอัตโนมัติทุก ~ 1 นาที 
+    </div>
+  <% } %>
+
+  <!-- แท็บตัวกรองสถานะ -->
+  <div class="orders-history tabs" id="statusTabs">
+    <button class="tab active" data-st="all">ทั้งหมด</button>
+    <button class="tab" data-st="processing">รอดำเนินการ</button>
+    <button class="tab" data-st="inprogress">ดำเนินการ</button>
+    <button class="tab" data-st="completed">เสร็จสิ้น</button>
+    <button class="tab" data-st="partial">คืนบางส่วน</button>
+    <button class="tab" data-st="canceled">ยกเลิก</button>
+  </div>
+  <!-- ฟิลเตอร์ -->
+  <form class="orders-history filters card" method="get">
+    <div class="row wrap">
+      <div class="inline">
+        <label class="muted">ช่วงเวลา</label>
+        <input class="input" type="date" name="from" value="<%= from || '' %>" />
+        <span class="muted">–</span>
+        <input class="input" type="date" name="to"   value="<%= to || '' %>" />
+      </div>
+
+      <div class="inline">
+        <label class="muted">ค้นหาแบบละเอียด</label>
+        <div class="searchbox">
+          <span aria-hidden="true">🔎</span>
+          <input class="input" name="q" id="q" placeholder="ค้นหา ID/ลิงก์/บริการ…" value="<%= q||'' %>">
+          <button class="btn">ค้นหา</button>
+        </div>
+      </div>
+
+      <div class="inline grow">
+        <label class="muted">ค้นหาเร็ว</label>
+        <input class="input" id="quick" placeholder="พิมพ์เพื่อกรองทันที…">
       </div>
     </div>
+  </form>
 
-    <div class="inline grow">
-      <label class="muted">ค้นหาเร็ว</label>
-      <input class="input" id="quick" placeholder="พิมพ์เพื่อกรองทันที…">
-    </div>
-  </div>
-</form>
-
-<!-- ตารางออเดอร์ (เดสก์ท็อป) -->
-<div class="orders-history table-wrap card order-desktop">
-  <table class="table order-table" id="orderTable">
-    <thead>
-      <tr>
-        <th style="width:62px">ID</th>
-        <th style="width:170px">วันที่</th>
-        <th>บริการ / ลิงก์</th>
-        <th style="width:140px">ค่าใช้จ่าย</th>
-        <th style="width:110px">ปริมาณ</th>
-        <th style="width:160px">สถานะ</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% (list || []).forEach(o => { %>
-        <tr data-status="<%= (o.status||'').toLowerCase() %>" data-order-id="<%= o._id %>">
-          <td>
-            <a class="mono" href="/orders/<%= o._id %>" title="DB _id: <%= o._id %>">
-              <%= o.providerOrderId || '-' %>
-            </a>
-          </td>
-          <td class="mono"><%= fmtTH(o.createdAt) %></td>
-          <td>
-            <div class="svc">
-              <div class="svc-name">
-                <span class="badge soft">#<%= o.service?.providerServiceId || o.providerServiceId || '-' %></span>
-                <b><%= o.service?.name || o.serviceName || '-' %></b>
-                <% if (o.meta?.country) { %><span class="badge flag"><%= o.meta.country %></span><% } %>
-                <% if (o.meta?.speed)   { %><span class="badge blue"><%= o.meta.speed %></span><% } %>
-              </div>
-              <div class="link ellipsis">
-                <span class="muted" aria-hidden="true">🔗</span>
-                <a href="<%= o.link %>" target="_blank" rel="noopener"><%= o.link %></a>
-              </div>
-            </div>
-          </td>
-          <td class="mono">
-            <%
-              const costNum = Number(
-                o.estCost ?? o.cost ?? (((o.quantity||0)/1000) * (o.service?.rate||0))
-              );
-              const costText = Number.isFinite(costNum)
-                ? costNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                : '0.00';
-              const cur = o.currency || o.service?.currency || 'THB';
-            %>
-            <%= costText %> <%= cur %>
-          </td>
-          <td class="mono"><%= o.quantity %></td>
-          <td class="st-cell">
-            <% const dd = decideDisplaySSR(o); %>
-            <%
-              const canCancel  = !!(o.uiFlags && o.uiFlags.canCancel);
-              const isDone     = !!(o.uiFlags && o.uiFlags.isDone);
-              const canRepeat  = isDone && !!(o.service && o.service._id);
-              const stLower    = String(o.status||'').toLowerCase();
-            %>
-
-          <div class="st-block">
-            <!-- pill สถานะยาว -->
-            <div
-              class="pill long <%= dd.isDone
-                ? 'ok'
-                : (stLower==='canceled' ? 'danger'
-                  : (stLower==='canceling' ? 'warn'
-                    : (stLower==='partial' ? 'warn' : ''))) %>"
-              data-pct="<%= dd.donePct %>">
-
-              <i class="bar" style="width:<%= (stLower==='canceling')
-                ? '0'
-                : (dd.isDone ? '100' : dd.donePct) %>%"></i>
-
-              <span class="label">
-                <% const isPartialRefund =
-                    (stLower==='canceled' && Number(o.refundAmount||0)>0 && o.refundType==='partial'); %>
-                <% if (isPartialRefund) { %>
-                  <span class="badge warn" style="margin-right:8px">คืนบางส่วน</span>
-                <% } %>
-
-                <% if (stLower === 'canceling') { %>
-                  <!-- ⬅️ กำลังสั่งยกเลิก -->
-                  กำลังส่งยกเลิก…
-                <% } else if (dd.showPct) { %>
-                  ดำเนินการ ~ <span class="pct"><%= dd.donePct.toFixed(2) %>%</span>
-                <% } else { %>
-                  <%= dd.label %>
-                <% } %>
-              </span>
-            </div>
-
-            <!-- ปุ่มใต้สถานะ -->
-            <div class="st-actions under">
-              <% if (o.uiFlags?.canCancel) { %>
-                <button
-                  type="button"
-                  class="xbtn xbtn-sync btn-cancel"
-                  title="ยกเลิกออเดอร์นี้"
-                  onclick="startCancel('<%= o._id %>')">
-                  <img src="/static/assets/emoji/cancel.png" alt="" class="icon" />
-                </button>
-              <% } %>
-
-              <% if (!(dd.isDone || stLower === 'canceled' || stLower === 'partial' || stLower === 'canceling')) { %>
-                <button type="button" class="xbtn xbtn-sync btn-refresh" data-id="<%= o._id %>"
-                        title="อัปเดตสถานะออเดอร์" aria-label="อัปเดตสถานะออเดอร์">
-                  <img src="/static/assets/emoji/updatestatus.png" alt="" class="icon" />
-                </button>
-              <% } %>
-
-              <% const isPartialRefundCanceled = (stLower === 'canceled' && Number(o.refundAmount||0)>0 && o.refundType==='partial'); %>
-              <% const canRepeatStrict = ((stLower === 'completed') || (stLower === 'partial') || isPartialRefundCanceled) && !!(o.service && o.service._id); %>
-              <% if (canRepeatStrict) { %>
-                <button type="button" class="xbtn xbtn-primary btn-repeat" data-id="<%= o._id %>"
-                        title="สั่งซ้ำรายการนี้" aria-label="สั่งซ้ำรายการนี้">
-                  <img src="/static/assets/emoji/repeat.png" alt="" class="icon" />
-                </button>
-              <% } %>
-
-              <button type="button" class="xbtn xbtn-info open-order" data-id="<%= o._id %>"
-                      title="รายละเอียด" aria-label="รายละเอียด">
-                <img src="/static/assets/emoji/detail.png" alt="" class="icon" />
-              </button>
-            </div>
-          </div>
-        </td>
+  <!-- ตารางออเดอร์ (เดสก์ท็อป) -->
+  <div class="orders-history table-wrap card order-desktop">
+    <table class="table order-table" id="orderTable">
+      <thead>
+        <tr>
+          <th style="width:62px">ID</th>
+          <th style="width:170px">วันที่</th>
+          <th>บริการ / ลิงก์</th>
+          <th style="width:140px">ค่าใช้จ่าย</th>
+          <th style="width:110px">ปริมาณ</th>
+          <th style="width:160px">สถานะ</th>
         </tr>
-      <% }) %>
-    </tbody>
-  </table>
-  
-  <% if (!(list||[]).length) { %>
-    <div class="empty muted">ยังไม่มีออเดอร์ในช่วงนี้</div>
-  <% } %>
-</div>
+      </thead>
+      <tbody>
+        <% (list || []).forEach(o => { %>
+          <tr data-status="<%= (o.status||'').toLowerCase() %>" data-order-id="<%= o._id %>">
+            <td>
+              <a class="mono" href="/orders/<%= o._id %>" title="DB _id: <%= o._id %>">
+                <%= o.providerOrderId || '-' %>
+              </a>
+            </td>
+            <td class="mono"><%= fmtTH(o.createdAt) %></td>
+            <td>
+              <div class="svc">
+                <div class="svc-name">
+                  <span class="badge soft">#<%= o.service?.providerServiceId || o.providerServiceId || '-' %></span>
+                  <b><%= o.service?.name || o.serviceName || '-' %></b>
+                  <% if (o.meta?.country) { %><span class="badge flag"><%= o.meta.country %></span><% } %>
+                  <% if (o.meta?.speed)   { %><span class="badge blue"><%= o.meta.speed %></span><% } %>
+                </div>
+                <div class="link ellipsis">
+                  <span class="muted" aria-hidden="true">🔗</span>
+                  <a href="<%= o.link %>" target="_blank" rel="noopener"><%= o.link %></a>
+                </div>
+              </div>
+            </td>
+            <td class="mono">
+              <%
+                const costNum = Number(
+                  o.estCost ?? o.cost ?? (((o.quantity||0)/1000) * (o.service?.rate||0))
+                );
+                const costText = Number.isFinite(costNum)
+                  ? costNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                  : '0.00';
+                const cur = o.currency || o.service?.currency || 'THB';
+              %>
+              <%= costText %> <%= cur %>
+            </td>
+            <td class="mono"><%= o.quantity %></td>
+            <td class="st-cell">
+              <% const dd = decideDisplaySSR(o); %>
+              <%
+                const canCancel  = !!(o.uiFlags && o.uiFlags.canCancel);
+                const isDone     = !!(o.uiFlags && o.uiFlags.isDone);
+                const canRepeat  = isDone && !!(o.service && o.service._id);
+                const stLower    = String(o.status||'').toLowerCase();
+              %>
 
-<!-- การ์ดออเดอร์ (มือถือ) -->
-<div class="orders-history order-cards" id="orderCards">
-  <% (list || []).forEach(o => { 
-     const st = (o.status||'').toLowerCase();
-  %>
-    <article class="o-card" data-status="<%= st %>" data-order-id="<%= o._id %>">
-      <header class="o-head">
-        <div class="o-id mono">
-          <a href="/orders/<%= o._id %>" title="DB _id: <%= o._id %>">
-            <%= o.providerOrderId || '-' %>
-          </a>
-        </div>
-        <div class="o-date mono"><%= fmtTH(o.createdAt) %></div>
-        <button class="o-toggle" aria-label="toggle">＋</button>
-      </header>
-
-      <div class="o-body">
-        <div class="o-row">
-          <div class="o-label">บริการ / ลิงก์</div>
-          <div class="o-val">
-            <div class="svc-name">
-              <span class="badge soft">#<%= o.service?.providerServiceId || o.providerServiceId || '-' %></span>
-              <b><%= o.service?.name || o.serviceName || '-' %></b>
-              <% if (o.meta?.country) { %><span class="badge flag"><%= o.meta.country %></span><% } %>
-              <% if (o.meta?.speed)   { %><span class="badge blue"><%= o.meta.speed %></span><% } %>
-            </div>
-            <div class="link">
-              <span class="muted" aria-hidden="true">🔗</span>
-              <a href="<%= o.link %>" target="_blank" rel="noopener"><%= o.link %></a>
-            </div>
-          </div>
-        </div>
-
-        <div class="o-row">
-          <div class="o-label">ค่าใช้จ่าย</div>
-          <div class="o-val mono">
-            <%
-              const mCostNum = Number(
-                o.estCost ?? o.cost ?? (((o.quantity||0)/1000) * (o.service?.rate||0))
-              );
-              const mCostText = Number.isFinite(mCostNum)
-                ? mCostNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                : '0.00';
-              const mCur = o.currency || o.service?.currency || 'THB';
-            %>
-            <%= mCostText %> <%= mCur %>
-          </div>
-        </div>
-
-        <div class="o-row">
-          <div class="o-label">ปริมาณ</div>
-          <div class="o-val mono"><%= o.quantity %></div>
-        </div>
-
-        <div class="o-row">
-          <div class="o-label">สถานะ</div>
-          <div class="o-val">
-            <% const mdd = decideDisplaySSR(o); %>
-            <%
-              const canCancel = !!(o.uiFlags && o.uiFlags.canCancel);
-              const isDone    = !!(o.uiFlags && o.uiFlags.isDone);
-              const canRepeat = isDone && !!(o.service && o.service._id);
-            %>
-            <% const stLower = String(o.status||'').toLowerCase(); %>
-
-            <div class="st-stack">
-              <span
-                class="pill progress <%= mdd.isDone
+            <div class="st-block">
+              <!-- pill สถานะยาว -->
+              <div
+                class="pill long <%= dd.isDone
                   ? 'ok'
                   : (stLower==='canceled' ? 'danger'
                     : (stLower==='canceling' ? 'warn'
                       : (stLower==='partial' ? 'warn' : ''))) %>"
-                data-pct="<%= (stLower==='canceling') ? 0 : mdd.donePct %>">
+                data-pct="<%= dd.donePct %>">
 
-                <% const isPartialRefund = (
-                    stLower === 'canceled' &&
-                    Number(o.refundAmount || 0) > 0 &&
-                    o.refundType === 'partial'
-                  ); %>
+                <i class="bar" style="width:<%= (stLower==='canceling')
+                  ? '0'
+                  : (dd.isDone ? '100' : dd.donePct) %>%"></i>
 
-                <% if (isPartialRefund) { %>
-                  <span class="badge warn" style="margin-right:8px">คืนบางส่วน</span>
-                <% } %>
+                <span class="label">
+                  <% const isPartialRefund =
+                      (stLower==='canceled' && Number(o.refundAmount||0)>0 && o.refundType==='partial'); %>
+                  <% if (isPartialRefund) { %>
+                    <span class="badge warn" style="margin-right:8px">คืนบางส่วน</span>
+                  <% } %>
 
-                <% if (stLower === 'canceling') { %>
-                  กำลังส่งยกเลิก…
-                <% } else if (mdd.showPct) { %>
-                  ดำเนินการ ~ <span class="pct" data-pct="<%= mdd.donePct %>"><%= mdd.donePct.toFixed(2) %>%</span>
-                <% } else { %>
-                  <%= mdd.label %>
-                <% } %>
-              </span>
-              <div class="st-actions">
-                <!-- ยกเลิก: เฉพาะ "processing" -->
+                  <% if (stLower === 'canceling') { %>
+                    <!-- ⬅️ กำลังสั่งยกเลิก -->
+                    กำลังส่งยกเลิก…
+                  <% } else if (dd.showPct) { %>
+                    ดำเนินการ ~ <span class="pct"><%= dd.donePct.toFixed(2) %>%</span>
+                  <% } else { %>
+                    <%= dd.label %>
+                  <% } %>
+                </span>
+              </div>
+
+              <!-- ปุ่มใต้สถานะ -->
+              <div class="st-actions under">
                 <% if (o.uiFlags?.canCancel) { %>
                   <button
                     type="button"
                     class="xbtn xbtn-sync btn-cancel"
-                    style="width:100%;"
                     title="ยกเลิกออเดอร์นี้"
                     onclick="startCancel('<%= o._id %>')">
                     <img src="/static/assets/emoji/cancel.png" alt="" class="icon" />
                   </button>
                 <% } %>
 
-                <!-- รีเฟรช: ไม่แสดงเมื่อ completed หรือ canceled -->
-                <% if (!(mdd.isDone || stLower === 'canceled' || stLower === 'partial' || stLower === 'canceling')) { %>
-                  <button
-                    type="button"
-                    class="xbtn xbtn-sync btn-refresh"
-                    data-id="<%= o._id %>"
-                    title="อัปเดตสถานะออเดอร์"
-                    aria-label="อัปเดตสถานะออเดอร์">
+                <% if (!(dd.isDone || stLower === 'canceled' || stLower === 'partial' || stLower === 'canceling')) { %>
+                  <button type="button" class="xbtn xbtn-sync btn-refresh" data-id="<%= o._id %>"
+                          title="อัปเดตสถานะออเดอร์" aria-label="อัปเดตสถานะออเดอร์">
                     <img src="/static/assets/emoji/updatestatus.png" alt="" class="icon" />
                   </button>
                 <% } %>
 
-                <!-- สั่งซื้อใหม่: เฉพาะ "completed" -->
-                <% const isPartialRefundCanceled = (stLower === 'canceled' && Number(o.refundAmount||0) > 0 && o.refundType === 'partial'); %>
+                <% const isPartialRefundCanceled = (stLower === 'canceled' && Number(o.refundAmount||0)>0 && o.refundType==='partial'); %>
                 <% const canRepeatStrict = ((stLower === 'completed') || (stLower === 'partial') || isPartialRefundCanceled) && !!(o.service && o.service._id); %>
                 <% if (canRepeatStrict) { %>
-                  <button
-                    type="button"
-                    class="xbtn xbtn-primary btn-repeat"
-                    data-id="<%= o._id %>"
-                    title="สั่งซ้ำรายการนี้"
-                    aria-label="สั่งซ้ำรายการนี้">
+                  <button type="button" class="xbtn xbtn-primary btn-repeat" data-id="<%= o._id %>"
+                          title="สั่งซ้ำรายการนี้" aria-label="สั่งซ้ำรายการนี้">
                     <img src="/static/assets/emoji/repeat.png" alt="" class="icon" />
                   </button>
                 <% } %>
 
-                <button
-                  type="button"
-                  class="xbtn xbtn-info open-order"
-                  data-id="<%= o._id %>"
-                  title="รายละเอียด"
-                  aria-label="รายละเอียด">
+                <button type="button" class="xbtn xbtn-info open-order" data-id="<%= o._id %>"
+                        title="รายละเอียด" aria-label="รายละเอียด">
                   <img src="/static/assets/emoji/detail.png" alt="" class="icon" />
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </article>
-  <% }) %>
-
-  <% if (!(list||[]).length) { %>
-    <div class="empty muted">ยังไม่มีออเดอร์ในช่วงนี้</div>
-  <% } %>
-</div>
-
-<!-- ───── Page Controls (ใต้รายการ) ───── -->
-<%
-  const pageNum    = Number(typeof page    !== 'undefined' ? page    : 1)  || 1;
-  const perPageNum = Number(typeof perPage !== 'undefined' ? perPage : 20) || 20;
-  const totalCount = Number(typeof total   !== 'undefined' ? total   : 0)  || 0;
-
-  const pages   = Math.max(1, Math.ceil(totalCount / Math.max(1, perPageNum)));
-  const fromIdx = totalCount ? Math.min(totalCount, (pageNum - 1) * perPageNum + 1) : 0;
-  const toIdx   = totalCount ? Math.min(totalCount, pageNum * perPageNum) : 0;
-
-  const keep = {
-    from: (typeof from   !== 'undefined' ? from   : ''),
-    to:   (typeof to     !== 'undefined' ? to     : ''),
-    q:    (typeof q      !== 'undefined' ? q      : ''),
-    st:   (typeof status !== 'undefined' ? status : '')
-  };
-
-  function linkTo(p, pp) {
-    const sp = new URLSearchParams();
-    if (keep.from) sp.set('from', keep.from);
-    if (keep.to)   sp.set('to',   keep.to);
-    if (keep.q)    sp.set('q',    keep.q);
-    if (keep.st)   sp.set('status', keep.st);
-    sp.set('page', p);
-    sp.set('perPage', pp);
-    return '/my/orders?' + sp.toString();
-  }
-
-  const PERPAGE_OPTIONS = [10, 20, 50, 100, 250, 500, 1000];
-%>
-
-<div class="pager-wrap">
-  <div class="pager-left">
-    <label class="muted" style="margin-right:8px;">แสดง</label>
-    <div class="perpage">
-      <select id="ppSelect" class="pp-select">
-        <% PERPAGE_OPTIONS.forEach(n => { %>
-          <option value="<%= n %>" <%= perPageNum===n ? 'selected' : '' %>><%= n %></option>
+          </td>
+          </tr>
         <% }) %>
-        <option value="all" <%= (perPageNum>=totalCount && totalCount>0) ? 'selected' : '' %>>All records</option>
-      </select>
-    </div>
-    <span class="muted" style="margin-left:8px;">แถว</span>
+      </tbody>
+    </table>
+    
+    <% if (!(list||[]).length) { %>
+      <div class="empty muted">ยังไม่มีออเดอร์ในช่วงนี้</div>
+    <% } %>
   </div>
 
-  <div class="pager-center muted">
-    <% if (totalCount > 0) { %>
-      แสดง <%= fromIdx %> ถึง <%= toIdx %> จาก <%= totalCount %> แถว
-    <% } else { %>ไม่มีข้อมูล<% } %>
-  </div>
-
-  <nav class="pager-right" aria-label="pagination">
-    <a class="page-btn <%= pageNum<=1 ? 'disabled' : '' %>" href="<%= pageNum<=1 ? '#' : linkTo(pageNum-1, perPageNum) %>">ก่อนหน้า</a>
-
-    <%
-      const span = 2;
-      const start = Math.max(1, pageNum - span);
-      const end   = Math.min(pages, pageNum + span);
-      const showFirst = start > 1;
-      const showLast  = end < pages;
+  <!-- การ์ดออเดอร์ (มือถือ) -->
+  <div class="orders-history order-cards" id="orderCards">
+    <% (list || []).forEach(o => { 
+      const st = (o.status||'').toLowerCase();
     %>
+      <article class="o-card" data-status="<%= st %>" data-order-id="<%= o._id %>">
+        <header class="o-head">
+          <div class="o-id mono">
+            <a href="/orders/<%= o._id %>" title="DB _id: <%= o._id %>">
+              <%= o.providerOrderId || '-' %>
+            </a>
+          </div>
+          <div class="o-date mono"><%= fmtTH(o.createdAt) %></div>
+          <button class="o-toggle" aria-label="toggle">＋</button>
+        </header>
 
-    <% if (showFirst) { %>
-      <a class="page-btn" href="<%= linkTo(1, perPageNum) %>">1</a>
-      <% if (start > 2) { %><span class="page-ellipsis">…</span><% } %>
-    <% } %>
-
-    <% for (let p=start; p<=end; p++) { %>
-      <a class="page-btn <%= p===pageNum ? 'active' : '' %>" href="<%= linkTo(p, perPageNum) %>"><%= p %></a>
-    <% } %>
-
-    <% if (showLast) { %>
-      <% if (end < pages-1) { %><span class="page-ellipsis">…</span><% } %>
-      <a class="page-btn" href="<%= linkTo(pages, perPageNum) %>"><%= pages %></a>
-    <% } %>
-
-    <a class="page-btn <%= pageNum>=pages ? 'disabled' : '' %>" href="<%= pageNum>=pages ? '#' : linkTo(pageNum+1, perPageNum) %>">ถัดไป</a>
-  </nav>
-</div>
-
-<div id="page-bottom"></div>
-
-<!-- ===== Modal: รายละเอียดคำสั่งซื้อ ===== -->
-<div id="orderModal" class="omodal" role="dialog" aria-modal="true" aria-hidden="true">
-  <div class="omodal-backdrop" data-close="1"></div>
-
-  <div class="omodal-dialog">
-    <header class="omodal-head">
-      <div class="omodal-title">
-        คำสั่งซื้อ ID: <span id="om-title" style="color: #e3b863;">#</span>
-      </div>
-      <button class="omodal-close" title="ปิด" data-close="1">×</button>
-    </header>
-
-    <div class="omodal-body">
-      <!-- ค่าใช้จ่าย -->
-      <section class="omodal-sec">
-        <h4>รายละเอียดค่าใช้จ่าย</h4>
-        <div class="ometa">
-          <div class="muted">ค่าใช้จ่าย ทั้งหมด</div>
-          <div id="om-cost" class="om-cost">-</div>
-
-          <div class="muted" id="om-refund-label" style="margin-top:8px; display:none;">ยอดคืนเงิน</div>
-          <div id="om-refund" style="display:none;">-</div>
-        </div>
-      </section>
-
-      <!-- ไทม์ไลน์คำสั่งซื้อ -->
-      <section class="omodal-sec">
-        <h4>ไทม์ไลน์คำสั่งซื้อ</h4>
-        <div class="otimeline">
-          <!-- จุดสุดท้าย (สถานะล่าสุด) -->
-          <label class="ot-item ot-item--final">
-            <input type="radio" name="otime" id="om-final-radio" checked>
-            <div>
-              <span id="om-final-label">สถานะล่าสุด</span>
-              <div class="ottime" id="om-final-time">-</div>
+        <div class="o-body">
+          <div class="o-row">
+            <div class="o-label">บริการ / ลิงก์</div>
+            <div class="o-val">
+              <div class="svc-name">
+                <span class="badge soft">#<%= o.service?.providerServiceId || o.providerServiceId || '-' %></span>
+                <b><%= o.service?.name || o.serviceName || '-' %></b>
+                <% if (o.meta?.country) { %><span class="badge flag"><%= o.meta.country %></span><% } %>
+                <% if (o.meta?.speed)   { %><span class="badge blue"><%= o.meta.speed %></span><% } %>
+              </div>
+              <div class="link">
+                <span class="muted" aria-hidden="true">🔗</span>
+                <a href="<%= o.link %>" target="_blank" rel="noopener"><%= o.link %></a>
+              </div>
             </div>
-          </label>
-
-          <!-- เวลาที่เซิร์ฟเวอร์อัปเดต -->
-          <label class="ot-item">
-            <input type="radio" name="otime" disabled>
-            <div>
-              เซิร์ฟเวอร์อัปเดต
-              <div class="ottime" id="om-updatedAt">-</div>
-            </div>
-          </label>
-
-          <!-- เวลาที่คำสั่งซื้อเข้ามา -->
-          <label class="ot-item">
-            <input type="radio" name="otime" disabled>
-            <div>
-              คำสั่งซื้อเข้ามา
-              <div class="ottime" id="om-createdAt">-</div>
-            </div>
-          </label>
-        </div>
-      </section>
-
-            <!-- รายละเอียดคำสั่งซื้อ -->
-      <section class="omodal-sec">
-        <h4>รายละเอียดคำสั่งซื้อ</h4>
-        <div class="ometa">
-          <!-- ลิงก์ -->
-          <div class="muted">ลิงก์</div>
-          <div class="olink">
-            <a id="om-link" style="color: rgb(41, 149, 238);" href="#" target="_blank" rel="noopener">-</a>
           </div>
 
-          <!-- ปริมาณ -->
-          <div class="muted">ปริมาณ</div>
-          <div id="om-qty" class="mono">-</div>
+          <div class="o-row">
+            <div class="o-label">ค่าใช้จ่าย</div>
+            <div class="o-val mono">
+              <%
+                const mCostNum = Number(
+                  o.estCost ?? o.cost ?? (((o.quantity||0)/1000) * (o.service?.rate||0))
+                );
+                const mCostText = Number.isFinite(mCostNum)
+                  ? mCostNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                  : '0.00';
+                const mCur = o.currency || o.service?.currency || 'THB';
+              %>
+              <%= mCostText %> <%= mCur %>
+            </div>
+          </div>
 
-          <!-- เริ่ม -->
-          <div class="muted">เริ่ม</div>
-          <div id="om-start" class="mono">-</div>
+          <div class="o-row">
+            <div class="o-label">ปริมาณ</div>
+            <div class="o-val mono"><%= o.quantity %></div>
+          </div>
 
-          <!-- current ซ่อนไว้ (เผื่ออนาคตใช้) -->
-          <div class="muted" hidden>นับปัจจุบัน (current)</div>
-          <div id="om-current" class="mono" hidden>-</div>
+          <div class="o-row">
+            <div class="o-label">สถานะ</div>
+            <div class="o-val">
+              <% const mdd = decideDisplaySSR(o); %>
+              <%
+                const canCancel = !!(o.uiFlags && o.uiFlags.canCancel);
+                const isDone    = !!(o.uiFlags && o.uiFlags.isDone);
+                const canRepeat = isDone && !!(o.service && o.service._id);
+              %>
+              <% const stLower = String(o.status||'').toLowerCase(); %>
 
-          <!-- ปริมาณที่เหลือ + แถบความคืบหน้า แบบในรูป -->
-          <div class="muted">ปริมาณที่เหลือ</div>
-          <div class="om-left-wrap">
-            <div class="oprog">
-              <div class="oprog-head">
-                <span class="mono left-label">
-                  <span id="om-left-abs-head">0</span> รอดำเนิน
+              <div class="st-stack">
+                <span
+                  class="pill progress <%= mdd.isDone
+                    ? 'ok'
+                    : (stLower==='canceled' ? 'danger'
+                      : (stLower==='canceling' ? 'warn'
+                        : (stLower==='partial' ? 'warn' : ''))) %>"
+                  data-pct="<%= (stLower==='canceling') ? 0 : mdd.donePct %>">
+
+                  <% const isPartialRefund = (
+                      stLower === 'canceled' &&
+                      Number(o.refundAmount || 0) > 0 &&
+                      o.refundType === 'partial'
+                    ); %>
+
+                  <% if (isPartialRefund) { %>
+                    <span class="badge warn" style="margin-right:8px">คืนบางส่วน</span>
+                  <% } %>
+
+                  <% if (stLower === 'canceling') { %>
+                    กำลังส่งยกเลิก…
+                  <% } else if (mdd.showPct) { %>
+                    ดำเนินการ ~ <span class="pct" data-pct="<%= mdd.donePct %>"><%= mdd.donePct.toFixed(2) %>%</span>
+                  <% } else { %>
+                    <%= mdd.label %>
+                  <% } %>
                 </span>
-                <span class="mono right-label" id="om-left-pct">0.00%</span>
+                <div class="st-actions">
+                  <!-- ยกเลิก: เฉพาะ "processing" -->
+                  <% if (o.uiFlags?.canCancel) { %>
+                    <button
+                      type="button"
+                      class="xbtn xbtn-sync btn-cancel"
+                      style="width:100%;"
+                      title="ยกเลิกออเดอร์นี้"
+                      onclick="startCancel('<%= o._id %>')">
+                      <img src="/static/assets/emoji/cancel.png" alt="" class="icon" />
+                    </button>
+                  <% } %>
+
+                  <!-- รีเฟรช: ไม่แสดงเมื่อ completed หรือ canceled -->
+                  <% if (!(mdd.isDone || stLower === 'canceled' || stLower === 'partial' || stLower === 'canceling')) { %>
+                    <button
+                      type="button"
+                      class="xbtn xbtn-sync btn-refresh"
+                      data-id="<%= o._id %>"
+                      title="อัปเดตสถานะออเดอร์"
+                      aria-label="อัปเดตสถานะออเดอร์">
+                      <img src="/static/assets/emoji/updatestatus.png" alt="" class="icon" />
+                    </button>
+                  <% } %>
+
+                  <!-- สั่งซื้อใหม่: เฉพาะ "completed" -->
+                  <% const isPartialRefundCanceled = (stLower === 'canceled' && Number(o.refundAmount||0) > 0 && o.refundType === 'partial'); %>
+                  <% const canRepeatStrict = ((stLower === 'completed') || (stLower === 'partial') || isPartialRefundCanceled) && !!(o.service && o.service._id); %>
+                  <% if (canRepeatStrict) { %>
+                    <button
+                      type="button"
+                      class="xbtn xbtn-primary btn-repeat"
+                      data-id="<%= o._id %>"
+                      title="สั่งซ้ำรายการนี้"
+                      aria-label="สั่งซ้ำรายการนี้">
+                      <img src="/static/assets/emoji/repeat.png" alt="" class="icon" />
+                    </button>
+                  <% } %>
+
+                  <button
+                    type="button"
+                    class="xbtn xbtn-info open-order"
+                    data-id="<%= o._id %>"
+                    title="รายละเอียด"
+                    aria-label="รายละเอียด">
+                    <img src="/static/assets/emoji/detail.png" alt="" class="icon" />
+                  </button>
+                </div>
               </div>
-              <div class="opbar">
-                <i id="om-bar" style="width:0%"></i>
-              </div>
-            </div>
-            <div class="mono muted o-left-summary">
-              เหลือ <span id="om-left-abs">0</span> จากทั้งหมด <span id="om-qty-abs">0</span>
             </div>
           </div>
         </div>
-      </section>
+      </article>
+    <% }) %>
 
-      <!-- คอมเมนต์จากผู้ให้บริการ -->
-      <section class="omodal-sec" id="om-comments-sec" style="display:none;">
-        <h4>Comments <small class="muted" style="font-weight:400;">(1 บรรทัดต่อ 1 Comment)</small></h4>
-        <div class="ometa mono small om-comments-scroll" id="om-comments-body">
-          <!-- จะถูกเติมด้วย JS -->
-        </div>
-      </section>
+    <% if (!(list||[]).length) { %>
+      <div class="empty muted">ยังไม่มีออเดอร์ในช่วงนี้</div>
+    <% } %>
+  </div>
+
+  <!-- ───── Page Controls (ใต้รายการ) ───── -->
+  <%
+    const pageNum    = Number(typeof page    !== 'undefined' ? page    : 1)  || 1;
+    const perPageNum = Number(typeof perPage !== 'undefined' ? perPage : 20) || 20;
+    const totalCount = Number(typeof total   !== 'undefined' ? total   : 0)  || 0;
+
+    const pages   = Math.max(1, Math.ceil(totalCount / Math.max(1, perPageNum)));
+    const fromIdx = totalCount ? Math.min(totalCount, (pageNum - 1) * perPageNum + 1) : 0;
+    const toIdx   = totalCount ? Math.min(totalCount, pageNum * perPageNum) : 0;
+
+    const keep = {
+      from: (typeof from   !== 'undefined' ? from   : ''),
+      to:   (typeof to     !== 'undefined' ? to     : ''),
+      q:    (typeof q      !== 'undefined' ? q      : ''),
+      st:   (typeof status !== 'undefined' ? status : '')
+    };
+
+    function linkTo(p, pp) {
+      const sp = new URLSearchParams();
+      if (keep.from) sp.set('from', keep.from);
+      if (keep.to)   sp.set('to',   keep.to);
+      if (keep.q)    sp.set('q',    keep.q);
+      if (keep.st)   sp.set('status', keep.st);
+      sp.set('page', p);
+      sp.set('perPage', pp);
+      return '/my/orders?' + sp.toString();
+    }
+
+    const PERPAGE_OPTIONS = [10, 20, 50, 100, 250, 500, 1000];
+  %>
+
+  <div class="pager-wrap">
+    <div class="pager-left">
+      <label class="muted" style="margin-right:8px;">แสดง</label>
+      <div class="perpage">
+        <select id="ppSelect" class="pp-select">
+          <% PERPAGE_OPTIONS.forEach(n => { %>
+            <option value="<%= n %>" <%= perPageNum===n ? 'selected' : '' %>><%= n %></option>
+          <% }) %>
+          <option value="all" <%= (perPageNum>=totalCount && totalCount>0) ? 'selected' : '' %>>All records</option>
+        </select>
+      </div>
+      <span class="muted" style="margin-left:8px;">แถว</span>
     </div>
 
-    <footer class="omodal-foot">
-      <button class="btn-ghost" data-close="1">ปิด</button>
-      <button id="om-refresh" class="btn-ghost">รีเฟรชสถานะ</button>
-    </footer>
+    <div class="pager-center muted">
+      <% if (totalCount > 0) { %>
+        แสดง <%= fromIdx %> ถึง <%= toIdx %> จาก <%= totalCount %> แถว
+      <% } else { %>ไม่มีข้อมูล<% } %>
+    </div>
+
+    <nav class="pager-right" aria-label="pagination">
+      <a class="page-btn <%= pageNum<=1 ? 'disabled' : '' %>" href="<%= pageNum<=1 ? '#' : linkTo(pageNum-1, perPageNum) %>">ก่อนหน้า</a>
+
+      <%
+        const span = 2;
+        const start = Math.max(1, pageNum - span);
+        const end   = Math.min(pages, pageNum + span);
+        const showFirst = start > 1;
+        const showLast  = end < pages;
+      %>
+
+      <% if (showFirst) { %>
+        <a class="page-btn" href="<%= linkTo(1, perPageNum) %>">1</a>
+        <% if (start > 2) { %><span class="page-ellipsis">…</span><% } %>
+      <% } %>
+
+      <% for (let p=start; p<=end; p++) { %>
+        <a class="page-btn <%= p===pageNum ? 'active' : '' %>" href="<%= linkTo(p, perPageNum) %>"><%= p %></a>
+      <% } %>
+
+      <% if (showLast) { %>
+        <% if (end < pages-1) { %><span class="page-ellipsis">…</span><% } %>
+        <a class="page-btn" href="<%= linkTo(pages, perPageNum) %>"><%= pages %></a>
+      <% } %>
+
+      <a class="page-btn <%= pageNum>=pages ? 'disabled' : '' %>" href="<%= pageNum>=pages ? '#' : linkTo(pageNum+1, perPageNum) %>">ถัดไป</a>
+    </nav>
   </div>
-</div>
+
+  <div id="page-bottom"></div>
+
+  <!-- ===== Modal: รายละเอียดคำสั่งซื้อ ===== -->
+  <div id="orderModal" class="omodal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="omodal-backdrop" data-close="1"></div>
+
+    <div class="omodal-dialog">
+      <header class="omodal-head">
+        <div class="omodal-title">
+          คำสั่งซื้อ ID: <span id="om-title" style="color: #e3b863;">#</span>
+        </div>
+        <button class="omodal-close" title="ปิด" data-close="1">×</button>
+      </header>
+
+      <div class="omodal-body">
+        <!-- ค่าใช้จ่าย -->
+        <section class="omodal-sec">
+          <h4>รายละเอียดค่าใช้จ่าย</h4>
+          <div class="ometa">
+            <div class="muted">ค่าใช้จ่าย ทั้งหมด</div>
+            <div id="om-cost" class="om-cost">-</div>
+
+            <div class="muted" id="om-refund-label" style="margin-top:8px; display:none;">ยอดคืนเงิน</div>
+            <div id="om-refund" style="display:none;">-</div>
+          </div>
+        </section>
+
+        <!-- ไทม์ไลน์คำสั่งซื้อ -->
+        <section class="omodal-sec">
+          <h4>ไทม์ไลน์คำสั่งซื้อ</h4>
+          <div class="otimeline">
+            <!-- จุดสุดท้าย (สถานะล่าสุด) -->
+            <label class="ot-item ot-item--final">
+              <input type="radio" name="otime" id="om-final-radio" checked>
+              <div>
+                <span id="om-final-label">สถานะล่าสุด</span>
+                <div class="ottime" id="om-final-time">-</div>
+              </div>
+            </label>
+
+            <!-- เวลาที่เซิร์ฟเวอร์อัปเดต -->
+            <label class="ot-item">
+              <input type="radio" name="otime" disabled>
+              <div>
+                เซิร์ฟเวอร์อัปเดต
+                <div class="ottime" id="om-updatedAt">-</div>
+              </div>
+            </label>
+
+            <!-- เวลาที่คำสั่งซื้อเข้ามา -->
+            <label class="ot-item">
+              <input type="radio" name="otime" disabled>
+              <div>
+                คำสั่งซื้อเข้ามา
+                <div class="ottime" id="om-createdAt">-</div>
+              </div>
+            </label>
+          </div>
+        </section>
+
+              <!-- รายละเอียดคำสั่งซื้อ -->
+        <section class="omodal-sec">
+          <h4>รายละเอียดคำสั่งซื้อ</h4>
+          <div class="ometa">
+            <!-- ลิงก์ -->
+            <div class="muted">ลิงก์</div>
+            <div class="olink">
+              <a id="om-link" style="color: rgb(41, 149, 238);" href="#" target="_blank" rel="noopener">-</a>
+            </div>
+
+            <!-- ปริมาณ -->
+            <div class="muted">ปริมาณ</div>
+            <div id="om-qty" class="mono">-</div>
+
+            <!-- เริ่ม -->
+            <div class="muted">เริ่ม</div>
+            <div id="om-start" class="mono">-</div>
+
+            <!-- current ซ่อนไว้ (เผื่ออนาคตใช้) -->
+            <div class="muted" hidden>นับปัจจุบัน (current)</div>
+            <div id="om-current" class="mono" hidden>-</div>
+
+            <!-- ปริมาณที่เหลือ + แถบความคืบหน้า แบบในรูป -->
+            <div class="muted">ปริมาณที่เหลือ</div>
+            <div class="om-left-wrap">
+              <div class="oprog">
+                <div class="oprog-head">
+                  <span class="mono left-label">
+                    <span id="om-left-abs-head">0</span> รอดำเนิน
+                  </span>
+                  <span class="mono right-label" id="om-left-pct">0.00%</span>
+                </div>
+                <div class="opbar">
+                  <i id="om-bar" style="width:0%"></i>
+                </div>
+              </div>
+              <div class="mono muted o-left-summary">
+                เหลือ <span id="om-left-abs">0</span> จากทั้งหมด <span id="om-qty-abs">0</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- คอมเมนต์จากผู้ให้บริการ -->
+        <section class="omodal-sec" id="om-comments-sec" style="display:none;">
+          <h4>Comments <small class="muted" style="font-weight:400;">(1 บรรทัดต่อ 1 Comment)</small></h4>
+          <div class="ometa mono small om-comments-scroll" id="om-comments-body">
+            <!-- จะถูกเติมด้วย JS -->
+          </div>
+        </section>
+      </div>
+
+      <footer class="omodal-foot">
+        <button class="btn-ghost" data-close="1">ปิด</button>
+        <button id="om-refresh" class="btn-ghost">รีเฟรชสถานะ</button>
+      </footer>
+    </div>
+  </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const tabs   = document.querySelectorAll('.tabs .tab');
+  const panes  = document.querySelectorAll('.tabpane');
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.tab; // "order" หรือ "history"
+
+      // ✅ ถ้าเป็นแท็บประวัติ ให้ redirect ไป /my/orders ทันที
+      if (target === 'order') {
+        window.location.href = '/orders/new';
+        return;
+      }
+
+      // แท็บอื่น ๆ ใช้วิธีเดิม: สลับ active + show pane
+      tabs.forEach(t => t.classList.remove('active'));
+      panes.forEach(p => p.classList.remove('show'));
+
+      tab.classList.add('active');
+      const pane = document.getElementById('tab-' + target);
+      if (pane) pane.classList.add('show');
+    });
+  });
+});
+</script>
 
 <script>
 // === ไอคอนสถานะ (GLOBAL) ===
@@ -1761,311 +1805,3 @@ async function startCancel(orderId) {
   });
 })();
 </script>
-
-<style>
-/* ===== Tabs: แบบเส้นใต้ยาวทั้งแถว ===== */
-.tabs{
-  display:flex;
-  justify-content:space-between;
-  align-items:flex-end;
-  gap:0;
-  margin:0 0 12px;
-  border-bottom:1px solid #2b2b2f;  /* เส้นเทาเข้มยาวทั้งแถว */
-  position:relative;
-}
-
-.tab{
-  flex:1 1 0;
-  background:transparent;
-  border:0;
-  border-radius:0;
-  padding:8px 0 10px;
-  text-align:center;
-  cursor:pointer;
-
-  font-size:13px;
-  font-weight:500;
-  letter-spacing:.3px;
-  color:#e3b863;                 /* สีทองกลาง ๆ เหมือนเมนู */
-  position:relative;
-  transition:color .15s ease;
-}
-
-/* เส้นทองใต้แท็บที่ active */
-.tab::after{
-  content:"";
-  position:absolute;
-  left:0;
-  right:0;
-  bottom:-1px;
-  height:2px;
-  background:transparent;
-  transition:background-color .18s ease, transform .18s ease;
-  transform-origin:left;
-  transform:scaleX(0);
-}
-
-/* hover แค่เน้นตัวหนังสือ */
-.tab:hover{
-  color:#ffd47a;
-}
-
-/* แท็บที่เลือกอยู่ */
-.tab.active{
-  color:#ffd47a;
-}
-
-.tab.active::after{
-  background:#e3b863;
-  transform:scaleX(1);          /* เส้นทองเต็มความกว้าง */
-}
-
-/* ซ่อน/โชว์เนื้อหาแท็บเหมือนเดิม */
-.tabpane{ display:none; }
-.tabpane.show{ display:block; }
-
-/* แถบแท็บบนประวัติคำสั่งซื้อ */
-.orders-history.tabs {
-  display: flex;
-  justify-content: space-between;   /* กระจายเต็มความกว้างแบบรูป */
-  align-items: flex-end;
-  gap: 12px;
-  padding: 0 16px;
-  border-bottom: 1px solid var(--line);
-  position: relative;
-  margin-bottom: 8px;
-}
-
-/* แท็บแต่ละอัน */
-.orders-history .tab {
-  position: relative;
-  background: transparent;
-  border: 0;
-  border-radius: 999px;
-  padding: 8px 22px 12px;
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 400;
-  cursor: pointer;
-  transition: color .15s ease, transform .12s ease;
-}
-
-/* hover นิด ๆ */
-.orders-history .tab:hover {
-  color: #f5d37a;
-  transform: translateY(-1px);
-}
-
-/* แท็บ active */
-.orders-history .tab.active {
-  color: #f5d37a; /* เหลืองแบบรูป */
-}
-
-/* เส้นใต้แท็บ active */
-.orders-history .tab::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -1px;
-  height: 3px;
-  border-radius: 999px;
-  background: transparent;
-  transform-origin: center;
-  transform: scaleX(0);
-  transition: transform .18s ease-out, background-color .18s ease-out;
-}
-
-/* เวลา active ให้โชว์เส้น */
-.orders-history .tab.active::after {
-  background: #f5d37a;
-  transform: scaleX(1);
-}
-
-/* มือถือให้ชิดซ้าย/เลื่อนข้างได้ */
-@media (max-width: 768px) {
-  .orders-history.tabs {
-    justify-content: space-between;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    /* gap: 6px; */
-  }
-
-  .orders-history.tabs .tab {
-    flex: 0 0 auto;          /* ไม่ให้ยืดจนต้องตัดคำ */
-    white-space: nowrap;     /* ห้ามขึ้นบรรทัดใหม่ในปุ่ม */
-    padding: 6px 10px 10px;  /* ลด padding หน่อยให้เนื้อที่พอ */
-  }
-
-  .orders-history.tabs .tab-label {
-    font-size: 11px;         /* ย่อฟอนต์ลงนิดนึง */
-  }
-}
-/* กลุ่มแท็บสถานะ */
-.orders-history.tabs {
-  display: flex;
-  justify-content: space-between;
-  gap: 32px;
-}
-
-/* ปุ่มแท็บ */
-.orders-history.tabs .tab {
-  position: relative;
-  border: none;
-  background: transparent;
-  color: var(--muted);
-  padding: 18px 0 12px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-}
-
-/* ข้อความ */
-.orders-history.tabs .tab-label {
-  font-size: 13px;
-}
-
-/* icon (แก้ไม่ให้ลอย) */
-.orders-history.tabs .tab-ico {
-  width: 28px;
-  height: 28px;
-  background-image: var(--tab-ico);
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: contain;
-}
-
-/* เส้นขีดด้านล่างแท็บที่ active */
-.orders-history.tabs .tab::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 3px;
-  border-radius: 999px;
-  background: transparent;
-}
-
-.orders-history.tabs .tab.active {
-  color: var(--accent);
-}
-
-.orders-history.tabs .tab.active::after {
-  background: var(--accent);
-}
-
-/* ===== Compact Order Modal ===== */
-
-/* ตัวกล่อง modal ให้สูงสุดแค่ 90% ของหน้าจอ แล้วให้เนื้อหาข้างในスク롤แทน */
-.omodal-dialog {
-  max-width: 720px;           /* ไม่ให้กว้างไป */
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-}
-
-/* หัว + ท้าย ใช้ padding บางลง */
-.omodal-head,
-.omodal-foot {
-  padding: 10px 18px;
-}
-
-/* .om-cost {
-  color: #15ff00cb;
-  margin-top: 2px;
-  margin-left: -60px !important;
-} */
-
-/* เนื้อหาให้ scroll ได้ และลด padding ลง */
-.omodal-body {
-  padding: 12px 18px;
-  overflow-y: auto;
-  max-height: calc(90vh - 90px); /* เผื่อพื้นที่หัว+ท้าย */
-}
-
-/* แต่ละ section เตี้ยลง ไม่กินพื้นที่ */
-.omodal-sec {
-  margin: 0 0 10px;
-  padding: 8px 0 10px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-.omodal-sec:last-of-type {
-  border-bottom: none;
-}
-
-/* หัวข้อ section เล็กลงนิดนึง */
-.omodal-sec h4 {
-  font-size: 14px;
-  margin: 0 0 6px;
-}
-
-/* จัด "ค่าใช้จ่าย ทั้งหมด" กับยอดเงินให้ชิดกันมากขึ้น */
-.omodal-sec:first-of-type .ometa {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;              /* อยากชิดกว่านี้ลดเลขได้ เช่น 4 */
-  flex-wrap: wrap;       /* กันข้อความล้นบนจอแคบ */
-}
-
-/* ยอดเงิน: ใช้ id ตาม HTML จริง (#om-cost) */
-.omodal-sec:first-of-type #om-cost {
-  color: #15ff00cb;
-  font-weight: 600;
-}
-
-/* Timeline ให้แน่นขึ้น */
-.otimeline {
-  padding: 6px 10px;
-}
-.ot-item {
-  margin: 3px 0;
-}
-.ot-item div {
-  font-size: 13px;
-}
-
-/* รายละเอียดคำสั่งซื้อ ย่อช่องว่างลง */
-.ometa {
-  row-gap: 4px;
-}
-.ometa .muted {
-  margin-top: 2px;
-  font-size: 13px;
-}
-
-/* แถบ progress ให้บางลง */
-.opbar {
-  height: 4px;
-}
-.o-left-summary {
-  margin-top: 2px;
-  font-size: 12px;
-}
-
-/* กล่อง Comments: 1 comment ต่อ 1 บรรทัด + เลื่อนแนวตั้งได้ */
-.om-comments-scroll {
-  max-height: 120px;               /* ความสูงกล่องคอมเมนต์ */
-  padding: 6px 10px;
-  border-radius: 6px;
-  background: rgba(0,0,0,0.35);
-  border: 1px solid rgba(255,255,255,0.08);
-  overflow-y: auto;
-  font-size: 13px;
-  line-height: 1.5;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  counter-reset: cm;
-}
-
-/* ฟอนต์รวมใน modal เล็กลงนิดหน่อย */
-#orderModal {
-  font-size: 13px;
-}
-#orderModal .mono {
-  font-size: 12px;
-}
-</style>

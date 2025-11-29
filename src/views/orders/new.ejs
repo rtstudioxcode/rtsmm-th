@@ -1,185 +1,203 @@
-<!-- เลือกแพลตฟอร์ม -->
-<section class="card">
-  <h3 class="title">แพลตฟอร์ม</h3>
-  <div id="platformGrid" class="grid"></div>
-</section>
+<!-- ===== แท็บด้านบน ===== -->
+<div class="tabs">
+  <button type="button" class="tab active" data-tab="order">
+    สั่งซื้อบริการ
+  </button>
+  <button type="button" class="tab" data-tab="history">
+    ประวัติคำสั่งซื้อ
+  </button>
+</div>
 
-<section class="card soft">
-  <div class="row">
-    <input id="searchAll" class="input" placeholder="ค้นหาได้ทั้ง ID / ชื่อบริการ">
-    <!-- ใช้ id="chipBar" เพื่อจับคลิกแบบ delegation -->
-    <div id="chipBar" class="chips">
-      <button type="button" class="chip active" data-sub="">ทั้งหมด</button>
-    </div>
-  </div>
-</section>
-
-<!-- ตัวเลือกหมวดหมู่ (กลุ่มบริการ) + บริการย่อย -->
-<section class="card">
-  <div class="sel-grid">
-    <!-- กลุ่มบริการ -->
-    <div class="sel">
-      <label>หมวดหมู่</label>
-      <div class="select" id="groupSel">
-        <button class="select-btn" id="groupBtn" aria-haspopup="listbox" aria-expanded="false">
-          <span id="groupText">—</span><span class="chev">▾</span>
-        </button>
-        <div class="select-menu" role="listbox">
-          <div class="select-search">
-            <input id="groupSearch" placeholder="ค้นหากลุ่มบริการ…">
-          </div>
-          <div id="groupList" class="list"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- บริการย่อย -->
-    <div class="sel">
-      <label>บริการ</label>
-      <div class="select wide" id="childSel">
-        <button class="select-btn" id="childBtn" aria-haspopup="listbox" aria-expanded="false">
-          <span id="childText">—</span><span class="chev">▾</span>
-        </button>
-        <div class="select-menu" role="listbox">
-          <div class="select-search">
-            <input id="childSearch" placeholder="พิมพ์หา ID หรือชื่อบริการ…">
-          </div>
-          <div id="childList" class="list svc"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ===== กล่อง 2 คอลัมน์: ฟอร์มซ้าย + อิโมจิขวา ===== -->
-<section class="detail-grid">
-  <!-- ซ้าย: รายละเอียด + ฟอร์มสั่งซื้อ (ของเดิม) -->
-  <section class="card" id="detailBox" style="display:none">
-    <div id="hdr" class="hdr"></div>
-    <div id="meta" class="meta"></div>
-
-    <details class="mt" open>
-      <summary>รายละเอียดบริการ</summary>
-      <div id="desc" class="desc mt">—</div>
-    </details>
-
-    <form id="orderForm" class="form" onsubmit="return submitOrder(event)">
-      <input type="hidden" id="groupId" name="groupId">
-      <input type="hidden" id="providerServiceId" name="providerServiceId">
-
-      <label>ลิงก์/เป้าหมาย
-        <input id="link" name="link" required placeholder="https://…">
-      </label>
-
-      <!-- ==== ช่องคอมเมนต์สำหรับบริการที่ต้องใช้ Comments ==== -->
-      <div id="commentBox" class="form-group" style="display:none;">
-        <label class="form-label">คอมเมนต์ (1 บรรทัด = 1 คอมเมนต์)</label>
-        <textarea id="comments" name="comments" class="textarea"
-          placeholder="พิมพ์คอมเมนต์ที่ต้องการ..."></textarea>
-        <small class="muted">* บริการประเภทกำหนดคอมเมนต์เองจำเป็นต้องกรอก</small>
-      </div>
-
-      <!-- ==== ช่อง Keyword สำหรับ SEO ==== -->
-      <div id="keywordBox" class="form-group" style="display:none;">
-        <label class="form-label">Keyword</label>
-        <input type="text" id="keywords" name="keywords" class="input"
-          placeholder="เช่น best product, buy now ...">
-        <small class="muted">* บริการ SEO ต้องกรอก Keyword</small>
-      </div>
-
-      <div class="row2">
-        <label class="with-hint">ปริมาณ
-          <input id="qty" name="quantity" type="number" required>
-          <div id="qtyHint" class="hintline">
-            <span class="min">ขั้นต่ำ: <b id="minVal">—</b></span>
-            <span class="dot">•</span>
-            <span class="max">สูงสุด: <b id="maxVal">—</b></span>
-          </div>
-        </label>
-
-        <label>ค่าใช้จ่ายโดยประมาณ
-          <div class="input-group">
-            <span class="input-prefix">฿</span>
-            <input id="est" class="input right" type="text" readonly value="0">
-          </div>
-          <small class="muted" id="rateNote" style="display:none"></small>
-        </label>
-      </div>
-
-      <div class="row2 toggles">
-        <label class="toggle">
-          <input id="drip" type="checkbox">
-          <span class="lbl">📦 ทยอยดำเนินการ (Dripfeed)</span>
-          <small class="hint">ระบบจะค่อย ๆ ทำงานเป็นรอบ เพื่อความปลอดภัย</small>
-        </label>
-        <label class="toggle">
-          <input id="sys" type="checkbox">
-          <span class="lbl">⚙️ ตั้งออเดอร์ตามระบบ</span>
-          <small class="hint">ให้ระบบตรวจสอบและสั่งซ้ำให้อัตโนมัติ</small>
-        </label>
-      </div>
-
-      <button class="btn primary block">ยืนยันคำสั่งซื้อ</button>
-    </form>
-
-    <div id="resp" class="mt"></div>
+<!-- ===== TAB 1: สั่งซื้อบริการ (ของเดิมทั้งหมด) ===== -->
+<section id="tab-order" class="tabpane show">
+  <!-- เลือกแพลตฟอร์ม -->
+  <section class="card">
+    <h3 class="title">แพลตฟอร์ม</h3>
+    <div id="platformGrid" class="grid"></div>
   </section>
 
-  <!-- ขวา: อัปเดตวันนี้ + ความหมายอิโมจิ -->
-  <aside class="right-rail">
-    <!-- อัปเดตบริการวันนี้ -->
-    <section class="card updates-card" aria-label="อัปเดตบริการ (วันนี้)">
-      <div class="legend-head">
-        <div class="legend-title">🛎️ อัปเดตบริการ (วันนี้)</div>
-        <small class="legend-sub muted">ดึงจากฐานข้อมูล changelogs</small>
+  <section class="card soft">
+    <div class="row">
+      <input id="searchAll" class="input" placeholder="ค้นหาได้ทั้ง ID / ชื่อบริการ">
+      <!-- ใช้ id="chipBar" เพื่อจับคลิกแบบ delegation -->
+      <div id="chipBar" class="chips">
+        <button type="button" class="chip active" data-sub="">ทั้งหมด</button>
       </div>
-      <div id="updatesList" class="updates-list">
-        <div class="muted">กำลังโหลด…</div>
+    </div>
+  </section>
+
+  <!-- ตัวเลือกหมวดหมู่ (กลุ่มบริการ) + บริการย่อย -->
+  <section class="card">
+    <div class="sel-grid">
+      <!-- กลุ่มบริการ -->
+      <div class="sel">
+        <label>หมวดหมู่</label>
+        <div class="select" id="groupSel">
+          <button class="select-btn" id="groupBtn" aria-haspopup="listbox" aria-expanded="false">
+            <span id="groupText">—</span><span class="chev">▾</span>
+          </button>
+          <div class="select-menu" role="listbox">
+            <div class="select-search">
+              <input id="groupSearch" placeholder="ค้นหากลุ่มบริการ…">
+            </div>
+            <div id="groupList" class="list"></div>
+          </div>
+        </div>
       </div>
+
+      <!-- บริการย่อย -->
+      <div class="sel">
+        <label>บริการ</label>
+        <div class="select wide" id="childSel">
+          <button class="select-btn" id="childBtn" aria-haspopup="listbox" aria-expanded="false">
+            <span id="childText">—</span><span class="chev">▾</span>
+          </button>
+          <div class="select-menu" role="listbox">
+            <div class="select-search">
+              <input id="childSearch" placeholder="พิมพ์หา ID หรือชื่อบริการ…">
+            </div>
+            <div id="childList" class="list svc"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== กล่อง 2 คอลัมน์: ฟอร์มซ้าย + อิโมจิขวา ===== -->
+  <section class="detail-grid">
+    <!-- ซ้าย: รายละเอียด + ฟอร์มสั่งซื้อ (ของเดิม) -->
+    <section class="card" id="detailBox" style="display:none">
+      <div id="hdr" class="hdr"></div>
+      <div id="meta" class="meta"></div>
+
+      <details class="mt" open>
+        <summary>รายละเอียดบริการ</summary>
+        <div id="desc" class="desc mt">—</div>
+      </details>
+
+      <form id="orderForm" class="form" onsubmit="return submitOrder(event)">
+        <input type="hidden" id="groupId" name="groupId">
+        <input type="hidden" id="providerServiceId" name="providerServiceId">
+
+        <label>ลิงก์/เป้าหมาย
+          <input id="link" name="link" required placeholder="https://…">
+        </label>
+
+        <!-- ==== ช่องคอมเมนต์สำหรับบริการที่ต้องใช้ Comments ==== -->
+        <div id="commentBox" class="form-group" style="display:none;">
+          <label class="form-label">คอมเมนต์ (1 บรรทัด = 1 คอมเมนต์)</label>
+          <textarea id="comments" name="comments" class="textarea"
+            placeholder="พิมพ์คอมเมนต์ที่ต้องการ..."></textarea>
+          <small class="muted">* บริการประเภทกำหนดคอมเมนต์เองจำเป็นต้องกรอก</small>
+        </div>
+
+        <!-- ==== ช่อง Keyword สำหรับ SEO ==== -->
+        <div id="keywordBox" class="form-group" style="display:none;">
+          <label class="form-label">Keyword</label>
+          <input type="text" id="keywords" name="keywords" class="input"
+            placeholder="เช่น best product, buy now ...">
+          <small class="muted">* บริการ SEO ต้องกรอก Keyword</small>
+        </div>
+
+        <div class="row2">
+          <label class="with-hint">ปริมาณ
+            <input id="qty" name="quantity" type="number" required>
+            <div id="qtyHint" class="hintline">
+              <span class="min">ขั้นต่ำ: <b id="minVal">—</b></span>
+              <span class="dot">•</span>
+              <span class="max">สูงสุด: <b id="maxVal">—</b></span>
+            </div>
+          </label>
+
+          <label>ค่าใช้จ่ายโดยประมาณ
+            <div class="input-group">
+              <span class="input-prefix">฿</span>
+              <input id="est" class="input right" type="text" readonly value="0">
+            </div>
+            <small class="muted" id="rateNote" style="display:none"></small>
+          </label>
+        </div>
+
+        <div class="row2 toggles">
+          <label class="toggle">
+            <input id="drip" type="checkbox">
+            <span class="lbl">📦 ทยอยดำเนินการ (Dripfeed)</span>
+            <small class="hint">ระบบจะค่อย ๆ ทำงานเป็นรอบ เพื่อความปลอดภัย</small>
+          </label>
+          <label class="toggle">
+            <input id="sys" type="checkbox">
+            <span class="lbl">⚙️ ตั้งออเดอร์ตามระบบ</span>
+            <small class="hint">ให้ระบบตรวจสอบและสั่งซ้ำให้อัตโนมัติ</small>
+          </label>
+        </div>
+
+        <button class="btn primary block">ยืนยันคำสั่งซื้อ</button>
+      </form>
+
+      <div id="resp" class="mt"></div>
     </section>
 
-    <!-- ขวา: ความหมายอิโมจิ -->
-    <section class="card emoji-legend" aria-label="ความหมาย อิโมจิ ในชื่อบริการ">
-      <div class="legend-head">
-        <div class="legend-title">🧩 ความหมาย อิโมจิ ในชื่อบริการ</div>
-        <small class="legend-sub muted">สิ่งสำคัญที่ต้องรู้เกี่ยวกับอิโมจิต่างๆ</small>
-      </div>
+    <!-- ขวา: อัปเดตวันนี้ + ความหมายอิโมจิ -->
+    <aside class="right-rail">
+      <!-- อัปเดตบริการวันนี้ -->
+      <section class="card updates-card" aria-label="อัปเดตบริการ (วันนี้)">
+        <div class="legend-head">
+          <div class="legend-title">🛎️ อัปเดตบริการ (วันนี้)</div>
+          <small class="legend-sub muted">ดึงจากฐานข้อมูล changelogs</small>
+        </div>
+        <div id="updatesList" class="updates-list">
+          <div class="muted">กำลังโหลด…</div>
+        </div>
+      </section>
 
-      <div class="legend-list">
-
-        <div class="legend-item">
-          <div class="legend-emoji">⭐ | 🔥</div>
-          <div class="legend-content">
-            <div class="legend-label">บริการที่ดี, ขายดี | ยอดฮิต พิเศษ</div>
-          </div>
+      <!-- ขวา: ความหมายอิโมจิ -->
+      <section class="card emoji-legend" aria-label="ความหมาย อิโมจิ ในชื่อบริการ">
+        <div class="legend-head">
+          <div class="legend-title">🧩 ความหมาย อิโมจิ ในชื่อบริการ</div>
+          <small class="legend-sub muted">สิ่งสำคัญที่ต้องรู้เกี่ยวกับอิโมจิต่างๆ</small>
         </div>
 
-        <div class="legend-item"><div class="legend-emoji">🍓</div><div class="legend-content"><div class="legend-label">ราคาถูก ลดราคา โปรโมชั่น</div></div></div>
-        <div class="legend-item"><div class="legend-emoji">💎</div><div class="legend-content"><div class="legend-label">คุณภาพสูง ราคาสูง</div></div></div>
-        <div class="legend-item"><div class="legend-emoji">👍🏻</div><div class="legend-content"><div class="legend-label">บริการแนะนำ</div></div></div>
-        <div class="legend-item"><div class="legend-emoji">🐌</div><div class="legend-content"><div class="legend-label">เริ่มทำงานช้า / จัดส่งช้า</div></div></div>
-        <div class="legend-item"><div class="legend-emoji">♻️, 𝐑𝐁</div><div class="legend-content"><div class="legend-label">มีปุ่มเติมคืนตามระยะเวลา แสดงผลทุกๆ 24 ชั่วโมง</div></div></div>
-        <div class="legend-item"><div class="legend-emoji">💧</div><div class="legend-content"><div class="legend-label">ทยอยจัดส่ง</div></div></div>
-        <div class="legend-item"><div class="legend-emoji">🆕</div><div class="legend-content"><div class="legend-label">บริการใหม่ อัพเดทล่าสุด</div></div></div>
-        <div class="legend-item"><div class="legend-emoji">🚫, ❌, 𝐍𝐑</div><div class="legend-content"><div class="legend-label">ไม่มีรับประกัน ไม่เติมคืน แม้ว่ายอดจะลดหรือไม่ครบ</div></div></div>
-        <div class="legend-item"><div class="legend-emoji">🛡️</div><div class="legend-content"><div class="legend-label">บริการมีรับประกันจากเซิพเวอร์</div></div></div>
-        <div class="legend-item"><div class="legend-emoji">𝐒𝐭𝐚𝐛𝐥𝐞, 𝐎𝐫𝐠𝐚𝐧𝐢𝐜</div><div class="legend-content"><div class="legend-label">การจัดส่งที่มีเสถียรภาพ เป็นธรรมชาติ</div></div></div>
-        <div class="legend-item"><div class="legend-emoji">𝐍𝐨𝐧 𝐃𝐫𝐨𝐩</div><div class="legend-content"><div class="legend-label">ไม่ลดลง แต่ก็มีโอกาสลดลงได้บ้าง</div></div></div>
-        <div class="legend-item"><div class="legend-emoji">⚡️, 🚀</div><div class="legend-content"><div class="legend-label">ความเร็วในการจัดส่ง ยิ่งเยอะยิ่งไว</div></div></div>
-        <div class="legend-item"><div class="legend-emoji">⛔️</div><div class="legend-content"><div class="legend-label">มีปุ่มยกเลิก</div></div></div>
-        <div class="legend-item">
-          <div class="legend-emoji">𝐑𝟑𝟎, 𝐑∞, 𝐆∞</div>
-          <div class="legend-content">
-            <div class="legend-label">R = รับประกันจากบริการ, ตัวเลขคือจำนวนวัน เช่น R30 และ ∞ = ตลอดอายุบริการ</div>
-          </div>
-        </div>
-        <div class="legend-item"><div class="legend-emoji">~1H , 0-24H</div><div class="legend-content"><div class="legend-label">เริ่มประมาณ 1 ชั่วโมง / เริ่มในช่วง 0–24 ชั่วโมง</div></div></div>
-        <div class="legend-item"><div class="legend-emoji">~1K/D</div><div class="legend-content"><div class="legend-label">ความเร็วเฉลี่ย ~1,000 ต่อวัน</div></div></div>
-        <div class="legend-item"><div class="legend-emoji">Mix/Mixed, Bot/Clone, Real</div><div class="legend-content"><div class="legend-label">Mixed=ผสม, Bot/Clone=บอท/เลียนแบบ, Real=บัญชีจริง</div></div></div>
-        <div class="legend-item"><div class="legend-emoji">HQ, MQ, LQ</div><div class="legend-content"><div class="legend-label">คุณภาพ: HQ สูง / MQ กลาง / LQ ต่ำ</div></div></div>
+        <div class="legend-list">
 
-      </div>
-  </aside>
+          <div class="legend-item">
+            <div class="legend-emoji">⭐ | 🔥</div>
+            <div class="legend-content">
+              <div class="legend-label">บริการที่ดี, ขายดี | ยอดฮิต พิเศษ</div>
+            </div>
+          </div>
+
+          <div class="legend-item"><div class="legend-emoji">🍓</div><div class="legend-content"><div class="legend-label">ราคาถูก ลดราคา โปรโมชั่น</div></div></div>
+          <div class="legend-item"><div class="legend-emoji">💎</div><div class="legend-content"><div class="legend-label">คุณภาพสูง ราคาสูง</div></div></div>
+          <div class="legend-item"><div class="legend-emoji">👍🏻</div><div class="legend-content"><div class="legend-label">บริการแนะนำ</div></div></div>
+          <div class="legend-item"><div class="legend-emoji">🐌</div><div class="legend-content"><div class="legend-label">เริ่มทำงานช้า / จัดส่งช้า</div></div></div>
+          <div class="legend-item"><div class="legend-emoji">♻️, 𝐑𝐁</div><div class="legend-content"><div class="legend-label">มีปุ่มเติมคืนตามระยะเวลา แสดงผลทุกๆ 24 ชั่วโมง</div></div></div>
+          <div class="legend-item"><div class="legend-emoji">💧</div><div class="legend-content"><div class="legend-label">ทยอยจัดส่ง</div></div></div>
+          <div class="legend-item"><div class="legend-emoji">🆕</div><div class="legend-content"><div class="legend-label">บริการใหม่ อัพเดทล่าสุด</div></div></div>
+          <div class="legend-item"><div class="legend-emoji">🚫, ❌, 𝐍𝐑</div><div class="legend-content"><div class="legend-label">ไม่มีรับประกัน ไม่เติมคืน แม้ว่ายอดจะลดหรือไม่ครบ</div></div></div>
+          <div class="legend-item"><div class="legend-emoji">🛡️</div><div class="legend-content"><div class="legend-label">บริการมีรับประกันจากเซิพเวอร์</div></div></div>
+          <div class="legend-item"><div class="legend-emoji">𝐒𝐭𝐚𝐛𝐥𝐞, 𝐎𝐫𝐠𝐚𝐧𝐢𝐜</div><div class="legend-content"><div class="legend-label">การจัดส่งที่มีเสถียรภาพ เป็นธรรมชาติ</div></div></div>
+          <div class="legend-item"><div class="legend-emoji">𝐍𝐨𝐧 𝐃𝐫𝐨𝐩</div><div class="legend-content"><div class="legend-label">ไม่ลดลง แต่ก็มีโอกาสลดลงได้บ้าง</div></div></div>
+          <div class="legend-item"><div class="legend-emoji">⚡️, 🚀</div><div class="legend-content"><div class="legend-label">ความเร็วในการจัดส่ง ยิ่งเยอะยิ่งไว</div></div></div>
+          <div class="legend-item"><div class="legend-emoji">⛔️</div><div class="legend-content"><div class="legend-label">มีปุ่มยกเลิก</div></div></div>
+          <div class="legend-item">
+            <div class="legend-emoji">𝐑𝟑𝟎, 𝐑∞, 𝐆∞</div>
+            <div class="legend-content">
+              <div class="legend-label">R = รับประกันจากบริการ, ตัวเลขคือจำนวนวัน เช่น R30 และ ∞ = ตลอดอายุบริการ</div>
+            </div>
+          </div>
+          <div class="legend-item"><div class="legend-emoji">~1H , 0-24H</div><div class="legend-content"><div class="legend-label">เริ่มประมาณ 1 ชั่วโมง / เริ่มในช่วง 0–24 ชั่วโมง</div></div></div>
+          <div class="legend-item"><div class="legend-emoji">~1K/D</div><div class="legend-content"><div class="legend-label">ความเร็วเฉลี่ย ~1,000 ต่อวัน</div></div></div>
+          <div class="legend-item"><div class="legend-emoji">Mix/Mixed, Bot/Clone, Real</div><div class="legend-content"><div class="legend-label">Mixed=ผสม, Bot/Clone=บอท/เลียนแบบ, Real=บัญชีจริง</div></div></div>
+          <div class="legend-item"><div class="legend-emoji">HQ, MQ, LQ</div><div class="legend-content"><div class="legend-label">คุณภาพ: HQ สูง / MQ กลาง / LQ ต่ำ</div></div></div>
+
+        </div>
+    </aside>
+  </section>
+
+  <!-- ===== TAB 2: ประวัติคำสั่งซื้อ ===== -->
+  <section id="tab-history" class="tabpane">
+    <!-- ไปที่หน้า /my/orders แทน  -->
+  </section>
 </section>
 
 <script>
@@ -197,6 +215,33 @@ const notify = (opts = {}) => {
   // fallback สุดท้าย
   alert((title ? title + '\n' : '') + (text || ''));
 };
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const tabs   = document.querySelectorAll('.tabs .tab');
+  const panes  = document.querySelectorAll('.tabpane');
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.tab; // "order" หรือ "history"
+
+      // ✅ ถ้าเป็นแท็บประวัติ ให้ redirect ไป /my/orders ทันที
+      if (target === 'history') {
+        window.location.href = '/my/orders';
+        return;
+      }
+
+      // แท็บอื่น ๆ ใช้วิธีเดิม: สลับ active + show pane
+      tabs.forEach(t => t.classList.remove('active'));
+      panes.forEach(p => p.classList.remove('show'));
+
+      tab.classList.add('active');
+      const pane = document.getElementById('tab-' + target);
+      if (pane) pane.classList.add('show');
+    });
+  });
+});
 </script>
 
 <script>
