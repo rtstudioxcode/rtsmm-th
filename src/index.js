@@ -215,6 +215,10 @@ app.use((req, res, next) => {
   res.locals.flash = null;
   res.locals.resetAllowed = false;
   res.locals.resetEmail = null;
+  res.locals.currentPath = req.path;
+
+  // ✅ เพิ่ม default ให้เมนูนี้
+  res.locals.showMyOrdersNav = false;
 
   // flash one-shot from session
   if (req.session) {

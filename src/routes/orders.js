@@ -555,7 +555,7 @@ router.get('/my/orders', requireAuth, async (req, res, next) => {
       title: 'ประวัติการใช้บริการ Social',
       bodyClass: 'orders-wide',
       syncError: req.flash?.('syncError')?.[0] || '',
-
+      showMyOrdersNav: true, 
       // สำหรับ pager ใน EJS:
       page,                // เลขหน้าปัจจุบัน
       perPage,             // จำนวนต่อหน้า (ตัวเลขจริง; ถ้า user เลือก "all" = total)
