@@ -66,15 +66,31 @@ r.get('/api/changes', requireAuth, async (req, res) => {
 
     // โหมด “วันล่าสุด”
     if (latest) {
-      // หาหัวแถวล่าสุดโดยใช้ baseFilter ด้วย (จะไม่โดนติดกับ state ถ้าไม่ได้ includeBootstrap)
-      const head = await ChangeLog.findOne(baseFilter).sort({ ts: -1 }).lean();
-      if (!head) return res.json({ ok: true, items: [], latestDay: null });
+      // หาหัวแถวล่าสุดแบบปกติ (ไม่เอา state/bootstrap)
+      let head = await ChangeLog.findOne(baseFilter).sort({ ts: -1 }).lean();
+      let useBootstrapOnly = false;
 
-      const start = dayjs.tz(dayjs(head.ts).tz(tzName).format('YYYY-MM-DD') + 'T00:00:00', tzName);
+      // ถ้ายังไม่มีเลย (มีแต่ state/bootstrap) → fallback
+      if (!head) {
+        head = await ChangeLog.findOne().sort({ ts: -1 }).lean(); // เอาอะไรก็ได้ล่าสุด
+        if (!head) {
+          return res.json({ ok: true, items: [], latestDay: null });
+        }
+        useBootstrapOnly = true;
+      }
+
+      const dayStr = dayjs(head.ts).tz(tzName).format('YYYY-MM-DD');
+      const start = dayjs.tz(`${dayStr}T00:00:00`, tzName);
       const end   = start.add(1, 'day');
 
+      // ถ้าใช้ bootstrap-only → ไม่กรอง diff/isBootstrap เลย เอาทั้งวัน
+      // ถ้ามี diff จริงแล้ว → ใช้ baseFilter ตามเดิม
+      const filterForDay = useBootstrapOnly
+        ? { ts: { $gte: start.toDate(), $lt: end.toDate() } }
+        : { ...baseFilter, ts: { $gte: start.toDate(), $lt: end.toDate() } };
+
       const items = await ChangeLog
-        .find({ ...baseFilter, ts: { $gte: start.toDate(), $lt: end.toDate() } })
+        .find(filterForDay)
         .sort({ ts: -1 })
         .limit(limit)
         .lean();

@@ -17,7 +17,7 @@ const {
   TELEGRAM_CHANNEL_ID,
   BRAND_URL,                // แนะนำให้ตั้งเป็น https://rtsmm-th.com/update
   PORT = 3000,
-  INTERNAL_API_ORIGIN,      // ถ้ามี reverse proxy ภายใน ให้ตั้งค่านี้
+  INTERNAL_API_ORIGIN,      // (ตอนนี้ยังไม่ได้ใช้ แต่เผื่อไว้)
 } = process.env;
 
 const TELEGRAM_API_BASE = TELEGRAM_BOT_TOKEN
@@ -27,7 +27,6 @@ const TELEGRAM_API_BASE = TELEGRAM_BOT_TOKEN
 // ───────────────────────────────────────────────
 //   แปล diff/newStatus เป็นภาษาไทยแบบหน้าเว็บ
 // ───────────────────────────────────────────────
-// แปลประเภท diff เป็นภาษาไทย
 const DIFF_TH = {
   new: 'เพิ่มใหม่',
   open: 'เปิดใช้งาน',
@@ -79,16 +78,15 @@ function logNextRun(from = dayjs()) {
   );
 }
 
-// ── ล้าง ChangeLog เก่ากว่า 3 วัน (เก็บ “วันนี้, เมื่อวาน, เมื่อวานซืน”) ──
-async function pruneOldChangeLogs() {
-  const cutoff = dayjs().tz(TZ).startOf('day').subtract(2, 'day').toDate();
-  const r = await ChangeLog.deleteMany({ ts: { $lt: cutoff } });
+// 🔥 ใหม่: ลบ ChangeLog ทั้ง collection ก่อน sync รอบใหม่ทุกครั้ง
+async function clearAllChangeLogs() {
+  const r = await ChangeLog.deleteMany({});
   console.log(
-    `[changes] pruned ${r.deletedCount || 0} ChangeLog(s) before ${cutoff.toISOString()}`
+    `[changes] cleared ${r.deletedCount || 0} ChangeLog(s) before new sync`
   );
 }
 
-// ✅ NEW: ใช้ /api/changes (เหมือนหน้าเว็บ) แล้วส่งไป Telegram
+// ✅ ใช้ข้อมูลใน ChangeLog รอบล่าสุด ส่งไป Telegram
 async function sendTelegramDailySummary() {
   if (!TELEGRAM_API_BASE || !TELEGRAM_CHANNEL_ID) {
     console.log('[telegram] skip: TELEGRAM_BOT_TOKEN or TELEGRAM_CHANNEL_ID not set');
@@ -269,6 +267,10 @@ async function runDaily() {
   const startTs = Date.now();
   try {
     console.log('[services] 07:00 sync starting…');
+
+    // 🔥 เคลียร์ ChangeLog เดิมทั้งหมดทุกครั้งก่อน sync
+    await clearAllChangeLogs();
+
     const r = await syncServicesFromProvider();
     console.log('[services] sync done:', {
       ok: r?.ok,
@@ -279,10 +281,9 @@ async function runDaily() {
       durationMs: Date.now() - startTs,
     });
 
-    await pruneOldChangeLogs();
     console.log('[services] daily maintenance completed.');
 
-    // ✅ ใช้ข้อมูลจาก /api/changes (วันล่าสุด) ไม่ใช้ result r แล้ว
+    // ใช้ข้อมูลจาก ChangeLog รอบล่าสุดส่งไป Telegram
     await sendTelegramDailySummary();
   } catch (e) {
     console.error(

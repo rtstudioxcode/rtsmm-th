@@ -145,25 +145,61 @@ const fmtTime = d => new Date(d).toLocaleTimeString('th-TH', { hour:'2-digit', m
 function buildPill(it){
   const isCat = it.target === 'category';
   const labelCat = isCat ? 'หมวดหมู่ - ' : '';
+
   const before = it.oldStatus ? String(it.oldStatus).toUpperCase() : null;
   const after  = it.newStatus ? String(it.newStatus).toUpperCase() : null;
 
-  if (it.diff === 'open')    return `<span class="pill ok">${labelCat}✔ เปิดใช้งาน</span>`;
-  if (it.diff === 'close')   return `<span class="pill danger">${labelCat}✖ ปิดใช้งาน</span>`;
-  if (it.diff === 'removed') return `<span class="pill warn">นำออก</span>`;
-  if (it.diff === 'new')     return `<span class="pill info">ใหม่</span>`;
-  if (it.diff === 'state' && after) {
-    const tone = (after === 'OPEN') ? 'ok' : (after === 'CLOSE' ? 'danger' : 'neutral');
-    return `<span class="pill ${tone}">${labelCat}สถานะ: ${after}</span>`;
+  const isOpen  = after === 'OPEN';
+  const isClose = after === 'CLOSE';
+
+  // --- เปิด / ปิดบริการ ---
+  if (
+    it.diff === 'open' ||
+    (it.diff === 'new' && isOpen) ||
+    (it.diff === 'state' && isOpen)
+  ) {
+    return `<span class="pill ok">${labelCat}✔ เปิดใช้งาน</span>`;
   }
+
+  if (
+    it.diff === 'close' ||
+    (it.diff === 'new' && isClose) ||
+    (it.diff === 'state' && isClose)
+  ) {
+    return `<span class="pill danger">${labelCat}✖ ปิดการใช้งาน</span>`;
+  }
+
+  // --- ถูกนำออกจากระบบ ---
+  if (it.diff === 'removed') {
+    return `<span class="pill warn">${labelCat}นำออก</span>`;
+  }
+
+  // --- เพิ่มบริการใหม่ (แต่ไม่รู้สถานะชัดเจน) ---
+  if (it.diff === 'new') {
+    return `<span class="pill info">${labelCat}เพิ่มบริการใหม่</span>`;
+  }
+
+  // --- อัปเดตทั่วไป / มีการเปลี่ยนสถานะ ---
   if (it.diff === 'updated') {
     if (before && after && before !== after) {
-      const tone = (after === 'OPEN') ? 'ok' : (after === 'CLOSE' ? 'danger' : 'info');
+      const tone = (after === 'OPEN') ? 'ok'
+                 : (after === 'CLOSE') ? 'danger'
+                 : 'info';
       return `<span class="pill ${tone}">${labelCat}${before} → ${after}</span>`;
     }
-    return `<span class="pill info">อัปเดต</span>`;
+    return `<span class="pill info">${labelCat}อัปเดต</span>`;
   }
-  return `<span class="pill info">${h(it.diff)}</span>`;
+
+  // --- snapshot state เฉย ๆ ---
+  if (it.diff === 'state' && after) {
+    const tone = (after === 'OPEN') ? 'ok'
+               : (after === 'CLOSE') ? 'danger'
+               : 'neutral';
+    return `<span class="pill ${tone}">${labelCat}สถานะ: ${after}</span>`;
+  }
+
+  // fallback
+  return `<span class="pill info">${labelCat}${h(it.diff || 'อัปเดต')}</span>`;
 }
 
 function targetChip(it){ return `<span class="chip">${it.target === 'category' ? 'หมวดหมู่' : 'บริการ'}</span>`; }
@@ -176,7 +212,7 @@ function renderTable(items){
     const name = it.target === 'service' ? (it.serviceName || '(ไม่ทราบชื่อ)') : (it.categoryName || '(ไม่ทราบหมวด)');
     const pill = buildPill(it);
     const chip = targetChip(it);
-    const platform = it.platform ? `<div class="muted" style="margin-top:2px">${h(it.platform)}</div>` : ``;
+    const platform = it.platform ? `<div class="u-meta">แพลตฟอร์ม ${h(it.platform)}</div>` : ``;
 
     return `
       <tr tabindex="0">
