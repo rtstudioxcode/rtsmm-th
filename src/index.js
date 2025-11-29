@@ -45,6 +45,7 @@ import cookieParser from 'cookie-parser';
 import { startOrderStatusJob } from './jobs/orderStatusJob.js';
 import bonustimeRouter from "./routes/bonustime.js";
 import { initBonustimeExpiryJob } from "./jobs/bonustimeExpiryJob.js";
+import { initTopupAutoRejectJob } from "./jobs/topupAutoRejectJob.js";
 import sitemapRouter from "./routes/sitemap.js";
 import robotsRoute from "./routes/robots.js";
 
@@ -475,6 +476,7 @@ app.use((req, res) => res.status(404).send("Not found"));
 initDailyChangeSync();
 startOtp24ProcessingSweeper();
 initBonustimeExpiryJob();
+initTopupAutoRejectJob();
 
 /* ------------------------------------------------------------------ */
 /* 5) ใช้ PORT จาก DB ก่อน ถ้าไม่มีค่อย fallback env/config           */
