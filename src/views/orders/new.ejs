@@ -71,6 +71,22 @@
         <input id="link" name="link" required placeholder="https://…">
       </label>
 
+      <!-- ==== ช่องคอมเมนต์สำหรับบริการที่ต้องใช้ Comments ==== -->
+      <div id="commentBox" class="form-group" style="display:none;">
+        <label class="form-label">คอมเมนต์ (1 บรรทัด = 1 คอมเมนต์)</label>
+        <textarea id="comments" name="comments" class="textarea"
+          placeholder="พิมพ์คอมเมนต์ที่ต้องการ..."></textarea>
+        <small class="muted">* บริการประเภทกำหนดคอมเมนต์เองจำเป็นต้องกรอก</small>
+      </div>
+
+      <!-- ==== ช่อง Keyword สำหรับ SEO ==== -->
+      <div id="keywordBox" class="form-group" style="display:none;">
+        <label class="form-label">Keyword</label>
+        <input type="text" id="keywords" name="keywords" class="input"
+          placeholder="เช่น best product, buy now ...">
+        <small class="muted">* บริการ SEO ต้องกรอก Keyword</small>
+      </div>
+
       <div class="row2">
         <label class="with-hint">ปริมาณ
           <input id="qty" name="quantity" type="number" required>
@@ -276,9 +292,45 @@ let rate=0, currency='THB';
 let effectiveRate=null; // อัตราตามกฎ (ถ้า endpoint มี)
 let rateSource='base';  // 'base' | 'effective'
 
+/* ✅ flag สำหรับตรวจว่า service นี้เป็น comment/SEO หรือไม่ */
+let isCommentService = false;
+let isSeoService = false;
+
+/* ✅ ช่วงขั้นต่ำ/สูงสุดของ service ปัจจุบัน (ไว้ใช้ validate ตอน submit) */
+let currentMin = 1;
+let currentMax = Infinity;
+
+/* ✅ helper นับบรรทัดที่ไม่ว่าง */
+function countNonEmptyLines(str) {
+  return String(str || '')
+    .split(/\r?\n/)
+    .map(s => s.trim())
+    .filter(Boolean).length;
+}
+
+/* ✅ sync จำนวนบรรทัด → quantity อัตโนมัติ */
+function syncAutoQtyFromFields() {
+  const qtyInput = document.getElementById('qty');
+  if (!qtyInput) return;
+  if (!(isCommentService || isSeoService)) return;
+
+  const commentsVal = document.getElementById('comments')?.value || '';
+  const keywordsVal = document.getElementById('keywords')?.value || '';
+
+  let total = 0;
+  if (isCommentService) total += countNonEmptyLines(commentsVal);
+  if (isSeoService)    total += countNonEmptyLines(keywordsVal);
+
+  qtyInput.value = total > 0 ? String(total) : '';
+  updateEstimate();
+}
+
 document.addEventListener('click',e=>{
   const sel=e.target.closest('.select');
-  $$('.select.open').forEach(x=>{ if(x!==sel) x.classList.remove('open'); x.querySelector('.select-btn')?.setAttribute('aria-expanded','false'); });
+  $$('.select.open').forEach(x=>{
+    if(x!==sel) x.classList.remove('open');
+    x.querySelector('.select-btn')?.setAttribute('aria-expanded','false');
+  });
 });
 document.addEventListener('keydown',e=>{
   if (e.key==='Escape') $$('.select.open').forEach(x=>x.classList.remove('open'));
@@ -661,7 +713,7 @@ async function chooseChild(svc){
   $('#childText').textContent = svc?.name || '—';
   $('#providerServiceId').value = svc?.id || '';
 
-  // base
+  // base rate
   rate     = Number(svc?.rate || 0);
   currency = svc?.currency || 'THB';
   effectiveRate = null;
@@ -688,12 +740,7 @@ async function chooseChild(svc){
   if (svc.refill)   bits.push('Refill');
   if (svc.cancel)   bits.push('ยกเลิกได้');
 
-  // 🔴 เดิมเป็นชื่อกลุ่ม → เปลี่ยนเป็นชื่อบริการ
   $('#hdr').innerHTML  = svc?.name || '';
-
-  // ถ้าอยากยังโชว์ชื่อกลุ่มไว้ด้วย ก็เติมบรรทัดนี้ด้านล่าง (ออปชัน):
-  // $('#hdr').innerHTML = `${svc?.name || ''} <span class="muted">(${currentGroup?.name || ''})</span>`;
-
   $('#meta').innerHTML = bits.join(' | ');
   $('#desc').innerHTML =
     (svc?.description ? linkify(br(svc.description)) :
@@ -703,6 +750,9 @@ async function chooseChild(svc){
   const min  = Math.max(1, Number(svc.min || 1));
   const max  = Math.max(min, Number(svc.max || min));
   const step = Number(svc.step || 1);
+
+  currentMin = min;
+  currentMax = max;
 
   q.min  = String(min);
   q.max  = String(max);
@@ -719,6 +769,40 @@ async function chooseChild(svc){
 
   $('#drip').disabled = !svc.dripfeed;
   $('#drip').checked  = !!svc.dripfeed;
+
+  // 👇 ตรวจชื่อ service เพื่อตัดสินว่าเป็น comments/SEO ไหม
+  const svcName = (svc?.name || "").toLowerCase();
+
+  isCommentService =
+    svcName.includes("custom comment") ||
+    svcName.includes("custom comments") ||
+    svcName.includes("comment package") ||
+    svcName.includes("comment reply") ||
+    (svc?.type && String(svc.type).toLowerCase().includes("comment"));
+
+  isSeoService =
+    svcName.includes("seo") ||
+    svcName.includes("keyword") ||
+    (svc?.type && String(svc.type).toLowerCase().includes("seo"));
+
+  const commentBoxEl = document.getElementById("commentBox");
+  const keywordBoxEl = document.getElementById("keywordBox");
+  const qtyLabelWrap = q.closest('.with-hint');
+
+  if (commentBoxEl) commentBoxEl.style.display = isCommentService ? "" : "none";
+  if (keywordBoxEl) keywordBoxEl.style.display = isSeoService ? "" : "none";
+
+  // 🔒 ถ้าเป็น service ที่ต้องกรอกข้อความ → lock ช่องปริมาณ + ให้ระบบคำนวณเอง
+  if (isCommentService || isSeoService) {
+    q.readOnly = true;
+    q.classList.add('auto-qty');
+    if (qtyLabelWrap) qtyLabelWrap.classList.add('auto-qty');
+    syncAutoQtyFromFields();       // ดึงจาก textarea ครั้งแรกเลย
+  } else {
+    q.readOnly = false;
+    q.classList.remove('auto-qty');
+    if (qtyLabelWrap) qtyLabelWrap.classList.remove('auto-qty');
+  }
 
   updateEstimate();
   $('#detailBox').style.display = '';
@@ -746,16 +830,34 @@ function updateEstimate(){
 async function submitOrder(ev){
   ev.preventDefault();
 
+  // ก่อนส่ง ให้ sync จำนวนจาก textarea → qty อีกรอบ
+  syncAutoQtyFromFields();
+
   const groupId = $('#groupId').value?.trim();
   const childId = $('#providerServiceId').value?.trim();
   const link    = $('#link').value?.trim();
   const qty     = Number($('#qty').value || 0);
+
+  const commentsVal = document.getElementById('comments')?.value.trim() || '';
+  const keywordsVal = document.getElementById('keywords')?.value.trim() || '';
 
   const errs = [];
   if (!groupId) errs.push('ไม่พบรหัสกลุ่มบริการ (groupId)');
   if (!childId) errs.push('ยังไม่ได้เลือก “บริการย่อย”');
   if (!link)    errs.push('กรุณากรอกลิงก์/เป้าหมาย');
   if (!(qty > 0)) errs.push('จำนวนต้องมากกว่า 0');
+
+  // ✅ บังคับให้อยู่ในช่วงขั้นต่ำ-สูงสุดของบริการ
+  if (qty > 0 && (qty < currentMin || qty > currentMax)) {
+    errs.push(`จำนวนต้องอยู่ในช่วงขั้นต่ำ ${currentMin.toLocaleString()} ถึงสูงสุด ${currentMax.toLocaleString()}`);
+  }
+
+  if (isCommentService && !commentsVal) {
+    errs.push('บริการนี้ต้องกรอกคอมเมนต์ (1 บรรทัด = 1 คอมเมนต์)');
+  }
+  if (isSeoService && !keywordsVal) {
+    errs.push('บริการ SEO ต้องใส่ Keyword');
+  }
 
   if (errs.length){
     notify({
@@ -775,7 +877,9 @@ async function submitOrder(ev){
     follow_system: $('#sys').checked
   };
 
-  // ปิดปุ่มกันกดซ้ำระหว่างส่ง
+  if (isCommentService) payload.comments = commentsVal;
+  if (isSeoService)    payload.keywords = keywordsVal;
+
   const submitBtn = $('#orderForm button[type="submit"]');
   submitBtn && (submitBtn.disabled = true);
 
@@ -785,10 +889,12 @@ async function submitOrder(ev){
       headers: { 'Content-Type':'application/json', 'Accept': 'application/json' },
       body: JSON.stringify(payload)
     });
-    const data = await res.json().catch(()=> ({}));
 
-    if (!res.ok || !data?.ok) {
-      // ดึงเหตุผลสั้น (หัวข้อ) และสาเหตุเชิงลึกจาก provider
+    const ok = res.ok;
+    let data = {};
+    try { data = await res.json(); } catch {}
+
+    if (!ok || !data?.ok) {
       const titleErr =
         (typeof data?.error === 'string' && data.error.trim()) ||
         `สั่งซื้อไม่สำเร็จ (${res.status})`;
@@ -797,26 +903,15 @@ async function submitOrder(ev){
         (typeof data?.detail === 'string' && data.detail) ||
         (typeof data?.detail?.error === 'string' && data.detail.error) ||
         (typeof data?.message === 'string' && data.message) ||
-        res.statusText || 'เกิดข้อผิดพลาด โปรดลองใหม่';
+        explainHttpStatus(res.status, '');
 
       notify({
         variant: 'error',
-        title: titleErr,            // << ใช้ error เป็น "หัวข้อ"
-        text: `เหตุผล: ${reason}`   // << เอา detail.error มาแสดงเป็นเหตุผล
+        title: titleErr,
+        text: `เหตุผล: ${reason}`
       });
 
       console.warn('ORDER ERROR => status:', res.status, 'reason:', titleErr, 'payload:', data);
-      return false;
-    }
-
-    // ok => พยายามอ่าน JSON ตอบกลับ
-    if (!data?.ok) {
-      notify({
-        variant: 'error',
-        title: 'สั่งซื้อไม่สำเร็จ',
-        text: data?.error || 'เกิดข้อผิดพลาด โปรดลองใหม่'
-      });
-      console.warn('order error (ok=false):', data);
       return false;
     }
 
@@ -826,14 +921,14 @@ async function submitOrder(ev){
       text: `สร้างคำสั่งซื้อแล้ว • Provider Order: ${data.providerOrderId || '-'}`
     });
 
-    // เคลียร์ฟอร์มเล็กน้อย (แล้วแต่ต้องการ)
-    $('#qty').value = '';
+    $('#qty').value  = '';
     $('#link').value = '';
+    if (isCommentService) $('#comments').value = '';
+    if (isSeoService)     $('#keywords').value = '';
     updateEstimate();
     return false;
 
   } catch (err) {
-    // network/JS error
     notify({
       variant: 'error',
       title: 'เครือข่ายมีปัญหา',
@@ -930,11 +1025,10 @@ function syncRightRailHeights(){
 
   const total = Math.round(left.offsetHeight);
 
-  const GAP = 6; // ✅ เดิม 16 — ให้ตรงกับ .right-rail{ gap:6px }
+  const GAP = 6; // ให้ตรงกับ .right-rail{ gap:6px }
 
   rail.style.height = total + 'px';
 
-  // สัดส่วนเหมือนเดิม (อิโมจิยาวกว่านิดเดียว)
   const updatesH = Math.max(160, Math.round((total - GAP) * 0.47));
   const legendH  = Math.max(160, (total - GAP) - updatesH);
 
@@ -948,7 +1042,6 @@ function initHeightSync(){
   syncRightRailHeights();
   window.addEventListener('resize', syncRightRailHeights);
 
-  // ถ้าฟอร์มซ้ายสูงขึ้น/ลดลง (เปิดรายละเอียด, คิดราคา, ฯลฯ) ให้ sync ใหม่
   const ro = new ResizeObserver(syncRightRailHeights);
   const left = document.getElementById('detailBox');
   if (left) ro.observe(left);
@@ -957,5 +1050,11 @@ function initHeightSync(){
 document.addEventListener('DOMContentLoaded', () => {
   loadLatestUpdates();
   initHeightSync();
+
+  // ผูก auto-qty กับการพิมพ์คอมเมนต์/คีย์เวิร์ด
+  const cmtEl = document.getElementById('comments');
+  const kwEl  = document.getElementById('keywords');
+  if (cmtEl) cmtEl.addEventListener('input', syncAutoQtyFromFields);
+  if (kwEl)  kwEl.addEventListener('input', syncAutoQtyFromFields);
 });
 </script>

@@ -237,16 +237,20 @@ router.post('/orders', async (req, res) => {
     const { serviceId, groupId, providerServiceId, link } = req.body;
     let quantity = nz(req.body.quantity);
 
+    // Comments & Keywords
+    const commentsRaw = (req.body.comments || '').trim();
+    const keywordsRaw = (req.body.keywords || '').trim();
+
     if (!link || !quantity) {
       return res.status(400).json({ error: 'missing fields' });
     }
 
-    // 0) auth
+    // 0) Auth
     const me = req.session?.user || req.user;
     const userId = String(me?._id || '');
     if (!userId) return res.status(401).json({ error: 'unauthorized' });
 
-    // 1) ระบุบริการ (เดี่ยว หรือ กลุ่ม+child)
+    // 1) หา Service (เดี่ยว หรือ กลุ่ม + child)
     let baseDoc = null;
     let chosen = null;
     let providerIdForApi = null;
@@ -254,14 +258,22 @@ router.post('/orders', async (req, res) => {
     if (serviceId) {
       baseDoc = await Service.findById(serviceId).lean();
       if (!baseDoc) return res.status(404).json({ error: 'service not found' });
+
       chosen = { ...baseDoc };
       providerIdForApi =
-        baseDoc.providerServiceId || baseDoc.providerServiceID || baseDoc.id || baseDoc.provider_id;
+        baseDoc.providerServiceId ||
+        baseDoc.providerServiceID ||
+        baseDoc.id ||
+        baseDoc.provider_id;
+
     } else if (groupId && providerServiceId) {
       baseDoc = await Service.findById(groupId).lean();
       if (!baseDoc) return res.status(404).json({ error: 'service group not found' });
 
-      const children = Array.isArray(baseDoc?.details?.services) ? baseDoc.details.services : [];
+      const children = Array.isArray(baseDoc?.details?.services)
+        ? baseDoc.details.services
+        : [];
+
       const child = children.find(c => String(c.id) === String(providerServiceId));
       if (!child) return res.status(404).json({ error: 'child service not found' });
 
@@ -272,33 +284,38 @@ router.post('/orders', async (req, res) => {
         subcategory: baseDoc.subcategory,
         currency: child.currency || baseDoc.currency || 'THB',
         rate: nz(child.rate ?? baseDoc.rate),
-        min:  nz(child.min  ?? baseDoc.min),
-        max:  nz(child.max  ?? baseDoc.max),
+        min: nz(child.min ?? baseDoc.min),
+        max: nz(child.max ?? baseDoc.max),
         step: nz(child.step ?? baseDoc.step ?? 1),
         name: child.name || baseDoc.name
       };
+
       providerIdForApi = child.id;
+
     } else {
       return res.status(400).json({ error: 'missing fields' });
     }
 
-    // 2) ตรวจ min/max + บังคับ step (ใช้ nz/round2 ของคุณ)
+    // 2) ตรวจ min/max/step
     if (!(quantity > 0)) return res.status(400).json({ error: 'จำนวนต้องมากกว่า 0' });
-    if (chosen.min && quantity < chosen.min) return res.status(400).json({ error: `ขั้นต่ำ ${chosen.min}` });
-    if (chosen.max && quantity > chosen.max) return res.status(400).json({ error: `สูงสุด ${chosen.max}` });
+    if (chosen.min && quantity < chosen.min)
+      return res.status(400).json({ error: `ขั้นต่ำ ${chosen.min}` });
+    if (chosen.max && quantity > chosen.max)
+      return res.status(400).json({ error: `สูงสุด ${chosen.max}` });
 
     const step = Math.max(1, nz(chosen.step));
     if (quantity % step !== 0) {
-      const fixed = Math.floor(quantity / step) * step; // ปัดลงให้เป็นทวีคูณ
+      const fixed = Math.floor(quantity / step) * step;
       if (fixed < Math.max(1, nz(chosen.min))) {
         return res.status(400).json({ error: `ปริมาณต้องเป็นทวีคูณของ ${step}` });
       }
       quantity = fixed;
     }
 
-    // 3) คิดราคา (ยึด calcCost + moneyRound ของคุณ)
+    // 3) คิดราคา
     let rate = nz(chosen.rate);
     let cost = moneyRound(calcCost(quantity, rate));
+
     try {
       const ex = await computeEffectiveRateEx({
         serviceId: baseDoc._id,
@@ -313,36 +330,55 @@ router.post('/orders', async (req, res) => {
 
     const currency = chosen.currency || 'THB';
 
-    // 4) เดบิต
+    // 4) ตัดเงิน
     const debited = await User.findOneAndUpdate(
       { _id: userId, balance: { $gte: cost } },
       { $inc: { balance: -cost } },
       { new: true, projection: { balance: 1 } }
     );
-    if (!debited) return res.status(400).json({ error: 'ยอดเงินไม่พอ', need: cost, currency });
+    if (!debited)
+      return res.status(400).json({ error: 'ยอดเงินไม่พอ', need: cost, currency });
 
-    // 5) ยิงผู้ให้บริการ
+    // 5) เตรียม payload ส่ง Provider
     const providerPayload = {
       service_id: Number(providerIdForApi),
       link,
       quantity,
       ...(req.body?.dripfeed !== undefined ? { dripfeed: !!req.body.dripfeed } : {}),
-      ...(req.body?.runs     !== undefined ? { runs: Number(req.body.runs) } : {}),
-      ...(req.body?.interval !== undefined ? { interval: String(req.body.interval) } : {}),
-      ...(req.body?.comments !== undefined ? { comments: String(req.body.comments) } : {}),
+      ...(req.body?.runs !== undefined ? { runs: Number(req.body.runs) } : {}),
+      ...(req.body?.interval !== undefined ? { interval: String(req.body.interval) } : {})
     };
 
+    // === รวม comments + keywords ===
+    let combinedComments = null;
+    if (commentsRaw && keywordsRaw) {
+      combinedComments = `${commentsRaw} | ${keywordsRaw}`;
+    } else if (commentsRaw) {
+      combinedComments = commentsRaw;
+    } else if (keywordsRaw) {
+      combinedComments = keywordsRaw;
+    }
+
+    if (combinedComments) {
+      providerPayload.comments = combinedComments;
+    }
+
+    // 6) ยิง Provider
     let providerResp;
     try {
       providerResp = await providerCreateOrder(providerPayload);
     } catch (e) {
       console.error('Provider order failed:', e?.response?.data || e.message);
-      await User.updateOne({ _id: userId }, { $inc: { balance: cost } }); // คืนเงิน
-      return res.status(502).json({ error: 'สั่งงานผู้ให้บริการไม่สำเร็จ', detail: e?.response?.data || e.message });
+      await User.updateOne({ _id: userId }, { $inc: { balance: cost } });
+      return res.status(502).json({
+        error: 'สั่งงานผู้ให้บริการไม่สำเร็จ',
+        detail: e?.response?.data || e.message
+      });
     }
 
-    // 6) บันทึก (normalize ผลลัพธ์, ใช้ snapshot ราคา/บริการ)
+    // 7) Normalize response และเตรียมข้อมูลบันทึก DB
     const np = normalizeProviderFields(providerResp);
+
     const fields = {
       user: userId,
       userId,
@@ -351,26 +387,43 @@ router.post('/orders', async (req, res) => {
       providerOrderId: np.providerOrderId,
       link,
       quantity,
-      cost, estCost: cost, currency,
+      cost,
+      estCost: cost,
+      currency,
       rateAtOrder: rate,
       baseRateAtOrder: nz(chosen.rate),
       serviceName: chosen.name || baseDoc.name,
       status: 'processing',
       providerResponse: np.raw || providerResp || null,
-      startCount:   (np.startCount   != null ? np.startCount   : undefined),
-      currentCount: (np.currentCount != null ? np.currentCount : undefined),
-      remains:      (np.remains      != null ? np.remains      : undefined),
-      progress:     (np.progress     != null ? np.progress     : undefined),
-      acceptedAt:   (np.acceptedAt || undefined),
-      category:     baseDoc.category,
-      subcategory:  baseDoc.subcategory
+      startCount: np.startCount ?? undefined,
+      currentCount: np.currentCount ?? undefined,
+      remains: np.remains ?? undefined,
+      progress: np.progress ?? undefined,
+      acceptedAt: np.acceptedAt || undefined,
+      category: baseDoc.category,
+      subcategory: baseDoc.subcategory
     };
 
-    if (fields.progress == null && fields.startCount != null && fields.currentCount != null && quantity > 0) {
-      fields.progress = Math.max(0, Math.min(100, ((fields.currentCount - fields.startCount) / quantity) * 100));
-      fields.progress = round2(fields.progress);
+    // บันทึก comments/keywords ลง DB แยก
+    if (commentsRaw) fields.comments = commentsRaw;
+    if (keywordsRaw) fields.keywords = keywordsRaw;
+
+    // คำนวณ progress (ถ้าผู้ให้บริการไม่ส่ง progress มา)
+    if (
+      fields.progress == null &&
+      fields.startCount != null &&
+      fields.currentCount != null &&
+      quantity > 0
+    ) {
+      fields.progress = round2(
+        Math.max(
+          0,
+          Math.min(100, ((fields.currentCount - fields.startCount) / quantity) * 100)
+        )
+      );
     }
 
+    // 8) บันทึก Order ลงฐานข้อมูล
     try {
       const order = await Order.create(fields);
       await User.updateOne({ _id: userId }, { $inc: { totalOrders: 1 } });
@@ -385,10 +438,10 @@ router.post('/orders', async (req, res) => {
         orderId: order._id,
         providerOrderId: np.providerOrderId,
         charged: { amount: cost, currency },
-        balance: debited.balance,
+        balance: debited.balance
       });
     } catch (e) {
-      await User.updateOne({ _id: userId }, { $inc: { balance: cost } }); // rollback
+      await User.updateOne({ _id: userId }, { $inc: { balance: cost } });
       console.error('Order create failed, refunded:', e);
       return res.status(500).json({ error: 'save order failed' });
     }

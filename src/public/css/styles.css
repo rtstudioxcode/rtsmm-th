@@ -4354,3 +4354,42 @@ html[data-theme="dark"]{ --pv-bg: var(--page, #0b1620); --pv-border: var(--borde
 .orders-history.tabs .tab.active::after {
   background: var(--accent);
 }
+
+
+/* ใช้ร่วมทั้ง input และ textarea */
+.input, .textarea {
+  width: 100%;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 12px 14px;
+  font-size: 15px;
+  border-radius: 8px;
+  outline: none;
+  transition: 0.2s;
+  resize: vertical;
+  min-height: 48px;
+}
+
+.textarea {
+  min-height: 150px;
+}
+
+.input:focus,
+.textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.form-label {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+}

@@ -81,7 +81,7 @@ export function initTopupAutoRejectJob() {
     spec,
     async () => {
       const now = new Date().toISOString();
-      console.log("[TopupAutoRejectJob] tick at", now);
+    //   console.log("[TopupAutoRejectJob] tick at", now);
       await autoRejectOrphanTopups();
     },
     {

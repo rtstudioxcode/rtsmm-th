@@ -501,7 +501,7 @@ function fmtTHDate(d){
   <div class="omodal-dialog">
     <header class="omodal-head">
       <div class="omodal-title">
-        คำสั่งซื้อ ID: <span id="om-title">#</span>
+        คำสั่งซื้อ ID: <span id="om-title" style="color: #e3b863;">#</span>
       </div>
       <button class="omodal-close" title="ปิด" data-close="1">×</button>
     </header>
@@ -512,7 +512,7 @@ function fmtTHDate(d){
         <h4>รายละเอียดค่าใช้จ่าย</h4>
         <div class="ometa">
           <div class="muted">ค่าใช้จ่าย ทั้งหมด</div>
-          <div id="om-cost">-</div>
+          <div id="om-cost" class="om-cost">-</div>
 
           <div class="muted" id="om-refund-label" style="margin-top:8px; display:none;">ยอดคืนเงิน</div>
           <div id="om-refund" style="display:none;">-</div>
@@ -552,32 +552,54 @@ function fmtTHDate(d){
         </div>
       </section>
 
-      <!-- รายละเอียดคำสั่งซื้อ -->
+            <!-- รายละเอียดคำสั่งซื้อ -->
       <section class="omodal-sec">
         <h4>รายละเอียดคำสั่งซื้อ</h4>
         <div class="ometa">
+          <!-- ลิงก์ -->
           <div class="muted">ลิงก์</div>
-          <div class="olink"><a id="om-link" href="#" target="_blank" rel="noopener">-</a></div>
+          <div class="olink">
+            <a id="om-link" style="color: rgb(41, 149, 238);" href="#" target="_blank" rel="noopener">-</a>
+          </div>
 
+          <!-- ปริมาณ -->
           <div class="muted">ปริมาณ</div>
           <div id="om-qty" class="mono">-</div>
 
-          <div class="muted">เริ่มจาก</div>
+          <!-- เริ่ม -->
+          <div class="muted">เริ่ม</div>
           <div id="om-start" class="mono">-</div>
 
+          <!-- current ซ่อนไว้ (เผื่ออนาคตใช้) -->
           <div class="muted" hidden>นับปัจจุบัน (current)</div>
           <div id="om-current" class="mono" hidden>-</div>
 
+          <!-- ปริมาณที่เหลือ + แถบความคืบหน้า แบบในรูป -->
           <div class="muted">ปริมาณที่เหลือ</div>
-          <div>
-            <div class="oprog" style="margin-bottom:6px">
-              <span class="opct" id="om-left-pct">0.00%</span>
-              <div class="opbar"><i id="om-bar" style="width:0%"></i></div>
+          <div class="om-left-wrap">
+            <div class="oprog">
+              <div class="oprog-head">
+                <span class="mono left-label">
+                  <span id="om-left-abs-head">0</span> รอดำเนิน
+                </span>
+                <span class="mono right-label" id="om-left-pct">0.00%</span>
+              </div>
+              <div class="opbar">
+                <i id="om-bar" style="width:0%"></i>
+              </div>
             </div>
-            <div class="mono muted">
+            <div class="mono muted o-left-summary">
               เหลือ <span id="om-left-abs">0</span> จากทั้งหมด <span id="om-qty-abs">0</span>
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- คอมเมนต์จากผู้ให้บริการ -->
+      <section class="omodal-sec" id="om-comments-sec" style="display:none;">
+        <h4>Comments <small class="muted" style="font-weight:400;">(1 บรรทัดต่อ 1 Comment)</small></h4>
+        <div class="ometa mono small om-comments-scroll" id="om-comments-body">
+          <!-- จะถูกเติมด้วย JS -->
         </div>
       </section>
     </div>
@@ -638,7 +660,14 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
   svcProviderServiceId: (o.service && o.service.providerServiceId) || (o.providerServiceId || null),
   providerServiceId: o.providerServiceId || null,
   refundAmount: (o.refundAmount ?? 0),
-  refundType: (o.refundType || null)
+  refundType: (o.refundType || null),
+
+  // 🆕 ดึง comments จาก providerResponse
+  comments:
+    (o.providerResponse?.raw?.comments)
+    || (o.providerResponse?.raw?.comment)
+    || (o.providerResponse?.comments)
+    || ''
 }))) %>;
 
 (function(){
@@ -693,8 +722,11 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
   const wrap = $('#orderModal');
   const title = $('#om-title'), cost = $('#om-cost'), link = $('#om-link');
   const qty = $('#om-qty'), start = $('#om-start'), current = $('#om-current');
-  const leftAbsEl = $('#om-left-abs'), qtyAbsEl = $('#om-qty-abs');
-  const leftPctEl = $('#om-left-pct'), bar = $('#om-bar');
+  const leftAbsHeadEl = $('#om-left-abs-head');      // label ด้านซ้าย "0 รอดำเนิน"
+  const leftAbsEl     = $('#om-left-abs');           // ตัวเลขในประโยค "เหลือ 0 จากทั้งหมด 10"
+  const qtyAbsEl      = $('#om-qty-abs');
+  const leftPctEl     = $('#om-left-pct');           // % ด้านขวา
+  const bar           = $('#om-bar');
   const createdAt = $('#om-createdAt'), updatedAt = $('#om-updatedAt');
   const btnRefresh = $('#om-refresh');
 
@@ -716,10 +748,25 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
 
     // ==== สรุปเปอร์เซ็นต์ ====
     const { donePct, leftPct, leftAbs } = calcPercents(o);
-    leftPctEl.textContent = leftPct.toFixed(2) + '%';
-    bar.style.width = donePct + '%';
-    qtyAbsEl.textContent  = Number(o.quantity)||0;
-    leftAbsEl.textContent = (leftAbs==null ? '—' : leftAbs);
+
+    // % ความคืบหน้าด้านขวา
+    if (leftPctEl) {
+      leftPctEl.textContent = donePct.toFixed(2) + '%';
+    }
+
+    // ความยาวแท่ง progress
+    if (bar) {
+      bar.style.width = donePct + '%';
+    }
+
+    // ตัวเลขปริมาณ
+    const qtyAbs = Number(o.quantity) || 0;
+    if (qtyAbsEl) qtyAbsEl.textContent = qtyAbs;
+
+    const leftVal = (leftAbs == null ? (qtyAbs ? qtyAbs : 0) : leftAbs);
+    if (leftAbsEl)      leftAbsEl.textContent      = leftVal;
+    if (leftAbsHeadEl)  leftAbsHeadEl.textContent  = leftVal;
+
 
     // ==== Refund display ====
     const refund = Number(o.refundAmount||0);
@@ -779,6 +826,33 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
       finalLabel.textContent = label;
       finalTime.textContent  = fmtDate(o.updatedAt || o.createdAt);
       if (cls) finalWrap.classList.add(cls);
+    }
+
+    // ==== Comments จากผู้ให้บริการ ====
+    const commentsSec  = document.getElementById('om-comments-sec');
+    const commentsBody = document.getElementById('om-comments-body');
+
+    if (commentsSec && commentsBody) {
+      const raw = (o.comments || '').toString().trim();
+
+      if (!raw) {
+        commentsSec.style.display = 'none';
+        commentsBody.textContent = '';
+      } else {
+        commentsSec.style.display = '';
+        commentsBody.innerHTML = '';
+
+        const lines = raw
+          .split(/\r?\n/)
+          .map(l => l.trim())
+          .filter(Boolean);
+
+        lines.forEach((line) => {
+          const div = document.createElement('div');
+          div.textContent = line;
+          commentsBody.appendChild(div);
+        });
+      }
     }
 
     // ===== ควบคุมปุ่มรีเฟรชในโมดัล ตามสถานะ =====
@@ -1287,6 +1361,7 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
       const updatedAt     = data.updatedAt || new Date().toISOString();
       const refundAmount  = data.refundAmount;
       const refundType    = data.refundType;
+      const comments      = data.comments;
 
       // สร้าง patch แล้วอัปเดต DOM ผ่าน applyOrderPatch
       const patch = {
@@ -1298,7 +1373,8 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
         currentCount: current_count,
         updatedAt,
         refundAmount,
-        refundType
+        refundType,
+        comments
       };
       window.applyOrderPatch?.(patch);
 
@@ -1315,6 +1391,7 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
         o.updatedAt     = patch.updatedAt || o.updatedAt;
         if (typeof patch.refundAmount === 'number') o.refundAmount = patch.refundAmount;
         if (typeof patch.refundType   === 'string') o.refundType   = patch.refundType;
+        if (typeof patch.comments     === 'string') o.comments     = patch.comments;
       }
     } catch (e) {
       console.error('refresh one (local) failed:', e);
@@ -1878,5 +1955,117 @@ async function startCancel(orderId) {
 
 .orders-history.tabs .tab.active::after {
   background: var(--accent);
+}
+
+/* ===== Compact Order Modal ===== */
+
+/* ตัวกล่อง modal ให้สูงสุดแค่ 90% ของหน้าจอ แล้วให้เนื้อหาข้างในスク롤แทน */
+.omodal-dialog {
+  max-width: 720px;           /* ไม่ให้กว้างไป */
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* หัว + ท้าย ใช้ padding บางลง */
+.omodal-head,
+.omodal-foot {
+  padding: 10px 18px;
+}
+
+/* .om-cost {
+  color: #15ff00cb;
+  margin-top: 2px;
+  margin-left: -60px !important;
+} */
+
+/* เนื้อหาให้ scroll ได้ และลด padding ลง */
+.omodal-body {
+  padding: 12px 18px;
+  overflow-y: auto;
+  max-height: calc(90vh - 90px); /* เผื่อพื้นที่หัว+ท้าย */
+}
+
+/* แต่ละ section เตี้ยลง ไม่กินพื้นที่ */
+.omodal-sec {
+  margin: 0 0 10px;
+  padding: 8px 0 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.omodal-sec:last-of-type {
+  border-bottom: none;
+}
+
+/* หัวข้อ section เล็กลงนิดนึง */
+.omodal-sec h4 {
+  font-size: 14px;
+  margin: 0 0 6px;
+}
+
+/* จัด "ค่าใช้จ่าย ทั้งหมด" กับยอดเงินให้ชิดกันมากขึ้น */
+.omodal-sec:first-of-type .ometa {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;              /* อยากชิดกว่านี้ลดเลขได้ เช่น 4 */
+  flex-wrap: wrap;       /* กันข้อความล้นบนจอแคบ */
+}
+
+/* ยอดเงิน: ใช้ id ตาม HTML จริง (#om-cost) */
+.omodal-sec:first-of-type #om-cost {
+  color: #15ff00cb;
+  font-weight: 600;
+}
+
+/* Timeline ให้แน่นขึ้น */
+.otimeline {
+  padding: 6px 10px;
+}
+.ot-item {
+  margin: 3px 0;
+}
+.ot-item div {
+  font-size: 13px;
+}
+
+/* รายละเอียดคำสั่งซื้อ ย่อช่องว่างลง */
+.ometa {
+  row-gap: 4px;
+}
+.ometa .muted {
+  margin-top: 2px;
+  font-size: 13px;
+}
+
+/* แถบ progress ให้บางลง */
+.opbar {
+  height: 4px;
+}
+.o-left-summary {
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+/* กล่อง Comments: 1 comment ต่อ 1 บรรทัด + เลื่อนแนวตั้งได้ */
+.om-comments-scroll {
+  max-height: 120px;               /* ความสูงกล่องคอมเมนต์ */
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.08);
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  counter-reset: cm;
+}
+
+/* ฟอนต์รวมใน modal เล็กลงนิดหน่อย */
+#orderModal {
+  font-size: 13px;
+}
+#orderModal .mono {
+  font-size: 12px;
 }
 </style>
