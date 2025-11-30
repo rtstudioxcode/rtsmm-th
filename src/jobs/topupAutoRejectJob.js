@@ -9,23 +9,23 @@ async function autoRejectOrphanTopups(opts = {}) {
   } = opts;
 
   try {
-    // หา transaction ที่ pending และไม่มี userId หรือ username
-    const candidates = await Transaction.find({
-        status: "pending",
-        $or: [
-            // ── ฝั่ง userId: ต้องไม่มี หรือเป็น null เท่านั้น (ห้ามใส่ "")
-            { userId: { $exists: false } },
-            { userId: null },
+    // === คำนวณเวลาตัด 12 ชั่วโมง ===
+    const nowMs = Date.now();
+    const twelveHoursMs = 12 * 60 * 60 * 1000;
+    const cutoff = new Date(nowMs - twelveHoursMs);
 
-            // ── ฝั่ง username: ไม่มี / null / ว่าง
-            { username: { $exists: false } },
-            { username: null },
-            { username: "" },
-        ],
+    // === หาเฉพาะรายการที่ไม่มี userId และค้างเกิน 12 ชม. ===
+    const candidates = await Transaction.find({
+      status: "pending",
+      createdAt: { $lte: cutoff },
+      $or: [
+        { userId: { $exists: false } },
+        { userId: null },
+      ],
     })
-        .sort({ createdAt: 1 })
-        .limit(batchSize)
-        .lean();
+      .sort({ createdAt: 1 })
+      .limit(batchSize)
+      .lean();
 
     if (!candidates.length) {
       // console.log(`${logPrefix} no orphan pending transactions`);
@@ -39,7 +39,7 @@ async function autoRejectOrphanTopups(opts = {}) {
         status: "reject",
       };
 
-      // เพิ่ม note auto-reject ถ้ายังไม่มี
+      // ติด tag ไว้ใน note ว่าถูก auto-reject เพราะไม่มี user
       const tag = "auto-reject:no-user";
       let note = tx.note || "";
       if (!note.includes(tag)) {
@@ -55,7 +55,7 @@ async function autoRejectOrphanTopups(opts = {}) {
       if (res.modifiedCount > 0) {
         changed += 1;
         console.log(
-          `${logPrefix} auto reject tx=${tx.transactionId || tx._id} (no userId/username)`
+          `${logPrefix} auto reject tx=${tx.transactionId || tx._id} (no userId, >12h)`
         );
       }
     }
@@ -67,13 +67,13 @@ async function autoRejectOrphanTopups(opts = {}) {
   }
 }
 
-// export ไว้เผื่ออยากเรียกครั้งเดียวจากที่อื่น
+// เรียกครั้งเดียวด้วยมือ (ถ้าอยาก debug)
 export async function runTopupAutoRejectOnce() {
   return autoRejectOrphanTopups();
 }
 
 export function initTopupAutoRejectJob() {
-  // ทุก ๆ 1 นาที
+  // ทุก ๆ 1 นาที (ตามเวลา Bangkok)
   const spec = "*/1 * * * *";
   console.log("[TopupAutoRejectJob] init with spec =", spec);
 
@@ -81,7 +81,7 @@ export function initTopupAutoRejectJob() {
     spec,
     async () => {
       const now = new Date().toISOString();
-    //   console.log("[TopupAutoRejectJob] tick at", now);
+      // console.log("[TopupAutoRejectJob] tick at", now);
       await autoRejectOrphanTopups();
     },
     {

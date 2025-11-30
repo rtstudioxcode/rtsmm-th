@@ -15,6 +15,17 @@ import { config } from "../config.js";
 
 export const topupRouter = express.Router();
 
+// helper: สร้าง Date จากเวลา "ตามประเทศไทย" ให้ถูกต้อง
+const BANGKOK_TZ_OFFSET_MIN = 7 * 60; // +07:00
+
+function makeBangkokDateFromParts(year, month, day, hour, minute, second = 0) {
+  // month: 1-12
+  const utcMs = Date.UTC(year, month - 1, day, hour, minute, second);
+  const offsetMs = BANGKOK_TZ_OFFSET_MIN * 60 * 1000;
+  // ลบ offset ออกเพื่อให้ epoch ตรงกับเวลาไทย (แปลงเป็น UTC)
+  return new Date(utcMs - offsetMs);
+}
+
 // ───────────────────────────────
 // GET /topup
 // ───────────────────────────────
@@ -413,7 +424,15 @@ topupRouter.post("/kbank", async (req, res) => {
     let [, day, month, hour, minute, receiverLast6, senderLast6, amountStr] = match;
     const year = new Date().getFullYear();
     const seconds = new Date(timestamp * 1000).getSeconds();
-    const parsedDate = new Date(Date.UTC(year, month - 1, day, hour, minute, seconds));
+    
+    const parsedDate = makeBangkokDateFromParts(
+      Number(year),
+      Number(month),
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(seconds)
+    );
 
     const amt = Number(String(amountStr).replace(/,/g, "")) || 0;
     const amtCents = Math.round(amt * 100);
@@ -523,7 +542,14 @@ topupRouter.post("/scb", async (req, res) => {
     // เวลาแบบ UTC ให้เสถียร (เหมือน KBANK)
     const year = new Date().getFullYear();
     const seconds = new Date(timestamp * 1000).getSeconds();
-    const parsedDate = new Date(Date.UTC(year, Number(month) - 1, Number(day), Number(hour), Number(minute), seconds));
+    const parsedDate = makeBangkokDateFromParts(
+      Number(year),
+      Number(month),
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(seconds)
+    );
 
     // จำนวนเงิน
     const amt = Number(String(amountStr).replace(/,/g, "")) || 0;
