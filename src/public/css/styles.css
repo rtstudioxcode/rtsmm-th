@@ -4602,6 +4602,7 @@ html[data-theme="dark"]{ --pv-bg: var(--page, #0b1620); --pv-border: var(--borde
   }
 }
 
+/* ส่วนของหน้าสั่งออเดอร์บริการ */
 /* รายการใน dropdown */
 #groupList .opt {
   display: flex;
@@ -4744,4 +4745,89 @@ html[data-theme="dark"]{ --pv-bg: var(--page, #0b1620); --pv-border: var(--borde
   #childBtn #childText {
     margin-top: 2px;          /* ดันกรอบ text ลงมานิดหน่อย */
   }
+}
+
+/* ===== Global search dropdown ===== */
+.search-all-wrap {
+  position: relative;
+  flex: 1 1 auto;
+}
+
+.search-all-wrap .input {
+  width: 100%;
+}
+
+/* กล่องผลลัพธ์ */
+.search-suggest {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--card, #111319);
+  border: 1px solid var(--border, #262a33);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0,0,0,.55);
+  max-height: 420px;
+  overflow: auto;
+  padding: 4px 0;
+  z-index: 40;
+}
+
+.search-suggest .sg-opt {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.search-suggest .sg-opt:hover {
+  background: rgba(255,255,255,0.04);
+}
+
+.search-suggest .sg-kind {
+  flex: 0 0 auto;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  opacity: .9;
+}
+
+.search-suggest .sg-kind-p { background:#1f6feb; }
+.search-suggest .sg-kind-g { background:#7d4bff; }
+.search-suggest .sg-kind-s { background:#238636; }
+
+.search-suggest .sg-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.search-suggest .sg-sub {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--muted, #a1a7b3);
+}
+
+.search-suggest .sg-icon {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  border-radius: 999px;
+  object-fit: contain;
+}
+
+.search-suggest .sg-empty {
+  padding: 6px 10px;
+  font-size: 12px;
 }

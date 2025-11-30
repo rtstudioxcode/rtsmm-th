@@ -18,8 +18,14 @@
 
   <section class="card soft">
     <div class="row">
-      <input id="searchAll" class="input" placeholder="ค้นหาได้ทั้ง ID / ชื่อบริการ">
-      <!-- ใช้ id="chipBar" เพื่อจับคลิกแบบ delegation -->
+      <!-- ครอบ input ด้วย wrapper เพื่อวาง dropdown ทับ -->
+      <div class="search-all-wrap">
+        <input id="searchAll" class="input" placeholder="ค้นหาได้ทั้ง ID / ชื่อบริการ">
+        <!-- กล่องผลลัพธ์ค้นหา -->
+        <div id="searchSuggest" class="search-suggest" hidden></div>
+      </div>
+
+      <!-- ชิปกรอง -->
       <div id="chipBar" class="chips">
         <button type="button" class="chip active" data-sub="">ทั้งหมด</button>
       </div>
@@ -328,6 +334,7 @@ const linkify = s=>String(s||'').replace(/https?:\/\/\S+/g,m=>`<a href="${m}" ta
 const fmt = n=>Number(n||0).toLocaleString(undefined,{maximumFractionDigits:4});
 const debounce = (fn,ms=220)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; };
 
+let groupsByPlatform = new Map();
 let platforms=[], groups=[], children=[];
 let subcats=[];
 let currentPlatform=null, currentGroup=null, currentChild=null;
@@ -1122,6 +1129,23 @@ function pickGroupIcon(group) {
   return null; // ไม่มีไอคอนตรงคำ -> ไม่ต้องโชว์รูป
 }
 
+function getPlatformNameById(id) {
+  const p = platforms.find(p => String(p._id) === String(id));
+  return p ? (p.name || '') : '';
+}
+
+// เลือกแพลตฟอร์มจาก id + ทำ tile ให้ active
+async function ensurePlatformSelected(platformId) {
+  platformId = String(platformId);
+  if (String(currentPlatform) !== platformId) {
+    // เปลี่ยน active tile
+    $$('#platformGrid .p-tile').forEach(el => {
+      el.classList.toggle('active', el.dataset.id === platformId);
+    });
+    await choosePlatform(platformId);
+  }
+}
+
 /* ---------- Boot ---------- */
 async function init(){
   await loadPlatforms();
@@ -1169,29 +1193,30 @@ async function init(){
 
   const onGlobalSearch = debounce(async () => {
     const v = ($('#searchAll').value || '').trim();
-    // กรองรายการในเมนู (คงพฤติกรรมเดิม)
+
+    // กรองรายชื่อ service ในเมนูเดิม
     filterChildrenFromGlobal();
-    // ถ้าเป็นเลขล้วน -> ลองจับคู่บริการแบบออโต้
+
+    // แสดง dropdown ผลลัพธ์ (แพลตฟอร์ม / หมวดหมู่ / บริการ)
+    await runGlobalSearchDropdown(v);
+
+    // ถ้าเป็นเลขล้วน และไม่คลิกอะไรเลย -> auto jump ตาม ID เหมือนเดิม
     if (/^\d+$/.test(v)) {
       await autoPickByServiceId(v);
     }
-  }, 120);
-  $('#searchAll').addEventListener('input', onGlobalSearch);
-  $('#groupBtn').onclick = ()=>{
-    $('#groupSel').classList.toggle('open');
-    $('#groupBtn').setAttribute('aria-expanded', String($('#groupSel').classList.contains('open')));
-  };
-  $('#childBtn').onclick = ()=>{
-    $('#childSel').classList.toggle('open');
-    $('#childBtn').setAttribute('aria-expanded', String($('#childSel').classList.contains('open')));
-  };
-  $('#groupSearch').addEventListener('input', debounce(()=>renderGroupList(false), 120));
-  $('#childSearch').addEventListener('input', debounce(renderChildList, 120));
-  $('#qty').addEventListener('input', updateEstimate);
-  $('#chipBar').addEventListener('click', onChip);
+  }, 160);
 
-  $('#searchAll').value='';
-  $('#searchAll').dispatchEvent(new Event('input'));
+  $('#searchAll').addEventListener('input', onGlobalSearch);
+
+  // ปิด dropdown ด้วย ESC
+  $('#searchAll').addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const box = document.getElementById('searchSuggest');
+      if (box) {
+        box.hidden = true;
+      }
+    }
+  });
 }
 
 /* ---------- auto-pick service from ?type=service&id=xxx ---------- */
@@ -1283,6 +1308,8 @@ async function choosePlatform(catId){
 
   const res = await fetch(`/api/service-groups?cat=${catId}`);
   groups = await res.json();
+
+  groupsByPlatform.set(String(catId), groups);
 
   const chipsWithCount = CHIP_DEFS.map(ch=>{
     const sub = subcats.find(s => (s.name||'').toLowerCase() === ch.label.toLowerCase());
@@ -1406,8 +1433,161 @@ function renderChildList(){
     chooseChild(svc);
   };
 }
+
+async function runGlobalSearchDropdown(query) {
+  const box = document.getElementById('searchSuggest');
+  if (!box) return;
+
+  const q = String(query || '').trim().toLowerCase();
+  if (q.length < 2) {
+    box.hidden = true;
+    box.innerHTML = '';
+    return;
+  }
+
+  const results = [];
+
+  // 1) ค้นหาแพลตฟอร์ม
+  for (const p of platforms) {
+    if ((p.name || '').toLowerCase().includes(q)) {
+      results.push({
+        kind: 'platform',
+        platformId: String(p._id),
+        label: p.name || '',
+      });
+    }
+  }
+
+  // 2) ค้นหาหมวดหมู่ + service จาก groupsByPlatform
+  groupsByPlatform.forEach((grpArr, platId) => {
+    const platName = getPlatformNameById(platId);
+
+    grpArr.forEach(g => {
+      const gName = g?.name || '';
+      const gNameLower = gName.toLowerCase();
+
+      // match กลุ่ม
+      if (gNameLower.includes(q)) {
+        results.push({
+          kind: 'group',
+          platformId: String(platId),
+          groupId: String(g._id),
+          label: gName,
+          sub: platName || ''
+        });
+      }
+
+      // match service
+      const svcList = Array.isArray(g?.details?.services) ? g.details.services : [];
+      svcList.forEach(svc => {
+        const text = `${svc.id} ${svc.name || ''}`.toLowerCase();
+        if (text.includes(q)) {
+          results.push({
+            kind: 'service',
+            platformId: String(platId),
+            groupId: String(g._id),
+            serviceId: String(svc.id),
+            label: `ID: ${svc.id} — ${svc.name || ''}`,
+            sub: gName || platName || ''
+          });
+        }
+      });
+    });
+  });
+
+  // จำกัดจำนวนผลลัพธ์
+  const limited = results.slice(0, 25);
+
+  if (!limited.length) {
+    box.innerHTML = `<div class="sg-empty muted">ไม่พบผลลัพธ์ที่ตรงกับคำค้น</div>`;
+    box.hidden = false;
+    return;
+  }
+
+  box.innerHTML = limited.map(r => {
+    let kindClass = 'sg-kind-s';
+    let kindLabel = 'บริการ';
+    let iconHtml = '';
+
+    if (r.kind === 'platform') {
+      kindClass = 'sg-kind-p';
+      kindLabel = 'แพลตฟอร์ม';
+    } else if (r.kind === 'group') {
+      kindClass = 'sg-kind-g';
+      kindLabel = 'หมวดหมู่';
+
+      // แสดง icon หมวดหมู่เหมือนใน dropdown
+      const grpArr = groupsByPlatform.get(r.platformId) || [];
+      const gObj = grpArr.find(g => String(g._id) === String(r.groupId));
+      const iconUrl = gObj ? pickGroupIcon(gObj) : null;
+      if (iconUrl) {
+        iconHtml = `<img class="sg-icon" src="${iconUrl}" alt="">`;
+      }
+    }
+
+    return `
+      <button type="button"
+              class="sg-opt"
+              data-kind="${r.kind}"
+              data-platform="${r.platformId || ''}"
+              data-group="${r.groupId || ''}"
+              data-service="${r.serviceId || ''}">
+        ${iconHtml}
+        <span class="sg-kind ${kindClass}">${kindLabel}</span>
+        <span class="sg-main" title="${r.label.replace(/"/g, '&quot;')}">${r.label}</span>
+        ${r.sub ? `<span class="sg-sub">${r.sub}</span>` : ''}
+      </button>
+    `;
+  }).join('');
+
+  box.hidden = false;
+}
+
 function filterChildrenFromGlobal(){ renderChildList(); }
 let effectiveRateCache = new Map();
+
+document.addEventListener('click', async (e) => {
+  const box = document.getElementById('searchSuggest');
+  if (!box) return;
+
+  const btn = e.target.closest('.sg-opt');
+  if (btn && box.contains(btn)) {
+    const kind = btn.dataset.kind;
+    const platformId = btn.dataset.platform;
+    const groupId = btn.dataset.group;
+    const serviceId = btn.dataset.service;
+
+    // ซ่อน dropdown ก่อน
+    box.hidden = true;
+
+    if (kind === 'platform') {
+      await ensurePlatformSelected(platformId);
+      return;
+    }
+
+    if (kind === 'group') {
+      await ensurePlatformSelected(platformId);
+      const grpArr = groupsByPlatform.get(String(platformId)) || groups;
+      const gObj = grpArr.find(g => String(g._id) === String(groupId));
+      if (gObj) chooseGroup(gObj);
+      return;
+    }
+
+    if (kind === 'service') {
+      // ใช้ตัวช่วยเดิมที่มี already: autoPickByServiceId
+      if (serviceId) {
+        // จะวิ่งหา service ทุกแพลตฟอร์มให้เอง
+        await autoPickByServiceId(serviceId);
+      }
+      return;
+    }
+  } else {
+    // คลิกรอบนอก -> ปิด
+    if (!box.contains(e.target) && e.target.id !== 'searchAll') {
+      box.hidden = true;
+    }
+  }
+});
 
 /* ---------- ดึง effective rate (ถ้า endpoint มี) ---------- */
 async function fetchEffectiveRateIfAvailable(groupId, childId, baseRate){
@@ -1770,7 +1950,29 @@ function initHeightSync(){
   if (left) ro.observe(left);
 }
 
+// ===== เปิด/ปิด dropdown ของ .select =====
+function bindSelectToggle(selId) {
+  const sel = document.getElementById(selId);
+  if (!sel) return;
+
+  const btn = sel.querySelector('.select-btn');
+  if (!btn) return;
+
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation(); // กันไม่ให้ event หลุดไปถึงตัวที่ปิดทั้งหมด
+
+    const isOpen = sel.classList.toggle('open');
+    btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  init();
+  // เปิด/ปิด dropdown หมวดหมู่ + บริการ
+  bindSelectToggle('groupSel');
+  bindSelectToggle('childSel');
+
   loadLatestUpdates();
   initHeightSync();
 
