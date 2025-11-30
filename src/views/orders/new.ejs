@@ -414,8 +414,6 @@ document.addEventListener('keydown',e=>{
   if (e.key==='Escape') $$('.select.open').forEach(x=>x.classList.remove('open'));
 });
 
-init();
-
 /* --------- Utils --------- */
 function oid(x){
   if (!x) return '';
@@ -1220,10 +1218,13 @@ async function init(){
   const onGlobalSearch = debounce(async () => {
     const v = ($('#searchAll').value || '').trim();
 
-    // กรองรายชื่อ service ในเมนูเดิม
+    // ✅ โหลด groups ของทุกแพลตฟอร์มเข้า groupsByPlatform ให้ครบก่อน
+    await ensureAllGroupsLoaded();
+
+    // กรองรายชื่อ service ในเมนูเดิม (ในกล่อง select ด้านล่าง)
     filterChildrenFromGlobal();
 
-    // แสดง dropdown ผลลัพธ์ (แพลตฟอร์ม / หมวดหมู่ / บริการ)
+    // แสดง dropdown ผลลัพธ์ (แพลตฟอร์ม / หมวดหมู่ / บริการ) จากทุก platform
     await runGlobalSearchDropdown(v);
 
     // ถ้าเป็นเลขล้วน และไม่คลิกอะไรเลย -> auto jump ตาม ID เหมือนเดิม
