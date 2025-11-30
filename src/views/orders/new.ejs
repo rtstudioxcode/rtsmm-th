@@ -225,28 +225,48 @@ const notify = (opts = {}) => {
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  const tabs   = document.querySelectorAll('.tabs .tab');
-  const panes  = document.querySelectorAll('.tabpane');
+  const filtersBar  = document.getElementById('filtersBar');   // card ทั้งแถบค้นหา + ชิป
+  const searchWrap  = document.querySelector('.search-all-wrap');
+  const searchInput = document.getElementById('searchAll');
 
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      const target = tab.dataset.tab; // "order" หรือ "history"
+  // ถ้าไม่มีอะไรเลยก็ไม่ต้องทำ
+  if (!filtersBar && !searchWrap && !searchInput) return;
 
-      // ✅ ถ้าเป็นแท็บประวัติ ให้ redirect ไป /my/orders ทันที
-      if (target === 'history') {
-        window.location.href = '/my/orders';
-        return;
-      }
+  function resetChipToAll() {
+    currentChipId = "";
 
-      // แท็บอื่น ๆ ใช้วิธีเดิม: สลับ active + show pane
-      tabs.forEach(t => t.classList.remove('active'));
-      panes.forEach(p => p.classList.remove('show'));
+    const bar = document.getElementById('chipBar');
+    if (!bar) return;
 
-      tab.classList.add('active');
-      const pane = document.getElementById('tab-' + target);
-      if (pane) pane.classList.add('show');
+    const chips = bar.querySelectorAll('.chip');
+    chips.forEach((chip, idx) => {
+      const isAll =
+        chip.dataset.chip === "" ||
+        chip.dataset.sub === "" ||
+        idx === 0; // สำรอง: ชิปแรกคือ "ทั้งหมด"
+      chip.classList.toggle('active', isAll);
     });
-  });
+
+    // ให้ list หมวดหมู่ refresh ตาม "ทั้งหมด"
+    renderGroupList(true);
+  }
+
+  // คลิกที่โซน search (ไม่รวมชิป) -> reset เป็น "ทั้งหมด"
+  if (filtersBar) {
+    filtersBar.addEventListener('click', (e) => {
+      const inSearchArea =
+        e.target.closest('.search-all-wrap') ||
+        e.target.id === 'searchAll';
+
+      if (!inSearchArea) return;
+      resetChipToAll();
+    });
+  }
+
+  // โฟกัสที่ input ค้นหา -> ก็ reset ด้วย (กันคลิกจาก icon ฯลฯ)
+  if (searchInput) {
+    searchInput.addEventListener('focus', resetChipToAll);
+  }
 });
 </script>
 
@@ -351,6 +371,12 @@ let isSeoService = false;
 /* ✅ ช่วงขั้นต่ำ/สูงสุดของ service ปัจจุบัน (ไว้ใช้ validate ตอน submit) */
 let currentMin = 1;
 let currentMax = Infinity;
+
+let allGroupsLoaded = false;
+
+let searchResults = [];
+let searchRendered = 0;
+const SEARCH_CHUNK_SIZE = 30;
 
 /* ✅ helper นับบรรทัดที่ไม่ว่าง */
 function countNonEmptyLines(str) {
@@ -1434,6 +1460,91 @@ function renderChildList(){
   };
 }
 
+// ✅ โหลด service-groups ของทุกแพลตฟอร์มเข้า groupsByPlatform ให้ครบก่อนค้นหา
+async function ensureAllGroupsLoaded() {
+  if (allGroupsLoaded) return;
+  if (!Array.isArray(platforms) || !platforms.length) return;
+
+  const jobs = platforms.map(async (p) => {
+    const key = String(p._id);
+    if (groupsByPlatform.has(key)) return; // โหลดแล้วข้าม
+
+    try {
+      const res = await fetch(`/api/service-groups?cat=${key}`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        groupsByPlatform.set(key, data);
+      } else {
+        groupsByPlatform.set(key, []);
+      }
+    } catch (e) {
+      console.error('load groups for', key, 'error', e);
+      groupsByPlatform.set(key, []);
+    }
+  });
+
+  await Promise.all(jobs);
+  allGroupsLoaded = true;
+}
+
+function renderSearchChunk(reset = false) {
+  const box = document.getElementById('searchSuggest');
+  if (!box) return;
+  if (reset) {
+    box.innerHTML = '';
+    searchRendered = 0;
+  }
+
+  // ถ้าแสดงครบแล้วก็ไม่ต้องทำอะไร
+  if (searchRendered >= searchResults.length) return;
+
+  const slice = searchResults.slice(
+    searchRendered,
+    searchRendered + SEARCH_CHUNK_SIZE
+  );
+
+  const html = slice.map(r => {
+    let kindClass = 'sg-kind-s';
+    let kindLabel = 'บริการ';
+    let iconHtml = '';
+
+    if (r.kind === 'platform') {
+      kindClass = 'sg-kind-p';
+      kindLabel = 'แพลตฟอร์ม';
+    } else if (r.kind === 'group') {
+      kindClass = 'sg-kind-g';
+      kindLabel = 'หมวดหมู่';
+
+      // icon กลุ่ม (เหมือนเดิม)
+      const grpArr = groupsByPlatform.get(r.platformId) || [];
+      const gObj = grpArr.find(g => String(g._id) === String(r.groupId));
+      const iconUrl = gObj ? pickGroupIcon(gObj) : null;
+      if (iconUrl) {
+        iconHtml = `<img class="sg-icon" src="${iconUrl}" alt="">`;
+      }
+    }
+
+    const labelSafe = r.label.replace(/"/g, '&quot;');
+
+    return `
+      <button type="button"
+              class="sg-opt"
+              data-kind="${r.kind}"
+              data-platform="${r.platformId || ''}"
+              data-group="${r.groupId || ''}"
+              data-service="${r.serviceId || ''}">
+        ${iconHtml}
+        <span class="sg-kind ${kindClass}">${kindLabel}</span>
+        <span class="sg-main" title="${labelSafe}">${r.label}</span>
+        ${r.sub ? `<span class="sg-sub">${r.sub}</span>` : ''}
+      </button>
+    `;
+  }).join('');
+
+  box.insertAdjacentHTML('beforeend', html);
+  searchRendered += slice.length;
+}
+
 async function runGlobalSearchDropdown(query) {
   const box = document.getElementById('searchSuggest');
   if (!box) return;
@@ -1442,12 +1553,14 @@ async function runGlobalSearchDropdown(query) {
   if (q.length < 2) {
     box.hidden = true;
     box.innerHTML = '';
+    searchResults = [];
+    searchRendered = 0;
     return;
   }
 
   const results = [];
 
-  // 1) ค้นหาแพลตฟอร์ม
+  // 1) แพลตฟอร์ม
   for (const p of platforms) {
     if ((p.name || '').toLowerCase().includes(q)) {
       results.push({
@@ -1458,7 +1571,7 @@ async function runGlobalSearchDropdown(query) {
     }
   }
 
-  // 2) ค้นหาหมวดหมู่ + service จาก groupsByPlatform
+  // 2) หมวดหมู่/บริการทุกแพลตฟอร์ม (ไม่จำกัดแค่ current)
   groupsByPlatform.forEach((grpArr, platId) => {
     const platName = getPlatformNameById(platId);
 
@@ -1466,7 +1579,6 @@ async function runGlobalSearchDropdown(query) {
       const gName = g?.name || '';
       const gNameLower = gName.toLowerCase();
 
-      // match กลุ่ม
       if (gNameLower.includes(q)) {
         results.push({
           kind: 'group',
@@ -1477,7 +1589,6 @@ async function runGlobalSearchDropdown(query) {
         });
       }
 
-      // match service
       const svcList = Array.isArray(g?.details?.services) ? g.details.services : [];
       svcList.forEach(svc => {
         const text = `${svc.id} ${svc.name || ''}`.toLowerCase();
@@ -1495,52 +1606,18 @@ async function runGlobalSearchDropdown(query) {
     });
   });
 
-  // จำกัดจำนวนผลลัพธ์
-  const limited = results.slice(0, 25);
-
-  if (!limited.length) {
+  if (!results.length) {
     box.innerHTML = `<div class="sg-empty muted">ไม่พบผลลัพธ์ที่ตรงกับคำค้น</div>`;
     box.hidden = false;
+    searchResults = [];
+    searchRendered = 0;
     return;
   }
 
-  box.innerHTML = limited.map(r => {
-    let kindClass = 'sg-kind-s';
-    let kindLabel = 'บริการ';
-    let iconHtml = '';
-
-    if (r.kind === 'platform') {
-      kindClass = 'sg-kind-p';
-      kindLabel = 'แพลตฟอร์ม';
-    } else if (r.kind === 'group') {
-      kindClass = 'sg-kind-g';
-      kindLabel = 'หมวดหมู่';
-
-      // แสดง icon หมวดหมู่เหมือนใน dropdown
-      const grpArr = groupsByPlatform.get(r.platformId) || [];
-      const gObj = grpArr.find(g => String(g._id) === String(r.groupId));
-      const iconUrl = gObj ? pickGroupIcon(gObj) : null;
-      if (iconUrl) {
-        iconHtml = `<img class="sg-icon" src="${iconUrl}" alt="">`;
-      }
-    }
-
-    return `
-      <button type="button"
-              class="sg-opt"
-              data-kind="${r.kind}"
-              data-platform="${r.platformId || ''}"
-              data-group="${r.groupId || ''}"
-              data-service="${r.serviceId || ''}">
-        ${iconHtml}
-        <span class="sg-kind ${kindClass}">${kindLabel}</span>
-        <span class="sg-main" title="${r.label.replace(/"/g, '&quot;')}">${r.label}</span>
-        ${r.sub ? `<span class="sg-sub">${r.sub}</span>` : ''}
-      </button>
-    `;
-  }).join('');
-
+  // ✅ เก็บผลไว้ global แล้วให้ render ทีละก้อน
+  searchResults = results;
   box.hidden = false;
+  renderSearchChunk(true);
 }
 
 function filterChildrenFromGlobal(){ renderChildList(); }
@@ -1981,5 +2058,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const kwEl  = document.getElementById('keywords');
   if (cmtEl) cmtEl.addEventListener('input', syncAutoQtyFromFields);
   if (kwEl)  kwEl.addEventListener('input', syncAutoQtyFromFields);
+
+  const box = document.getElementById('searchSuggest');
+  if (box) {
+    box.addEventListener('scroll', () => {
+      if (box.hidden) return;
+
+      const nearBottom =
+        box.scrollTop + box.clientHeight >= box.scrollHeight - 40;
+      if (nearBottom) {
+        renderSearchChunk(false);
+      }
+    });
+  }
 });
 </script>
