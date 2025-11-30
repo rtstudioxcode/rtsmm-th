@@ -763,18 +763,24 @@ router.get('/topup-report', async (req, res) => {
   const raw = (req.query.month || '').slice(0, 7); // 'YYYY-MM'
   const now = new Date();
 
+  // ===== helper คำนวณช่วงเดือนตามโซน Asia/Bangkok =====
+  function getBangkokMonthRange(yy, mm) {
+    // mm = 1..12
+    // 00:00 น. ของกรุงเทพ (UTC+7) = 17:00 น. ของวันก่อนหน้าใน UTC
+    const start = new Date(Date.UTC(yy, mm - 1, 1, -7, 0, 0)); // 1 เดือนนี้ 00:00 ที่ BKK
+    const end   = new Date(Date.UTC(yy, mm,     1, -7, 0, 0)); // 1 เดือนถัดไป 00:00 ที่ BKK
+    return { start, end };
+  }
+
   // ===== คำนวณช่วงเวลาเดือน (เริ่มต้นเป็นเดือนปัจจุบัน) =====
   const [yy, mm] = raw && /^\d{4}-\d{2}$/.test(raw)
     ? raw.split('-').map(Number)
     : [now.getFullYear(), now.getMonth() + 1];
 
-  // สร้างช่วงเวลาแบบ [start, end)
-  const start = new Date(Date.UTC(yy, mm - 1, 1, 0, 0, 0));
-  const end   = new Date(Date.UTC(yy, mm, 1, 0, 0, 0));
-
+  const { start, end } = getBangkokMonthRange(yy, mm);
   const monthStr = `${yy}-${String(mm).padStart(2, '0')}`;
 
-  // เงื่อนไขหลักของเดือนนี้
+  // เงื่อนไขหลักของเดือนนี้ (ตามเวลา Bangkok -> แปลงเป็น UTC แล้ว)
   const monthMatch = { createdAt: { $gte: start, $lt: end } };
 
   // ===== รายการธุรกรรมของเดือน =====
@@ -798,7 +804,6 @@ router.get('/topup-report', async (req, res) => {
     { $group: { _id: '$method', sum: { $sum: '$amount' }, count: { $sum: 1 } } },
   ]);
 
-  // map ป้ายชื่อสวย ๆ
   const METHOD_LABELS = {
     admin: 'แอดมิน',
     manual: 'เติมมือ',
@@ -814,10 +819,9 @@ router.get('/topup-report', async (req, res) => {
       sum: m.sum || 0,
       count: m.count || 0,
     }))
-    // แสดงเฉพาะเมธอดที่มีรายการจริง
     .filter(m => m.count > 0);
 
-  // (ออปชัน) รวม completed ทั้งหมดของเดือน (ใช้ถ้าต้องโชว์การ์ดรวมเดิม)
+  // รวม completed ทั้งหมดของเดือน (ใช้ถ้าต้องโชว์การ์ดรวม)
   const aggCompleted = await Transaction.aggregate([
     { $match: { ...monthMatch, status: 'completed' } },
     { $group: { _id: null, sum: { $sum: '$amount' }, count: { $sum: 1 } } },
@@ -825,7 +829,6 @@ router.get('/topup-report', async (req, res) => {
   const sumCompleted   = aggCompleted?.[0]?.sum   || 0;
   const countCompleted = aggCompleted?.[0]?.count || 0;
 
-  // ส่งให้วิว — ไม่มี perpage/page/total อีกต่อไป
   res.render('admin/topup-report', {
     transactions,
     monthStr,

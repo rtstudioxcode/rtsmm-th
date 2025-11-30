@@ -125,7 +125,7 @@ const headMonthLabel = `${MONTHS_TH[(mm||1)-1]} ${yy}`; // ถ้าอยาก
         <tr>
           <td class="muted">
             <%= new Date(tx.createdAt).toLocaleString('th-TH', {
-              year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit'
+              timeZone: 'Asia/Bangkok', year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit'
             }) %>
           </td>
           <td title="<%= tx.transactionId || '' %>"><%= tx.transactionId || '—' %></td>
@@ -201,7 +201,7 @@ const headMonthLabel = `${MONTHS_TH[(mm||1)-1]} ${yy}`; // ถ้าอยาก
         <div class="tx-accordion__meta">
           <span class="tx-date">
             <%= new Date(tx.createdAt).toLocaleString('th-TH', {
-              year:'numeric', month:'2-digit', day:'2-digit',
+              timeZone: 'Asia/Bangkok', year:'numeric', month:'2-digit', day:'2-digit',
               hour:'2-digit', minute:'2-digit', second:'2-digit'
             }) %>
           </span>
