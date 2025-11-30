@@ -271,7 +271,7 @@ const PLATFORM_MAP = (window.PLATFORM_MAP) || [
   { key: 'youtube',   name: 'YouTube',        match: ['youtube', 'yt '] },
   { key: 'threads',   name: 'Threads',        match: ['threads'] },
   { key: 'twitter',   name: 'X (Twitter)',    match: ['x (twitter)', ' twitter', ' tw '] },
-  { key: 'line',      name: 'LINE',           match: [' line ', ' line official', 'ไลน์ '] },
+  { key: 'line',      name: 'Line Official',  match: ['Line Official Account ', 'Line OpenChat', 'Line Voom '] },
   { key: 'telegram',  name: 'Telegram',       match: ['telegram'] },
   { key: 'discord',   name: 'Discord',        match: ['discord'] },
   { key: 'twitch',    name: 'Twitch',         match: ['twitch'] },
@@ -310,7 +310,7 @@ const PLATFORM_ICON_URLS = {
   traffic:  "/static/assets/platform/traffic.png",
   thailand: "/static/assets/platform/thailand.png",
   shopee:   "/static/assets/platform/shopee.png",
-  other:    "/static/assets/platform/seo.png"
+  other:    "/static/assets/platform/other.png"
 };
 
 function pickIconUrl(key = 'other') {

@@ -100,7 +100,7 @@ const PLATFORM_MAP = [
   { key: 'youtube',   name: 'YouTube',        match: ['youtube', 'yt '] },
   { key: 'threads',   name: 'Threads',        match: ['threads'] },
   { key: 'twitter',   name: 'X (Twitter)',    match: ['x (twitter)', ' twitter', ' tw '] },
-  { key: 'line',      name: 'LINE',           match: [' line ', ' line official', 'ไลน์ '] },
+  { key: 'line',      name: 'Line Official',  match: ['Line Official Account ', 'Line OpenChat', 'Line Voom '] },
   { key: 'telegram',  name: 'Telegram',       match: ['telegram'] },
   { key: 'discord',   name: 'Discord',        match: ['discord'] },
   { key: 'twitch',    name: 'Twitch',         match: ['twitch'] },

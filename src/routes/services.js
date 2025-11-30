@@ -46,7 +46,7 @@ function inferPlatformFromNames({ explicit, catName = '', subName = '', title = 
   if (s.includes('instagram') || s.includes('ig')) return 'Instagram';
   if (s.includes('thread')) return 'Threads';
   if (s.includes('twitter') || s.includes(' x ')) return 'X (Twitter)';
-  if (s.includes('line')) return 'LINE';
+  if (s.includes('line')) return 'Line Official';
   if (s.includes('telegram')) return 'Telegram';
   if (s.includes('discord')) return 'Discord';
   if (s.includes('twitch')) return 'Twitch';

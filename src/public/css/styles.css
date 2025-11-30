@@ -4601,3 +4601,147 @@ html[data-theme="dark"]{ --pv-bg: var(--page, #0b1620); --pv-border: var(--borde
     white-space: nowrap;
   }
 }
+
+/* รายการใน dropdown */
+#groupList .opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ปุ่มตอนหุบ: ทำให้ทั้งแถวเป็น flex กลางแนวตั้ง */
+#groupSel .select-btn,
+#groupBtn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* ซ้าย = text, ขวา = ลูกศร */
+}
+
+/* ตัวปุ่มตอนหุบ ให้ไอคอนกับชื่ออยู่บรรทัดเดียวกัน */
+#groupBtn #groupText {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#groupList .opt .grp-name {
+  font-size: 13px;      /* ลอง 12–13px ตามชอบ */
+  line-height: 1.3;
+}
+
+/* ไอคอนหมวดหมู่ – บีบกล่องให้เป็นสี่เหลี่ยมแล้วจัดกลาง X/Y */
+#groupList .opt .grp-icon,
+#groupBtn  .grp-icon {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  display: flex;              /* ให้รูปเป็น flex-container เอง */
+  align-items: center;        /* กลางแนวตั้ง */
+  justify-content: center;    /* กลางแนวนอน */
+  object-fit: contain;
+  line-height: 1;
+}
+
+/* รายการบริการใน dropdown ตอนขยาย */
+#childList .opt {
+  display: flex;
+  flex-direction: column;   /* ตามโครง row เดิม ถ้าจะเปลี่ยนค่อยว่ากัน */
+  gap: 2px;
+  font-size: 13px;          /* ⬅ ให้เท่ากับ #groupList .opt */
+  line-height: 1.3;
+  padding: 4px 8px;
+}
+
+/* ตัวหนังสือย่อยด้านใน */
+#childList .opt .id,
+#childList .opt .name,
+#childList .opt .rate {
+  font-size: 13px;          /* ย่อทั้งแถวให้เล็กลงเท่ากัน */
+  line-height: 1.3;
+}
+
+/* ปุ่มตอนหุบของ select “บริการ” ให้ไซส์ match ด้วย */
+#childBtn #childText {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.3;
+  height: 32px;
+}
+
+/* ให้กล่อง select ในแต่ละคอลัมน์ยาวเต็มพื้นที่ของ section */
+.sel-grid {
+  display: grid;              /* ถ้ามีอยู่แล้วไม่เป็นไร */
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* แต่ละช่องใช้เต็มคอลัมน์ */
+.sel {
+  width: 100%;
+}
+
+/* กล่อง select + ปุ่มหุบ/ขยาย ให้กว้าง 100% */
+.sel .select {
+  width: 100%;
+}
+
+.sel .select-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+#groupBtn #groupText,
+#childBtn #childText {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ลูกศรอยู่ขวาสุด ไม่โดนดันตก */
+.sel .select-btn .chev {
+  flex: 0 0 auto;
+}
+
+/* ====== MOBILE (<= 768px) ====== */
+@media (max-width: 768px) {
+  /* ให้สอง select เรียงคนละแถว */
+  .sel-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* ปุ่ม select ทั้งคู่สูงเท่า ๆ กัน และ align-center */
+  .sel .select-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    min-height: 46px; /* สูงเท่ากันทั้งหมวดหมู่และบริการ */
+  }
+
+  /* ยกเลิก height เดิม แล้วใช้ flex จัดกลาง Y แทน */
+  #groupBtn #groupText,
+  #childBtn #childText {
+    display: flex;
+    align-items: center;   /* จัดให้อยู่กลางแนวตั้ง */
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 13px;
+    line-height: 1.35;
+    white-space: normal;
+    word-break: break-word;
+    text-overflow: clip;
+
+    height: auto !important;      /* ยกเลิก height:42px เดิม */
+    min-height: 32px;             /* กันเตี้ยเกินไป */
+  }
+
+  /* กันตัวหนังสือของบริการดูชิดบนเกินไปอีกนิด */
+  #childBtn #childText {
+    margin-top: 2px;          /* ดันกรอบ text ลงมานิดหน่อย */
+  }
+}

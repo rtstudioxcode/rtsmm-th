@@ -375,24 +375,25 @@ const form          = $('#ruleForm')         || document.querySelector('form[act
 
 /* ===== Platform icons ===== */
 const PLATFORM_ICON_URLS = {
-  tiktok:"/static/assets/platform/tiktok.png",
-  facebook:"/static/assets/platform/facebook.png",
-  youtube:"/static/assets/platform/youtube.png",
+  all:      "/static/assets/platform/all.png",
+  tiktok:   "/static/assets/platform/tiktok.png",
+  facebook: "/static/assets/platform/facebook.png",
+  youtube:  "/static/assets/platform/youtube.png",
   instagram:"/static/assets/platform/ig.png",
-  threads:"/static/assets/platform/threads.png",
-  twitter:"/static/assets/platform/twitter.png",
-  x:"/static/assets/platform/x.png",
-  line:"/static/assets/platform/line.png",
-  telegram:"/static/assets/platform/telegram.png",
-  discord:"/static/assets/platform/discord.png",
-  twitch:"/static/assets/platform/twitch.png",
-  spotify:"/static/assets/platform/spotify.png",
-  kick:"/static/assets/platform/kick.png",
-  premium:"/static/assets/platform/premium.png",
-  seo:"/static/assets/platform/seo.png",
-  traffic:"/static/assets/platform/traffic.png",
-  thailand:"/static/assets/platform/thailand.png",
-  shopee:"/static/assets/platform/shopee.png"
+  threads:  "/static/assets/platform/threads.png",
+  twitter:  "/static/assets/platform/twitter.png",
+  line:     "/static/assets/platform/line.png",
+  telegram: "/static/assets/platform/telegram.png",
+  discord:  "/static/assets/platform/discord.png",
+  twitch:   "/static/assets/platform/twitch.png",
+  spotify:  "/static/assets/platform/spotify.png",
+  kick:     "/static/assets/platform/kick.png",
+  premium:  "/static/assets/platform/premium.png",
+  seo:      "/static/assets/platform/seo.png",
+  traffic:  "/static/assets/platform/traffic.png",
+  thailand: "/static/assets/platform/thailand.png",
+  shopee:   "/static/assets/platform/shopee.png",
+  other:    "/static/assets/platform/other.png"
 };
 const slug = s => String(s||'').toLowerCase();
 function iconForPlatform(name=''){
