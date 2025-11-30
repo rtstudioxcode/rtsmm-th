@@ -28,7 +28,7 @@ router.get('/', async (req, res) => {
           title: 'RTSMM-TH | Home',
           bodyClass: 'catalog',
           syncError:
-            'ยังไม่มีรายการบริการ และการดึงจากผู้ให้บริการล้มเหลว — โปรดเช็ค .env (IPV_API_BASE/IPV_API_KEY) หรือเข้าหลังบ้านลอง Sync ใหม่',
+            'ยังไม่มีรายการบริการ และการดึงจากผู้ให้บริการล้มเหลว',
         });
       }
     }

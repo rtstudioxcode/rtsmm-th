@@ -1,6 +1,5 @@
 // src/routes/services.js
 import express from 'express';
-import mongoose from 'mongoose';
 import { Service } from '../models/Service.js';
 import { Category } from '../models/Category.js';
 import { Subcategory } from '../models/Subcategory.js';
@@ -56,7 +55,8 @@ function inferPlatformFromNames({ explicit, catName = '', subName = '', title = 
   if (s.includes('seo')) return 'SEO';
   if (s.includes('traffic')) return 'Traffic';
   if (s.includes('shopee')) return 'Shopee';
-  if (s.includes('thai')) return 'Thailand';
+  if (s.includes('th')) return 'Thailand';
+  if (s.includes('premium')) return 'AccountPremium';
   return 'Other';
 }
 

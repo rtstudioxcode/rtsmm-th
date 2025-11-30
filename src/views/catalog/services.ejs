@@ -49,7 +49,7 @@
   .platform-card img { width:28px; height:28px; border-radius:8px; }
   .platform-card .name { font-weight:600; }
 
-  /* mobile: แสดงแบบไอคอนสี่เหลี่ยมมน (neumorphism เบาๆ) */
+  /* mobile: แสดงแบบไอคอนสี่เหลี่ยมมน (แถวละ 4 อัน) */
   @media (max-width: 720px){
     .platform-grid{ grid-template-columns: repeat(4, 1fr); gap:10px; }
     .platform-card{ flex-direction:column; align-items:center; padding:12px; gap:8px; border-radius:18px; }
@@ -191,85 +191,165 @@ const debounce = (fn, ms = 250) => {
 const schedule = (cb) =>
   window.requestIdleCallback ? requestIdleCallback(cb, { timeout: 120 }) : requestAnimationFrame(cb);
 
-/* =============== State =============== */
-let CURRENT_PLATFORM = null;
-let SEARCH = '';
-let currentChipId = '';
+/* =============== PLATFORM MAP =============== */
+// ถ้ามี window.PLATFORM_MAP ที่โหลดจากไฟล์แยก ให้ใช้ตัวนั้นก่อน
+const PLATFORM_MAP = (window.PLATFORM_MAP) || [
+  // ✅ กลุ่มพิเศษ
+  {
+    key: 'premium',
+    name: 'บัญชีพรีเมียม | คีย์',
+    match: [
+      'canva pro',
+      'chatgpt business',
+      'youtube premium',
+      'license key',
+      'ดาวน์โหลด ไฟล์ลิขสิทธิ์',
+      'shutterstock',
+      'envato',
+      'adobestock',
+      'istockphoto',
+      'motion array',
+    ],
+  },
+  {
+    key: 'thailand',
+    name: 'ประเทศไทย',
+    match: [
+      '🇹🇭',                        // มีธงไทย
+      ' ประเทศไทย',                 // คำว่าประเทศไทย
+      ' บัญชีไทย',                 // บัญชีไทย
+      'thailand services',
+      'tiktok 🎯 thailand',
+      'youtube ► thailand',
+      'รวมบริการยูทูป ประเทศไทย',
+      'instagram ► รวมบริการไอจี ประเทศไทย',
+      'facebook ► รวมบริการไทย',
+      'facebook ► ถูกใจเพจ | ผู้ติดตาม [ เพจ/โปรไฟล์ ] 💎 [ บัญชีไทย ]',
+      'facebook ► ไลค์โพส reactions',
+      'facebook ► แชร์โพส 🔗 บัญชีไทย',
+      'facebook ► คอมเม้นท์ 💬 บัญชีไทย',
+      'facebook 📝 รีวิวแฟนเพจ,แนะนำเพจ บัญชีไทย',
+      'x.com | twitter services ► รวมบริการประเทศไทย',
+      'shopee / lazada services ► บัญชีไทย',
+      'ส่วนเสริม ไลฟ์สด shopee.co.th',
+      'spotify ► thailand',
+    ],
+  },
 
-// NEW: ป้องกันผูก event ซ้ำ
-let EVENTS_WIRED = false;
+  // ✅ Traffic แยกออกมาต่างหาก และอยู่ก่อน SEO
+  {
+    key: 'traffic',
+    name: 'เพิ่มคนเข้าเว็บ | SEO',
+    match: [
+      // ทราฟฟิก / เข้าเว็บ
+      'เพิ่มทราฟฟิคเข้าเว็บไซต์',
+      'website traffic',
+      'mobile traffic',
+      'premium traffic',
+      'pop-under traffic',
+      'worldwide',
+      'exchange platforms (ptc)',
+      'แหล่งอ้างอิง เลือกประเทศ',
+      'choose geo',
+      'website 💎 premium traffic packages',
+      'website traffic 🇹🇭 ประเทศไทย',
 
-/* lazy group state */
-const groupState = new Map(); // cat -> { rows, rendered }
-let allCats = [];             // รายชื่อหมวด (providerCategoryName) ที่ใช้เป็น group
-let nextGroupIndex = 0;       // จะเติมกลุ่มต่อจาก index ไหน
-let moreIO = null;            // observer สำหรับโหลด batch ต่อไป
+      // รวมฝั่ง SEO มาด้วย
+      'backlinks & website seo',
+      'seo package ranking',
+      'social signals',
+      'best google ranking',
+      'search console',
+      ' seo',
+    ],
+  },
 
-const GROUP_BATCH = 6;  // แสดงกลุ่มทีละกี่หมวด
-const ROW_CHUNK   = 25; // เรนเดอร์ service ทีละกี่แถวในกลุ่มเดียว
+  // แพลตฟอร์มหลัก
+  { key: 'tiktok',    name: 'TikTok',          match: ['tiktok'] },
+  { key: 'facebook',  name: 'Facebook',       match: ['facebook'] },
+  { key: 'instagram', name: 'Instagram',      match: ['instagram'] },
+  { key: 'youtube',   name: 'YouTube',        match: ['youtube', 'yt '] },
+  { key: 'threads',   name: 'Threads',        match: ['threads'] },
+  { key: 'twitter',   name: 'X (Twitter)',    match: ['x (twitter)', ' twitter', ' tw '] },
+  { key: 'line',      name: 'LINE',           match: [' line ', ' line official', 'ไลน์ '] },
+  { key: 'telegram',  name: 'Telegram',       match: ['telegram'] },
+  { key: 'discord',   name: 'Discord',        match: ['discord'] },
+  { key: 'twitch',    name: 'Twitch',         match: ['twitch'] },
+  { key: 'spotify',   name: 'Spotify',        match: ['spotify'] },
+  { key: 'kick',      name: 'Kick',           match: [' kick '] },
+
+  { key: 'shopee', name: 'ไลฟ์สด Shopee', match: ['shopee', 'shp '] },
+
+  // fallback
+  { key: 'other',  name: 'อื่นๆ', match: [] },
+];
+
+// ทำ index สำหรับการ sort platform ตามลำดับใน MAP
+const PLATFORM_ORDER_INDEX = PLATFORM_MAP.reduce((acc, m, i) => {
+  acc[m.key] = i;
+  return acc;
+}, {});
 
 /* ========= platform icons ========= */
 const PLATFORM_ICON_URLS = {
-  tiktok: "/static/assets/platform/tiktok.png",
+  all:      "/static/assets/platform/all.png",
+  tiktok:   "/static/assets/platform/tiktok.png",
   facebook: "/static/assets/platform/facebook.png",
-  youtube: "/static/assets/platform/youtube.png",
-  instagram: "/static/assets/platform/ig.png",
-  threads: "/static/assets/platform/threads.png",
-  twitter: "/static/assets/platform/twitter.png",
-  x: "/static/assets/platform/x.png",
-  line: "/static/assets/platform/line.png",
+  youtube:  "/static/assets/platform/youtube.png",
+  instagram:"/static/assets/platform/ig.png",
+  threads:  "/static/assets/platform/threads.png",
+  twitter:  "/static/assets/platform/twitter.png",
+  line:     "/static/assets/platform/line.png",
   telegram: "/static/assets/platform/telegram.png",
-  discord: "/static/assets/platform/discord.png",
-  twitch: "/static/assets/platform/twitch.png",
-  spotify: "/static/assets/platform/spotify.png",
-  kick: "/static/assets/platform/kick.png",
-  premium: "/static/assets/platform/premium.png",
-  seo: "/static/assets/platform/seo.png",
-  traffic: "/static/assets/platform/traffic.png",
+  discord:  "/static/assets/platform/discord.png",
+  twitch:   "/static/assets/platform/twitch.png",
+  spotify:  "/static/assets/platform/spotify.png",
+  kick:     "/static/assets/platform/kick.png",
+  premium:  "/static/assets/platform/premium.png",
+  seo:      "/static/assets/platform/seo.png",
+  traffic:  "/static/assets/platform/traffic.png",
   thailand: "/static/assets/platform/thailand.png",
-  shopee: "/static/assets/platform/shopee.png"
+  shopee:   "/static/assets/platform/shopee.png",
+  other:    "/static/assets/platform/seo.png"
 };
-function pickIconUrl(name = '') {
-  const s = String(name).toLowerCase();
-  if (s.includes('tiktok')) return PLATFORM_ICON_URLS.tiktok;
-  if (s.includes('facebook')) return PLATFORM_ICON_URLS.facebook;
-  if (s.includes('youtube') || s.includes('youtub')) return PLATFORM_ICON_URLS.youtube;
-  if (s.includes('instagram') || s.includes('ig')) return PLATFORM_ICON_URLS.instagram;
-  if (s.includes('thread')) return PLATFORM_ICON_URLS.threads;
-  if (s.includes('twitter') || s === 'x' || s.includes(' x ')) return PLATFORM_ICON_URLS.twitter;
-  if (s.includes('line')) return PLATFORM_ICON_URLS.line;
-  if (s.includes('telegram')) return PLATFORM_ICON_URLS.telegram;
-  if (s.includes('discord')) return PLATFORM_ICON_URLS.discord;
-  if (s.includes('twitch')) return PLATFORM_ICON_URLS.twitch;
-  if (s.includes('spotify')) return PLATFORM_ICON_URLS.spotify;
-  if (s.includes('kick')) return PLATFORM_ICON_URLS.kick;
-  if (s.includes('พรีเมีย') || s.includes('premium')) return PLATFORM_ICON_URLS.premium;
-  if (s.includes('seo')) return PLATFORM_ICON_URLS.seo;
-  if (s.includes('traffic') || s.includes('เพิ่มคนเข้าเว็บ')) return PLATFORM_ICON_URLS.traffic;
-  if (s.includes('ไทย') || s.includes('thailand')) return PLATFORM_ICON_URLS.thailand;
-  if (s.includes('shopee') || s.includes('ช้อป')) return PLATFORM_ICON_URLS.shopee;
-  return PLATFORM_ICON_URLS.seo;
+
+function pickIconUrl(key = 'other') {
+  const k = String(key).toLowerCase();
+  return PLATFORM_ICON_URLS[k] || PLATFORM_ICON_URLS.other;
 }
 
-/* ========= รายการ platform แบบ static (สำหรับตอนยังไม่มี data) ========= */
-const PLATFORM_STATIC = [
-  "Discord",
-  "Facebook",
-  "Instagram",
-  "Kick",
-  "LINE",
-  "Other",
-  "SEO",
-  "Shopee",
-  "Spotify",
-  "Telegram",
-  "Threads",
-  "TikTok",
-  "Traffic",
-  "Twitch",
-  "X (Twitter)",
-  "YouTube"
-];
+/* ========= map platform จากชื่อบริการ ========= */
+function detectPlatformKeyForService(svc) {
+  const text = (
+    ' ' +
+    safe(svc.providerCategoryName || '') + ' ' +
+    safe(svc.categoryName || '') + ' ' +
+    safe(svc.name || '') +
+    ' '
+  ).toLowerCase();
+
+  // วนตามลำดับใน PLATFORM_MAP (premium, thailand มาก่อน)
+  for (const m of PLATFORM_MAP) {
+    const patterns = (m.match || []).map(p => p.toLowerCase());
+    if (!patterns.length) continue;
+    if (patterns.some(p => text.includes(p))) {
+      return m.key;
+    }
+  }
+  return 'other';
+}
+
+function assignPlatformsToServices() {
+  if (!Array.isArray(window.__SERVICES__)) return;
+  for (const svc of window.__SERVICES__) {
+    svc.platformKey = detectPlatformKeyForService(svc);
+  }
+}
+
+/* ========= รายการ platform แบบ static (กรณีไม่มี data) ========= */
+const PLATFORM_STATIC = PLATFORM_MAP
+  .filter(m => m.key !== 'other')
+  .map(m => m.key);
 
 /* ========= chips ========= */
 const CHIP_DEFS = [
@@ -290,56 +370,20 @@ function itemMatchesChip(item, chip) {
   return chip.kw.some(k => s.includes(k.toLowerCase()));
 }
 
-/* ========= platform grid ========= */
-function renderPlatforms() {
-  const root = $('#platformGrid');
-  const hasData = Array.isArray(window.__SERVICES__) && window.__SERVICES__.length;
+/* =============== State =============== */
+let CURRENT_PLATFORM = null; // จะเก็บเป็น platformKey เช่น 'tiktok', 'facebook'
+let SEARCH = '';
+let currentChipId = '';
+let EVENTS_WIRED = false;
 
-  let platforms;
-  if (hasData) {
-    platforms = uniq(window.__SERVICES__.map(s => s.platform).filter(Boolean)).sort();
-  } else {
-    // ยังไม่มี services → ใช้ static list ให้ user เห็น platform ก่อนเลย
-    platforms = PLATFORM_STATIC.slice();
-  }
+/* lazy group state */
+const groupState = new Map();
+let allCats = [];
+let nextGroupIndex = 0;
+let moreIO = null;
 
-  const html = [
-    `<div class="platform-card${CURRENT_PLATFORM === null ? ' active' : ''}" data-platform="">
-      <img src="${pickIconUrl('All')}" alt="All"/>
-      <div><div class="name">ทั้งหมด</div><div class="muted">แสดงทุกแพลตฟอร์ม</div></div>
-    </div>`
-  ].concat(platforms.map(p => {
-    const count = hasData
-      ? window.__SERVICES__.filter(s => s.platform === p).length
-      : null;
-    const countLabel = hasData
-      ? `${count} บริการ`
-      : `พร้อมใช้งาน`;
-    return `
-      <div class="platform-card${CURRENT_PLATFORM === p ? ' active' : ''}" data-platform="${p}">
-        <img src="${pickIconUrl(p)}" alt="${p}"/>
-        <div><div class="name">${p}</div><div class="muted">${countLabel}</div></div>
-      </div>
-    `;
-  }));
-
-  root.innerHTML = html.join('');
-}
-
-/* ========= chips render ========= */
-function computeChipCounts() {
-  const base = window.__SERVICES__.filter(s => !CURRENT_PLATFORM || s.platform === CURRENT_PLATFORM);
-  return CHIP_DEFS.map(ch => {
-    if (ch.id === "") return { ...ch, count: base.length };
-    return { ...ch, count: base.filter(x => itemMatchesChip(x, ch)).length };
-  }).filter(ch => ch.id === "" || ch.count > 0);
-}
-function renderChips() {
-  $('#chipBar').innerHTML = computeChipCounts().map(ch => `
-    <button type="button" class="chip ${currentChipId === ch.id ? 'active' : ''}" data-chip="${ch.id}">
-      ${ch.label}
-    </button>`).join('');
-}
+const GROUP_BATCH = 6;
+const ROW_CHUNK   = 25;
 
 /* ========= service helpers ========= */
 const SVC_BY_PID = Object.create(null);
@@ -347,6 +391,10 @@ window.__SERVICES__.forEach(it => {
   const pid = it?.providerServiceId;
   if (pid !== undefined && pid !== null) SVC_BY_PID[String(pid)] = it;
 });
+
+// เซ็ต platformKey ให้ service ตั้งแต่แรก (กรณี server ฝัง data มาแล้ว)
+assignPlatformsToServices();
+
 const pickDesc = svc => (svc?.description || svc?.desc || svc?.details_description || svc?.providerDescription || '');
 const pickAvg  = svc => (svc?.average_delivery || svc?.avg_delivery || svc?.averageDelivery || '');
 function resolveService(pid) {
@@ -361,7 +409,7 @@ function resolveService(pid) {
 function computeFiltered() {
   const chip = CHIP_DEFS.find(c => c.id === currentChipId) || CHIP_DEFS[0];
   let list = window.__SERVICES__;
-  if (CURRENT_PLATFORM) list = list.filter(s => s.platform === CURRENT_PLATFORM);
+  if (CURRENT_PLATFORM) list = list.filter(s => s.platformKey === CURRENT_PLATFORM);
   list = list.filter(it => itemMatchesChip(it, chip));
   if (SEARCH) {
     const q = SEARCH.toLowerCase();
@@ -372,6 +420,70 @@ function computeFiltered() {
     );
   }
   return list;
+}
+
+/* ========= platform grid ========= */
+function renderPlatforms() {
+  const root = $('#platformGrid');
+  const hasData = Array.isArray(window.__SERVICES__) && window.__SERVICES__.length;
+
+  let platforms;
+  if (hasData) {
+    platforms = uniq(
+      window.__SERVICES__
+        .map(s => s.platformKey)
+        .filter(Boolean)
+    );
+
+    // sort ตามลำดับใน PLATFORM_MAP
+    platforms.sort((a, b) => {
+      const ia = PLATFORM_ORDER_INDEX[a] ?? 999;
+      const ib = PLATFORM_ORDER_INDEX[b] ?? 999;
+      if (ia !== ib) return ia - ib;
+      return String(a).localeCompare(String(b));
+    });
+  } else {
+    platforms = PLATFORM_STATIC.slice();
+  }
+
+  const html = [
+    `<div class="platform-card${CURRENT_PLATFORM === null ? ' active' : ''}" data-platform="">
+      <img src="${pickIconUrl('all')}" alt="All"/>
+      <div><div class="name">ทั้งหมด</div><div class="muted">แสดงทุกแพลตฟอร์ม</div></div>
+    </div>`
+  ].concat(platforms.map(key => {
+    const meta = PLATFORM_MAP.find(m => m.key === key);
+    const label = meta?.name || key;
+    const count = hasData
+      ? window.__SERVICES__.filter(s => s.platformKey === key).length
+      : null;
+    const countLabel = hasData
+      ? `${count} บริการ`
+      : `พร้อมใช้งาน`;
+    return `
+      <div class="platform-card${CURRENT_PLATFORM === key ? ' active' : ''}" data-platform="${key}">
+        <img src="${pickIconUrl(key)}" alt="${label}"/>
+        <div><div class="name">${label}</div><div class="muted">${countLabel}</div></div>
+      </div>
+    `;
+  }));
+
+  root.innerHTML = html.join('');
+}
+
+/* ========= chips render ========= */
+function computeChipCounts() {
+  const base = window.__SERVICES__.filter(s => !CURRENT_PLATFORM || s.platformKey === CURRENT_PLATFORM);
+  return CHIP_DEFS.map(ch => {
+    if (ch.id === "") return { ...ch, count: base.length };
+    return { ...ch, count: base.filter(x => itemMatchesChip(x, ch)).length };
+  }).filter(ch => ch.id === "" || ch.count > 0);
+}
+function renderChips() {
+  $('#chipBar').innerHTML = computeChipCounts().map(ch => `
+    <button type="button" class="chip ${currentChipId === ch.id ? 'active' : ''}" data-chip="${ch.id}">
+      ${ch.label}
+    </button>`).join('');
 }
 
 /* ========= lazy groups: batch by providerCategory ========= */
@@ -401,7 +513,6 @@ function appendNextGroupBatch() {
     frag.appendChild(wrap);
   }
 
-  // ลบ sentinel เดิมถ้ามี แล้วติด sentinel ใหม่ท้ายสุด
   const oldSentinel = container.querySelector('.more-sentinel');
   if (oldSentinel) {
     if (moreIO) moreIO.unobserve(oldSentinel);
@@ -421,21 +532,6 @@ function appendNextGroupBatch() {
   nextGroupIndex = end;
 }
 
-/* เปิด group แรกเสมอ เพื่อให้มีอย่างน้อย 1 ProviderId โผล่ */
-function openFirstGroupIfAny() {
-  const container = $('#servicesContainer');
-  const first = container.querySelector('.group');
-  if (!first) return;
-  if (first.classList.contains('open')) return;
-
-  first.classList.add('open');
-  const head = first.querySelector('.head');
-  if (head) head.setAttribute('aria-expanded', 'true');
-
-  const cat = dec(first.dataset.cat || '');
-  renderGroupBody(cat);
-}
-
 function onMoreIntersect(entries) {
   for (const en of entries) {
     if (!en.isIntersecting) continue;
@@ -452,26 +548,22 @@ function renderServicesList() {
     ? `บริการทั้งหมดใน ${CURRENT_PLATFORM}`
     : 'บริการทั้งหมด';
 
-  // group ตาม providerCategoryName (หรือ categoryName)
   const byProvCat = list.reduce((m, s) => {
     const key = s.providerCategoryName || s.categoryName || 'ทั่วไป';
     (m[key] ??= []).push(s);
     return m;
   }, {});
 
-  // เตรียม state ใหม่ทุกครั้งที่ filter / platform / search เปลี่ยน
   groupState.clear();
   allCats = Object.keys(byProvCat).sort();
   allCats.forEach(cat => {
     groupState.set(cat, { rows: byProvCat[cat], rendered: false });
   });
 
-  // reset container + sentinel
   if (moreIO) moreIO.disconnect();
   container.innerHTML = '';
   nextGroupIndex = 0;
 
-  // สร้าง observer สำหรับโหลด batch ถัดไป (เลื่อนลงแล้วค่อยสร้างกลุ่มเพิ่ม)
   if (!moreIO && allCats.length > GROUP_BATCH) {
     moreIO = new IntersectionObserver(onMoreIntersect, {
       root: null,
@@ -480,10 +572,8 @@ function renderServicesList() {
     });
   }
 
-  // เติม batch แรก (จะมีอย่างน้อย 1 group เสมอถ้ามี service)
   appendNextGroupBatch();
 
-  // ✅ เปิดให้ดูอย่างน้อย 1 providerId ทันที (ตัวแรกของ list ตอนนี้)
   if (allCats.length > 0) {
     const firstCat = allCats[0];
     const firstGroup =
@@ -494,7 +584,7 @@ function renderServicesList() {
       firstGroup.classList.add('open');
       const head = firstGroup.querySelector('.head');
       if (head) head.setAttribute('aria-expanded', 'true');
-      renderGroupBody(firstCat);   // โหลด service ภายในกลุ่มแรกเลย
+      renderGroupBody(firstCat, firstGroup);
     }
   }
 }
@@ -540,8 +630,8 @@ function buildTableAndCards(rows) {
             data-rate="${rate}" data-cur="${enc(cur)}"
             data-min="${min}" data-max="${max}"
             data-avg="${enc(avg)}"
-            data-drip="${s.dripfeed ? 1 : 0}"
-            data-refill="${s.refill ? 1 : 0}"
+            data-drip="${s.dripfeed ? 1 : 0}"`
+            + ` data-refill="${s.refill ? 1 : 0}"
             data-cancel="${s.cancel ? 1 : 0}"
             data-desc="${enc(desc)}">รายละเอียด</button>
         </td>
@@ -608,15 +698,13 @@ function renderGroupBody(cat, rootEl) {
   if (!st || st.rendered) return;
 
   const rows = st.rows || [];
-
-  // ถ้ามี root element ส่งมาให้ ใช้ตัวนั้นเลย ปลอดภัยสุด
   const body = rootEl
     ? rootEl.querySelector('.body')
     : document.querySelector(`.group[data-cat="${enc(cat)}"] .body`);
 
   if (!body) return;
 
-  body.innerHTML = ''; // ลบ placeholder
+  body.innerHTML = '';
 
   let i = 0;
   (function buildChunk() {
@@ -668,7 +756,6 @@ function openServiceModalFromEl(btn) {
 
 /* ========= events ========= */
 function wireEvents() {
-  // ถ้าเคยผูกแล้ว ไม่ต้องทำซ้ำ
   if (EVENTS_WIRED) return;
   EVENTS_WIRED = true;
 
@@ -701,9 +788,8 @@ function wireEvents() {
     renderServicesList();
   }, 300));
 
-  // ====== กลุ่มบริการ: toggle หุบ/ขยาย + modal ======
+  // toggle group + modal
   document.addEventListener('click', e => {
-    // ----- toggle group -----
     const head = e.target.closest('.group .head');
     if (head) {
       const root = head.closest('.group');
@@ -715,12 +801,10 @@ function wireEvents() {
       root.classList.toggle('open', nowOpen);
       head.setAttribute('aria-expanded', nowOpen ? 'true' : 'false');
 
-      // บังคับ inline style กัน CSS ตัวอื่นทับ
       if (body) {
         body.style.display = nowOpen ? 'block' : 'none';
       }
 
-      // ถ้าเพิ่งเปิดครั้งแรก ค่อย render ข้างใน
       if (nowOpen) {
         const cat = dec(root.dataset.cat || '');
         renderGroupBody(cat, root);
@@ -728,7 +812,6 @@ function wireEvents() {
       return;
     }
 
-    // ----- modal รายละเอียดบริการ -----
     const btnDesc = e.target.closest('.btn-desc');
     if (btnDesc) {
       openServiceModalFromEl(btnDesc);
@@ -747,11 +830,11 @@ function wireEvents() {
 
 /* ========= boot ========= */
 function bootWithData(){
-  // ถ้ายังไม่ได้เลือก platform ให้ default = Discord (ถ้ามี)
+  // ถ้ามี platformKey=discord ให้ default เข้า discord ไม่งั้นเป็น all
   if (!CURRENT_PLATFORM) {
     const hasDiscord = Array.isArray(window.__SERVICES__)
-      && window.__SERVICES__.some(s => s.platform === 'Discord');
-    CURRENT_PLATFORM = hasDiscord ? 'Discord' : null;
+      && window.__SERVICES__.some(s => s.platformKey === 'discord');
+    CURRENT_PLATFORM = hasDiscord ? 'discord' : null;
   }
 
   renderPlatforms();
@@ -761,17 +844,17 @@ function bootWithData(){
 }
 
 (async function init(){
-  // แสดง platform static ทันที (ให้ user เห็นเมนู)
+  // แสดง platform static ทันที
   renderPlatforms();
   wireEvents();
 
-  // ถ้ามี data ฝังมาจาก server อยู่แล้ว
   if (Array.isArray(window.__SERVICES__) && window.__SERVICES__.length){
+    // เผื่อกรณีที่ server ยังไม่ได้ map platformKey มาก่อน
+    assignPlatformsToServices();
     bootWithData();
     return;
   }
 
-  // ยังไม่มี data → โชว์ skeleton ในส่วนบริการทั้งหมด
   const container = document.getElementById('servicesContainer');
   if (container){
     container.innerHTML = `
@@ -789,13 +872,15 @@ function bootWithData(){
 
     const list = Array.isArray(payload.services) ? payload.services : [];
     window.__SERVICES__ = list;
-    CURRENT_PLATFORM = payload.defaultPlatform || CURRENT_PLATFORM || null;
 
-    // update map สำหรับ resolveService
+    // อัปเดต map PID + platformKey
     for (const it of list) {
       const pid = it?.providerServiceId;
       if (pid !== undefined && pid !== null) SVC_BY_PID[String(pid)] = it;
     }
+    assignPlatformsToServices();
+
+    CURRENT_PLATFORM = payload.defaultPlatform || CURRENT_PLATFORM || null;
 
     bootWithData();
   } catch (err){
