@@ -459,14 +459,16 @@ function groupSubId(g){ return oid(g?.subcategory); }
 
 /* --------- นิยามชิปภาษาไทย + คีย์เวิร์ด --------- */
 const CHIP_DEFS = [
-  { id:"",               label:"ทั้งหมด",              kw:[] },
-  { id:"views",          label:"วิว",                  kw:["view","views","watch","play","ชม","วิว"] },
-  { id:"likes",          label:"ไลก์",                 kw:["like","likes","heart","react","reactions","ถูกใจ","ไลก์"] },
-  { id:"members",        label:"สมาชิก/ผู้ติดตาม",     kw:["follow","follower","followers","subscriber","subscribers","subs","ติดตาม","ผู้ติดตาม","สมาชิก","members"] },
+  { id:"",               label:"ทั้งหมด",             kw:[] },
+  { id:"views",          label:"วิว",                 kw:["view","views","watch","play","ชม","วิว"] },
+  { id:"likes",          label:"ไลก์",                kw:["like","likes","heart","react","reactions","ถูกใจ","ไลก์"] },
+  { id:"members",        label:"สมาชิก | ผู้ติดตาม",    kw:["follow","follower","followers","subscriber","subscribers","subs","ติดตาม","ผู้ติดตาม","สมาชิก","members"] },
   { id:"comments",       label:"คอมเมนต์",            kw:["comment","comments","คอมเมน"] },
-  { id:"shares",         label:"แชร์",                 kw:["share","shares","รีโพสต์","repost","retweet","แชร์"] },
-  { id:"traffic",        label:"คลิก/ทราฟฟิก",        kw:["link click","click","traffic","คลิก","ทราฟฟิก"] },
-  { id:"shorts_reels",   label:"Shorts/Reels/Live",    kw:["short","shorts","reel","reels","live","สตรีม","ไลฟ์"] },
+  { id:"shares",         label:"แชร์",                kw:["share","shares","รีโพสต์","repost","retweet","แชร์"] },
+  { id:"traffic",        label:"SEO | Traffic",      kw:["link click","click","traffic","คลิก","ทราฟฟิก"] },
+  { id:"shorts",         label:"Shorts",             kw:["short","shorts"] },
+  { id:"reels",          label:"Reels",              kw:["reel","reels"] },
+  { id:"live",           label:"Live",               kw:["live","สตรีม","ไลฟ์"] },
   { id:"general",        label:"ทั่วไป",               kw:["general","รวม","รวมบริการ","all-in-one"] },
 ];
 
