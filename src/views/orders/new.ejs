@@ -228,6 +228,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const filtersBar  = document.getElementById('filtersBar');
   const searchWrap  = document.querySelector('.search-all-wrap');
   const searchInput = document.getElementById('searchAll');
+  const chipBar = document.getElementById('chipBar');
+
+  if (chipBar) {
+    chipBar.addEventListener('click', onChip);
+  }
 
   // ถ้าไม่มีอะไรเลยก็ไม่ต้องทำ
   if (!filtersBar && !searchWrap && !searchInput) return;
@@ -1307,14 +1312,20 @@ async function tryAutoSelectFromURL(){
 }
 
 /* ---------- ชิปคลิก ---------- */
-function onChip(e){
-  const b = e.target.closest('.chip'); if(!b) return;
-  const chipId = b.dataset.chip ?? b.dataset.sub ?? ''; // เผื่อ template เดิม
-  const chip = visibleChipList.find(c => c.id===chipId);
-  if (chip && chip.id!=="" && chip.count===0) return; // กันคลิกอันที่ไม่มี
+function onChip(e) {
+  const b = e.target.closest('.chip');
+  if (!b) return;
+
+  const chipId = b.dataset.chip ?? b.dataset.sub ?? '';
+
+  const chip = visibleChipList.find(c => c.id === chipId);
+  if (chip && chip.id !== "" && chip.count === 0) return;
 
   currentChipId = chipId;
-  $('#chipBar').querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
+
+  document.querySelectorAll('#chipBar .chip')
+    .forEach(x => x.classList.remove('active'));
+
   b.classList.add('active');
 
   renderGroupList(true);
@@ -1378,13 +1389,14 @@ async function choosePlatform(catId){
 }
 
 /* ---------- วาดชิปภาษาไทย (เฉพาะที่มีจริง) ---------- */
-function renderChipsTH(){
-  const bar = $('#chipBar');
+function renderChipsTH() {
+  const bar = document.getElementById('chipBar');
   bar.innerHTML = visibleChipList.map(ch => `
     <button type="button"
-            class="chip ${currentChipId===ch.id ? 'active' : ''} ${ch.id!=='' && ch.count===0 ? 'disabled' : ''}"
+            class="chip ${currentChipId === ch.id ? 'active' : ''} 
+                          ${ch.id !== '' && ch.count === 0 ? 'disabled' : ''}"
             data-chip="${ch.id}">
-      ${ch.label}${ch.id===''?'':` (${ch.count})`}
+      ${ch.label}${ch.id === '' ? '' : ` (${ch.count})`}
     </button>
   `).join('');
 }

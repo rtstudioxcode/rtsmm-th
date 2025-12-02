@@ -374,55 +374,75 @@
     <!-- SUMMARY CARDS -->
     <div class="ultra-cards">
         <!-- ยอดขายรวม -->
-        <section class="ultra-card glass">
-        <h3>ยอดขายรวมเดือนนี้</h3>
-        <div class="ultra-value">
+        <section class="ultra-card glass" id="cardTotal">
+          <h3>ยอดขายรวมเดือนนี้</h3>
+          <div class="ultra-value">
             ฿ <span id="totalRevenue"><%= totalRevenue.toLocaleString() %></span>
-        </div>
-        <div class="ultra-trend <%= totalRevenue > 0 ? 'up' : 'flat' %>">
+          </div>
+          <div class="ultra-trend <%= totalRevenue > 0 ? 'up' : 'flat' %>">
             <span class="dot"></span>
-            <span class="label"><%= totalRevenue > 0 ? 'มีรายได้' : 'ยังไม่มีรายการ' %></span>
-        </div>
-        <canvas class="spark" id="sparkTotal"></canvas>
+            <span class="label" id="labelTotal">
+              <%= totalRevenue > 0 ? 'มีรายได้' : 'ยังไม่มีรายการ' %>
+            </span>
+          </div>
+          <canvas class="spark" id="sparkTotal"></canvas>
         </section>
 
         <!-- Package 1 -->
-        <section class="ultra-card glass">
-        <h3>Package 1 (สล็อต+บาคาร่า)</h3>
-        <div class="ultra-value">
+        <section class="ultra-card glass" id="cardPkg1">
+          <h3>Package 1 (สล็อต+บาคาร่า)</h3>
+          <div class="ultra-value">
             ฿ <span id="pkg1Revenue"><%= pkg1Revenue.toLocaleString() %></span>
-        </div>
-        <div class="ultra-trend <%= pkg1Revenue > 0 ? 'up' : 'flat' %>">
+          </div>
+          <div class="ultra-trend <%= pkg1Revenue > 0 ? 'up' : 'flat' %>">
             <span class="dot"></span>
-            <span class="label"><%= pkg1Revenue > 0 ? 'มีการขาย' : 'ยังไม่มีการขาย' %></span>
-        </div>
-        <canvas class="spark" id="sparkPkg1"></canvas>
+            <span class="label" id="labelPkg1">
+              <% if (pkg1Count > 0) { %>
+                มี <%= pkg1Count %> รายการ
+              <% } else { %>
+                ยังไม่มีการขาย
+              <% } %>
+            </span>
+          </div>
+          <canvas class="spark" id="sparkPkg1"></canvas>
         </section>
 
         <!-- Package 2 -->
-        <section class="ultra-card glass">
-        <h3>Package 2 (สล็อต+บาคาร่า+หวย)</h3>
-        <div class="ultra-value">
+        <section class="ultra-card glass" id="cardPkg2">
+          <h3>Package 2 (สล็อต+บาคาร่า+หวย)</h3>
+          <div class="ultra-value">
             ฿ <span id="pkg2Revenue"><%= pkg2Revenue.toLocaleString() %></span>
-        </div>
-        <div class="ultra-trend <%= pkg2Revenue > 0 ? 'up' : 'flat' %>">
+          </div>
+          <div class="ultra-trend <%= pkg2Revenue > 0 ? 'up' : 'flat' %>">
             <span class="dot"></span>
-            <span class="label"><%= pkg2Revenue > 0 ? 'มีการขาย' : 'ยังไม่มีการขาย' %></span>
-        </div>
-        <canvas class="spark" id="sparkPkg2"></canvas>
+            <span class="label" id="labelPkg2">
+              <% if (pkg2Count > 0) { %>
+                มี <%= pkg2Count %> รายการ
+              <% } else { %>
+                ยังไม่มีการขาย
+              <% } %>
+            </span>
+          </div>
+          <canvas class="spark" id="sparkPkg2"></canvas>
         </section>
 
         <!-- จำนวนออเดอร์ -->
-        <section class="ultra-card glass">
-        <h3>จำนวนออเดอร์รวม</h3>
-        <div class="ultra-value">
+        <section class="ultra-card glass" id="cardOrders">
+          <h3>จำนวนออเดอร์รวม</h3>
+          <div class="ultra-value">
             <span id="orderCount"><%= orderCount %></span> ออเดอร์
-        </div>
-        <div class="ultra-trend <%= orderCount > 0 ? 'up' : 'flat' %>">
+          </div>
+          <div class="ultra-trend <%= orderCount > 0 ? 'up' : 'flat' %>">
             <span class="dot"></span>
-            <span class="label"><%= orderCount > 0 ? 'มีคำสั่งซื้อ' : 'ยังไม่มีคำสั่งซื้อ' %></span>
-        </div>
-        <canvas class="spark" id="sparkOrders"></canvas>
+            <span class="label" id="labelOrders">
+              <% if (orderCount > 0) { %>
+                ทั้งหมด <%= orderCount %> รายการ
+              <% } else { %>
+                ยังไม่มีคำสั่งซื้อ
+              <% } %>
+            </span>
+          </div>
+          <canvas class="spark" id="sparkOrders"></canvas>
         </section>
     </div>
 
@@ -451,23 +471,29 @@
 
     <!-- TOP 5 DAYS -->
     <section class="ultra-topdays glass">
-        <h3>Top 5 วันขายดีที่สุดในเดือนนี้</h3>
-        <div id="topDaysList" class="topdays-list">
-        <%
-            const topDays = JSON.parse(top5);
-            topDays.forEach((day, index) => {
-        %>
-            <div class="top-item">
-            <div class="rank"><%= index + 1 %></div>
-            <div class="label">วันที่ <%= day.day %></div>
-            <div class="bar">
-                <div style="width: <%= totalRevenue > 0 ? (day.amount / totalRevenue) * 100 : 0 %>%"></div>
-            </div>
-            <div class="amount">฿ <%= day.amount.toLocaleString() %></div>
-            </div>
-        <% }) %>
-        </div>
-    </section>
+      <h3>Top 5 วันขายดีที่สุดในเดือนนี้</h3>
+
+      <div id="topDaysList" class="topdays-list">
+          <% const topDays = JSON.parse(top5); %>
+
+          <% if (!topDays.length) { %>
+              <div class="muted" style="padding: 18px; text-align:center;">
+                  ยังไม่มียอดการขายของเดือนนี้
+              </div>
+          <% } else { %>
+              <% topDays.forEach((day, index) => { %>
+                  <div class="top-item">
+                      <div class="rank"><%= index + 1 %></div>
+                      <div class="label">วันที่ <%= day.day %></div>
+                      <div class="bar">
+                          <div style="width: <%= totalRevenue > 0 ? (day.amount / totalRevenue) * 100 : 0 %>%"></div>
+                      </div>
+                      <div class="amount">฿ <%= day.amount.toLocaleString() %></div>
+                  </div>
+              <% }) %>
+          <% } %>
+      </div>
+  </section>
   </section>
 </section>
 
@@ -825,22 +851,42 @@ if (monthSelect) {
   });
 }
 
-// ================== MONTH CHANGE HANDLING ==================
+// ====================== UTIL ======================
+function $(sel) { return document.querySelector(sel); }
+function $all(sel) { return document.querySelectorAll(sel); }
+
+function setText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
+
+function setLabel(sel, txt) {
+  const el = document.querySelector(sel + " .label");
+  if (el) el.textContent = txt;
+}
+
+function updateTrendClass(sel, active) {
+  const card = document.querySelector(sel);
+  if (!card) return;
+  card.classList.toggle("active", active);
+}
+
+// ====================== MONTH CHANGE HANDLING ======================
 function updateMonthData() {
   const monthSelect = document.getElementById("monthSelect");
   if (!monthSelect) return;
 
-  const selectedMonth = monthSelect.value; // "M-YYYY(BE)"
-  const [monthStr, yearBE] = selectedMonth.split("-");
-  const month = parseInt(monthStr, 10) || 1;
-  const year = (parseInt(yearBE, 10) || (new Date().getFullYear() + 543)) - 543;
+  const val = monthSelect.value; // "M-YYYY(BE)"
+  const [mStr, yBE] = val.split("-");
+  const m = parseInt(mStr, 10) || 1;
+  const y = (parseInt(yBE, 10) || (new Date().getFullYear() + 543)) - 543;
 
-  loadMonthData(year, month);
+  loadMonthData(y, m);
 }
 
 document.getElementById("monthSelect")?.addEventListener("change", updateMonthData);
 
-// ================== FUNCTION TO LOAD DATA ==================
+// ====================== LOAD MONTH DATA ======================
 async function loadMonthData(year, month) {
   try {
     const monthParam = `${year}-${String(month).padStart(2, "0")}`;
@@ -858,35 +904,36 @@ async function loadMonthData(year, month) {
 
     const daily = Array.isArray(raw.daily) ? raw.daily : [];
 
-    // ====== สร้าง label วันที่จาก daily[].date หรือ daily[].day ======
-    const apiDailyLabels = daily
-      .map((d, idx) => {
-        if (typeof d.day === "number") return String(d.day);
-        if (d.date) {
-          const dt = new Date(d.date);
-          if (!isNaN(dt)) return String(dt.getUTCDate());
-        }
-        return String(idx + 1);
-      });
+    // ========== UPDATE TOP 5 ==========
+    if (Array.isArray(raw.top5)) {
+      topDaysData = raw.top5;
+    } else {
+      topDaysData = [];
+    }
+    renderTop5();  // ← เพิ่มไว้ที่ท้ายโค้ดด้านล่าง
+
+    // ====== Generate labels ======
+    const apiDailyLabels = daily.map((d, idx) => {
+      if (typeof d.day === "number") return String(d.day);
+      if (d.date) {
+        const dt = new Date(d.date);
+        if (!isNaN(dt)) return String(dt.getUTCDate());
+      }
+      return String(idx + 1);
+    });
 
     const mapped = {
       totalRevenue: Number(raw.totalMonth || 0),
       pkg1Revenue : Number(raw.pkg1Month || 0),
       pkg2Revenue : Number(raw.pkg2Month || 0),
-      orderCount  : daily.reduce(
-        (sum, d) => sum + Number(d.pkg1 || 0) + Number(d.pkg2 || 0),
-        0
-      ),
+      orderCount  : Number(raw.orderCount || 0),
+      pkg1Count   : Number(raw.pkg1Count || 0),
+      pkg2Count   : Number(raw.pkg2Count || 0),
       dailyData   : daily.map(d => Number(d.total || 0)),
       pkg1Data    : daily.map(d => Number(d.pkg1 || 0)),
       pkg2Data    : daily.map(d => Number(d.pkg2 || 0)),
       dailyLabels : apiDailyLabels,
     };
-
-    if (!mapped.dailyData.length) {
-      applyZeroMonth();
-      return;
-    }
 
     updateCharts(mapped);
     updateSummary(mapped);
@@ -896,92 +943,42 @@ async function loadMonthData(year, month) {
   }
 }
 
+// ====================== ZERO MONTH ======================
 function applyZeroMonth() {
-  const zeroPayload = {
+  const payload = {
     totalRevenue: 0,
     pkg1Revenue : 0,
     pkg2Revenue : 0,
     orderCount  : 0,
+    pkg1Count   : 0,
+    pkg2Count   : 0,
     dailyData   : [0],
     pkg1Data    : [0],
     pkg2Data    : [0],
     dailyLabels : ["1"],
   };
-  updateCharts(zeroPayload);
-  updateSummary(zeroPayload);
+  updateCharts(payload);
+  updateSummary(payload);
 }
 
-// ================== BOOTSTRAP DATA จาก SERVER (EJS) ==================
-let dailyLabels = <%- typeof dailyLabels !== 'undefined'
-  ? JSON.stringify(dailyLabels)
-  : "[]" %>;
-
-let rawDailyData = <%- typeof dailyData !== 'undefined'
-  ? JSON.stringify(dailyData)
-  : "[]" %>;
-
-let rawPkg1Data = <%- typeof pkg1Data !== 'undefined'
-  ? JSON.stringify(pkg1Data)
-  : "[]" %>;
-
-let rawPkg2Data = <%- typeof pkg2Data !== 'undefined'
-  ? JSON.stringify(pkg2Data)
-  : "[]" %>;
-
-let topDaysData = <%- top5 %>;
-
-// ---- helper แปลงเป็น array ตัวเลข ----
-function toNumArray(src) {
-  if (Array.isArray(src)) return src.map(n => Number(n || 0));
-  if (src && typeof src === "object") return Object.values(src).map(n => Number(n || 0));
-  return [];
-}
-
-let dailyData = toNumArray(rawDailyData);
-let pkg1Data  = toNumArray(rawPkg1Data);
-let pkg2Data  = toNumArray(rawPkg2Data);
-
-if (!Array.isArray(topDaysData)) {
-  topDaysData = topDaysData ? [topDaysData] : [];
-}
+// ====================== CHART HANDLING ======================
+let dailyLabels = [];
+let dailyData = [];
+let pkg1Data = [];
+let pkg2Data = [];
 
 function ensureAtLeastTwo(arr) {
   if (arr.length === 1) return [arr[0], arr[0]];
   return arr;
 }
 
-dailyData = ensureAtLeastTwo(dailyData);
-pkg1Data  = ensureAtLeastTwo(pkg1Data);
-pkg2Data  = ensureAtLeastTwo(pkg2Data);
-
-console.log("dailyData (boot):", dailyData);
-console.log("pkg1Data (boot):", pkg1Data);
-console.log("pkg2Data (boot):", pkg2Data);
-
-// ================== FUNCTION TO UPDATE CHARTS ==================
 function updateCharts(data) {
-  // อัปเดต labels จาก API ถ้ามี
-  if (Array.isArray(data.dailyLabels) && data.dailyLabels.length) {
-    dailyLabels = data.dailyLabels.slice();
-  } else if (!Array.isArray(dailyLabels) || !dailyLabels.length) {
-    dailyLabels = (data.dailyData || []).map((_, i) => String(i + 1));
-  }
+  dailyLabels = data.dailyLabels.slice();
+  dailyData = ensureAtLeastTwo(data.dailyData.slice());
+  pkg1Data  = ensureAtLeastTwo(data.pkg1Data.slice());
+  pkg2Data  = ensureAtLeastTwo(data.pkg2Data.slice());
 
-  // อัปเดต datasets
-  dailyData = Array.isArray(data.dailyData) ? data.dailyData.slice() : [];
-  pkg1Data  = Array.isArray(data.pkg1Data)  ? data.pkg1Data.slice()  : [];
-  pkg2Data  = Array.isArray(data.pkg2Data)  ? data.pkg2Data.slice()  : [];
-
-  dailyData = ensureAtLeastTwo(dailyData);
-  pkg1Data  = ensureAtLeastTwo(pkg1Data);
-  pkg2Data  = ensureAtLeastTwo(pkg2Data);
-
-  if (!dailyData.length) {
-    console.warn("No daily data after updateCharts");
-    return;
-  }
-
-  // spark line
+  // สร้าง sparkline
   makeSpark("sparkTotal",  dailyData, "#facc15");
   makeSpark("sparkPkg1",   pkg1Data,  "#38bdf8");
   makeSpark("sparkPkg2",   pkg2Data,  "#fbbf24");
@@ -990,17 +987,43 @@ function updateCharts(data) {
   makeMainCharts();
 }
 
-// ================== FUNCTION TO UPDATE SUMMARY ==================
-function updateSummary(data) {
-  const totalEl = document.getElementById("totalRevenue");
-  const pkg1El  = document.getElementById("pkg1Revenue");
-  const pkg2El  = document.getElementById("pkg2Revenue");
-  const orderEl = document.getElementById("orderCount");
+// ====================== SUMMARY UPDATE ======================
+function updateSummary(d) {
+  setText("totalRevenue", d.totalRevenue.toLocaleString());
+  setText("pkg1Revenue",  d.pkg1Revenue.toLocaleString());
+  setText("pkg2Revenue",  d.pkg2Revenue.toLocaleString());
+  setText("orderCount",   d.orderCount.toLocaleString());
 
-  if (totalEl) totalEl.textContent = Number(data.totalRevenue || 0).toLocaleString();
-  if (pkg1El)  pkg1El.textContent  = Number(data.pkg1Revenue || 0).toLocaleString();
-  if (pkg2El)  pkg2El.textContent  = Number(data.pkg2Revenue || 0).toLocaleString();
-  if (orderEl) orderEl.textContent = Number(data.orderCount  || 0).toLocaleString();
+  // Labels
+  setLabel("#cardTotal",  d.totalRevenue > 0 ? `มีทั้งหมด ${d.orderCount} รายการ` : "ยังไม่มีรายการ");
+  setLabel("#cardPkg1",   d.pkg1Revenue  > 0 ? `มี ${d.pkg1Count} รายการ` : "ยังไม่มีการขาย");
+  setLabel("#cardPkg2",   d.pkg2Revenue  > 0 ? `มี ${d.pkg2Count} รายการ` : "ยังไม่มีการขาย");
+  setLabel("#cardOrders", d.orderCount   > 0 ? `ทั้งหมด ${d.orderCount} รายการ` : "ยังไม่มีคำสั่งซื้อ");
+
+  // Trend Active Class
+  updateTrendClass("#cardTotal",  d.totalRevenue > 0);
+  updateTrendClass("#cardPkg1",   d.pkg1Revenue  > 0);
+  updateTrendClass("#cardPkg2",   d.pkg2Revenue  > 0);
+  updateTrendClass("#cardOrders", d.orderCount   > 0);
+}
+
+// ====================== INITIALIZE SECTION ======================
+document.addEventListener("DOMContentLoaded", () => {
+  updateMonthData();
+});
+
+// ================== SET LABEL (ปลอดภัยกว่าใช้ .label ตรง ๆ) ==================
+function setLabel(cardSelector, text) {
+  const el = document.querySelector(`${cardSelector} .label`);
+  if (el) el.textContent = text;
+}
+
+// ================== UPDATE TREND CLASS ==================
+function updateTrendClass(selector, isUp) {
+  const block = document.querySelector(`${selector} .ultra-trend`);
+  if (!block) return;
+  block.classList.remove("up", "flat");
+  block.classList.add(isUp ? "up" : "flat");
 }
 
 // ================== DESTROY CHART HELPER ==================
@@ -1067,12 +1090,25 @@ function externalSparkTooltip(context) {
 // ================== SPARK LINES ==================
 function makeSpark(canvasId, data, color) {
   const el = document.getElementById(canvasId);
-  if (!el || !Array.isArray(data) || !data.length) return;
+  if (!el) return;
 
-  let arr = data.slice();
-  if (arr.length === 1) arr = [arr[0], arr[0]];
+  // ทำลายกราฟเก่าก่อนทุกครั้ง
+  if (el.__chart) {
+    el.__chart.destroy();
+    el.__chart = null;
+  }
 
-  if (el.__chart) el.__chart.destroy();
+  // ถ้าไม่มีข้อมูล → ใช้กราฟเส้นตรง
+  let arr = [];
+
+  if (!Array.isArray(data) || data.length === 0) {
+    arr = [0, 0];
+  } else if (data.every(v => Number(v) === 0)) {
+    arr = [0, 0];
+  } else {
+    arr = data.slice();
+    if (arr.length === 1) arr = [arr[0], arr[0]];
+  }
 
   el.__chart = new Chart(el, {
     type: "line",
@@ -1108,8 +1144,64 @@ function makeSpark(canvasId, data, color) {
   });
 }
 
+// --- FIX: บังคับ dailyData ให้เป็นเส้นตรงเมื่อไม่มีข้อมูล ---
+  if (!Array.isArray(dailyData) || dailyData.length === 0) {
+    dailyData = [0, 0];
+    dailyLabels = ["1", "2"];
+  }
+
+  if (dailyData.every(v => Number(v) === 0)) {
+    dailyData = [0, 0];
+    dailyLabels = ["1", "2"];
+  }
+
+  if (!Array.isArray(pkg1Data) || pkg1Data.length === 0) {
+    pkg1Data = [0, 0];
+  }
+  if (pkg1Data.every(v => Number(v) === 0)) {
+    pkg1Data = [0, 0];
+  }
+
+  if (!Array.isArray(pkg2Data) || pkg2Data.length === 0) {
+    pkg2Data = [0, 0];
+  }
+  if (pkg2Data.every(v => Number(v) === 0)) {
+    pkg2Data = [0, 0];
+  }
+
+  // ❗สำคัญมาก: คำนวณ isFlatDaily ใหม่หลังจากแก้ dailyData แล้ว
+  const isFlatDaily = dailyData.every(v => Number(v) === 0);
+
 // ================== MAIN CHARTS ==================
 function makeMainCharts() {
+  // --- FIX: บังคับ dailyData ให้เป็นเส้นตรงเมื่อไม่มีข้อมูล ---
+  if (!Array.isArray(dailyData) || dailyData.length === 0) {
+    dailyData = [0, 0];
+    dailyLabels = ["1", "2"];
+  }
+
+  if (dailyData.every(v => Number(v) === 0)) {
+    dailyData = [0, 0];
+    dailyLabels = ["1", "2"];
+  }
+
+  if (!Array.isArray(pkg1Data) || pkg1Data.length === 0) {
+    pkg1Data = [0, 0];
+  }
+  if (pkg1Data.every(v => Number(v) === 0)) {
+    pkg1Data = [0, 0];
+  }
+
+  if (!Array.isArray(pkg2Data) || pkg2Data.length === 0) {
+    pkg2Data = [0, 0];
+  }
+  if (pkg2Data.every(v => Number(v) === 0)) {
+    pkg2Data = [0, 0];
+  }
+
+  // ❗สำคัญมาก: คำนวณ isFlatDaily ใหม่หลังจากแก้ dailyData แล้ว
+  const isFlatDaily = dailyData.every(v => Number(v) === 0);
+
   // -------- DAILY LINE --------
   destroyChart("chartDaily");
   const c1 = document.getElementById("chartDaily");
@@ -1121,12 +1213,23 @@ function makeMainCharts() {
       dailyLabels.length === dailyData.length
         ? dailyLabels
         : dailyData.map((_, i) => i + 1);
+    let suggestedMin, suggestedMax;
 
     const minVal = Math.min(...dailyData);
     const maxVal = Math.max(...dailyData);
     const range = maxVal - minVal || maxVal || 1;
-    const suggestedMin = Math.max(0, minVal - range * 0.3);
-    const suggestedMax = maxVal + range * 0.15;
+
+    if (isFlatDaily) {
+      // ถ้าไม่มีข้อมูลเลย → กราฟเป็นเส้นตรง
+      suggestedMin = 0;
+      suggestedMax = 1; // ต้องไม่เป็น 0 ทั้งคู่ ไม่งั้น Chart.js ไม่วาด
+    } else {
+      const minVal = Math.min(...dailyData);
+      const maxVal = Math.max(...dailyData);
+      const range = maxVal - minVal || maxVal || 1;
+      suggestedMin = Math.max(0, minVal - range * 0.3);
+      suggestedMax = maxVal + range * 0.15;
+    }
 
     const bgGradient = ctx1.createLinearGradient(0, 0, 0, c1.height);
     bgGradient.addColorStop(0, "rgba(250,204,21,0.30)");
@@ -1373,24 +1476,42 @@ function makeMainCharts() {
 }
 
 // ================== TOP 5 DAYS ==================
-const list = document.getElementById("topDaysList");
-if (list) {
+function renderTop5() {
+  const list = document.getElementById("topDaysList");
+  if (!list) return;
+
   list.innerHTML = "";
-  if (Array.isArray(topDaysData) && topDaysData.length) {
-    topDaysData.forEach((d, idx) => {
-      const pct = (d.amount / topDaysData[0].amount) * 100;
-      list.innerHTML += `
-        <div class="top-item">
-          <div class="rank">${idx + 1}</div>
-          <div class="label">วันที่ ${d.day}</div>
-          <div class="bar"><div style="width:${pct}%"></div></div>
-          <div class="amount">฿${d.amount.toLocaleString()}</div>
-        </div>
-      `;
-    });
-  } else {
-    list.innerHTML = `<div class="top-item muted">ยังไม่มีข้อมูลในเดือนนี้</div>`;
+
+  // ไม่มีข้อมูลเลย → แสดงข้อความ muted
+  if (!Array.isArray(topDaysData) || topDaysData.length === 0) {
+    list.innerHTML = `
+      <div class="muted" style="
+        padding: 20px;
+        text-align: center;
+        font-size: 14px;
+        opacity: 0.85;
+      ">
+        ยังไม่มียอดการขายของเดือนนี้
+      </div>
+    `;
+    return;
   }
+
+  // มีข้อมูล → แสดง Top 5
+  const maxAmt = topDaysData[0].amount || 1;
+
+  topDaysData.forEach((d, idx) => {
+    const pct = (d.amount / maxAmt) * 100;
+
+    list.innerHTML += `
+      <div class="top-item">
+        <div class="rank">${idx + 1}</div>
+        <div class="label">วันที่ ${d.day}</div>
+        <div class="bar"><div style="width:${pct}%"></div></div>
+        <div class="amount">฿${d.amount.toLocaleString()}</div>
+      </div>
+    `;
+  });
 }
 
 // ================== INITIAL RENDER (หน้าตอนโหลดครั้งแรก) ==================

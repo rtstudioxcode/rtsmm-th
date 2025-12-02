@@ -1135,11 +1135,11 @@ router.get("/bonustime-panel", async (req, res) => {
           const t = o.tenantId || o.tenant || null;
           const sk = o.serial_key || o.serialKey || null;
           if (t) {
-            ownerByTenant[t] = uName;               // เจ้าของ Service ตาม tenantId
+            ownerByTenant[t] = uName;
           }
           if (sk) {
-            ownerBySerial[sk] = uName;              // เจ้าของตาม serial
-            ownerDisplayBySerial[sk] = dName;       // display name ของ user
+            ownerBySerial[sk] = uName;
+            ownerDisplayBySerial[sk] = dName;
           }
         }
       }
@@ -1220,76 +1220,152 @@ router.get("/bonustime-panel", async (req, res) => {
     ];
 
     const now = new Date();
-    const month = Number(req.query.month || now.getMonth() + 1); // 1-12
-    const year = Number(req.query.year || now.getFullYear());
+
+    // -------------------------------
+    // 🟦 1) รับค่าเดือนจาก FE (รองรับ YYYY-MM)
+    // -------------------------------
+    let year, month;
+    const rawMonth = req.query.month; // อาจเป็น "2025-11" หรือ "12-2568"
+
+    // ถ้ารูปแบบ YYYY-MM
+    if (rawMonth && rawMonth.includes("-")) {
+      const parts = rawMonth.split("-");
+      if (parts.length === 2) {
+        const yy = Number(parts[0]);
+        const mm = Number(parts[1]);
+
+        if (!isNaN(yy) && !isNaN(mm)) {
+          year = yy;
+          month = mm;
+        }
+      }
+    }
+
+    // Fallback ถ้า FE ส่งแบบเดิม
+    if (!year || !month) {
+      month = Number(req.query.month || (now.getMonth() + 1));
+      year  = Number(req.query.year  || now.getFullYear());
+    }
+
+    // ป้องกัน NaN
+    if (isNaN(month) || month < 1 || month > 12) month = now.getMonth() + 1;
+    if (isNaN(year) || year < 2000) year = now.getFullYear();
+
     const yearBE = year + 543;
 
-    // ช่วงวันที่ของเดือนนั้น (ใช้ UTC ให้เนียน)
+    // -------------------------------
+    // 🟦 2) ช่วงวันที่ของเดือนนั้น
+    // -------------------------------
     const start = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
-    const end   = new Date(Date.UTC(year, month, 1, 0, 0, 0));   // ต้นเดือนถัดไป
+    const end   = new Date(Date.UTC(year, month,     1, 0, 0, 0));
 
-    // ==== Query orders เดือนนั้น
+    // console.log("⭐ Loaded Month:", { year, month, start, end });
+
+    // -------------------------------
+    // 🟦 3) Query orders ของเดือนนั้นจริง ๆ
+    // -------------------------------
     const monthOrders = await BonustimeOrder.find({
       createdAt: { $gte: start, $lt: end }
     }).lean();
 
-    // ==== Summary
+    // console.log("📌 monthOrders length =", monthOrders.length);
+
+    // -------------------------------
+    // 🟦 4) คำนวณยอดทั้งหมด
+    // -------------------------------
     let totalRevenue = 0;
     let pkg1Revenue  = 0;
     let pkg2Revenue  = 0;
     let pkg1Count    = 0;
     let pkg2Count    = 0;
 
-    // สำหรับกราฟรายวัน: เก็บแบบ { dayNumber: amount }
-    const daily = {};
+    const typeStats = {};
 
-    monthOrders.forEach(o => {
-      const amt = Number(o.amountTHB || 0);
-      totalRevenue += amt;
+    const daily = {}; // สำหรับเก็บยอดรายวัน
 
+    for (const o of monthOrders) {
+      const amount = Number(o.amountTHB || 0);
       const created = new Date(o.createdAt);
       const day = created.getUTCDate(); // 1..31
-      daily[day] = (daily[day] || 0) + amt;
 
-      if (o.packageType === "normal") {
-        pkg1Revenue += amt;
-        pkg1Count++;
-      } else {
-        pkg2Revenue += amt;
-        pkg2Count++;
+      if (!daily[day]) {
+        daily[day] = { total: 0, pkg1: 0, pkg2: 0, count: 0 };
       }
-    });
 
-    // TOP 5 วันขายดีที่สุด
+      daily[day].total += amount;
+      daily[day].count++;
+
+      totalRevenue += amount;
+
+      // จัดกลุ่ม packageType
+      const t = (o.packageType || "").toLowerCase();
+
+      if (!typeStats[t]) typeStats[t] = { count: 0, total: 0 };
+      typeStats[t].count++;
+      typeStats[t].total += amount;
+
+      // Mapping package ให้ถูกต้อง
+      const isPkg1 = ["normal", "pack1", "package1"].includes(t);
+      const isPkg2 = ["lotto", "pack2", "package2"].includes(t);
+
+      if (isPkg1) {
+        daily[day].pkg1 += amount;
+        pkg1Revenue += amount;
+        pkg1Count++;
+      } else if (isPkg2) {
+        daily[day].pkg2 += amount;
+        pkg2Revenue += amount;
+        pkg2Count++;
+      } else {
+        // ถ้าไม่รู้ type → ใส่ pkg1
+        daily[day].pkg1 += amount;
+        pkg1Revenue += amount;
+        pkg1Count++;
+      }
+    }
+
+    // -------------------------------
+    // 🟦 5) Top 5 days
+    // -------------------------------
     const top5 = Object.entries(daily)
-      .map(([d, amt]) => ({ day: Number(d), amount: amt }))
+      .map(([d, rec]) => ({ day: Number(d), amount: rec.total }))
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 5);
 
-    // ====== สร้าง dailyLabels / dailyDataArr ครบทั้งเดือน ======
-    const daysInMonth = new Date(year, month, 0).getDate(); // 28-31
+    // -------------------------------
+    // 🟦 6) Generate รายวันให้ครบเดือน
+    // -------------------------------
+    const daysInMonth = new Date(year, month, 0).getDate();
 
     const dailyLabels = [];
     const dailyDataArr = [];
+    const pkg1DataArr = [];
+    const pkg2DataArr = [];
+    const dailyOrderCountArr = [];
 
     for (let d = 1; d <= daysInMonth; d++) {
-      dailyLabels.push(String(d));              // "1","2",...
-      dailyDataArr.push(Number(daily[d] || 0)); // ไม่มี order = 0
+      const rec = daily[d] || { total: 0, pkg1: 0, pkg2: 0, count: 0 };
+      dailyLabels.push(String(d));
+      dailyDataArr.push(rec.total);
+      pkg1DataArr.push(rec.pkg1);
+      pkg2DataArr.push(rec.pkg2);
+      dailyOrderCountArr.push(rec.count);
     }
 
-    // ====== render ======
+    // -------------------------------
+    // 🟦 7) ส่งไป render
+    // -------------------------------
     return res.render("admin/bonustime_panel", {
       title: "Bonustime Panel",
       top5: JSON.stringify(top5),
 
-      // TAB 1
       records,
       updateEndpoint: "/admin/bonustime/tenant",
 
-      // TAB 2 (Ultra Summary)
       year: yearBE,
       month: monthNamesTH[month - 1],
       monthOrders,
+      typeStats,
       totalRevenue,
       pkg1Revenue,
       pkg2Revenue,
@@ -1297,11 +1373,11 @@ router.get("/bonustime-panel", async (req, res) => {
       pkg2Count,
       orderCount: monthOrders.length,
 
-      // ข้อมูลกราฟ (ส่งเป็น array ตรง ๆ)
-      dailyLabels,             // ["1","2",...,"31"]
-      dailyData: dailyDataArr, // [0,10000,...]
-      pkg1Data: [pkg1Revenue],
-      pkg2Data: [pkg2Revenue],
+      dailyLabels,
+      dailyData: dailyDataArr,
+      pkg1Data: pkg1DataArr,
+      pkg2Data: pkg2DataArr,
+      dailyOrderCounts: dailyOrderCountArr,
     });
 
   } catch (err) {
@@ -1481,19 +1557,44 @@ router.get("/bonustime/tenant", async (req, res) => {
     let daily = {};
 
     monthOrders.forEach(o => {
-        const amt = Number(o.amountTHB || 0);
-        totalRevenue += amt;
+      const amt = Number(o.amountTHB || 0);
 
-        const day = new Date(o.createdAt).getDate();
-        daily[day] = (daily[day] || 0) + amt;
+      const created = new Date(o.createdAt);
+      const day = created.getUTCDate(); // 1..31
 
-        if (o.packageType === "normal") {
-            pkg1Revenue += amt;
-            pkg1Count++;
-        } else {
-            pkg2Revenue += amt;
-            pkg2Count++;
-        }
+      if (!daily[day]) {
+        daily[day] = { total: 0, pkg1: 0, pkg2: 0, count: 0 };
+      }
+
+      // ---- รวมรายวัน
+      daily[day].total += amt;
+      daily[day].count++;
+
+      // ---- รวมรายเดือนทั้งหมด
+      totalRevenue += amt;
+
+      // ====== PACKAGE MAPPING แบบใหม่ (ครอบทุกเคส) ======
+      const type = (o.packageType || "").toLowerCase();
+
+      const isPkg1 = ["normal", "pack1", "package1"].includes(type);
+      const isPkg2 = ["lotto", "pack2", "package2"].includes(type);
+
+      if (isPkg1) {
+        daily[day].pkg1 += amt;
+        pkg1Revenue += amt;
+        pkg1Count++;
+      } else if (isPkg2) {
+        daily[day].pkg2 += amt;
+        pkg2Revenue += amt;
+        pkg2Count++;
+      } else {
+        // ถ้าไม่มีค่า ให้โยนเข้า pkg1 เป็น default (ตามระบบเดิม)
+        daily[day].pkg1 += amt;
+        pkg1Revenue += amt;
+        pkg1Count++;
+        pkg2Revenue += amt;
+        pkg2Count++;
+      }
     });
 
     const top5 = Object.entries(daily)
@@ -1507,6 +1608,8 @@ router.get("/bonustime/tenant", async (req, res) => {
         totalRevenue,
         pkg1Revenue,
         pkg2Revenue,
+        pkg1Count,
+        pkg2Count,
         orderCount: monthOrders.length,
         dailyData: Object.values(daily),
         pkg1Data: [pkg1Revenue],
@@ -1587,53 +1690,75 @@ router.post("/bonustime/tenant", async (req, res) => {
 // =============================
 router.get("/bonustime/monthly.json", async (req, res) => {
   try {
-    // ใช้ BonustimeOrder เป็นแหล่งข้อมูลหลัก (ไม่ใช่ getBonustimeUsersCollection)
     let { month } = req.query;
+
+    // ===========================
+    // 1) แปลงค่าเดือนจาก FE (YYYY-MM)
+    // ===========================
     const now = new Date();
     let y = now.getFullYear();
     let m = now.getMonth() + 1;
 
-    // month format: "YYYY-MM"
     if (typeof month === "string" && /^\d{4}-\d{2}$/.test(month)) {
       const [yy, mm] = month.split("-").map(Number);
-      if (!Number.isNaN(yy) && !Number.isNaN(mm)) {
+      if (!isNaN(yy) && !isNaN(mm) && mm >= 1 && mm <= 12) {
         y = yy;
         m = mm;
       }
     }
 
+    // ===========================
+    // 2) สร้างช่วงเวลาแบบ UTC
+    // ===========================
     const start = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0));
     const end   = new Date(Date.UTC(y, m,     1, 0, 0, 0));
 
+    // console.log("📅 MONTH RANGE:", { start, end });
+
+    // ===========================
+    // 3) Query orders ของเดือนที่เลือกจริง
+    // ===========================
     const orders = await BonustimeOrder.find({
       createdAt: { $gte: start, $lt: end }
     }).lean();
 
-    // ─── รวมยอดรายเดือน ───
-    let totalMonth = 0;
-    let pkg1Month  = 0;
-    let pkg2Month  = 0;
+    // console.log("📦 Orders count =", orders.length);
 
-    // เก็บรายวันในเดือนนั้น
-    const dailyMap = {}; // { [dayNumber]: { day, pkg1, pkg2, total } }
+    // ===========================
+    // 4) ตัวแปรรวมยอด
+    // ===========================
+    let totalMonth = 0;
+    let pkg1Month = 0;
+    let pkg2Month = 0;
+    let pkg1Count = 0;
+    let pkg2Count = 0;
+
+    // ใช้รายวันแบบ Map
+    const dailyMap = {}; // { 1: {...}, 2: {...}, ... }
 
     for (const o of orders) {
       const amt = Number(o.amountTHB || 0) || 0;
 
-      const d = new Date(o.createdAt);
-      const day = d.getUTCDate(); // 1..31
+      const created = new Date(o.createdAt);
+      const day = created.getUTCDate(); // 1..31
 
       if (!dailyMap[day]) {
         dailyMap[day] = { day, pkg1: 0, pkg2: 0, total: 0 };
       }
 
-      const isPkg1 = !o.packageType || o.packageType === "normal";
+      const type = (o.packageType || "").toLowerCase();
 
+      const isPkg1 = ["normal", "pack1", "package1"].includes(type);
+      const isPkg2 = ["lotto", "pack2", "package2"].includes(type);
+
+      // รวมรายเดือน
       if (isPkg1) {
         pkg1Month += amt;
+        pkg1Count++;
         dailyMap[day].pkg1 += amt;
-      } else {
+      } else if (isPkg2) {
         pkg2Month += amt;
+        pkg2Count++;
         dailyMap[day].pkg2 += amt;
       }
 
@@ -1641,29 +1766,42 @@ router.get("/bonustime/monthly.json", async (req, res) => {
       dailyMap[day].total += amt;
     }
 
-    // แปลงเป็น array + sort ตามวันที่
+    // ===========================
+    // 5) แปลงรายวันเป็น array & sort
+    // ===========================
     const daily = Object.values(dailyMap).sort((a, b) => a.day - b.day);
 
-    // Top 5 วันยอดขายสูงสุด
+    // ===========================
+    // 6) Top 5 วันยอดขายสูงสุด
+    // ===========================
     const top5 = [...daily]
       .filter(d => d.total > 0)
       .sort((a, b) => b.total - a.total)
       .slice(0, 5)
-      .map(d => ({ day: d.day, amount: d.total }));
+      .map(d => ({
+        day: d.day,
+        amount: d.total
+      }));
 
+    // ===========================
+    // 7) ส่งข้อมูลกลับ FE
+    // ===========================
     res.json({
       ok: true,
       month: `${y}-${String(m).padStart(2, "0")}`,
       totalMonth,
       pkg1Month,
       pkg2Month,
+      pkg1Count,
+      pkg2Count,
       bothPkg: pkg1Month + pkg2Month,
       orderCount: orders.length,
       daily,
-      top5,
+      top5
     });
+
   } catch (err) {
-    console.error("ERR GET /bonustime/monthly.json", err);
+    console.error("❌ ERR GET /bonustime/monthly.json", err);
     res.status(500).json({ ok: false, error: "server-error" });
   }
 });
