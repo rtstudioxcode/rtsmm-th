@@ -2059,7 +2059,7 @@ async function loadLatestUpdates(){
       const d = new Date(x.ts);
       const hh = String(d.getHours()).padStart(2,'0');
       const mm = String(d.getMinutes()).padStart(2,'0');
-
+      const icon = getGroupIconByName(x.serviceName);
       const row = document.createElement('div');
       row.className = 'update-item';
       row.innerHTML = `
@@ -2075,7 +2075,10 @@ async function loadLatestUpdates(){
             }
           </div>
         </div>
-        <div class="update-title"><b>${escapeHtml(x.serviceName || '—')}</b>
+
+        <div class="update-title">
+          ${icon ? `<img class="up-icon" src="${icon}">` : ''}
+          <b>${escapeHtml(x.serviceName || '—')}</b>
           <small class="muted">#${escapeHtml(x.providerServiceId||'')}</small>
         </div>
       `;
@@ -2168,4 +2171,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+function getGroupIconByName(name){
+  const n = (name || '').toLowerCase();
+
+  for (const g of GROUP_ICON_MAP) {
+    for (const kw of g.match) {
+      if (n.includes(kw.toLowerCase())) {
+        return g.icon;
+      }
+    }
+  }
+  return null;
+}
 </script>

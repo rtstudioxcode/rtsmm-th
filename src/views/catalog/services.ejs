@@ -149,6 +149,22 @@
     width: 24px;
     height: 24px;
   }
+
+  .group .head {
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:14px 16px;
+    cursor:pointer;
+  }
+
+  .group-ico {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
 </style>
 
 <!-- Modal: รายละเอียดบริการ -->
@@ -166,6 +182,710 @@
 </div>
 
 <script>
+// ไอคอนหมวหมู่
+const GROUP_ICON_MAP = [
+  // อื่นๆ
+  {
+    icon: '/static/assets/services_icon/free.png',   // ตัวอย่างไฟล์ free
+    match: ['[free trial]', 'บริการทดลองฟรี']
+  },
+  {
+    icon: '/static/assets/services_icon/yearpro.png',
+    match: ['โปรโมชั่นประจำปี', 'promotion']
+  },
+  {
+    icon: '/static/assets/services_icon/bilibili.png',
+    match: ['BiliBili']
+  },
+  {
+    icon: '/static/assets/services_icon/canva.png',
+    match: ['canva']
+  },
+  {
+    icon: '/static/assets/services_icon/douyin.png', 
+    match: ['douyin']
+  },
+  {
+    icon: '/static/assets/services_icon/Line.png',
+    match: ['Line Official Account ', 'Line OpenChat', 'Line Voom ']
+  },
+  {
+    icon: '/static/assets/services_icon/chatgpt.png',
+    match: ['chatgpt']
+  },
+  {
+    icon: '/static/assets/services_icon/disney-amazon.png',
+    match: ['Disney+ 🔴 Amazon Prime 🔴 Youtube Premium']
+  },
+  {
+    icon: '/static/assets/services_icon/license-key.png',
+    match: ['✅License Key 🔑']
+  },
+  {
+    icon: '/static/assets/services_icon/camera.png',
+    match: ['✅ดาวน์โหลด ไฟล์ลิขสิทธิ์ 📷']
+  },
+  {
+    icon: '/static/assets/services_icon/zepeto.png',
+    match: ['Zepeto']
+  },
+  {
+    icon: '/static/assets/services_icon/lemon8.png',
+    match: ['Lemon8']
+  },
+  {
+    icon: '/static/assets/services_icon/capcut.png',
+    match: ['CapCut']
+  },
+  {
+    icon: '/static/assets/services_icon/joylada.png',
+    match: ['Joylada']
+  },
+  // Tiktok
+  {
+    icon: '/static/assets/services_icon/Tiktok-ALLTH.png',
+    match: ['TikTok 🎯 Thailand 🇹🇭 Services – รวมบริการประเทศไทย', '🇹🇭 TikTok']
+  },
+  {
+    icon: '/static/assets/services_icon/tiktok.png',
+    match: ['TikTok 🎯 All Services', 'TikTok 💔 Not Interested']
+  },
+  {
+    icon: '/static/assets/services_icon/tiktok-views.png',
+    match: ['TikTok 👁️ Video Views']
+  },
+  {
+    icon: '/static/assets/services_icon/tiktok-follow.png',
+    match: ['TikTok 👤 Followers']
+  },
+  {
+    icon: '/static/assets/services_icon/tiktok-warn.png',
+    match: ['คำสั่งซื้อหนาแน่น ✅TikTok']
+  },
+  {
+    icon: '/static/assets/services_icon/br-tiktok.png',
+    match: ['🇧🇷 TikTok']
+  },
+  {
+    icon: '/static/assets/services_icon/us-tiktok.png',
+    match: ['🇺🇸 TikTok']
+  },
+  {
+    icon: '/static/assets/services_icon/tiktok-likes.png',
+    match: ['TikTok ❤️️ Likes']
+  },
+  {
+    icon: '/static/assets/services_icon/tiktok-save.png',
+    match: ['TikTok 💾 Saves']
+  },
+  {
+    icon: '/static/assets/services_icon/tiktok-share.png',
+    match: ['TikTok 🔗 Shares']
+  },
+  {
+    icon: '/static/assets/services_icon/tiktok-reposts.png',
+    match: ['TikTok 🔃 Reposts']
+  },
+  {
+    icon: '/static/assets/services_icon/tiktok-comments.png',
+    match: ['TikTok 💬 Comments']
+  },
+  {
+    icon: '/static/assets/services_icon/tiktok-lives.png',
+    match: ['TikTok 🔴 Live Stream', 'TikTok ❤️️ Live Likes', 'TikTok 💬 Live Comments']
+  },
+  // Youtube
+  {
+    icon: '/static/assets/services_icon/yt-all.png',
+    match: ['YouTube รวมบริการ']
+  },
+  {
+    icon: '/static/assets/services_icon/yt-views.png',
+    match: ['✅YouTube Views', '🆕YouTube Views', 'YouTube มาใหม่', 'YouTube Views', 'YouTube Video Views']
+  },
+  {
+    icon: '/static/assets/services_icon/yt-ctr.png',
+    match: ['YouTube 🔎 CTR', 'YouTube Views 🔎 SEO Search']
+  },
+  {
+    icon: '/static/assets/services_icon/yt-th.png',
+    match: ['🇹🇭 Youtube']
+  },
+  {
+    icon: '/static/assets/services_icon/yt-hr.png',
+    match: ['Youtube ► เพิ่มชั่วโมง']
+  },
+  {
+    icon: '/static/assets/services_icon/yt-awards.png',
+    match: ['Youtube Adword Views', 'YouTube Views 🤑 โฆษณา Google Adword', '✅YouTube Views 💎 Native 𝐀𝐝𝐰𝐨𝐫𝐝𝐬', 'Youtube | Short Views']
+  },
+  {
+    icon: '/static/assets/services_icon/yt-makemoney.png',
+    match: ['YouTube Views ► 𝐌𝐨𝐧𝐞𝐭𝐢𝐳𝐚𝐛𝐥𝐞 / 𝐑𝐞𝐯𝐞𝐧𝐮𝐞 ► ดูโฆษณาในวิดีโอ ✅📅']
+  },
+  {
+    icon: '/static/assets/services_icon/yt-shorts.png',
+    match: ['✅YouTube ► Shorts', 'YouTube Shorts']
+  },
+  {
+    icon: '/static/assets/services_icon/yt-likes.png',
+    match: ['✅YouTube 👍']
+  },
+  {
+    icon: '/static/assets/services_icon/yt-dislike.png',
+    match: ['✅YouTube 👎']
+  },
+  {
+    icon: '/static/assets/services_icon/yt-comments.png',
+    match: ['✅Youtube 💬']
+  },
+  {
+    icon: '/static/assets/services_icon/yt-sub.png',
+    match: ['✅Youtube Subscribers']
+  },
+  {
+    icon: '/static/assets/services_icon/yt-shares.png',
+    match: ['✅YouTube ► แชร์']
+  },
+  {
+    icon: '/static/assets/services_icon/yt-lives.png',
+    match: ['Youtube 🔴 Live', '✅Youtube 🔴 Like For Live Stream', '✅Youtube 🔴 Reaction For Live Stream']
+  },
+  {
+    icon: '/static/assets/services_icon/yt-partial.png',
+    match: ['🪚 YouTube Split']
+  },
+  // Threads & IG
+  {
+    icon: '/static/assets/services_icon/threads.png',
+    match: ['Threads']
+  },
+  {
+    icon: '/static/assets/services_icon/ig-th.png',
+    match: ['🇹🇭 Instagram']
+  },
+  {
+    icon: '/static/assets/services_icon/ig-all.png',
+    match: [
+      'Instagram ► รวมบริการไอจี', 
+      '✅Instagram Service', 
+      'Instagram Business', 
+      'Instagram Impressions', 
+      'Instagram ► Engagement', 
+      'Instagram Content', 
+      'Instagram ► Channel Member', 
+      'Instagram ► บริการโซน เอเชีย'
+    ]
+  },
+  {
+    icon: '/static/assets/services_icon/ig-likes.png',
+    match: ['✅Instagram Likes', 'Instagram Comment Likes']
+  },
+  {
+    icon: '/static/assets/services_icon/ig-autolike.png',
+    match: [
+      'Instagram Auto Likes', 
+      '✅Instagram รีโพสต์', 
+      'แบ่งยอดวิว 🪚 Instagram', 
+      'แบ่งยอดไลค์ บัญชีผู้หญิง🪚 Instagram', 
+      'แบ่งยอดเซฟ 🪚 Instagram', 
+      'แบ่งยอดแชร์ 🪚 Instagram'
+    ]
+  },
+  {
+    icon: '/static/assets/services_icon/ig-follows.png',
+    match: ['✅Instagram ผู้ติดตาม']
+  },
+  {
+    icon: '/static/assets/services_icon/ig-views.png',
+    match: ['Instagram Views']
+  },
+  {
+    icon: '/static/assets/services_icon/ig-comments.png',
+    match: ['✅Instagram ► คอมเม้นท์']
+  },
+  {
+    icon: '/static/assets/services_icon/ig-story.png',
+    match: ['✅Instagram Story']
+  },
+  {
+    icon: '/static/assets/services_icon/ig-shares.png',
+    match: ['Instagram ► Shares']
+  },
+  {
+    icon: '/static/assets/services_icon/ig-reach.png',
+    match: ['Instagram ► Reach']
+  },
+  {
+    icon: '/static/assets/services_icon/ig-save.png',
+    match: ['Instagram ► Saves']
+  },
+  {
+    icon: '/static/assets/services_icon/ig-nft.png',
+    match: ['Instagram ► NFT']
+  },
+  {
+    icon: '/static/assets/services_icon/ig-lives.png',
+    match: ['✅Instagram 🔴 Live']
+  },
+  {
+    icon: '/static/assets/services_icon/bd-ig.png',
+    match: ['🇧🇩 Instagram']
+  },
+  {
+    icon: '/static/assets/services_icon/pt-ig.png',
+    match: ['🇵🇹 Instagram']
+  },
+  {
+    icon: '/static/assets/services_icon/br-ig.png',
+    match: ['🇧🇷 Instagram']
+  },
+  {
+    icon: '/static/assets/services_icon/eg-ig.png',
+    match: ['🇪🇬 Instagram']
+  },
+  {
+    icon: '/static/assets/services_icon/tr-ig.png',
+    match: ['🇹🇷 Instagram']
+  },
+  {
+    icon: '/static/assets/services_icon/sa-ig.png',
+    match: ['🇸🇦 Instagram']
+  },
+  {
+    icon: '/static/assets/services_icon/kr-ig.png',
+    match: ['🇰🇷 Instagram']
+  },
+  {
+    icon: '/static/assets/services_icon/jp-ig.png',
+    match: ['🇯🇵 Instagram']
+  },
+  {
+    icon: '/static/assets/services_icon/id-ig.png',
+    match: ['🇮🇩 Instagram']
+  },
+  {
+    icon: '/static/assets/services_icon/vn-ig.png',
+    match: ['🇻🇳 Instagram']
+  },
+  {
+    icon: '/static/assets/services_icon/ng-ig.png',
+    match: ['🇳🇬 Instagram']
+  },
+  {
+    icon: '/static/assets/services_icon/in-ig.png',
+    match: ['🇮🇳 Instagram']
+  },
+  {
+    icon: '/static/assets/services_icon/us-ig.png',
+    match: ['🇺🇸 Instagram']
+  },
+  {
+    icon: '/static/assets/services_icon/pk-ig.png',
+    match: ['🇵🇰 Instagram']
+  },
+  // Facebook
+  {
+    icon: '/static/assets/services_icon/th-fb.png',
+    match: ['🇹🇭 Facebook']
+  },
+  {
+    icon: '/static/assets/services_icon/fb.png',
+    match: ['✅Facebook Services', 'Facebook ► ซ่อนคอมเม้นท์', 'Facebook ► คอมเม้นท์', 'Facebook ► Saves', 'Facebook ► Shares', 'Facebook ► แชร์โพส', 'Facebook ► ตอบกลับคอมเม้นท์', 'Facebook ► เพิ่มเพื่อนบัญชีเฟสบุ๊ค', 'Facebook ► เพิ่มคนเข้ากลุ่ม', '🪚 Facebook Split']
+  },
+  {
+    icon: '/static/assets/services_icon/fb-follows.png',
+    match: ['Facebook ► ผู้ติดตามแฟนเพจ', 'Facebook ► ถูกใจแฟนเพจ']
+  },
+  {
+    icon: '/static/assets/services_icon/fb-likes.png',
+    match: ['Facebook ► ไลค์โพส SV1', 'Facebook ► ไลค์โพส คุณภาพสูง SV2', 'Facebook ► ไลค์โพส SV3', 'Facebook ► ออโต้ไลค์โพส', 'Facebook ► ไลค์โพส แบ่งไลค์', 'Facebook ► ไลค์คอมเม้นท์']
+  },
+  {
+    icon: '/static/assets/services_icon/fb-likeemoji.png',
+    match: ['Facebook ► ไลค์โพส อิโมติคอน', 'Facebook ► กดอิโมจิสตอรี่']
+  },
+  {
+    icon: '/static/assets/services_icon/fb-views.png',
+    match: ['Facebook ► วิววิดีโอ', 'Facebook 60K Minutes', 'Facebook 120K Minutes', 'Facebook 600K Minutes', 'Facebook ► ดูสตอรี่']
+  },
+  {
+    icon: '/static/assets/services_icon/fb-lives.png',
+    match: ['Facebook 🔴 Live', 'Facebook 🔴 Auto Live']
+  },
+  {
+    icon: '/static/assets/services_icon/br-fb.png',
+    match: ['🇧🇷 Facebook']
+  },
+  {
+    icon: '/static/assets/services_icon/pk-fb.png',
+    match: ['🇵🇰 Facebook']
+  },
+  // X [Twtiiter]
+  {
+    icon: '/static/assets/services_icon/th-x.png',
+    match: ['X.com | Twitter Services ► รวมบริการประเทศไทย 🇹🇭']
+  },
+  {
+    icon: '/static/assets/services_icon/x.png',
+    match: [
+      'X.com | Twitter Verified Accounts Services',
+      'X.com | Twitter Services',
+      'X.com | Twitter 🐦',
+      'X.com | Twitter 👁️',
+      'X.com | Twitter 🔁',
+      'X.com | Twitter 💬',
+      'X.com | Twitter 📊',
+      'X.com | Twitter 📥',
+      'X.com | Twitter 🔴',
+      'X.com | Twitter 🎧'
+    ]
+  },
+  {
+    icon: '/static/assets/services_icon/x-likes.png',
+    match: ['X.com | Twitter Likes']
+  },
+  {
+    icon: '/static/assets/services_icon/x-re.png',
+    match: ['X.com | Twitter Retweet']
+  },
+  {
+    icon: '/static/assets/services_icon/br-x.png',
+    match: ['X.com | Twitter Services ► รวมบริการบราซิล 🇧🇷 Brazil']
+  },
+  {
+    icon: '/static/assets/services_icon/fr-x.png',
+    match: ['X.com | Twitter Services ► รวมบริการฝรั่งเศส 🇫🇷 France']
+  },
+  {
+    icon: '/static/assets/services_icon/de-x.png',
+    match: ['X.com | Twitter Services ► รวมบริการเยอรมนี 🇩🇪 Germany']
+  },
+  {
+    icon: '/static/assets/services_icon/in-x.png',
+    match: ['X.com | Twitter Services ► รวมบริการอินเดีย 🇮🇳 India']
+  },
+  {
+    icon: '/static/assets/services_icon/id-x.png',
+    match: ['X.com | Twitter Services ► รวมบริการอินโดนีเซีย 🇮🇩 Indonesia']
+  },
+  {
+    icon: '/static/assets/services_icon/jp-x.png',
+    match: ['X.com | Twitter Services ► รวมบริการญี่ปุ่น 🇯🇵 Japan']
+  },
+  {
+    icon: '/static/assets/services_icon/sa-x.png',
+    match: ['X.com | Twitter Services ► รวมบริการซาอุดิอาระเบีย 🇸🇦 Saudi Arabia']
+  },
+  {
+    icon: '/static/assets/services_icon/tr-x.png',
+    match: ['X.com | Twitter Services ► รวมบริการตุรกี 🇹🇷 Turkey']
+  },
+  {
+    icon: '/static/assets/services_icon/uk-x.png',
+    match: ['X.com | Twitter Services ► รวมบริการสหราชอาณาจักร 🇬🇧 United Kingdom']
+  },
+  {
+    icon: '/static/assets/services_icon/arab-x.png',
+    match: ['X.com | Twitter Services ► รวมบริการประเทศอาหรับ Arabic Countries']
+  },
+  // Shopee
+  {
+    icon: '/static/assets/services_icon/shopee.png',
+    match: ['Shopee']
+  },
+  // Discord
+  {
+    icon: '/static/assets/services_icon/discord.png',
+    match: ['Discord']
+  },
+  // Meta
+  {
+    icon: '/static/assets/services_icon/meta.png',
+    match: ['Meta']
+  },
+  // New
+  {
+    icon: '/static/assets/services_icon/new.png',
+    match: ['new for']
+  },
+  // Opensea
+  {
+    icon: '/static/assets/services_icon/Opensea.png',
+    match: ['Opensea']
+  },
+  // Coingecko
+  {
+    icon: '/static/assets/services_icon/Coingecko.png',
+    match: ['Coingecko']
+  },
+  // Superrare
+  {
+    icon: '/static/assets/services_icon/Superrare.png',
+    match: ['Superrare']
+  },
+  // Crypto
+  {
+    icon: '/static/assets/services_icon/Crypto.webp',
+    match: ['Crypto']
+  },
+  // Rarible
+  {
+    icon: '/static/assets/services_icon/Rarible.png',
+    match: ['Rarible']
+  },
+  // Telegram
+  {
+    icon: '/static/assets/services_icon/telegram.png',
+    match: ['Telegram']
+  },
+  // Spotify
+  {
+    icon: '/static/assets/services_icon/spotify.png',
+    match: ['Spotify']
+  },
+  // Twitch
+  {
+    icon: '/static/assets/services_icon/twitch.png',
+    match: ['Twitch']
+  },
+  // Kick.com
+  {
+    icon: '/static/assets/services_icon/kick.png',
+    match: ['Kick.com']
+  },
+  // Whatsapp
+  {
+    icon: '/static/assets/services_icon/whatsapp.png',
+    match: ['Whatsapp']
+  },
+  // Soundcloud
+  {
+    icon: '/static/assets/services_icon/soundcloud.png',
+    match: ['SoundCloud']
+  },
+  // Kwai
+  {
+    icon: '/static/assets/services_icon/Kwai.png',
+    match: ['Kwai']
+  },
+  // LinkedIn
+  {
+    icon: '/static/assets/services_icon/LinkedIn.png',
+    match: ['LinkedIn']
+  },
+  // Dailymotion
+  {
+    icon: '/static/assets/services_icon/Dailymotion.png',
+    match: ['Dailymotion']
+  },
+  // Likee
+  {
+    icon: '/static/assets/services_icon/Likee.png',
+    match: ['Likee']
+  },
+  // Pinterest
+  {
+    icon: '/static/assets/services_icon/Pinterest.png',
+    match: ['Pinterest']
+  },
+  // Tumblr
+  {
+    icon: '/static/assets/services_icon/Tumblr.png',
+    match: ['Tumblr']
+  },
+  // Trovo
+  {
+    icon: '/static/assets/services_icon/Trovo.png',
+    match: ['Trovo']
+  },
+  // BlueSky
+  {
+    icon: '/static/assets/services_icon/BlueSky.png',
+    match: ['BlueSky']
+  },
+  // Vimeo
+  {
+    icon: '/static/assets/services_icon/Vimeo.png',
+    match: ['Vimeo']
+  },
+  // Sooplive
+  {
+    icon: '/static/assets/services_icon/Sooplive.png',
+    match: ['Sooplive']
+  },
+  // Naver TV
+  {
+    icon: '/static/assets/services_icon/Naver-TV.png',
+    match: ['Naver TV']
+  },
+  // Audiomack
+  {
+    icon: '/static/assets/services_icon/Audiomack.png',
+    match: ['Audiomack']
+  },
+  // Reddit
+  {
+    icon: '/static/assets/services_icon/Reddit.png',
+    match: ['Reddit']
+  },
+  // Deezer
+  {
+    icon: '/static/assets/services_icon/Deezer.png',
+    match: ['Deezer']
+  },
+  // Potato Chat
+  {
+    icon: '/static/assets/services_icon/Potato-Chat.png',
+    match: ['Potato Chat']
+  },
+  // Quora.Com
+  {
+    icon: '/static/assets/services_icon/Quora.png',
+    match: ['Quora.Com']
+  },
+  // Napster
+  {
+    icon: '/static/assets/services_icon/Napster.png',
+    match: ['Napster']
+  },
+  // Rumble
+  {
+    icon: '/static/assets/services_icon/Rumble.png',
+    match: ['Rumble']
+  },
+  // Rutube
+  {
+    icon: '/static/assets/services_icon/Rutube.png',
+    match: ['Rutube']
+  },
+  // DLive
+  {
+    icon: '/static/assets/services_icon/DLive.png',
+    match: ['DLive']
+  },
+  // Bigo
+  {
+    icon: '/static/assets/services_icon/Bigo.png',
+    match: ['BIGO.TV', 'Bigo Live']
+  },
+  // SnapChat
+  {
+    icon: '/static/assets/services_icon/SnapChat.png',
+    match: ['SnapChat']
+  },
+  // GitHub
+  {
+    icon: '/static/assets/services_icon/GitHub.png',
+    match: ['GitHub']
+  },
+  // Binance
+  {
+    icon: '/static/assets/services_icon/Binance.png',
+    match: ['Binance']
+  },
+  // IMDB
+  {
+    icon: '/static/assets/services_icon/IMDB.png',
+    match: ['IMDB']
+  },
+  // Mobile App Installs ► iOS / Android
+  {
+    icon: '/static/assets/services_icon/Mobile.png',
+    match: ['Mobile App Installs ► iOS / Android']
+  },
+  // Apple Music
+  {
+    icon: '/static/assets/services_icon/Apple-Music.png',
+    match: ['Apple Music']
+  },
+  // Google Map
+  {
+    icon: '/static/assets/services_icon/GoogleMap.png',
+    match: ['Google Map']
+  },
+  // Dexscreener
+  {
+    icon: '/static/assets/services_icon/Dexscreener.png',
+    match: ['Dexscreener']
+  },
+  // CoinMarketCap
+  {
+    icon: '/static/assets/services_icon/CoinMarketCap.png',
+    match: ['CoinMarketCap']
+  },
+  // PUBG
+  {
+    icon: '/static/assets/services_icon/PUBG.png',
+    match: ['PUBG']
+  },
+  // Free Fire
+  {
+    icon: '/static/assets/services_icon/FreeFire.png',
+    match: ['Free Fire']
+  },
+  // Steam
+  {
+    icon: '/static/assets/services_icon/Steam.png',
+    match: ['Steam']
+  },
+  // Spam
+  {
+    icon: '/static/assets/services_icon/Spam.png',
+    match: ['✅ส่งรายงาน ❌ Spam Report']
+  },
+  // Traffic - SEO
+  {
+    icon: '/static/assets/services_icon/MobileTraffic.png',
+    match: [
+      'Mobile Traffic', 
+      '🚀Website Traffic 🌐 𝐍𝐢𝐜𝐡𝐞 เว็บไซต์ที่เกี่ยวข้อง', 
+      '🚀Website Traffic ► Mobile Traffic 📱'
+    ]
+  },
+  {
+    icon: '/static/assets/services_icon/Traffic.png',
+    match: [
+      '🌐เพิ่มทราฟฟิคเข้าเว็บไซต์ 🚀 Website Traffic', 
+      '🚀Website 💎 Premium Traffic Packages', 
+      '🚀Website Traffic ►',
+      '🚀Website Traffic 🌐 𝐖𝐨𝐫𝐥𝐝𝐰𝐢𝐝𝐞 สุ่มทั่วโลก',
+      '✅🌐เพิ่มทราฟฟิคเข้าเว็บไซต์',
+      '🚀Website Traffic ► Choose GEO',
+      '✅🔴Premium Pop-Under Traffic'
+    ]
+  },
+  {
+    icon: '/static/assets/services_icon/GoogleSearch.png',
+    match: ['Google Search Console']
+  },
+  {
+    icon: '/static/assets/services_icon/premium-traffic.png',
+    match: ['🚀Website 💎 Premium Traffic']
+  },
+  {
+    icon: '/static/assets/services_icon/world-traffic.png',
+    match: ['✅🚀Website Traffic ► แหล่งอ้างอิง เลือกประเทศ']
+  },
+  {
+    icon: '/static/assets/services_icon/th-traffic.png',
+    match: ['Website Traffic 🇹🇭']
+  },
+  {
+    icon: '/static/assets/services_icon/backlinks.png',
+    match: ['🔗Backlinks & Website']
+  },
+  {
+    icon: '/static/assets/services_icon/SocialSignals.png',
+    match: ['📊Social Signals']
+  },
+  {
+    icon: '/static/assets/services_icon/seo-ranking.png',
+    match: ['✅📊SEO Package Ranking']
+  },
+  // เพิ่ม mapping อื่น ๆ ตามที่มีรูป
+];
+
 /* =============== Data from server =============== */
 window.__SERVICES__ = <%- JSON.stringify(servicesFlat || []) %>;
 
@@ -215,9 +935,9 @@ const PLATFORM_MAP = (window.PLATFORM_MAP) || [
     key: 'thailand',
     name: 'ประเทศไทย',
     match: [
-      '🇹🇭',                        // มีธงไทย
-      ' ประเทศไทย',                 // คำว่าประเทศไทย
-      ' บัญชีไทย',                 // บัญชีไทย
+      '🇹🇭', 
+      ' ประเทศไทย',
+      ' บัญชีไทย',
       'thailand services',
       'tiktok 🎯 thailand',
       'youtube ► thailand',
@@ -646,7 +1366,6 @@ function renderChips() {
 }
 
 /* ========= lazy groups: batch by providerCategory ========= */
-
 function appendNextGroupBatch() {
   const container = $('#servicesContainer');
   if (nextGroupIndex >= allCats.length) return;
@@ -660,11 +1379,18 @@ function appendNextGroupBatch() {
     const wrap = document.createElement('div');
     wrap.className = 'group';
     wrap.dataset.cat = enc(cat);
+    const ico = detectGroupIcon(cat);
+    const iconHtml = ico ? `<img class="group-ico" src="${ico}" alt="${cat}">` : '';
+
     wrap.innerHTML = `
       <div class="head" role="button" tabindex="0" aria-expanded="false">
-        <h4>${cat}</h4>
+        <h4>
+          ${iconHtml}
+          ${cat}
+        </h4>
         <div class="meta"><span class="badge">${rows.length} รายการ</span></div>
       </div>
+
       <div class="body">
         <div class="placeholder muted">แตะเพื่อแสดงรายละเอียดบริการ…</div>
       </div>
@@ -699,12 +1425,32 @@ function onMoreIntersect(entries) {
   }
 }
 
+function detectGroupIcon(catName = '') {
+  const lower = String(catName).toLowerCase();
+
+  for (const g of GROUP_ICON_MAP) {
+    if (Array.isArray(g.match)) {
+      for (const kw of g.match) {
+        if (lower.includes(String(kw).toLowerCase())) {
+          return g.icon;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function getPlatformName(key) {
+  const p = PLATFORM_MAP.find(x => x.key === key);
+  return p ? p.name : key; // fallback กันหลุด
+}
+
 /* render ทั้ง list แบบ “หัวกลุ่ม + lazy section” */
 function renderServicesList() {
   const container = $('#servicesContainer');
   const list = computeFiltered();
   $('#listTitle').textContent = CURRENT_PLATFORM
-    ? `บริการทั้งหมดใน ${CURRENT_PLATFORM}`
+    ? `บริการทั้งหมดใน ${getPlatformName(CURRENT_PLATFORM)}`
     : 'บริการทั้งหมด';
 
   const byProvCat = list.reduce((m, s) => {
@@ -991,9 +1737,9 @@ function wireEvents() {
 function bootWithData(){
   // ถ้ามี platformKey=discord ให้ default เข้า discord ไม่งั้นเป็น all
   if (!CURRENT_PLATFORM) {
-    const hasDiscord = Array.isArray(window.__SERVICES__)
-      && window.__SERVICES__.some(s => s.platformKey === 'discord');
-    CURRENT_PLATFORM = hasDiscord ? 'discord' : null;
+    const hasPremium = Array.isArray(window.__SERVICES__)
+      && window.__SERVICES__.some(s => s.platformKey === 'premium');
+    CURRENT_PLATFORM = hasPremium ? 'premium' : null;
   }
 
   renderPlatforms();

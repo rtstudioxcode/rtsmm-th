@@ -4868,3 +4868,11 @@ html[data-theme="dark"]{ --pv-bg: var(--page, #0b1620); --pv-border: var(--borde
   padding: 6px 10px;
   font-size: 12px;
 }
+
+.up-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  margin-right: 6px;
+  vertical-align: middle;
+}

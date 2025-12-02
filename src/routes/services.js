@@ -218,8 +218,8 @@ servicesRouter.get('/data', async (req, res) => {
     const flat = await buildFlatServicesForUser(userId);
 
     // defaultPlatform เลือก Discord ถ้ามี ไม่มีก็ null
-    const hasDiscord = flat.some(s => s.platform === 'Discord');
-    const defaultPlatform = hasDiscord ? 'Discord' : null;
+    const hasPremium = flat.some(s => s.platform === 'premium');
+    const defaultPlatform = hasPremium ? 'premium' : null;
 
     res.json({
       ok: true,
