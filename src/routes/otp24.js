@@ -83,7 +83,7 @@ router.post('/buy', requireAuth, async (req, res) => {
     const r = await buyOtp({ type: serviceCode, ct: Number(countryId) });
 
     if (!r?.ok) {
-      // ซื้อไม่สำเร็จ → คืนเงินทันที (rollback เท่านั้น, ไม่ใช่ระบบคืนเครดิตหลังการซื้อ)
+      // คืนเงินก่อน
       user.balance = round2(Number(user.balance || 0) + salePrice);
       await user.save();
 
@@ -95,10 +95,40 @@ router.post('/buy', requireAuth, async (req, res) => {
         providerResponse: r,
       });
 
+      // ตรวจเคส provider ส่ง HTML / < / ไม่ใช่ JSON
+      const raw = r?.rawText || r?.raw || '';
+      const looksLikeHtml = typeof raw === 'string' && raw.trim().startsWith('<');
+
       return res.status(502).json({
         ok: false,
-        error: r?.error || 'ซื้อไม่สำเร็จ',
-        raw: r?.rawText || r?.raw,
+        error: looksLikeHtml ? 'เบอร์หมด หรือไม่พร้อมใช้งาน' : (r?.error || 'ซื้อไม่สำเร็จ'),
+      });
+    }
+
+    // ดึง orderId และ phone จาก provider แบบปลอดภัย
+    const providerOrderId =
+      r.orderId ||
+      r.order_id ||
+      r.id ||
+      null;
+
+    const providerPhone =
+      r.phone ||
+      r.number ||
+      r.mobile ||
+      null;
+
+    // ถ้า provider ไม่ส่ง orderId = ถือว่า "เบอร์หมด" / "ซื้อไม่สำเร็จ"
+    if (!providerOrderId) {
+      // คืนเงินทันที
+      user.balance = round2(Number(user.balance || 0) + salePrice);
+      await user.save();
+
+      console.error('[OTP24 BUY] missing order_id in provider', r);
+
+      return res.status(502).json({
+        ok: false,
+        error: 'เบอร์หมด หรือไม่พร้อมใช้งาน',
       });
     }
 
