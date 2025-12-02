@@ -33,10 +33,9 @@ const HAS_OTP = (v) => {
 
     <!-- ============ SECTION 1: สั่งซื้อ OTP ============ -->
     <section id="section-shop" class="tabpane show">
-        <form method="get" class="row mt">
-        <input class="input" name="q" placeholder="ค้นหาแอพ…" value="<%= q || '' %>" />
-        <button class="btn" type="submit">ค้นหา</button>
-        </form>
+        <div class="row mt">
+          <input id="otpSearch" class="input" placeholder="ค้นหาแอพ…" autocomplete="off" />
+        </div>
         
         <%
           // key ที่ใช้ตัดสินใจว่า “ถือว่าอันเดียวกัน”
@@ -324,6 +323,41 @@ const HAS_OTP = (v) => {
     </div>
   </form>
 </dialog>
+
+<!-- ================= TERMS MODAL ================= -->
+<div id="termsModal" class="bt-terms-modal hidden">
+  <div class="bt-terms-backdrop"></div>
+
+  <div class="bt-terms-dialog">
+    <h3 class="bt-terms-title">เงื่อนไขการใช้บริการเช่าเบอร์ OTP</h3>
+
+    <div class="bt-terms-body">
+      <p><strong>การให้บริการทางร้าน</strong><br>
+      ระบบนี้ให้บริการเช่าเบอร์โทรศัพท์ชั่วคราวเพื่อรับรหัส OTP จากแอปหรือเว็บไซต์ที่ผู้ใช้เลือกเท่านั้น  
+      ผู้ใช้ต้องตรวจสอบให้แน่ใจว่าบริการนั้นอนุญาตให้ใช้เบอร์ชั่วคราวตามกฎของแอปนั้น ๆ หรือไม่</p>
+
+      <p><strong>การใช้งานอย่างถูกต้อง</strong><br>
+      ห้ามใช้เบอร์ OTP เพื่อวัตถุประสงค์ที่ผิดกฎหมาย เช่น สร้างบัญชีปลอม หลอกลวง หรือการกระทำใด ๆ ที่ผิดกฎหมาย</p>
+
+      <p><strong>ความรับผิดชอบของผู้ใช้</strong><br>
+      ผู้ใช้รับผิดชอบผลลัพธ์ทั้งหมด หากเกิดปัญหากฎหมาย ผู้ให้บริการไม่มีส่วนรับผิดชอบ  
+      การละเมิดกฎหมายจะถูกระงับบัญชีและดำเนินคดีตามกฎหมาย</p>
+
+      <p><strong>การคืนเครดิต</strong><br>
+      หาก OTP ไม่เข้า ระบบจะคืนเครดิตอัตโนมัติภายใน 15 นาที</p>
+
+      <label class="accept-row">
+        <input type="checkbox" id="termsAccept">
+        ข้าพเจ้าได้อ่านและยอมรับเงื่อนไขทั้งหมด
+      </label>
+    </div>
+
+    <div class="bt-terms-actions">
+      <button id="termsConfirm" class="btn-primary" disabled>ยืนยัน</button>
+      <button id="termsCancel" class="btn-secondary">ยกเลิก</button>
+    </div>
+  </div>
+</div>
 
 <!-- Modal ซื้อ -->
 <dialog id="buyModal">
@@ -675,28 +709,34 @@ document.addEventListener('click', (e) => {
   const grid = document.getElementById('appsGrid');
   if (!grid) return;
 
-  // คลิกที่การ์ด = เปิดโมดัล
+  // คลิก = เปิด Terms ก่อน
   grid.addEventListener('click', (e) => {
     const card = e.target.closest('section.card.app');
     if (!card) return;
-    openBuyModal(
-      card.dataset.id,
-      card.dataset.name,
-      Number(card.dataset.price || 0)
-    );
+
+    pendingApp = card.dataset.name;
+    pendingPrice = Number(card.dataset.price || 0);
+    pendingId = card.dataset.id;
+
+    termsAccept.checked = false;
+    termsConfirm.disabled = true;
+    termsModal.classList.remove("hidden");
   });
 
-  // รองรับคีย์บอร์ด (Enter/Space)
+  // รองรับ Enter/Space
   grid.addEventListener('keydown', (e) => {
     if (!['Enter', ' '].includes(e.key)) return;
     const card = e.target.closest('section.card.app');
     if (!card) return;
     e.preventDefault();
-    openBuyModal(
-      card.dataset.id,
-      card.dataset.name,
-      Number(card.dataset.price || 0)
-    );
+
+    pendingApp = card.dataset.name;
+    pendingPrice = Number(card.dataset.price || 0);
+    pendingId = card.dataset.id;
+
+    termsAccept.checked = false;
+    termsConfirm.disabled = true;
+    termsModal.classList.remove("hidden");
   });
 })();
 
@@ -1244,32 +1284,97 @@ document.getElementById('btnReuseConfirm')?.addEventListener('click', async (e) 
   }
 });
 
-/* ========== Background persist for processing orders ========== */
-/* ยิงเบาๆ ทุก 5 วินาที เพื่อให้ฝั่งเซิร์ฟเวอร์อัปเดตสถานะลง DB เสมอ
-   ทำงานแม้ผู้ใช้จะไม่อยู่แท็บ "orders" */
-// (function otp24BackgroundPersist(){
-//   const PING_MS = 5000;
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.querySelector('#otpSearch');
+  const apps = document.querySelectorAll('#appsGrid .card.app');
 
-//   async function ping() {
-//     try {
-//       await fetch('/otp24/refresh-processing', { method: 'POST', keepalive: true });
-//     } catch {}
-//   }
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
 
-//   // เริ่มทันที + เข็มทุก 5 วิ
-//   ping();
-//   setInterval(ping, PING_MS);
+    apps.forEach(card => {
+      const name = (card.dataset.name || '').toLowerCase();
+      const show = name.includes(q);
+      card.style.display = show ? '' : 'none';
+    });
+  });
+});
 
-//   // ตอนสลับแท็บ/ปิดหน้า ยิงปิดท้ายอีกที
-//   document.addEventListener('visibilitychange', () => {
-//     if (document.hidden) {
-//       try { navigator.sendBeacon('/otp24/refresh-processing', new Blob([])); } catch {}
-//     }
-//   });
-//   window.addEventListener('beforeunload', () => {
-//     try { navigator.sendBeacon('/otp24/refresh-processing', new Blob([])); } catch {}
-//   });
-// })();
+document.addEventListener("DOMContentLoaded", () => {
+  const grid = document.getElementById("appsGrid");  // ใช้ event delegation
+  const termsModal = document.getElementById("termsModal");
+  const termsBackdrop = termsModal.querySelector(".bt-terms-backdrop");
+  const termsAccept = document.getElementById("termsAccept");
+  const termsConfirm = document.getElementById("termsConfirm");
+  const termsCancel = document.getElementById("termsCancel");
+
+  const buyModal = document.getElementById("buyModal");
+  const selApp = document.getElementById("selApp");
+  const selPrice = document.getElementById("selPrice");
+
+  let pendingId = null;
+  let pendingApp = null;
+  let pendingPrice = 0;
+
+  /* ============================================================
+     เมื่อคลิกที่การ์ดแอพ  (Event Delegation)
+     ============================================================ */
+  grid.addEventListener("click", (e) => {
+    const card = e.target.closest("section.card.app");
+    if (!card) return;
+
+    pendingId = card.dataset.id;
+    pendingApp = card.dataset.name;
+    pendingPrice = Number(card.dataset.price || 0);
+
+    // reset terms
+    termsAccept.checked = false;
+    termsConfirm.disabled = true;
+
+    // show Terms modal
+    termsModal.classList.remove("hidden");
+  });
+
+  /* ============================================================
+     Checkbox ✔ ยอมรับเงื่อนไข
+     ============================================================ */
+  termsAccept.addEventListener("change", () => {
+    termsConfirm.disabled = !termsAccept.checked;
+  });
+
+  /* ============================================================
+     ปุ่มยืนยันเงื่อนไข
+     ============================================================ */
+  termsConfirm.addEventListener("click", () => {
+    termsModal.classList.add("hidden");
+
+    // ตั้งค่า into chosen (ใช้โดยระบบสั่งซื้อเดิม)
+    chosen = {
+      productId: pendingId,
+      countryId: null,
+      name: pendingApp,
+      price: pendingPrice,
+    };
+
+    selApp.textContent = "รายการ : " + pendingApp;
+    selPrice.textContent = "ราคา : " + pendingPrice.toFixed(2) + " บาท";
+
+    buyModal.showModal();
+  });
+
+  /* ============================================================
+     ปิด Terms (ปุ่ม Cancel)
+     ============================================================ */
+  termsCancel.addEventListener("click", () => {
+    termsModal.classList.add("hidden");
+  });
+
+  /* ============================================================
+     คลิก Backdrop เพื่อปิด Terms
+     ============================================================ */
+  termsBackdrop.addEventListener("click", () => {
+    termsModal.classList.add("hidden");
+  });
+});
 
 // เมื่อสลับมือถือ/เดสก์ท็อป (resize) ให้ปรับหน้าให้เหมาะสม
 let _resizeTimer = null;
@@ -2553,4 +2658,152 @@ html[data-theme="light"] dialog::backdrop {
 .tabpane{ display:none; }
 .tabpane.show{ display:block; }
 
+/* ============================================
+   TERMS MODAL (Dark/Light Theme Aware)
+   ============================================ */
+.bt-terms-modal.hidden { display: none; }
+
+.bt-terms-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+}
+
+/* Backdrop */
+.bt-terms-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(3px);
+}
+
+/* Dialog box */
+.bt-terms-dialog {
+  position: relative;
+  z-index: 2;
+  width: 92%;
+  max-width: 520px;
+
+  /* ใช้โทเคนธีมเดียวกับระบบ */
+  background: var(--elevated-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--elevated-border);
+  box-shadow: var(--elevated-shadow);
+
+  padding: 26px 28px 22px;
+  border-radius: 16px;
+
+  animation: fadeZoom .18s ease;
+}
+
+/* Light mode — ปรับให้ contrast ดีขึ้น */
+html[data-theme="light"] .bt-terms-dialog {
+  background: var(--elevated-bg-2);
+  border-color: var(--elevated-border);
+  box-shadow: 0 12px 26px rgba(15,32,75,.10);
+}
+
+/* Anim */
+@keyframes fadeZoom {
+  from { opacity:0; transform:scale(.92); }
+  to   { opacity:1; transform:scale(1); }
+}
+
+/* Title */
+.bt-terms-title {
+  font-size: 20px;
+  font-weight: 800;
+  margin-bottom: 14px;
+  text-align: center;
+}
+
+/* Scrollable text */
+.bt-terms-body {
+  max-height: 340px;
+  overflow-y: auto;
+  padding-right: 6px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text-primary);
+}
+
+.bt-terms-body strong {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* Checkbox row */
+.accept-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 14px;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.accept-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+/* Buttons */
+.bt-terms-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* Confirm */
+.bt-terms-actions .btn-primary {
+  flex: 1;
+  background: linear-gradient(180deg, #2a84ff 0%, #1e6be0 100%);
+  color: #fff;
+  border: 1px solid rgba(30,107,224,.3);
+  padding: 10px 0;
+  border-radius: 10px;
+  font-weight: 500;
+  box-shadow: 0 6px 16px rgba(42,132,255,.35);
+  cursor: pointer;
+  text-align: center;
+}
+
+.bt-terms-actions .btn-primary:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+  filter: grayscale(.4);
+}
+
+/* Cancel */
+.bt-terms-actions .btn-secondary {
+  flex: 1;
+  background: #e11d48;
+  color: #fff;
+  padding: 10px 0;
+  border-radius: 10px;
+  text-align: center;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+}
+
+.bt-terms-actions .btn-secondary:hover {
+  filter: brightness(1.06);
+}
+
+/* Mobile */
+@media (max-width: 640px){
+  .bt-terms-dialog {
+    max-width: 92vw;
+    padding: 20px 22px 18px;
+  }
+  .bt-terms-title { font-size: 18px; }
+  .bt-terms-body { max-height: 300px; }
+}
 </style>
