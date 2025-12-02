@@ -345,41 +345,51 @@ function fmtTHDate(d){
           <div class="o-label">สถานะ</div>
           <div class="o-val">
             <% const mdd = decideDisplaySSR(o); %>
-            <%
-              const canCancel = !!(o.uiFlags && o.uiFlags.canCancel);
-              const isDone    = !!(o.uiFlags && o.uiFlags.isDone);
-              const canRepeat = isDone && !!(o.service && o.service._id);
-            %>
             <% const stLower = String(o.status||'').toLowerCase(); %>
 
             <div class="st-stack">
-              <span
-                class="pill progress <%= mdd.isDone
+
+              <!-- ใช้ pill long เหมือน Desktop -->
+              <div
+                class="pill long <%= mdd.isDone
                   ? 'ok'
                   : (stLower==='canceled' ? 'danger'
                     : (stLower==='canceling' ? 'warn'
                       : (stLower==='partial' ? 'warn' : ''))) %>"
                 data-pct="<%= (stLower==='canceling') ? 0 : mdd.donePct %>">
 
-                <% const isPartialRefund = (
-                    stLower === 'canceled' &&
-                    Number(o.refundAmount || 0) > 0 &&
-                    o.refundType === 'partial'
-                  ); %>
+                <!-- แถบสี -->
+                <i class="bar"
+                  style="width:<%= (stLower==='canceling')
+                    ? '0'
+                    : (mdd.isDone ? '100' : mdd.donePct) %>%">
+                </i>
 
-                <% if (isPartialRefund) { %>
-                  <span class="badge warn" style="margin-right:8px">คืนบางส่วน</span>
-                <% } %>
+                <!-- label -->
+                <span class="label">
 
-                <% if (stLower === 'canceling') { %>
-                  กำลังส่งยกเลิก…
-                <% } else if (mdd.showPct) { %>
-                  ดำเนินการ ~ <span class="pct" data-pct="<%= mdd.donePct %>"><%= mdd.donePct.toFixed(2) %>%</span>
-                <% } else { %>
-                  <%= mdd.label %>
-                <% } %>
-              </span>
+                  <% const isPartialRefund = (
+                      stLower === 'canceled' &&
+                      Number(o.refundAmount || 0) > 0 &&
+                      o.refundType === 'partial'
+                    ); %>
 
+                  <% if (isPartialRefund) { %>
+                    <span class="badge warn" style="margin-right:8px">คืนบางส่วน</span>
+                  <% } %>
+
+                  <% if (stLower === 'canceling') { %>
+                    กำลังส่งยกเลิก…
+                  <% } else if (mdd.showPct) { %>
+                    ดำเนินการ ~ <span class="pct"><%= mdd.donePct.toFixed(2) %>%</span>
+                  <% } else { %>
+                    <%= mdd.label %>
+                  <% } %>
+
+                </span>
+              </div>
+
+              <!-- ปุ่มต่างๆ -->
               <div class="st-actions">
                 <% if (o.uiFlags?.canCancel) { %>
                   <button
@@ -392,23 +402,41 @@ function fmtTHDate(d){
                 <% } %>
 
                 <% if (!(mdd.isDone || stLower === 'canceled' || stLower === 'partial' || stLower === 'canceling')) { %>
-                  <button type="button" class="xbtn xbtn-sync btn-refresh" data-id="<%= o._id %>" title="อัปเดตสถานะออเดอร์" aria-label="อัปเดตสถานะออเดอร์">
+                  <button
+                    type="button"
+                    class="xbtn xbtn-sync btn-refresh"
+                    data-id="<%= o._id %>"
+                    title="อัปเดตสถานะออเดอร์">
                     <img src="/static/assets/emoji/updatestatus.png" alt="" class="icon" />
                   </button>
                 <% } %>
 
-                <% const isPartialRefundCanceled = (stLower === 'canceled' && Number(o.refundAmount||0) > 0 && o.refundType === 'partial'); %>
-                <% const canRepeatStrict = ((stLower === 'completed') || (stLower === 'partial') || isPartialRefundCanceled) && !!(o.service && o.service._id); %>
+                <% const isPartialRefundCanceled =
+                      (stLower === 'canceled' && Number(o.refundAmount||0) > 0 && o.refundType === 'partial'); %>
+
+                <% const canRepeatStrict =
+                      ((stLower === 'completed') || (stLower === 'partial') || isPartialRefundCanceled)
+                      && !!(o.service && o.service._id); %>
+
                 <% if (canRepeatStrict) { %>
-                  <button type="button" class="xbtn xbtn-primary btn-repeat" data-id="<%= o._id %>" title="สั่งซ้ำรายการนี้" aria-label="สั่งซ้ำรายการนี้">
+                  <button
+                    type="button"
+                    class="xbtn xbtn-primary btn-repeat"
+                    data-id="<%= o._id %>"
+                    title="สั่งซ้ำรายการนี้">
                     <img src="/static/assets/emoji/repeat.png" alt="" class="icon" />
                   </button>
                 <% } %>
 
-                <button type="button" class="xbtn xbtn-info open-order" data-id="<%= o._id %>" title="รายละเอียด" aria-label="รายละเอียด">
+                <button
+                  type="button"
+                  class="xbtn xbtn-info open-order"
+                  data-id="<%= o._id %>"
+                  title="รายละเอียด">
                   <img src="/static/assets/emoji/detail.png" alt="" class="icon" />
                 </button>
               </div>
+
             </div>
           </div>
         </div>

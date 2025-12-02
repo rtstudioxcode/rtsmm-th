@@ -2710,6 +2710,43 @@ html[data-theme="dark"] .tabs.chips .chip[data-st="canceled"] {
   .orders-history .o-card .pill.progress .pct{ min-width:3.5ch; text-align:right }
 }
 
+/* ===== PILL MOBILE FIX ===== */
+.o-card .pill.progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  /* กันข้อความกระโดด */
+  line-height: 1.2;
+}
+
+/* ไอคอนสถานะ */
+.o-card .pill.progress .st-ico {
+  width: 18px;
+  height: 18px;
+  background-image: var(--st-ico);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  flex-shrink: 0;
+}
+
+/* ===== MOBILE PILL COMPACT ===== */
+@media (max-width: 640px) {
+  /* ขนาด pill ให้เล็กลง */
+  .o-card .pill.long {
+    padding: 0px;
+    border-radius: 15px;
+    min-height: auto;
+    font-size: 13px;
+    line-height: 1.2;
+    max-height: 30px;
+    display: inline-flex;
+    align-items: center;
+    /* gap: 6px; */
+  }
+}
+
 /* =============== Lock color (ไม่ตามธีม) =============== */
 /* รอดำเนินการ + กำลังทำ → ใช้โทนเข้มคงที่ทั้ง Light/Dark */
 .orders-history [data-status="processing"] .pill.long,

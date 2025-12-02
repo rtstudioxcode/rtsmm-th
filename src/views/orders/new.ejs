@@ -225,7 +225,7 @@ const notify = (opts = {}) => {
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  const filtersBar  = document.getElementById('filtersBar');   // card ทั้งแถบค้นหา + ชิป
+  const filtersBar  = document.getElementById('filtersBar');
   const searchWrap  = document.querySelector('.search-all-wrap');
   const searchInput = document.getElementById('searchAll');
 
@@ -267,6 +267,32 @@ document.addEventListener('DOMContentLoaded', () => {
   if (searchInput) {
     searchInput.addEventListener('focus', resetChipToAll);
   }
+});
+</script>
+
+<script>
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.tab');
+  if (!btn) return;
+
+  const tab = btn.dataset.tab;
+
+  // ===== กรณี TAB 2 → Redirect ไป /my/orders =====
+  if (tab === 'history') {
+    window.location.href = '/my/orders';
+    return;
+  }
+
+  // ===== เปลี่ยนแท็บปกติ (TAB 1) =====
+  document.querySelectorAll('.tab').forEach(t =>
+    t.classList.remove('active')
+  );
+  btn.classList.add('active');
+
+  document.querySelectorAll('.tabpane').forEach(p =>
+    p.classList.remove('show')
+  );
+  document.getElementById('tab-' + tab).classList.add('show');
 });
 </script>
 

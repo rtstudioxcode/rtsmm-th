@@ -267,6 +267,7 @@
              var statusLabel = (st === 'completed') ? 'สำเร็จ'
                              : (st === 'pending')   ? 'รอดำเนินการ'
                              : (st === 'failed')    ? 'ล้มเหลว'
+                             : (st === 'reject')    ? 'ยกเลิก'
                              : (st === 'canceled')  ? 'ยกเลิก' : st;
              var ts = tx.paidAt || tx.updatedAt || tx.createdAt;
              var amountNum = Number(tx.amount) || 0;
@@ -320,6 +321,7 @@
            var stLabel = (st2 === 'completed') ? 'สำเร็จ'
                        : (st2 === 'pending')   ? 'รอดำเนินการ'
                        : (st2 === 'failed')    ? 'ล้มเหลว'
+                       : (st2 === 'reject')    ? 'ยกเลิก'
                        : (st2 === 'canceled')  ? 'ยกเลิก' : st2;
            var ts2 = t.paidAt || t.updatedAt || t.createdAt;
            var amt = Number(t.amount) || 0;
@@ -1196,6 +1198,10 @@
   color: #ff6767;
 }
 
+.status.reject {
+  color: #ff6767;
+}
+
 .status.cancelled {
   color: #aaa;
 }
@@ -1405,7 +1411,14 @@ html[data-theme="light"] { --qr-bg: color-mix(in srgb, var(--card, #e7864d) 85%,
   background: linear-gradient(145deg,#6f1f1f,#4d0f10);
   border-color: rgba(255,255,255,.08);
 }
-.pill.st-failed .st-ico{ background-image:url("/static/assets/status/failed.png"); }
+.pill.st-failed .st-ico{ background-image:url("/static/assets/status/canceled.png"); }
+
+/* reject (แดงเข้ม) */
+.pill.st-reject{
+  background: linear-gradient(145deg,#6f1f1f,#4d0f10);
+  border-color: rgba(255,255,255,.08);
+}
+.pill.st-reject .st-ico{ background-image:url("/static/assets/status/canceled.png"); }
 
 /* canceled (แดงเลือดหมูเมทัล; ขอบกลืนกล่อง) */
 .pill.st-canceled{
