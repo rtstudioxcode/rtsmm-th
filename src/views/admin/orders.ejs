@@ -488,7 +488,7 @@ function fmtTHDate(d){
         <% PERPAGE_OPTIONS.forEach(n => { %>
           <option value="<%= n %>" <%= perPageNum===n ? 'selected' : '' %>><%= n %></option>
         <% }) %>
-        <option value="all" <%= (perPageNum>=totalCount && totalCount>0) ? 'selected' : '' %>>All records</option>
+        <option value="all" <%= (perPageNum>=totalCount && totalCount>0) ? 'selected' : '' %>>แสดงทั้งหมด</option>
       </select>
     </div>
     <span class="muted" style="margin-left:8px;">แถว</span>
@@ -1618,7 +1618,7 @@ async function startCancel(orderId) {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'ppc-btn';
-  btn.textContent = (sel.value === 'all') ? 'All records' : sel.value;
+  btn.textContent = (sel.value === 'all') ? 'แสดงทั้งหมด' : sel.value;
 
   const menu = document.createElement('ul');
   menu.className = 'ppc-menu';
@@ -1630,7 +1630,7 @@ async function startCancel(orderId) {
     li.className = 'ppc-item' + (op.selected ? ' active' : '');
     li.dataset.value = op.value;
     li.setAttribute('role','option');
-    li.textContent = (op.value === 'all') ? 'All records' : op.value;
+    li.textContent = (op.value === 'all') ? 'แสดงทั้งหมด' : op.value;
     li.addEventListener('click', () => {
       sel.value = op.value;                 // sync ค่า select
       btn.textContent = li.textContent;     // อัปเดตปุ่ม
