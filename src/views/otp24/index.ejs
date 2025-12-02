@@ -413,7 +413,7 @@ const HAS_OTP = (v) => {
 
       <label style="display:flex; gap:10px; align-items:center; margin-top:12px; color:var(--t-muted)">
         <input id="otpNoticeDontShow" type="checkbox" style="width:18px; height:18px;"/>
-        <span>ไม่แสดงอีกในวันนี้</span>
+        <span>ไม่แสดงอีกใน 7 วัน</span>
       </label>
     </div>
 
@@ -444,7 +444,7 @@ const HAS_OTP = (v) => {
   }
 
   function setSuppressFor1Day(){
-    const until = Date.now() + 1 * 24 * 60 * 60 * 1000;
+    const until = Date.now() + 7 * 24 * 60 * 60 * 1000;
     try { localStorage.setItem(KEY, String(until)); } catch(e){ /* ignore */ }
   }
 
