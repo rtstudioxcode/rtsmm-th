@@ -7,17 +7,15 @@ import { User } from '../models/User.js';
 import { computeEffectiveRateEx } from '../lib/pricing.js';
 import { ProviderSettings } from '../models/ProviderSettings.js';
 import { recalcUserTotals, reconcileUserByOrderEvent } from '../services/spend.js';
-
 import {
   createOrder as providerCreateOrder,
   getOrderStatus,
-  cancelOrder as providerCancelOrder, // ✅ ใช้ alias ที่ชี้ไป createCancel ใน adapter
+  cancelOrder as providerCancelOrder,
   getCancelById,
   findCancelsByIds,
   requestRefill as providerRequestRefill,
   getBalance,
 } from '../lib/iplusviewAdapter.js';
-
 import { UsageLog } from '../models/UsageLog.js';
 
 const router = Router();
@@ -460,55 +458,69 @@ router.get('/my/orders', requireAuth, async (req, res, next) => {
     if (!me || !me._id) return res.redirect('/login');
 
     const userId = String(me._id);
-    const { from, to, q } = req.query;
+    const {
+      from,
+      to,
+      q = '',
+      status = 'all',          // ← เพิ่มรับ status
+    } = req.query || {};
 
-    // ---------- ค้นหา ----------
+    // ---------- ตัวกรองหลัก ----------
     const find = { user: userId };
-    if (from) find.createdAt = { ...(find.createdAt || {}), $gte: new Date(from + 'T00:00:00Z') };
-    if (to)   find.createdAt = { ...(find.createdAt || {}), $lte: new Date(to   + 'T23:59:59Z') };
 
+    // วันที่ (inclusive)
+    if (from || to) {
+      find.createdAt = {};
+      if (from) find.createdAt.$gte = new Date(from + 'T00:00:00.000Z');
+      if (to)   find.createdAt.$lte = new Date(to   + 'T23:59:59.999Z');
+    }
+
+    // สถานะ (เหมือนฝั่งแอดมิน)
+    if (status && status !== 'all') {
+      find.status = String(status).toLowerCase();
+    }
+
+    // คำค้น
     if (q && q.trim()) {
       const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const rgx  = new RegExp(safe, 'i');
-      // ค้นหา _id ตรง, providerOrderId ตรง, หรือฟิลด์อื่นแบบ regex
+      const rx   = new RegExp(safe, 'i');
       find.$or = [
         { _id: q },
         { providerOrderId: q },
-        { link: rgx },
-        { serviceName: rgx }
+        { link: rx },
+        { serviceName: rx },
       ];
     }
 
-    // ---------- นับรวมทั้งหมด (สำหรับ paginator) ----------
+    // ---------- จำนวนรวม (สำหรับ pager) ----------
     const total = await Order.countDocuments(find);
 
     // ---------- perPage/page ----------
-    const PERPAGE_OPTIONS = [10, 20, 50, 100, 250, 500, 1000];
+    const PERPAGE_OPTIONS = [10,20,50,100,250,500,1000];
     const perPageRaw = String(req.query.perPage ?? '20').toLowerCase();
 
     let perPage;
     if (perPageRaw === 'all') {
-      // แสดงทั้งหมด
-      perPage = total || 1_000_000; // กัน division by zero
+      perPage = total || 1_000_000;
     } else {
-      const n = Math.max(1, parseInt(perPageRaw, 10) || 20);
+      const n = Math.max(1, parseInt(perPageRaw,10) || 20);
       perPage = PERPAGE_OPTIONS.includes(n) ? n : 20;
     }
 
     const pages = Math.max(1, Math.ceil(total / Math.max(1, perPage)));
-    let page = Math.max(1, parseInt(req.query.page || '1', 10));
+    let page    = Math.max(1, parseInt(req.query.page || '1', 10));
     if (page > pages) page = pages;
 
     const skip = (page - 1) * perPage;
 
-    // ---------- ดึงรายการตามหน้า ----------
+    // ---------- ดึงข้อมูล ----------
     const list = await Order.find(find)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(perPage)
       .lean();
 
-    // ---------- เติมข้อมูล service/flags ----------
+    // ---------- เติมข้อมูล service ----------
     const serviceIds = [...new Set(list.map(o => o?.service).filter(Boolean).map(String))];
     const services = serviceIds.length
       ? await Service.find({ _id: { $in: serviceIds } })
@@ -535,6 +547,7 @@ router.get('/my/orders', requireAuth, async (req, res, next) => {
       };
     });
 
+    // ---------- helper UI ----------
     const pillClass = (s = '') => {
       s = String(s).toLowerCase();
       if (s === 'processing') return 'warn';
@@ -545,23 +558,28 @@ router.get('/my/orders', requireAuth, async (req, res, next) => {
       return '';
     };
     const thStatus = (s = '') =>
-      ({ processing:'รอดำเนินการ', inprogress:'กำลังทำ', completed:'เสร็จสิ้น', partial:'ส่วนบางส่วน', canceled:'ยกเลิก' }[String(s).toLowerCase()] || s);
+      ({ processing:'รอดำเนินการ', inprogress:'กำลังทำ', completed:'เสร็จสิ้น', partial:'คืนบางส่วน', canceled:'ยกเลิก' }[String(s).toLowerCase()] || s);
 
-    // ---------- ส่งตัวแปรที่ history.ejs ใช้ ----------
+    // ---------- ส่งออกให้ EJS ----------
     res.render('orders/history', {
       list: listWithSvc,
-      from, to, q,
-      pillClass, thStatus,
+      from,
+      to,
+      q,
+      status,                 // ← ส่งค่า status ให้ด้วย
+      pillClass,
+      thStatus,
       title: 'ประวัติการใช้บริการ Social',
       bodyClass: 'orders-wide',
       syncError: req.flash?.('syncError')?.[0] || '',
-      showMyOrdersNav: true, 
-      // สำหรับ pager ใน EJS:
-      page,                // เลขหน้าปัจจุบัน
-      perPage,             // จำนวนต่อหน้า (ตัวเลขจริง; ถ้า user เลือก "all" = total)
-      total                // จำนวนรายการทั้งหมด
+      showMyOrdersNav: true,
+      page,
+      perPage,
+      total
     });
-  } catch (err) { next(err); }
+  } catch (err) {
+    next(err);
+  }
 });
 
 // ─────────────────────────────────────────────────────────────

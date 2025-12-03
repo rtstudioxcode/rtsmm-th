@@ -68,6 +68,7 @@ function fmtTHDate(d){
   } catch { return '-'; }
 }
 %>
+
 <!-- ===== แท็บด้านบน ===== -->
 <div class="tabs">
   <button type="button" class="tab" data-tab="order">
@@ -249,7 +250,13 @@ function fmtTHDate(d){
               <div class="svc">
                 <div class="svc-name">
                   <span class="badge soft">#<%= o.service?.providerServiceId || o.providerServiceId || '-' %></span>
-                  <b><%= o.service?.name || o.serviceName || '-' %></b>
+                  <b><%= 
+                      o.providerResponse?.raw?.service?.name 
+                      || o.serviceName 
+                      || o.service?.name 
+                      || '-' 
+                    %>
+                  </b>
                   <% if (o.meta?.country) { %><span class="badge flag"><%= o.meta.country %></span><% } %>
                   <% if (o.meta?.speed)   { %><span class="badge blue"><%= o.meta.speed %></span><% } %>
                 </div>
@@ -333,7 +340,16 @@ function fmtTHDate(d){
                 <% } %>
 
                 <% const isPartialRefundCanceled = (stLower === 'canceled' && Number(o.refundAmount||0)>0 && o.refundType==='partial'); %>
-                <% const canRepeatStrict = ((stLower === 'completed') || (stLower === 'partial') || isPartialRefundCanceled) && !!(o.service && o.service._id); %>
+                <% const canRepeatStrict =
+                  (
+                    stLower === 'completed' ||
+                    stLower === 'partial' ||
+                    isPartialRefundCanceled
+                  ) && (
+                    o?.service?._id || 
+                    o?.providerServiceId
+                  ); 
+                %>
                 <% if (canRepeatStrict) { %>
                   <button type="button" class="xbtn xbtn-primary btn-repeat" data-id="<%= o._id %>"
                           title="สั่งซ้ำรายการนี้" aria-label="สั่งซ้ำรายการนี้">
@@ -379,7 +395,12 @@ function fmtTHDate(d){
             <div class="o-label">บริการ / ลิงก์</div>
             <div class="o-val">
               <div class="svc-name">
-                <span class="badge soft">#<%= o.service?.providerServiceId || o.providerServiceId || '-' %></span>
+                <span class="badge soft">#<%= 
+                  o.providerServiceId 
+                  || o.service?.providerServiceId 
+                  || '-' 
+                  %>
+                </span>
                 <b><%= o.service?.name || o.serviceName || '-' %></b>
                 <% if (o.meta?.country) { %><span class="badge flag"><%= o.meta.country %></span><% } %>
                 <% if (o.meta?.speed)   { %><span class="badge blue"><%= o.meta.speed %></span><% } %>
@@ -477,7 +498,16 @@ function fmtTHDate(d){
 
                   <!-- สั่งซื้อใหม่: เฉพาะ "completed" -->
                   <% const isPartialRefundCanceled = (stLower === 'canceled' && Number(o.refundAmount||0) > 0 && o.refundType === 'partial'); %>
-                  <% const canRepeatStrict = ((stLower === 'completed') || (stLower === 'partial') || isPartialRefundCanceled) && !!(o.service && o.service._id); %>
+                  <% const canRepeatStrict =
+                    (
+                      stLower === 'completed' ||
+                      stLower === 'partial' ||
+                      isPartialRefundCanceled
+                    ) && (
+                      o?.service?._id || 
+                      o?.providerServiceId
+                    ); 
+                  %>
                   <% if (canRepeatStrict) { %>
                     <button
                       type="button"
@@ -1285,26 +1315,33 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
 
     if (!confirm('ต้องการสั่งซ้ำรายการนี้อีกครั้งใช่ไหม?')) return;
 
-    btn.disabled = true; const keep = btn.textContent; btn.textContent = '…';
+    btn.disabled = true;
+    const keep = btn.textContent;
+    btn.textContent = '…';
 
     try{
-      const childProvId = cache.providerServiceId; 
-      const parentProvId = cache.svcProviderServiceId;
+      const body = {};
 
-      let body;
-      if (childProvId && String(childProvId) !== String(parentProvId)) {
-        body = {
-          groupId: cache.serviceId,
-          providerServiceId: childProvId, 
-          link: cache.link,
-          quantity: cache.quantity
-        };
-      } else {
-        body = {
-          serviceId: cache.serviceId,
-          link: cache.link,
-          quantity: cache.quantity
-        };
+      // ───────── กรณีออเดอร์เก่า ไม่มี serviceId ─────────
+      if (!cache.serviceId && cache.providerServiceId){
+        body.providerServiceId = cache.providerServiceId;
+        body.link      = cache.link;
+        body.quantity  = cache.quantity;
+      }
+      else {
+        // ───────── ออเดอร์ปกติ ─────────
+        body.serviceId = cache.serviceId;
+        body.link      = cache.link;
+        body.quantity  = cache.quantity;
+
+        // ───────── มี providerServiceId ลูก? (เช่นบริการใน group เดิมเปลี่ยน) ─────────
+        if (cache.svcProviderServiceId &&
+            String(cache.svcProviderServiceId) !== String(cache.providerServiceId))
+        {
+          delete body.serviceId;
+          body.groupId            = cache.serviceId;
+          body.providerServiceId  = cache.svcProviderServiceId;
+        }
       }
 
       const res = await fetch('/orders', {
@@ -1312,15 +1349,18 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify(body)
       });
+
       const data = await res.json();
       if (!data?.ok) throw new Error(data?.error || 'repeat failed');
 
-      alert('สั่งซ้ำสำเร็จ! หมายเลขใหม่: ' + (data.providerOrderId || data.orderId || '—'));
+      alert('สั่งซ้ำสำเร็จ! หมายเลขใหม่: ' + (data.orderId || data.providerOrderId || '—'));
+
     }catch(e){
       console.error(e);
-      alert('สั่งซ้ำไม่สำเร็จ: ' + (e.message||''));
+      alert('สั่งซ้ำไม่สำเร็จ: ' + e.message);
     }finally{
-      btn.textContent = keep; btn.disabled = false;
+      btn.textContent = keep;
+      btn.disabled = false;
     }
   }
 
@@ -1571,10 +1611,33 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
     canceled:   'ยกเลิก',
   }[String(s||'').toLowerCase()] || s));
 })();
+
+document.addEventListener("click", (ev) => {
+  const btn = ev.target.closest("[data-st]");
+  if (!btn) return;
+
+  const st = btn.getAttribute("data-st") || "all";
+
+  // อัปเดต URL parameter
+  const url = new URL(window.location.href);
+  url.searchParams.set("status", st);
+  url.searchParams.set("page", "1");
+  url.searchParams.delete("perPage");
+  window.location = url.toString();
+});
+(function(){
+  const url = new URL(window.location.href);
+  const curr = url.searchParams.get("status") || "all";
+
+  document.querySelectorAll("#statusTabs .tab").forEach(btn => {
+    const st = btn.getAttribute("data-st");
+    if (st === curr) btn.classList.add("active");
+    else btn.classList.remove("active");
+  });
+})();
 </script>
 
 <script>
-/* ===== Inject icons into status .tab ===== */
 (function(){
   const wrap = document.getElementById('statusTabs');
   if (!wrap) return;

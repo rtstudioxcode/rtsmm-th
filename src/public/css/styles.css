@@ -4937,3 +4937,44 @@ html[data-theme="dark"]{ --pv-bg: var(--page, #0b1620); --pv-border: var(--borde
     font-size: 18px;
   }
 }
+
+
+#statusTabs {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  padding: 16px 0;
+}
+
+#statusTabs .tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  width: 72px;
+  padding: 8px 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+#statusTabs .tab.active {
+  color: var(--accent);
+}
+
+#statusTabs .tab-ico {
+  width: 32px;
+  height: 32px;
+  background-size: cover;
+  background-position: center;
+  margin-bottom: 6px;
+  display: block;
+  image-rendering: -webkit-optimize-contrast;
+}
+
+#statusTabs .tab-label {
+  font-size: 13px;
+}
