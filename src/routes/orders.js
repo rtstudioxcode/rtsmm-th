@@ -566,7 +566,7 @@ router.get('/my/orders', requireAuth, async (req, res, next) => {
       from,
       to,
       q,
-      status,                 // ← ส่งค่า status ให้ด้วย
+      status,
       pillClass,
       thStatus,
       title: 'ประวัติการใช้บริการ Social',
