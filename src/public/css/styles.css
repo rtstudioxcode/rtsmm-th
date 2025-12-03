@@ -4876,3 +4876,64 @@ html[data-theme="dark"]{ --pv-bg: var(--page, #0b1620); --pv-border: var(--borde
   margin-right: 6px;
   vertical-align: middle;
 }
+
+/* ============================
+   MOBILE LAYOUT FIX
+   ============================ */
+@media (max-width: 768px) {
+  /* กล่องฟอร์ม + กล่องอัปเดต */
+  .detail-grid {
+    display: block !important;
+  }
+
+  #detailBox {
+    margin-bottom: 20px;
+  }
+
+  .right-rail {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  /* การ์ดใน aside */
+  .right-rail .card {
+    margin-bottom: 20px;
+  }
+
+  /* ปุ่ม บนมือถือเต็มความกว้าง */
+  .btn.primary.block {
+    width: 100%;
+  }
+
+  /* input ให้เต็ม */
+  input,
+  textarea,
+  select {
+    width: 100%;
+  }
+
+  /* แถว 2 ช่อง → ทำเป็น 1 ช่อง */
+  .row2 {
+    display: block !important;
+  }
+  .row2 > label {
+    width: 100%;
+    margin-bottom: 15px;
+  }
+
+  /* กล่อง Updates list */
+  .updates-list .update-item {
+    padding: 10px;
+  }
+
+  /* legend-list ปรับระยะให้ไม่แน่นเกิน */
+  .legend-item {
+    padding: 10px 0;
+    gap: 10px;
+  }
+
+  .legend-emoji {
+    min-width: 40px;
+    font-size: 18px;
+  }
+}
