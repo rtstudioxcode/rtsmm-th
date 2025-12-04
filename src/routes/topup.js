@@ -311,6 +311,11 @@ topupRouter.post("/create", async (req, res) => {
     const uid = getAuthUserId(req);
     if (!uid) return res.status(401).json({ ok: false, error: "unauthorized" });
 
+    const user = await User.findById(uid).lean();
+    if (!user) {
+      return res.status(400).json({ ok: false, error: "user_not_found" });
+    }
+
     const base = Number(req.body.amount);
     const walletCode = String(req.body.walletCode || "tw").toLowerCase();
     if (!Number.isFinite(base) || base < 10) {
@@ -366,6 +371,7 @@ topupRouter.post("/create", async (req, res) => {
 
     const tx = await Transaction.create({
       userId: uid,
+      username: user.username,
       method: walletCode,
       amount: uniqueAmt,
       amountCents: uniqueCents,
@@ -398,7 +404,7 @@ topupRouter.get("/tx/:id", async (req, res) => {
     // ให้ watcher ใช้ปิดโมดัลได้ชัวร์ ๆ
     res.json({
       ok: true,
-      status: tx.status,                 // 'pending' | 'completed' | 'failed' | 'cancelled'
+      status: tx.status,
       method: tx.method,
       amount: tx.amount,
       paidAt: tx.paidAt || null,

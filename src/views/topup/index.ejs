@@ -77,17 +77,17 @@
               onsubmit="return submitqrTopup(event)"
             >
               <label>
-                จำนวนเงินที่ต้องการเติม (ขั้นต่ำ 10 บาท)
+                จำนวนเงินที่ต้องการเติม (ขั้นต่ำ 1 บาท)
                 <div class="input-group">
                   <span class="input-prefix">฿</span>
                   <input
                     id="amount-<%= i %>"
                     name="amount"
                     type="number"
-                    min="10"
+                    min="1"
                     step="any"
                     required
-                    placeholder="เช่น 100"
+                    placeholder="เช่น 1"
                     oninput="updateqrSummary(<%= i %>)"
                   />
                 </div>
@@ -157,7 +157,7 @@
                     min="10"
                     step="any"
                     required
-                    placeholder="เช่น 100"
+                    placeholder="เช่น 10"
                   />
                 </div>
               </label>

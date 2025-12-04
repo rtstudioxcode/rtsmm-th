@@ -156,7 +156,7 @@
 <div class="history-wrapper card soft">
   <h3 class="title flex-between">
     รายการเติมเงินที่รอดำเนินการ
-    <button class="btn small primary" onclick="openManualTopupModal()">
+    <button class="btn-lux" onclick="openManualTopupModal()">
       + เติมเงินด้วยตนเอง
     </button>
   </h3>
@@ -169,7 +169,7 @@
       <thead>
         <tr>
           <th>วันที่ / เวลา</th>
-          <th>ข้อมูลผู้โอน</th>
+          <th>ยูสเซอร์</th>
           <th>ข้อมูลผู้รับ</th>
           <th>จำนวนเงิน</th>
           <th>สถานะ</th>
@@ -196,15 +196,15 @@
 
           <!-- ข้อมูลผู้โอน -->
           <td>
-            <% if (method === 'truewallet' || method === 'tw') { %>
+            <!-- <% if (method === 'truewallet' || method === 'tw') { %>
               <img src="/static/assets/payment/tw.webp" class="bank-logo" />
               <div><b>TrueWallet</b></div>
-              <div class="muted">เบอร์ผู้โอน: <%= tx.senderNumber || '-' %></div>
+              <div class="muted">ยูสเซอร์: <%= tx.userId?._id || '-' %></div>
             <% } else { %>
               <img src="/static/assets/payment/mobilebanking.png" class="bank-logo" />
-              <div><b><%= BANK_LABELS[tx.senderBank] || 'ไม่ระบุธนาคาร' %></b></div>
-              <div class="muted">เลขท้ายบัญชีผู้โอน: <%= tx.senderLast6 || '-' %></div>
-            <% } %>
+              <div><b><%= BANK_LABELS[tx.senderBank] || 'ไม่ระบุธนาคาร' %></b></div> -->
+              <div class="muted">ยูสเซอร์: <%= tx.user?.username || '-' %></div>
+            <!-- <% } %> -->
           </td>
 
           <!-- ข้อมูลผู้รับ -->
@@ -219,12 +219,12 @@
           </td>
 
           <!-- จำนวนเงิน -->
-          <td class="amount">
+          <td class="amount" style="text-align: start;">
             ฿<%= Number(tx.amount).toLocaleString(undefined,{ minimumFractionDigits: 2 }) %>
           </td>
 
           <!-- สถานะ -->
-          <td class="status <%= tx.status.toLowerCase() %>"><%= statusLabel %></td>
+          <td class="status <%= tx.status.toLowerCase() %>" style="text-align: start;"><%= statusLabel %></td>
 
           <!-- Action -->
           <td>
@@ -284,17 +284,17 @@
       <!-- เนื้อหารายละเอียด -->
       <div class="tx-accordion__body">
         <div class="tx-row">
-          <div class="tx-label">ผู้โอน</div>
+          <div class="tx-label">ยูสเซอร์</div>
           <div class="tx-value">
-            <% if (method === 'truewallet' || method === 'tw') { %>
+            <!-- <% if (method === 'truewallet' || method === 'tw') { %>
               <img src="/static/assets/payment/tw.webp" class="bank-logo" alt="">
               <b>TrueWallet</b><br>
-              <span class="muted">เบอร์ผู้โอน: <%= tx.senderNumber || '-' %></span>
+              <span class="muted">ยูสเซอร์: <%= tx.userId?._id || '-' %></span>
             <% } else { %>
               <img src="/static/assets/payment/<%= tx.senderBank %>.webp" class="bank-logo" alt="">
-              <b><%= BANK_LABELS[tx.senderBank] || 'ไม่ระบุธนาคาร' %></b><br>
-              <span class="muted">เลขท้ายบัญชีผู้โอน: <%= tx.senderLast6 || '-' %></span>
-            <% } %>
+              <b><%= BANK_LABELS[tx.senderBank] || 'ไม่ระบุธนาคาร' %></b><br> -->
+              <span class="muted">ยูสเซอร์: <%= tx.user?.username || '-' %></span>
+            <!-- <% } %> -->
           </div>
         </div>
 
@@ -367,16 +367,17 @@
       <form id="manualTopupForm" onsubmit="return submitManualTopup(event)">
         <label>
           ชื่อผู้ใช้ (Username)
-          <input
-            type="text"
-            id="manualUsername"
-            list="userList"
-            autocomplete="off"
-            required
-            placeholder="พิมพ์ค้นหา เช่น: ad"
-            class="block input mt-sm"
-          />
-          <datalist id="userList"></datalist>
+          <div class="autocomplete">
+            <input
+              type="text"
+              id="manualUsername"
+              autocomplete="off"
+              required
+              placeholder="พิมพ์ค้นหา เช่น: ad"
+              class="block input mt-sm"
+            />
+            <div id="userSuggestBox" class="suggest-box hidden"></div>
+          </div>
         </label>
 
         <div class="row2 mt">
@@ -423,6 +424,49 @@
 </div>
 
 <script>
+let allUsers = []; 
+
+async function loadUsersList() {
+  const res = await fetch("/admin/users/list");
+  const data = await res.json();
+  allUsers = data.users || [];
+
+  // 👉 แสดงรายชื่อทันที เมื่อเปิด modal
+  // renderSuggestBox(allUsers);
+}
+
+function renderSuggestBox(list) {
+  const box = document.getElementById("userSuggestBox");
+
+  if (!list.length) {
+    box.innerHTML = `<div class="suggest-item muted">ไม่พบผู้ใช้</div>`;
+    box.classList.remove("hidden");
+    return;
+  }
+
+  box.innerHTML = list.map(u => `
+    <div class="suggest-item" data-username="${u.username}">
+      ${u.username}
+      <small>${u.email}</small>
+    </div>
+  `).join("");
+
+  box.classList.remove("hidden");
+}
+
+// 👉 คลิกเลือกรายชื่อ
+document.addEventListener("click", function (e) {
+  if (e.target.classList.contains("suggest-item")) {
+    const uname = e.target.dataset.username;
+    document.getElementById("manualUsername").value = uname;
+    document.getElementById("userSuggestBox").classList.add("hidden");
+  }
+
+  if (!e.target.closest(".autocomplete")) {
+    document.getElementById("userSuggestBox").classList.add("hidden");
+  }
+});
+
 async function refreshOtp24(){
   const btn   = document.getElementById('btnOtp24');
   const balEl = document.getElementById('otpBal');
@@ -727,6 +771,8 @@ async function syncServices() {
     if (!modal) return;
     modal.classList.remove("hidden");
 
+    loadUsersList();  // โหลด user ไว้ แต่ยังไม่แสดงจนกว่าจะคลิกช่องค้นหา
+
     const form    = document.getElementById("manualTopupForm");
     const status  = document.getElementById("manualTopupStatus");
     const userInp = document.getElementById("manualUsername");
@@ -738,7 +784,7 @@ async function syncServices() {
 
     window.currentTxId = txId;
 
-    // จำนวนเงิน
+    // ----------------- จำนวนเงิน -----------------
     if (amtInp){
       if (amount){
         amtInp.value = Number(amount).toFixed(2);
@@ -750,30 +796,79 @@ async function syncServices() {
       }
     }
 
-    // Username
+    // ----------------- Username -----------------
     if (userInp){
       if (suggestedUsername && suggestedUsername !== 'null'){
         userInp.value = suggestedUsername;
-        doUserSearch(suggestedUsername);
-      }else{
+      } else {
         userInp.value = '';
-        doUserSearch('');
       }
+
       bindUsernameSearchOnce();
-      setTimeout(()=>{ try{ userInp.dispatchEvent(new Event('input')); }catch{} }, 50);
-      userInp.readOnly = !!lock;                 // ⬅️ ล็อกเมื่อกดจากรายการ
+
+      // ❗ ปิดระบบ auto-show ตอนเปิด modal
+      // ไม่มี doUserSearch('')
+      // ไม่มี dispatchEvent(new Event("input"))
+
+      userInp.readOnly = !!lock;
       userInp.classList.toggle('is-readonly', !!lock);
     }
 
-    // Method
+    // ----------------- Method -----------------
     if (mSel){
       mSel.value = (method || 'admin').toLowerCase();
-      mSel.disabled = !!lock;                    // ⬅️ ล็อกเมื่อกดจากรายการ
+      mSel.disabled = !!lock;
       mSel.classList.toggle('is-disabled', !!lock);
     }
 
-    // จัด layout ให้ Method ขึ้นระดับเดียวกับจำนวนเงิน (Desktop)
     document.getElementById('manualMethod')?.closest('label')?.classList.add('align-top');
+  }
+
+
+
+  // ============ ช่องค้นหา: input event ============
+
+  const userInp = document.getElementById("manualUsername");
+
+  userInp.addEventListener("input", function () {
+    const q = this.value.trim().toLowerCase();
+
+    // ว่าง → แสดงทั้งหมด *เฉพาะตอนที่ input ถูก focus*
+    if (!q) {
+      if (document.activeElement === userInp) {
+        renderSuggestBox(allUsers);
+      } else {
+        hideSuggestBox();
+      }
+      return;
+    }
+
+    const matches = allUsers.filter(u =>
+      u.username.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q)
+    ).slice(0, 20);
+
+    renderSuggestBox(matches);
+  });
+
+  // ============ แสดงรายการเมื่อคลิกหรือโฟกัสช่องค้นหา ============
+
+  userInp.addEventListener("focus", () => {
+    if (!userInp.value.trim()) {
+      renderSuggestBox(allUsers);
+    }
+  });
+
+  userInp.addEventListener("click", () => {
+    if (!userInp.value.trim()) {
+      renderSuggestBox(allUsers);
+    }
+  });
+
+  // ============ ฟังก์ชันซ่อน suggestion box ============
+
+  function hideSuggestBox() {
+    document.getElementById("userSuggestBox").classList.add("hidden");
   }
 
   function closeManualTopupModal(){
@@ -920,366 +1015,435 @@ async function syncServices() {
 </script>
 
 <style>
-  /* 🟢 Universal Table Layout (same look on PC + mobile) */
-  .history-wrapper {
-    width: 100%;
-    overflow-x: auto; /* allow scroll if too wide on mobile */
-    -webkit-overflow-scrolling: touch; /* smooth scroll on iOS */
-  }
+/* 🟢 Universal Table Layout (same look on PC + mobile) */
+.history-wrapper {
+  width: 100%;
+  overflow-x: auto; /* allow scroll if too wide on mobile */
+  -webkit-overflow-scrolling: touch; /* smooth scroll on iOS */
+}
 
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 14px;
+  min-width: 720px; /* ensure stable width, no column squish */
+  white-space: nowrap; /* prevent text wrapping */
+}
+
+.history-table th,
+.history-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #333;
+  vertical-align: middle;
+}
+
+.history-table th {
+  text-align: left;
+  color: var(--accent, #3bd);
+  font-weight: 400;
+  background: rgba(255, 255, 255, 0.03);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.bank-logo {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  vertical-align: middle;
+  margin-right: 5px;
+}
+
+.history-table .amount {
+  text-align: right;
+  font-weight: bold;
+}
+
+.status {
+  font-weight: 400;
+  text-align: center;
+}
+.status.pending {
+  color: #ffc107;
+}
+
+.empty-history {
+  text-align: center;
+  padding: 40px 0;
+}
+.empty-history img {
+  width: 100px;
+  margin-bottom: 10px;
+  opacity: 0.6;
+}
+
+/* 🧭 Force Desktop View Even on Mobile */
+@media (max-width: 768px) {
   .history-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 10px;
-    font-size: 14px;
-    min-width: 720px; /* ensure stable width, no column squish */
-    white-space: nowrap; /* prevent text wrapping */
+    min-width: 700px; /* prevent table compression */
+    display: table;
   }
 
-  .history-table th,
-  .history-table td {
-    padding: 10px 12px;
-    border-bottom: 1px solid #333;
-    vertical-align: middle;
+  .history-wrapper {
+    overflow-x: auto;
+    border-radius: 10px;
   }
+}
 
-  .history-table th {
-    text-align: left;
-    color: var(--accent, #3bd);
-    font-weight: 400;
-    background: rgba(255, 255, 255, 0.03);
-    position: sticky;
-    top: 0;
-    z-index: 5;
-  }
+/* 🪟 Modal fix (same as QR modal) */
+.modal.hidden {
+  display: none;
+}
 
-  .bank-logo {
-    width: 28px;
-    height: 28px;
-    object-fit: contain;
-    vertical-align: middle;
-    margin-right: 5px;
-  }
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100; /* make sure it floats above admin cards */
+}
 
-  .history-table .amount {
-    text-align: right;
-    font-weight: bold;
-  }
+.modal .overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+}
 
-  .status {
-    font-weight: 400;
-    text-align: center;
-  }
-  .status.pending {
-    color: #ffc107;
-  }
+.modal .dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 420px;
+  width: calc(100% - 24px);
+  background: var(--card, #1c1f24);
+  border: 1px solid var(--border, #2a2f36);
+  border-radius: 14px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.4);
+  padding: 16px 18px 18px;
+  animation: modalFadeIn 0.25s ease-out;
+  z-index: 200;
+}
 
-  .empty-history {
-    text-align: center;
-    padding: 40px 0;
-  }
-  .empty-history img {
-    width: 100px;
-    margin-bottom: 10px;
-    opacity: 0.6;
-  }
+.modal .hdr {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 
-  /* 🧭 Force Desktop View Even on Mobile */
-  @media (max-width: 768px) {
-    .history-table {
-      min-width: 700px; /* prevent table compression */
-      display: table;
-    }
+.modal .title {
+  font-weight: 400;
+  font-size: 16px;
+}
 
-    .history-wrapper {
-      overflow-x: auto;
-      border-radius: 10px;
-    }
-  }
+.modal .icon.close {
+  border: 0;
+  background: transparent;
+  font-size: 22px;
+  color: var(--text, #fff);
+  cursor: pointer;
+}
 
-  /* 🪟 Modal fix (same as QR modal) */
-  .modal.hidden {
-    display: none;
-  }
+.modal .sep {
+  border: 0;
+  border-top: 1px solid var(--border, #2a2f36);
+  margin: 12px 0;
+}
 
-  .modal {
-    position: fixed;
-    inset: 0;
-    z-index: 100; /* make sure it floats above admin cards */
-  }
+.modal .body {
+  font-size: 14px;
+  line-height: 1.6;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+/* --- Desktop first: ซ่อน mobile เสมอในเดสก์ท็อป --- */
+.mobile-only { display: none !important; }
+.desktop-only { display: block !important; }
 
-  .modal .overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.55);
-    cursor: pointer;
-  }
+/* --- Mobile ≤ 768px: สลับแสดง --- */
+@media (max-width: 768px) {
+  .desktop-only { display: none !important; }
+  .mobile-only { display: block !important; }
+}
 
-  .modal .dialog {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    max-width: 420px;
-    width: calc(100% - 24px);
-    background: var(--card, #1c1f24);
-    border: 1px solid var(--border, #2a2f36);
-    border-radius: 14px;
-    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.4);
-    padding: 16px 18px 18px;
-    animation: modalFadeIn 0.25s ease-out;
-    z-index: 200;
-  }
+/* Accordion (มือถือ) */
+.tx-accordion-list { display: grid; gap: 10px; }
+.tx-accordion {
+  background: var(--card, #1a1d22);
+  border: 1px solid var(--border, #2a2f36);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--elevated-shadow, 0 10px 24px rgba(0,0,0,.25));
+}
+.tx-accordion__head {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  padding: 12px 14px;
+  background: #0f1013;
+  color: var(--text-primary, #f2f4f8);
+  border: 0;
+  cursor: pointer;
+}
+.tx-accordion__title .tx-id { font-weight: 400; letter-spacing: .3px; }
+.tx-accordion__meta {
+  display: inline-grid; grid-auto-flow: column; gap: 10px; align-items: center;
+  color: var(--title,#eadfb8); font-weight: 400; font-variant-numeric: tabular-nums;
+}
+.tx-accordion__meta .tx-toggle {
+  width: 28px; height: 28px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border, #2a2f36); background: #17191d;
+}
 
-  .modal .hdr {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
+/* body */
+.tx-accordion__body { display: none; padding: 12px 14px 14px; background: var(--elevated-bg,#141518); }
+.tx-accordion[data-open="1"] .tx-accordion__body { display: block; }
+.tx-accordion[data-open="1"] .tx-accordion__meta .tx-toggle::before { content: '–'; }
+.tx-accordion[data-open="0"] .tx-accordion__meta .tx-toggle::before { content: '+'; }
 
-  .modal .title {
-    font-weight: 400;
-    font-size: 16px;
-  }
+/* แถวรายละเอียด */
+.tx-row {
+  display: grid; grid-template-columns: 110px 1fr; gap: 10px;
+  padding: 8px 0; border-bottom: 1px dashed var(--border,#2a2f36);
+}
+.tx-row:last-child { border-bottom: 0; }
+.tx-label { color: var(--muted,#a7b0bb); }
+.tx-value { color: var(--text-primary,#f2f4f8); }
 
-  .modal .icon.close {
-    border: 0;
-    background: transparent;
-    font-size: 22px;
-    color: var(--text, #fff);
-    cursor: pointer;
-  }
+.bank-logo { width: 22px; height: 22px; object-fit: contain; vertical-align: middle; margin-right: 6px; }
 
-  .modal .sep {
-    border: 0;
-    border-top: 1px solid var(--border, #2a2f36);
-    margin: 12px 0;
-  }
+/* pill สถานะ */
+.pill {
+  display: inline-block; padding: 4px 10px; border-radius: 999px;
+  font-weight: 400; font-size: 12px; background: #22262d; border: 1px solid #313641;
+}
+.pill--pending   { color:#ffc107; border-color:#4d3b08; background:#2a2108; }
+.pill--completed { color:#10b981; border-color:#0b3f2e; background:#0c1f18; }
+.pill--failed    { color:#f87171; border-color:#4a0e0e; background:#2a0a0a; }
+.pill--canceled  { color:#94a3b8; }
+.tx-actions { width: 100%; margin-top: 12px; display: flex; justify-content: flex-start; }
+/* ทำให้หัวการ์ดแสดงเป็นบรรทัดเดียว และตัด ... ได้ */
+.tx-accordion__head {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto; /* ซ้าย (ID) | ขวา (เวลา + ปุ่ม) */
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: #0f1013;
+  color: var(--text-primary, #f2f4f8);
+  border: 0;
+  cursor: pointer;
+}
 
-  .modal .body {
-    font-size: 14px;
-    line-height: 1.6;
-    max-height: 60vh;
-    overflow-y: auto;
-  }
-  /* --- Desktop first: ซ่อน mobile เสมอในเดสก์ท็อป --- */
-  .mobile-only { display: none !important; }
-  .desktop-only { display: block !important; }
+/* ต้องมี min-width:0 เพื่อให้ overflow ทำงานใน grid */
+.tx-accordion__title { min-width: 0; }
+.tx-accordion__title .tx-id{
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;   /* ถ้ายาวให้ ... */
+  font-weight: 400;
+  letter-spacing: .3px;
+}
 
-  /* --- Mobile ≤ 768px: สลับแสดง --- */
-  @media (max-width: 768px) {
-    .desktop-only { display: none !important; }
-    .mobile-only { display: block !important; }
-  }
+/* ให้เวลาชิดขวาและไม่ห่อบรรทัด */
+.tx-accordion__meta {
+  display: inline-grid;
+  grid-auto-flow: column;
+  gap: 10px;
+  align-items: center;
+  color: var(--title,#eadfb8);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;       /* กันแตกบรรทัด */
+}
 
-  /* Accordion (มือถือ) */
-  .tx-accordion-list { display: grid; gap: 10px; }
-  .tx-accordion {
-    background: var(--card, #1a1d22);
-    border: 1px solid var(--border, #2a2f36);
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: var(--elevated-shadow, 0 10px 24px rgba(0,0,0,.25));
-  }
-  .tx-accordion__head {
-    width: 100%;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    padding: 12px 14px;
-    background: #0f1013;
-    color: var(--text-primary, #f2f4f8);
-    border: 0;
-    cursor: pointer;
-  }
-  .tx-accordion__title .tx-id { font-weight: 400; letter-spacing: .3px; }
-  .tx-accordion__meta {
-    display: inline-grid; grid-auto-flow: column; gap: 10px; align-items: center;
-    color: var(--title,#eadfb8); font-weight: 400; font-variant-numeric: tabular-nums;
-  }
-  .tx-accordion__meta .tx-toggle {
-    width: 28px; height: 28px; border-radius: 8px;
-    display: inline-flex; align-items: center; justify-content: center;
-    border: 1px solid var(--border, #2a2f36); background: #17191d;
-  }
+.tx-accordion__meta .tx-toggle{
+  width: 28px; height: 28px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border, #2a2f36); background: #17191d;
+}
 
-  /* body */
-  .tx-accordion__body { display: none; padding: 12px 14px 14px; background: var(--elevated-bg,#141518); }
-  .tx-accordion[data-open="1"] .tx-accordion__body { display: block; }
-  .tx-accordion[data-open="1"] .tx-accordion__meta .tx-toggle::before { content: '–'; }
-  .tx-accordion[data-open="0"] .tx-accordion__meta .tx-toggle::before { content: '+'; }
+/* ไอคอน + / – */
+.tx-accordion[data-open="1"] .tx-accordion__meta .tx-toggle::before { content: '–'; }
+.tx-accordion[data-open="0"] .tx-accordion__meta .tx-toggle::before { content: '+'; }
 
-  /* แถวรายละเอียด */
-  .tx-row {
-    display: grid; grid-template-columns: 110px 1fr; gap: 10px;
-    padding: 8px 0; border-bottom: 1px dashed var(--border,#2a2f36);
-  }
-  .tx-row:last-child { border-bottom: 0; }
-  .tx-label { color: var(--muted,#a7b0bb); }
-  .tx-value { color: var(--text-primary,#f2f4f8); }
+.row-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:8px;
+}
 
-  .bank-logo { width: 22px; height: 22px; object-fit: contain; vertical-align: middle; margin-right: 6px; }
+.head-right{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-left:auto;
+}
 
-  /* pill สถานะ */
-  .pill {
-    display: inline-block; padding: 4px 10px; border-radius: 999px;
-    font-weight: 400; font-size: 12px; background: #22262d; border: 1px solid #313641;
-  }
-  .pill--pending   { color:#ffc107; border-color:#4d3b08; background:#2a2108; }
-  .pill--completed { color:#10b981; border-color:#0b3f2e; background:#0c1f18; }
-  .pill--failed    { color:#f87171; border-color:#4a0e0e; background:#2a0a0a; }
-  .pill--canceled  { color:#94a3b8; }
-  .tx-actions { width: 100%; margin-top: 12px; display: flex; justify-content: flex-start; }
-  /* ทำให้หัวการ์ดแสดงเป็นบรรทัดเดียว และตัด ... ได้ */
-  .tx-accordion__head {
-    width: 100%;
-    display: grid;
-    grid-template-columns: 1fr auto; /* ซ้าย (ID) | ขวา (เวลา + ปุ่ม) */
-    align-items: center;
-    gap: 10px;
-    padding: 12px 14px;
-    background: #0f1013;
-    color: var(--text-primary, #f2f4f8);
-    border: 0;
-    cursor: pointer;
-  }
+.metric-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  border-radius:999px;
+  font-weight:400;
+  letter-spacing:.2px;
+  background:var(--pick-chip-bg, rgba(255,255,255,.06));
+  border:1px solid var(--pick-chip-border, #24262b);
+  color:var(--text-primary, #f2f4f8);
+}
 
-  /* ต้องมี min-width:0 เพื่อให้ overflow ทำงานใน grid */
-  .tx-accordion__title { min-width: 0; }
-  .tx-accordion__title .tx-id{
-    display: block;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;   /* ถ้ายาวให้ ... */
-    font-weight: 400;
-    letter-spacing: .3px;
-  }
+/* light theme */
+html[data-theme="light"] .metric-badge{
+  background:var(--pick-chip-bg, #f3f4f6);
+  border-color:var(--pick-chip-border, #e5e7eb);
+  color:var(--text-primary, #111827);
+}
 
-  /* ให้เวลาชิดขวาและไม่ห่อบรรทัด */
-  .tx-accordion__meta {
-    display: inline-grid;
-    grid-auto-flow: column;
-    gap: 10px;
-    align-items: center;
-    color: var(--title,#eadfb8);
-    font-weight: 400;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;       /* กันแตกบรรทัด */
-  }
+/* ── Card v2 ────────────────────────────────────────── */
+.card2{
+  position: relative;
+  border-radius: 5px;
+  background: var(--elevated-bg, #141518);
+  border: 1px solid var(--elevated-border, #24262b);
+  box-shadow: var(--elevated-shadow, 0 10px 24px rgba(0,0,0,.35));
+  padding: 14px 16px;
+  transition: transform .12s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
+  will-change: transform, box-shadow;
+}
 
-  .tx-accordion__meta .tx-toggle{
-    width: 28px; height: 28px; border-radius: 8px;
-    display: inline-flex; align-items: center; justify-content: center;
-    border: 1px solid var(--border, #2a2f36); background: #17191d;
-  }
+/* แถบเน้นซ้ายแบบบาง ๆ (ซ่อนไว้ก่อน) */
+.card2::before{
+  content:"";
+  position:absolute; inset:0 auto 0 0; width:0;
+  background: var(--accent, #2a84ff);
+  border-radius: 16px 0 0 16px;
+  transition: width .15s ease;
+}
 
-  /* ไอคอน + / – */
-  .tx-accordion[data-open="1"] .tx-accordion__meta .tx-toggle::before { content: '–'; }
-  .tx-accordion[data-open="0"] .tx-accordion__meta .tx-toggle::before { content: '+'; }
+/* Hover: ยกเงา + ขอบสว่างขึ้น + โชว์แถบซ้าย */
+.card2:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(0,0,0,.4);
+  border-color: color-mix(in oklab, var(--accent,#2a84ff) 28%, var(--elevated-border,#24262b));
+}
+.card2:hover::before{ width: 3px; }
 
-  .row-head{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:12px;
-    margin-bottom:8px;
-  }
+/* Focus (รองรับคีย์บอร์ด) */
+.card2:focus-within{
+  box-shadow: 0 0 0 3px rgba(42,132,255,.25), 0 14px 30px rgba(0,0,0,.4);
+  outline: none;
+}
+.card2:active{ transform: translateY(0); }
 
-  .head-right{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    margin-left:auto;
-  }
+/* Layout หัวการ์ด */
+.row-head{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; margin-bottom:2px;
+}
+.card-head h3{ margin:0; }
 
-  .metric-badge{
-    display:inline-flex;
-    align-items:center;
-    gap:8px;
-    padding:6px 10px;
-    border-radius:999px;
-    font-weight:400;
-    letter-spacing:.2px;
-    background:var(--pick-chip-bg, rgba(255,255,255,.06));
-    border:1px solid var(--pick-chip-border, #24262b);
-    color:var(--text-primary, #f2f4f8);
-  }
+/* Metric badge (รีใช้ของเดิมได้) */
+.metric-badge{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 10px; border-radius:999px; font-weight:700; letter-spacing:.2px;
+  background: var(--pick-chip-bg, rgba(255,255,255,.06));
+  border: 1px solid var(--pick-chip-border, #24262b);
+  color: var(--text-primary, #f2f4f8);
+}
 
-  /* light theme */
-  html[data-theme="light"] .metric-badge{
-    background:var(--pick-chip-bg, #f3f4f6);
-    border-color:var(--pick-chip-border, #e5e7eb);
-    color:var(--text-primary, #111827);
-  }
+/* Light theme tweaks */
+html[data-theme="light"] .card2{
+  background:#fff;
+  border-color:#e5e7eb;
+  box-shadow: 0 10px 24px rgba(0,0,0,.12);
+}
+html[data-theme="light"] .card2:hover{
+  border-color: color-mix(in oklab, var(--accent,#2a84ff) 35%, #e5e7eb);
+  box-shadow: 0 16px 36px rgba(0,0,0,.16);
+}
+html[data-theme="light"] .metric-badge{
+  background:#f3f4f6; border-color:#e5e7eb; color:#111827;
+}
+.pill--reject, .status.reject {
+  background: rgba(239, 68, 68, .15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, .35);
+}
 
-  /* ── Card v2 ────────────────────────────────────────── */
-  .card2{
-    position: relative;
-    border-radius: 5px;
-    background: var(--elevated-bg, #141518);
-    border: 1px solid var(--elevated-border, #24262b);
-    box-shadow: var(--elevated-shadow, 0 10px 24px rgba(0,0,0,.35));
-    padding: 14px 16px;
-    transition: transform .12s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
-    will-change: transform, box-shadow;
-  }
+.btn-lux {
+  background: linear-gradient(135deg, #e6c36f 0%, #d4a94d 50%, #c89a36 100%);
+  color: #2d2d2d;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 14px;
+  font-size: 15px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.25);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 
-  /* แถบเน้นซ้ายแบบบาง ๆ (ซ่อนไว้ก่อน) */
-  .card2::before{
-    content:"";
-    position:absolute; inset:0 auto 0 0; width:0;
-    background: var(--accent, #2a84ff);
-    border-radius: 16px 0 0 16px;
-    transition: width .15s ease;
-  }
+.btn-lux:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.35);
+  background: linear-gradient(135deg, #f0d68d 0%, #e5bf68 50%, #d4a94d 100%);
+}
 
-  /* Hover: ยกเงา + ขอบสว่างขึ้น + โชว์แถบซ้าย */
-  .card2:hover{
-    transform: translateY(-1px);
-    box-shadow: 0 14px 30px rgba(0,0,0,.4);
-    border-color: color-mix(in oklab, var(--accent,#2a84ff) 28%, var(--elevated-border,#24262b));
-  }
-  .card2:hover::before{ width: 3px; }
+.btn-lux:active {
+  transform: scale(0.96);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.25);
+}
 
-  /* Focus (รองรับคีย์บอร์ด) */
-  .card2:focus-within{
-    box-shadow: 0 0 0 3px rgba(42,132,255,.25), 0 14px 30px rgba(0,0,0,.4);
-    outline: none;
-  }
-  .card2:active{ transform: translateY(0); }
+.autocomplete {
+  position: relative;
+}
 
-  /* Layout หัวการ์ด */
-  .row-head{
-    display:flex; align-items:center; justify-content:space-between;
-    gap:12px; margin-bottom:2px;
-  }
-  .card-head h3{ margin:0; }
+.suggest-box {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  background: #1f1f1f;
+  border: 1px solid #3a3a3a;
+  border-radius: 10px;
+  padding: 6px 0;
+  z-index: 9999;
 
-  /* Metric badge (รีใช้ของเดิมได้) */
-  .metric-badge{
-    display:inline-flex; align-items:center; gap:8px;
-    padding:6px 10px; border-radius:999px; font-weight:700; letter-spacing:.2px;
-    background: var(--pick-chip-bg, rgba(255,255,255,.06));
-    border: 1px solid var(--pick-chip-border, #24262b);
-    color: var(--text-primary, #f2f4f8);
-  }
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+}
 
-  /* Light theme tweaks */
-  html[data-theme="light"] .card2{
-    background:#fff;
-    border-color:#e5e7eb;
-    box-shadow: 0 10px 24px rgba(0,0,0,.12);
-  }
-  html[data-theme="light"] .card2:hover{
-    border-color: color-mix(in oklab, var(--accent,#2a84ff) 35%, #e5e7eb);
-    box-shadow: 0 16px 36px rgba(0,0,0,.16);
-  }
-  html[data-theme="light"] .metric-badge{
-    background:#f3f4f6; border-color:#e5e7eb; color:#111827;
-  }
-  .pill--reject, .status.reject {
-    background: rgba(239, 68, 68, .15);
-    color: #ef4444;
-    border: 1px solid rgba(239, 68, 68, .35);
-  }
+.suggest-box.hidden {
+  display: none;
+}
+
+.suggest-item {
+  padding: 8px 14px;
+  cursor: pointer;
+  color: #ddd;
+  transition: background 0.2s ease;
+}
+
+.suggest-item:hover {
+  background: #333;
+  color: #fff;
+}
+
+.suggest-item small {
+  display: block;
+  color: #888;
+  font-size: 12px;
+}
 </style>

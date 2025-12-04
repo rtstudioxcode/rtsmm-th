@@ -272,6 +272,11 @@ router.get("/", async (req, res) => {
   }
 });
 
+router.get("/users/list", async (req, res) => {
+  const users = await User.find({}, { username: 1, email: 1 }).lean();
+  res.json({ ok: true, users });
+});
+
 // Refresh balance
 router.post("/refresh-balance", async (req, res) => {
   try {
