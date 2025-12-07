@@ -2209,5 +2209,18 @@ if (dailyData.length) {
     position: relative !important;
     z-index: 3 !important;
   }
+
+  .bt-field input[type="date"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    -webkit-appearance: none; /* ปิด UI บังคับของ iOS */
+    padding-right: 12px;      /* กันล้นขอบขวา */
+  }
+
+  /* ถ้าตัว grid บีบอยู่ ให้บังคับให้ field เป็นบล็อกเต็มแถว */
+  .bt-field {
+    width: 100% !important;
+  }
 }
 </style>
