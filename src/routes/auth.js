@@ -15,6 +15,22 @@ function safeNext(input) {
   return (input && /^\/(?!\/)/.test(input)) ? input : '/';
 }
 
+const genAffKey = () => 
+  [...crypto.randomUUID().replace(/-/g,'').toLowerCase()]
+    .sort(() => 0.5 - Math.random())
+    .slice(0, 12)
+    .join('');
+
+async function genUniqueAffiliateKey() {
+  for (let i = 0; i < 5; i++) {
+    const key = genAffKey();
+    const exist = await User.exists({ affiliateKey: key });
+    if (!exist) return key;
+  }
+  // fallback (แทบไม่เกิด)
+  return genAffKey();
+}
+
 function emailTemplateVerifyLink(verifyUrl) {
   const BRAND_URL  = 'https://rtsmm-th.com';
   const BRAND_LOGO = `${BRAND_URL}/static/assets/logo/logo-rtssm-th.png`;
@@ -369,6 +385,8 @@ router.get('/register/verify', async (req, res) => {
     // 🔥 สร้าง serial_key แบบ BT-XXXXXXXX (สุ่ม 8 ตัวไม่ซ้ำ)
     const serialKey = await generateUniqueSerialKey();
 
+    const affiliateKey = await genUniqueAffiliateKey();
+
     // สร้าง user (แนบ referredBy + serial_key ถ้ามี)
     const user = await User.create({
       username: pending.username,
@@ -378,6 +396,7 @@ router.get('/register/verify', async (req, res) => {
       passwordHash: pending.passwordHash,
       role: 'user',
       serial_key: pending.serialKey,
+      affiliateKey,
       ...(referredById ? { referredBy: referredById } : {})
     });
 
