@@ -2156,4 +2156,58 @@ if (dailyData.length) {
   will-change: transform, opacity;
 }
 
+
+/* ============================
+  MOBILE FIX: Pill ไม่ล้นอีกต่อไป
+============================ */
+@media (max-width: 640px) {
+
+  /* บีบ collapse-head ให้เป็น column ทั้งชุด */
+  .collapse-head {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    width: 100% !important;
+    gap: 10px;
+  }
+
+  /* ฝั่งชื่อ service */
+  .collapse-head .tenant {
+    width: 100% !important;
+  }
+
+  /* ฝั่ง pill + ปุ่มลบ */
+  .collapse-head .status-right {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+    position: relative !important;
+  }
+
+  /* pill ทั้งหมด */
+  .status-pill,
+  .expiry-pill {
+    width: 100% !important;
+    text-align: center !important;
+    display: block !important;
+  }
+
+  /* ปุ่มลบ */
+  .bt-delete-btn {
+    align-self: flex-end !important;
+    margin-top: 4px !important;
+    position: relative !important;
+    width: 100% !important;
+    z-index: 3 !important;
+  }
+
+  /* collapse icon */
+  .collapse-icon {
+    align-self: flex-end !important;
+    position: relative !important;
+    z-index: 3 !important;
+  }
+}
 </style>
