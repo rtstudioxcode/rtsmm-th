@@ -1701,7 +1701,7 @@ html[data-theme="light"] .badge.st-fail{
       // ยอดถอนได้ + ปุ่ม
       const wd = Number(j.summary.withdrawableTHB || 0);
       $('#aff-withdrawable') && ($('#aff-withdrawable').textContent = fmt(wd));
-      if (btn) btn.disabled = !(wd > 0.0001);
+      // if (btn) btn.disabled = !(wd > 0.0001);
 
       // หลอดเลื่อนระดับ
       const t = j.tier || {};
