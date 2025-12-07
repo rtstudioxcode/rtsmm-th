@@ -13,315 +13,272 @@
 
   <!-- TAB 1: รายการเช่า / Serial Key -->
   <section id="tab-orders" class="tabpane show">
-  <%
-    let unsoldTotal = 0;
-    let unsoldPkg1 = 0; // Package 1 = สล็อต+บาคาร่า (LOTTO_ENABLED = false)
-    let unsoldPkg2 = 0; // Package 2 = สล็อต+บาคาร่า+หวย (LOTTO_ENABLED = true)
+    <%
+      // ───────────────────────────────────────────────
+      // แยก package ล่วงหน้า
+      // ───────────────────────────────────────────────
+      const pkg1 = [];   // Package 1 = สล็อต+บาคาร่า (LOTTO_ENABLED = false)
+      const pkg2 = [];   // Package 2 = สล็อต+บาคาร่า+หวย (LOTTO_ENABLED = true)
 
-    if (Array.isArray(records)) {
-      records.forEach(r => {
-        const isSold = !!r.serial_key;
-        if (!isSold) {
+      (records || []).forEach(rec => {
+        if (rec.LOTTO_ENABLED) pkg2.push(rec);
+        else pkg1.push(rec);
+      });
+
+      // นับ unsold
+      let unsoldTotal = 0;
+      let unsoldPkg1 = 0;
+      let unsoldPkg2 = 0;
+
+      (records || []).forEach(r => {
+        if (!r.serial_key) {
           unsoldTotal++;
-          if (r.LOTTO_ENABLED) {
-            unsoldPkg2++;
-          } else {
-            unsoldPkg1++;
-          }
+          if (r.LOTTO_ENABLED) unsoldPkg2++;
+          else unsoldPkg1++;
         }
       });
-    }
-  %>
-  <header class="page-head">
-    <div class="bt-head-left">
-      <h1>รายการออเดอร์</h1>
-    </div>
-    <div class="bt-add-wrapper">
-      <button id="btnAddTenant" class="bt-add-btn">
-        <span class="bt-add-icon">＋</span>
-        <span>เพิ่ม Service ใหม่</span>
-      </button>
-    </div>
-  </header>
+    %>
 
-  <p class="unsold-summary">
-    ยังไม่ได้ขายทั้งหมด
-    <strong><%= unsoldTotal %></strong> ออเดอร์ ·
-    Package 1 (สล็อต+บาคาร่า):
-    <strong><%= unsoldPkg1 %></strong> |
-    Package 2 (สล็อต+บาคาร่า+หวย):
-    <strong><%= unsoldPkg2 %></strong>
-  </p>
+    <header class="page-head">
+      <div class="bt-head-left">
+        <h1>รายการออเดอร์</h1>
+      </div>
 
-  <% if (!records || !records.length) { %>
-    <section class="card">
-      <p class="muted">
-        ยังไม่มีข้อมูลการเช่า Bonustime จากระบบ RT AUTOBOT
-      </p>
-    </section>
-  <% } else { %>
-    <div class="bt-admin-list">
-      <% records.forEach((rec) => { %>
-        <article
-          class="bonustime-card admin"
-          data-tenant-id="<%= rec.tenantId %>"
-          data-serial="<%= rec.serial_key || '' %>">
+      <div class="bt-add-wrapper">
+        <button id="btnAddTenant" class="bt-add-btn">
+          <span class="bt-add-icon">＋</span>
+          <span>เพิ่ม Service ใหม่</span>
+        </button>
+      </div>
+    </header>
 
-          <!-- หัวการ์ด (กดตรงไหนก็พับ/ขยายได้) -->
-          <header class="collapse-head">
-            <div class="tenant">
-              <div class="tenant-name">
-                <%= rec.NAME || rec.name || ('Service: ' + (rec.tenantId || '-')) %>
-              </div>
-              <div class="tenant-meta small muted">
-                Service: <span><%= rec.tenantId || '-' %></span>
-                <% if (rec.serial_key) { %>
-                  · Serial: <span><%= rec.serial_key %></span>
-                <% } %>
-                <% if (rec.username) { %>
-                  · Owner: <span><%= rec.username %></span>
-                <% } %>
-              </div>
-            </div>
+    <p class="unsold-summary">
+      Services ที่เหลือ
+      <strong><%= unsoldTotal %></strong> ออเดอร์ ·
+      Package 1:
+      <strong><%= unsoldPkg1 %> รายการ</strong> |
+      Package 2:
+      <strong><%= unsoldPkg2 %> รายการ</strong>
+    </p>
 
-            <div class="status-right">
-              <% if (rec.serial_key) { %>
-                <div class="status-pill sold">
-                  ขายไปแล้ว
-                  <% if (rec.licenseDisabled) { %>
-                    · ไม่มีวันหมดอายุ
-                  <% } else if (rec.expiresAtLabel) { %>
-                    · หมดอายุ <%= rec.expiresAtLabel %>
-                  <% } %>
-                </div>
+    <%
+      function renderPackage(title, list) {
+    %>
+      <section class="bt-section">
+        <h2 class="bt-section-title">
+          <%= title %>
+          <span class="count">(<%= list.length %> รายการ)</span>
+        </h2>
 
-                <% if (!rec.licenseDisabled && rec.expiresAtInput) { %>
-                  <!-- badge นับถอยหลัง -->
-                  <div
-                    class="expiry-pill"
-                    data-expiry="<%= rec.expiresAtInput %>">
-                    กำลังคำนวณ…
-                  </div>
-                <% } %>
-              <% } else { %>
-                <div class="status-pill free">
-                  ยังไม่ขาย
-                </div>
-              <% } %>
-
-              <!-- ปุ่มลบ Service -->
-              <button type="button" class="bt-delete-btn" title="ลบ Service นี้">
-                ลบ
-              </button>
-
-              <div class="collapse-icon" aria-hidden="true">⌃</div>
-            </div>
-          </header>
-
-          <!-- ตัวเนื้อหาข้างใน (แก้ไขแล้ว auto-save) -->
-          <div class="collapse-body">
-            <div class="bt-grid">
-              <div class="bt-field">
-                <label>ชื่อ Server (NAME)</label>
-                <input
-                  class="bt-edit"
-                  data-field="NAME"
-                  type="text"
-                  value="<%= rec.NAME || '' %>"
-                  placeholder="เช่น RT AUTOBOT OFFICIAL">
-              </div>
-
-              <div class="bt-field">
-                <label>Service</label>
-                <input
-                  type="text"
-                  value="<%= rec.tenantId || '' %>"
-                  readonly>
-              </div>
-
-              <div class="bt-field">
-                <label>Serial Key</label>
-                <input
-                  class="bt-edit"
-                  data-field="serial_key"
-                  type="text"
-                  value="<%= rec.serial_key || '' %>"
-                  placeholder="เช่น BT-XXXXXXX">
-              </div>
-
-              <div class="bt-field">
-                <label>เจ้าของ Service</label>
-                <input
-                  type="text"
-                  value="<%= rec.username || '-' %>"
-                  readonly
-                  class="owner-readonly">
-              </div>
-
-              <div class="bt-field">
-                <label>วันหมดอายุ</label>
-                <input
-                  class="bt-edit"
-                  data-field="expiresAt"
-                  type="date"
-                  value="<%= rec.licenseDisabled ? '' : (rec.expiresAtInput || '') %>"
-                  <%= rec.licenseDisabled ? 'disabled' : '' %> >
-                <% if (rec.licenseDisabled) { %>
-                  <div class="muted small">ไม่มีวันหมดอายุ</div>
-                <% } else if (rec.expiresAtLabel) { %>
-                  <div class="muted small">หมดอายุ: <%= rec.expiresAtLabel %></div>
-                <% } %>
-              </div>
-
-              <div class="bt-field bt-field-wide">
-                <label>ชื่อเจ้าของ</label>
-                <input
-                  class="bt-edit"
-                  data-field="ownerName"
-                  type="text"
-                  value="<%= rec.username || '-' %>"
-                  placeholder="ชื่อบนระบบหรือชื่อเล่นลูกค้า">
-              </div>
-
-              <div class="bt-field bt-field-wide">
-                <label>ลิงก์เชื่อมต่อ (Webhook / Panel)</label>
-                <div class="link-row">
-                  <input
-                    class="bt-edit"
-                    data-field="LINK"
-                    type="text"
-                    value="<%= rec.LINK || '' %>"
-                    placeholder="https://…/webhook">
-                  <button type="button" class="bt-copy-link" data-link="<%= rec.LINK || '' %>">
-                    คัดลอก
-                  </button>
-                </div>
-              </div>
-
-              <!-- โซน Config จาก RT AUTOBOT -->
-              <div class="bt-field bt-field-wide">
-                <label>โลโก้ (ลิงก์รูป)</label>
-                <input
-                  class="bt-edit"
-                  data-field="LOGO"
-                  type="text"
-                  value="<%= rec.LOGO || '' %>"
-                  placeholder="https://…/logo.png">
-              </div>
-
-              <div class="bt-field">
-                <label>ลิงก์เข้าสู่ระบบ</label>
-                <input
-                  class="bt-edit"
-                  data-field="LOGIN_URL"
-                  type="text"
-                  value="<%= rec.LOGIN_URL || '' %>"
-                  placeholder="https://… หรือ domain.com">
-              </div>
-
-              <div class="bt-field">
-                <label>ลิงก์สมัครสมาชิก</label>
-                <input
-                  class="bt-edit"
-                  data-field="SIGNUP_URL"
-                  type="text"
-                  value="<%= rec.SIGNUP_URL || '' %>"
-                  placeholder="https://…">
-              </div>
-
-              <div class="bt-field">
-                <label>ลิงก์ไลน์ติดต่อ</label>
-                <input
-                  class="bt-edit"
-                  data-field="LINE_ADMIN"
-                  type="text"
-                  value="<%= rec.LINE_ADMIN || '' %>"
-                  placeholder="https://lin.ee/…">
-              </div>
-
-              <div class="bt-field">
-                <label>หวย</label>
-                <select
-                  class="bt-edit"
-                  data-field="LOTTO_ENABLED">
-                  <option value="true"  <%= rec.LOTTO_ENABLED ? 'selected' : '' %>>เปิด</option>
-                  <option value="false" <%= !rec.LOTTO_ENABLED ? 'selected' : '' %>>ปิด</option>
-                </select>
-              </div>
-
-              <div class="bt-field">
-                <label>ระบบวันหมดอายุ</label>
-                <select
-                  class="bt-edit"
-                  data-field="LICENSE_DISABLED">
-                  <!-- LICENSE_DISABLED = false  => ระบบวันหมดอายุ "เปิด" -->
-                  <option value="false" <%= !rec.LICENSE_DISABLED ? 'selected' : '' %>>เปิด</option>
-                  <!-- LICENSE_DISABLED = true   => ระบบวันหมดอายุ "ปิด" (ไม่มีวันหมดอายุ) -->
-                  <option value="true"  <%= rec.LICENSE_DISABLED ? 'selected' : '' %>>ปิด</option>
-                </select>
-
-                <div class="muted small">
-                  <% if (rec.LICENSE_DISABLED) { %>
-                    เมื่อปิดระบบวันหมดอายุ จะถือว่า <strong>ไม่มีวันหมดอายุ</strong>
-                  <% } else { %>
-                    เมื่อเปิดระบบวันหมดอายุ จะใช้วันเริ่มต้น + ระยะเวลาใช้งาน (วัน)
-                  <% } %>
-                </div>
-              </div>
-
-              <div class="bt-field">
-                <label>วันเริ่มต้นใช้งาน</label>
-                <input
-                  class="bt-edit"
-                  data-field="LICENSE_START_DATE"
-                  type="text"
-                  value="<%= rec.LICENSE_START_DATE || '' %>"
-                  placeholder="เช่น 29/09/2568">
-              </div>
-
-              <div class="bt-field">
-                <label>ระยะเวลาใช้งาน (วัน)</label>
-                <input
-                  class="bt-edit"
-                  data-field="LICENSE_DURATION_DAYS"
-                  type="number"
-                  min="0"
-                  value="<%= rec.LICENSE_DURATION_DAYS || 0 %>">
-              </div>
-
-              <div class="bt-field bt-field-wide">
-                <label>CHANNEL_ACCESS_TOKEN</label>
-                <textarea
-                  class="bt-edit"
-                  data-field="CHANNEL_ACCESS_TOKEN"
-                  rows="2"
-                  placeholder="ใส่ค่า Access Token ของ LINE Bot"><%= rec.CHANNEL_ACCESS_TOKEN || '' %></textarea>
-              </div>
-
-              <div class="bt-field bt-field-wide">
-                <label>CHANNEL_SECRET</label>
-                <input
-                  class="bt-edit"
-                  data-field="CHANNEL_SECRET"
-                  type="text"
-                  value="<%= rec.CHANNEL_SECRET || '' %>"
-                  placeholder="ใส่ค่า Channel Secret">
-              </div>
-
-              <div class="bt-field bt-field-wide">
-                <label>โน้ตภายใน (Note)</label>
-                <textarea
-                  class="bt-edit"
-                  data-field="note"
-                  rows="2"
-                  placeholder="บันทึกโน้ตสำหรับทีมแอดมินเท่านั้น"><%= rec.note || '' %></textarea>
-              </div>
-            </div>
+        <% if (!list.length) { %>
+          <div class="card">
+            <p class="muted">ไม่มีรายการในหมวดนี้</p>
           </div>
-        </article>
-      <% }) %>
-    </div>
-  <% } %>
+        <% } else { %>
+
+          <div class="bt-admin-list">
+            <% list.forEach((rec) => { %>
+
+              <article
+                class="bonustime-card admin"
+                data-tenant-id="<%= rec.tenantId %>"
+                data-serial="<%= rec.serial_key || '' %>">
+
+                <!-- ========== HEADER (กดพับ/ขยาย) ========== -->
+                <header class="collapse-head">
+                  <div class="tenant">
+                    <div class="tenant-name">
+                      <%= rec.NAME || rec.name || ('Service: ' + (rec.tenantId || '-')) %>
+                    </div>
+
+                    <div class="tenant-meta small muted">
+                      Service: <span><%= rec.tenantId || '-' %></span>
+                      <% if (rec.serial_key) { %>
+                        · Serial: <span><%= rec.serial_key %></span>
+                      <% } %>
+                      <% if (rec.username) { %>
+                        · Owner: <span><%= rec.username %></span>
+                      <% } %>
+                    </div>
+                  </div>
+
+                  <div class="status-right">
+                    <% if (rec.serial_key) { %>
+                      <div class="status-pill sold">
+                        ขายไปแล้ว
+                        <% if (rec.licenseDisabled) { %>
+                          · ไม่มีวันหมดอายุ
+                        <% } else if (rec.expiresAtLabel) { %>
+                          · หมดอายุ <%= rec.expiresAtLabel %>
+                        <% } %>
+                      </div>
+
+                      <% if (!rec.licenseDisabled && rec.expiresAtInput) { %>
+                        <div class="expiry-pill" data-expiry="<%= rec.expiresAtInput %>">
+                          กำลังคำนวณ…
+                        </div>
+                      <% } %>
+
+                    <% } else { %>
+                      <div class="status-pill free">
+                        ยังไม่ขาย
+                      </div>
+                    <% } %>
+
+                    <button type="button" class="bt-delete-btn" title="ลบ Service นี้">
+                      ลบ
+                    </button>
+
+                    <div class="collapse-icon" aria-hidden="true">⌃</div>
+                  </div>
+                </header>
+
+                <!-- ========== BODY (ฟอร์มแก้ไข auto-save) ========== -->
+                <div class="collapse-body">
+                  <div class="bt-grid">
+
+                    <div class="bt-field">
+                      <label>ชื่อ Server (NAME)</label>
+                      <input
+                        class="bt-edit"
+                        data-field="NAME"
+                        type="text"
+                        value="<%= rec.NAME || '' %>">
+                    </div>
+
+                    <div class="bt-field">
+                      <label>Service</label>
+                      <input type="text" value="<%= rec.tenantId || '' %>" readonly>
+                    </div>
+
+                    <div class="bt-field">
+                      <label>Serial Key</label>
+                      <input
+                        class="bt-edit"
+                        data-field="serial_key"
+                        type="text"
+                        value="<%= rec.serial_key || '' %>">
+                    </div>
+
+                    <div class="bt-field">
+                      <label>เจ้าของ Service</label>
+                      <input
+                        type="text"
+                        value="<%= rec.username || '-' %>"
+                        readonly
+                        class="owner-readonly">
+                    </div>
+
+                    <div class="bt-field">
+                      <label>วันหมดอายุ</label>
+                      <input
+                        class="bt-edit"
+                        data-field="expiresAt"
+                        type="date"
+                        value="<%= rec.licenseDisabled ? '' : (rec.expiresAtInput || '') %>"
+                        <%= rec.licenseDisabled ? 'disabled' : '' %> >
+                    </div>
+
+                    <div class="bt-field bt-field-wide">
+                      <label>ชื่อเจ้าของ</label>
+                      <input
+                        class="bt-edit"
+                        data-field="ownerName"
+                        type="text"
+                        value="<%= rec.username || '-' %>">
+                    </div>
+
+                    <div class="bt-field bt-field-wide full-link-field">
+                      <label>ลิงก์เชื่อมต่อ (Webhook)</label>
+                      <div class="link-row full-link">
+                        <input
+                          class="bt-edit"
+                          data-field="LINK"
+                          type="text"
+                          value="<%= rec.LINK || '' %>">
+                        <button type="button" class="bt-copy-link" data-link="<%= rec.LINK || '' %>">
+                          คัดลอก
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="bt-field bt-field-wide">
+                      <label>โลโก้</label>
+                      <input class="bt-edit" data-field="LOGO" type="text" value="<%= rec.LOGO || '' %>">
+                    </div>
+
+                    <div class="bt-field">
+                      <label>ลิงก์เข้าสู่ระบบ</label>
+                      <input class="bt-edit" data-field="LOGIN_URL" type="text" value="<%= rec.LOGIN_URL || '' %>">
+                    </div>
+
+                    <div class="bt-field">
+                      <label>ลิงก์สมัครสมาชิก</label>
+                      <input class="bt-edit" data-field="SIGNUP_URL" type="text" value="<%= rec.SIGNUP_URL || '' %>">
+                    </div>
+
+                    <div class="bt-field">
+                      <label>ลิงก์ไลน์ติดต่อ</label>
+                      <input class="bt-edit" data-field="LINE_ADMIN" type="text" value="<%= rec.LINE_ADMIN || '' %>">
+                    </div>
+
+                    <div class="bt-field">
+                      <label>หวย</label>
+                      <select class="bt-edit" data-field="LOTTO_ENABLED">
+                        <option value="true" <%= rec.LOTTO_ENABLED ? 'selected' : '' %>>เปิด</option>
+                        <option value="false" <%= !rec.LOTTO_ENABLED ? 'selected' : '' %>>ปิด</option>
+                      </select>
+                    </div>
+
+                    <div class="bt-field">
+                      <label>ระบบวันหมดอายุ</label>
+                      <select class="bt-edit" data-field="LICENSE_DISABLED">
+                        <option value="false" <%= !rec.LICENSE_DISABLED ? 'selected' : '' %>>เปิด</option>
+                        <option value="true" <%= rec.LICENSE_DISABLED ? 'selected' : '' %>>ปิด</option>
+                      </select>
+                    </div>
+
+                    <div class="bt-field">
+                      <label>วันเริ่มต้นใช้งาน</label>
+                      <input class="bt-edit" data-field="LICENSE_START_DATE" type="text" value="<%= rec.LICENSE_START_DATE || '' %>">
+                    </div>
+
+                    <div class="bt-field">
+                      <label>ระยะเวลาใช้งาน (วัน)</label>
+                      <input class="bt-edit" data-field="LICENSE_DURATION_DAYS" type="number" value="<%= rec.LICENSE_DURATION_DAYS || 0 %>">
+                    </div>
+
+                    <div class="bt-field bt-field-wide">
+                      <label>CHANNEL_ACCESS_TOKEN</label>
+                      <textarea class="bt-edit" data-field="CHANNEL_ACCESS_TOKEN" rows="2"><%= rec.CHANNEL_ACCESS_TOKEN || '' %></textarea>
+                    </div>
+
+                    <div class="bt-field bt-field-wide">
+                      <label>CHANNEL_SECRET</label>
+                      <input class="bt-edit" data-field="CHANNEL_SECRET" type="text" value="<%= rec.CHANNEL_SECRET || '' %>">
+                    </div>
+
+                    <div class="bt-field bt-field-wide">
+                      <label>โน้ตภายใน</label>
+                      <textarea class="bt-edit" data-field="note" rows="2"><%= rec.note || '' %></textarea>
+                    </div>
+
+                  </div>
+                </div>
+              </article>
+
+            <% }) %>
+          </div>
+        <% } %>
+      </section>
+    <%
+      } // END function renderPackage
+    %>
+
+    <!-- เรียก render ทั้ง 2 group -->
+    <%- renderPackage("Package 1 — สล็อต + บาคาร่า", pkg1) %>
+    <%- renderPackage("Package 2 — สล็อต + บาคาร่า + หวย", pkg2) %>
+
   </section>
 
   <!-- Modal เพิ่มรายการ Bonustime -->
@@ -2221,6 +2178,42 @@ if (dailyData.length) {
   /* ถ้าตัว grid บีบอยู่ ให้บังคับให้ field เป็นบล็อกเต็มแถว */
   .bt-field {
     width: 100% !important;
+  }
+}
+
+/* Desktop — แสดงแบบเต็มแถว (Current behavior OK) */
+.full-link-field .link-row.full-link {
+  display: flex;
+  width: 100%;
+  gap: 10px;
+}
+
+.full-link-field input.bt-edit {
+  flex: 1 1 auto;
+  width: 100%;
+}
+
+.full-link-field .bt-copy-link {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 0 14px;
+}
+
+/* Mobile — ปรับกลับให้ปุ่มอยู่ข้างหลังช่องเหมือนเดิม */
+@media (max-width: 768px) {
+  .full-link-field .link-row.full-link {
+    flex-direction: row;       /* ← ใช้แถวเดียว */
+    align-items: center;
+    gap: 8px;
+  }
+
+  .full-link-field input.bt-edit {
+    flex: 1 1 auto;
+  }
+
+  .full-link-field .bt-copy-link {
+    width: auto;               /* ไม่เต็มหน้าจอ */
+    padding: 8px 12px;
   }
 }
 </style>

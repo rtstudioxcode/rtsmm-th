@@ -201,15 +201,25 @@
                   </div>
 
                   <ul class="help-steps">
-                    <li>เข้าสู่ระบบที่ <code>https://developers.line.biz</code></li>
+                    <li>
+                      เข้าสู่ระบบที่ 
+                      <a href="https://developers.line.biz" target="_blank" rel="noopener" style="
+                        /* background:#111; */
+                        padding:3px 6px;
+                        border-radius:4px;
+                        font-family: monospace;
+                        color:#4ea1ff;
+                        text-decoration: underline;
+                      ">https://developers.line.biz</a>
+                    </li>
                     <li>สร้างหรือเลือก LINE Official Account ที่ต้องการใช้กับ BOT</li>
-                    <li>ไปที่เมนู <strong>Messaging API</strong> แล้วกดสร้าง Channel</li>
-                    <li>เมื่อสร้างเสร็จ ให้คัดลอกค่า <strong>Channel secret</strong></li>
+                    <li>ไปที่เมนู <strong style="color: #eab308;">Messaging API</strong> แล้วกดสร้าง Channel</li>
+                    <li>เมื่อสร้างเสร็จ ให้คัดลอกค่า <strong style="color: #eab308;">Channel secret</strong></li>
                     <li>เลื่อนลงมาด้านล่าง คัดลอกค่า
-                      <strong>Channel access token (long-lived)</strong></li>
+                      <strong style="color: #eab308;">Channel access token (long-lived)</strong></li>
                     <li>นำ 2 ค่านี้มาใส่ในฟอร์มสั่งซื้อ/แก้ไข Bonustime ในช่อง
-                      <strong>CHANNEL_ACCESS_TOKEN</strong> และ
-                      <strong>CHANNEL_SECRET</strong></li>
+                      <strong style="color: #eab308;">CHANNEL_ACCESS_TOKEN</strong> และ
+                      <strong style="color: #eab308;">CHANNEL_SECRET</strong></li>
                   </ul>
                 </div>
               </li>
@@ -223,24 +233,30 @@
                 <div class="accordion-content">
                   <p class="mb-sm">
                     ฟอร์มสั่งซื้อจะแสดงเมื่อกดปุ่ม
-                    <strong>“สั่งซื้อแพ็กเกจนี้”</strong> โดยแต่ละช่องมีความหมายดังนี้
+                    <strong style="color: #eab308;">“สั่งซื้อแพ็กเกจนี้”</strong> โดยแต่ละช่องมีความหมายดังนี้
                   </p>
                   <ul class="help-steps">
-                    <li><strong>ชื่อเว็บ</strong> —
+                    <li><strong style="color: #eab308;">ชื่อเว็บ</strong> —
                       ชื่อหน้าร้าน/เว็บหรือเพจของคุณ ใช้แสดงในประวัติ Bonustime</li>
-                    <li><strong>CHANNEL_ACCESS_TOKEN</strong> —
+                    <li><strong style="color: #eab308;">CHANNEL_ACCESS_TOKEN</strong> —
                       ค่า token จาก LINE Developers (ตามข้อแรก)</li>
-                    <li><strong>CHANNEL_SECRET</strong> —
+                    <li><strong style="color: #eab308;">CHANNEL_SECRET</strong> —
                       ค่า secret จาก LINE Developers (ตามข้อแรก)</li>
                     <li>
-                        <strong>โลโก้ (ลิงก์รูป)</strong> —
+                        <strong style="color: #eab308;">โลโก้ (ลิงก์รูป)</strong> —
                         URL รูปโลโก้ที่จะแสดงในหน้า Flex ของลูกค้า
                         <div class="muted small mt-xs">
                           แนะนำใช้เว็บฝากรูป
-                          <a href="https://pic.in.th/?lang=th" target="_blank" rel="noopener">
-                            https://pic.in.th
+                          <a href="https://pic.in.th/?lang=th" target="_blank" rel="noopener" style="
+                            /* background:#111; */
+                            padding:3px 6px;
+                            border-radius:4px;
+                            font-family: monospace;
+                            color:#4ea1ff;
+                            text-decoration: underline;
+                            ">https://pic.in.th
                           </a>
-                          แล้วคัดลอกจาก <strong>** โดยตรง link **</strong> ของรูปมาใส่ เช่น
+                          แล้วคัดลอกจาก <strong style="color: #eab308;">** โดยตรง link **</strong> ของรูปมาใส่ เช่น
                           <code>https://img5.pic.in.th/file/secure-sv1/LOGO-RT-AUTO-BOT-3.png</code>
                         </div>
 
@@ -253,11 +269,11 @@
                           >
                         </div>
                       </li>
-                    <li><strong>ลิงก์เข้าสู่ระบบ</strong> —
+                    <li><strong style="color: #eab308;">ลิงก์เข้าสู่ระบบ</strong> —
                       ลิงก์หน้า Login ของระบบหลักคุณ</li>
-                    <li><strong>ลิงก์สมัครสมาชิก</strong> —
+                    <li><strong style="color: #eab308;">ลิงก์สมัครสมาชิก</strong> —
                       ลิงก์หน้า Register สำหรับลูกค้าใหม่</li>
-                    <li><strong>ลิงก์ไลน์ติดต่อ</strong> —
+                    <li><strong style="color: #eab308;">ลิงก์ไลน์ติดต่อ</strong> —
                       ลิงก์เพิ่มเพื่อน LINE แอดมิน เช่น
                       <code>https://line.me/R/ti/p/@xxxxxxx</code></li>
                   </ul>
@@ -277,17 +293,17 @@
                 <div class="accordion-content">
                     <p>
                         ลิงก์เชื่อมต่อคือ URL ที่ใช้เชื่อมระหว่าง
-                        <strong>เซิร์ฟเวอร์ Bonustime</strong> กับ
-                        <strong>Webhook ของคุณ</strong> ซึ่งระบบจะสร้างให้อัตโนมัติหลังสั่งซื้อ
+                        <strong style="color: #eab308;">เซิร์ฟเวอร์ Bonustime</strong> กับ
+                        <strong style="color: #eab308;">Webhook ของคุณ</strong> ซึ่งระบบจะสร้างให้อัตโนมัติหลังสั่งซื้อ
                     </p>
 
                     <ul class="help-steps">
-                        <li>สามารถดูได้ในแท็บ <strong>“ประวัติการสั่งซื้อ”</strong>
+                        <li>สามารถดูได้ในแท็บ <strong style="color: #eab308;">“ประวัติการสั่งซื้อ”</strong>
                         แถวของเซิร์ฟเวอร์ที่ต้องการ</li>
-                        <li>กดปุ่ม <strong>“คัดลอก”</strong>
+                        <li>กดปุ่ม <strong style="color: #eab308;">“คัดลอก”</strong>
                         เพื่อนำลิงก์ไปวางในหน้า Webhook ของ LINE Developers</li>
-                        <li>ในหน้า Messaging API ให้ตั้งค่า <strong>Webhook URL</strong>
-                        เป็นลิงก์เชื่อมต่อนี้ แล้วกด <strong>Verify</strong></li>
+                        <li>ในหน้า Messaging API ให้ตั้งค่า <strong style="color: #eab308;">Webhook URL</strong>
+                        เป็นลิงก์เชื่อมต่อนี้ แล้วกด <strong style="color: #eab308;">Verify</strong></li>
                         <li>เมื่อขึ้นสถานะ Success แสดงว่า BOT สามารถรับข้อความจากลูกค้าได้แล้ว</li>
                     </ul>
 
@@ -302,29 +318,34 @@
                             title="Webhook PDF preview"
                         ></iframe>
                         </div>
-                        <a class="link-soft small" href="/static/bonustime/webhook.pdf"
-                        target="_blank" rel="noopener">
-                        เปิดคู่มือ PDF แบบเต็มหน้าจอ
+                        <a href="/static/bonustime/webhook.pdf" target="_blank" rel="noopener" style="
+                          /* background:#111; */
+                          padding:3px 6px;
+                          border-radius:4px;
+                          font-family: monospace;
+                          color:#4ea1ff;
+                          text-decoration: underline;
+                          ">เปิดคู่มือแบบเต็มหน้าจอ
                         </a>
                     </div>
 
                     <!-- ขั้นตอนตั้งค่า Rich Menu ให้เรียกคำสั่ง Bonustime -->
-                    <h4 class="mt-sm" style="font-size:14px; font-weight:600;">
+                    <h4 class="mt-sm" style="font-size:14px; font-weight:400;">
                         🧩 ขั้นตอนตั้งค่า Rich Menu ให้เรียกคำสั่ง Bonustime
                     </h4>
                     <ul class="help-steps">
-                        <li>เข้าสู่ระบบ <strong>LINE Official Admin</strong> ของบัญชีที่ใช้กับ BOT</li>
-                        <li>ไปที่เมนู <strong>ริชเมนู</strong> แล้วสร้างริชเมนูใหม่
+                        <li>เข้าสู่ระบบ <strong style="color: #eab308;">LINE Official Admin</strong> ของบัญชีที่ใช้กับ BOT</li>
+                        <li>ไปที่เมนู <strong style="color: #eab308;">ริชเมนู</strong> แล้วสร้างริชเมนูใหม่
                         หรือเลือกริชเมนูที่ต้องการแก้ไข</li>
                         <li>กำหนดตำแหน่งปุ่มในริชเมนู (เช่น ปุ่ม BONUSTIME / FOOTBALL / LOTTO)</li>
                         <li>ที่การตั้งค่าการทำงานของปุ่ม ให้เลือกแบบ
-                        <strong>“ส่งข้อความแชท”</strong> (Text)</li>
-                        <li>ในช่องข้อความ ให้ใส่ <strong>KEYWORD</strong>
+                        <strong style="color: #eab308;">“ส่งข้อความแชท”</strong> (Text)</li>
+                        <li>ในช่องข้อความ ให้ใส่ <strong style="color: #eab308;">KEYWORD</strong>
                         เช่น <code>/โบนัสไทม์</code>,
                         <code>/แนวทางหวย</code> เป็นต้น</li>
-                        <li>หากซื้อ Packgage1 ใส่แค่<strong>/โบนัสไทม์</strong></li>
-                        <li>หากซื้อ Packgage2 ใส่ทั้ง <strong>/โบนัสไทม์</strong> และ <strong>/แนวทางหวย</strong></li>
-                        <li>กด <strong>บันทึก</strong> และเผยแพร่ริชเมนู เมื่อผู้ใช้กดปุ่ม
+                        <li>หากซื้อ Packgage1 ใส่แค่<strong style="color: #eab308;">/โบนัสไทม์</strong></li>
+                        <li>หากซื้อ Packgage2 ใส่ทั้ง <strong style="color: #eab308;">/โบนัสไทม์</strong> และ <strong style="color: #eab308;">/แนวทางหวย</strong></li>
+                        <li>กด <strong style="color: #eab308;">บันทึก</strong> และเผยแพร่ริชเมนู เมื่อผู้ใช้กดปุ่ม
                         ระบบจะส่งข้อความ KEYWORD นั้นไปที่ BOT และ BOT จะตอบกลับตามที่ตั้งค่าไว้</li>
                     </ul>
 
@@ -339,9 +360,14 @@
                             title="Rich Menu PDF preview"
                         ></iframe>
                         </div>
-                        <a class="link-soft small" href="/static/bonustime/rich.pdf"
-                        target="_blank" rel="noopener">
-                        เปิดคู่มือริชเมนูแบบเต็มหน้าจอ
+                        <a href="/static/bonustime/rich.pdf" target="_blank" rel="noopener" style="
+                          /* background:#111; */
+                          padding:3px 6px;
+                          border-radius:4px;
+                          font-family: monospace;
+                          color:#4ea1ff;
+                          text-decoration: underline;
+                          ">เปิดคู่มือแบบเต็มหน้าจอ
                         </a>
                     </div>
                 </div>
@@ -355,13 +381,13 @@
                 </div>
                 <div class="accordion-content">
                   <ul class="help-steps">
-                    <li>ไปที่แท็บ <strong>“ประวัติการสั่งซื้อ”</strong>
+                    <li>ไปที่แท็บ <strong style="color: #eab308;">“ประวัติการสั่งซื้อ”</strong>
                       และเลือกเซิร์ฟเวอร์ที่ต้องการต่ออายุ</li>
-                    <li>กดปุ่ม <strong>“ต่ออายุการใช้งาน”</strong>
+                    <li>กดปุ่ม <strong style="color: #eab308;">“ต่ออายุการใช้งาน”</strong>
                       ระบบจะแสดงตัวเลือกแพ็กเกจตามเวลาที่ต้องการ</li>
                     <li>เลือกจำนวนวันและยืนยัน ระบบจะต่ออายุให้อัตโนมัติ</li>
                     <li>ถ้าต้องการเพิ่มฟีเจอร์หวย กดปุ่ม
-                      <strong>“อัปเกรดเพิ่มหวย +฿1,000”</strong>
+                      <strong style="color: #eab308;">“อัปเกรดเพิ่มหวย +฿1,000”</strong>
                       (ถ้ายังไม่เปิดใช้)</li>
                   </ul>
                   <p class="muted small">
@@ -379,22 +405,22 @@
                 </div>
                 <div class="accordion-content">
                   <p>
-                    ระบบแนะนำเพื่อนของ <strong>Bonustime</strong>
+                    ระบบแนะนำเพื่อนของ <strong style="color: #eab308;">Bonustime</strong>
                     จะให้คุณสร้างลิงก์ส่วนตัว เพื่อส่งให้เพื่อนหรือคนรู้จักสมัครใช้งาน
                     และรับค่าตอบแทนเมื่อมีการซื้อแพ็กเกจหรือต่ออายุ
                   </p>
                   <ul class="help-steps">
-                    <li>ไปที่เมนู <strong>ข้อมูลผู้ใช้งาน</strong> จากนั้นเลือก
-                      <strong>ข้อมูลส่วนตัว</strong></li>
-                    <li>กดไปที่แท็บ <strong>“แนะนำเพื่อน”</strong></li>
-                    <li>กดปุ่ม <strong>สร้างลิงก์</strong> แล้วนำลิงก์ที่ได้
+                    <li>ไปที่เมนู <strong style="color: #eab308;">ข้อมูลผู้ใช้งาน</strong> จากนั้นเลือก
+                      <strong style="color: #eab308;">ข้อมูลส่วนตัว</strong></li>
+                    <li>กดไปที่แท็บ <strong style="color: #eab308;">“แนะนำเพื่อน”</strong></li>
+                    <li>กดปุ่ม <strong style="color: #eab308;">สร้างลิงก์</strong> แล้วนำลิงก์ที่ได้
                       ส่งให้เพื่อนหรือคนรู้จักสมัครผ่านลิงก์ของคุณ</li>
                     <li>คุณจะได้รับเงินก็ต่อเมื่อเพื่อนที่คุณแนะนำ
-                      <strong>ซื้อแพ็กเกจ</strong> หรือ <strong>ต่ออายุ</strong> ระบบ Bonustime</li>
-                    <li>เมื่อเพื่อนของคุณ <strong>ซื้อแพ็กเกจครั้งแรก</strong>
-                      คุณจะได้รับเงิน <strong>500 บาท</strong></li>
-                    <li>เมื่อเพื่อนของคุณ <strong>ต่ออายุแพ็กเกจ</strong>
-                      คุณจะได้รับเงิน <strong>200 บาท</strong> ต่อการต่ออายุ 1 ครั้ง</li>
+                      <strong style="color: #eab308;">ซื้อแพ็กเกจ</strong> หรือ <strong style="color: #eab308;">ต่ออายุ</strong> ระบบ Bonustime</li>
+                    <li>เมื่อเพื่อนของคุณ <strong style="color: #eab308;">ซื้อแพ็กเกจครั้งแรก</strong>
+                      คุณจะได้รับเงิน <strong style="color: #eab308;">500 บาท</strong></li>
+                    <li>เมื่อเพื่อนของคุณ <strong style="color: #eab308;">ต่ออายุแพ็กเกจ</strong>
+                      คุณจะได้รับเงิน <strong style="color: #eab308;">200 บาท</strong> ต่อการต่ออายุ 1 ครั้ง</li>
                   </ul>
 
                   <div class="bt-help-img mt-sm">
@@ -422,7 +448,7 @@
       <div class="toast-badge" aria-hidden="true">⚠️</div>
       <div class="toast-headtxt">
         <h3 class="toast-title" id="btNoticeTitle">แจ้งเตือน</h3>
-        <div class="muted" style="font-weight:400;font-size:13px">โปรดอ่านข้อมูลต่อไปนี้ก่อนใช้บริการ Bonustime</div>
+        <div class="muted" style="font-weight:500;font-size:13px">โปรดอ่านข้อมูลต่อไปนี้ก่อนใช้บริการ Bonustime</div>
       </div>
     </div>
 
@@ -1627,7 +1653,7 @@ document.getElementById("imgPreviewModal").addEventListener("click", function ()
 /* สถานะ active */
 .bt-tab.active {
   color: var(--accent, #facc15);
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .bt-tab.active::after {
@@ -1657,7 +1683,7 @@ document.getElementById("imgPreviewModal").addEventListener("click", function ()
   padding-bottom: 6px;
 }
 .bonustime-card .tenant {
-  font-weight: 500;
+  font-weight: 400;
   font-size: 15px;
   align-items: start;
 }
@@ -1691,7 +1717,7 @@ document.getElementById("imgPreviewModal").addEventListener("click", function ()
 }
 
 .bt-label {
-  font-weight: 500;
+  font-weight: 400;
   color: var(--muted);
 }
 
@@ -1741,7 +1767,7 @@ document.getElementById("imgPreviewModal").addEventListener("click", function ()
   background: linear-gradient(135deg, #eab308, #facc15);
   color: #111827 !important;          /* ตัวหนังสือเข้มอ่านง่าย */
   text-shadow: 0 0 2px rgba(255,255,255,0.4);
-  font-weight: 500;
+  font-weight: 400;
 }
 .bt-btn.primary:hover {
   background: linear-gradient(135deg, #facc15, #fde047);
@@ -1765,7 +1791,7 @@ document.getElementById("imgPreviewModal").addEventListener("click", function ()
   background: linear-gradient(135deg, #f97316, #fbbf24);
   color: #111827 !important;          /* ใช้ตัวหนังสือเข้มเหมือนปุ่มเหลือง */
   text-shadow: 0 0 2px rgba(255,255,255,0.4);
-  font-weight: 600;
+  font-weight: 400;
 }
 .bt-btn.warn:hover {
   background: linear-gradient(135deg, #fb923c, #fde68a);
@@ -1846,7 +1872,7 @@ document.getElementById("imgPreviewModal").addEventListener("click", function ()
 }
 
 .pkg-title {
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .pkg-remaining {
@@ -1877,7 +1903,7 @@ document.getElementById("imgPreviewModal").addEventListener("click", function ()
 
 .pkg-price {
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--accent, #63cff0);
 }
 
@@ -1957,7 +1983,7 @@ document.getElementById("imgPreviewModal").addEventListener("click", function ()
 .bt-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   margin-top: 10px;
 }
 
@@ -2035,7 +2061,7 @@ document.getElementById("imgPreviewModal").addEventListener("click", function ()
 
 .bt-plan-price {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 /* hover / checked */
@@ -2194,7 +2220,7 @@ document.getElementById("imgPreviewModal").addEventListener("click", function ()
 
 .bt-help-title {
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 400;
   margin-bottom: 4px;
 }
 
@@ -2240,7 +2266,7 @@ document.getElementById("imgPreviewModal").addEventListener("click", function ()
   gap: .6rem;
   padding: 14px 16px;
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 400;
   font-size: 15px;
   color: var(--text);
   background: rgba(34, 197, 94, 0.08);
@@ -2402,7 +2428,7 @@ document.getElementById("imgPreviewModal").addEventListener("click", function ()
   color: var(--accent, #facc15);
   cursor: pointer;
   text-decoration: none;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .bt-inline-link:hover {
@@ -2461,7 +2487,7 @@ document.getElementById("imgPreviewModal").addEventListener("click", function ()
   padding: 4px 10px;
   border-radius: 999px;
   white-space: nowrap;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 /* > 15 วัน → เขียว */
@@ -2490,6 +2516,61 @@ document.getElementById("imgPreviewModal").addEventListener("click", function ()
   border: 1px solid #ef4444;
   background: rgba(239, 68, 68, 0.26);
   color: #fee2e2;
+}
+
+/* =============== BONUSTIME MOBILE FIX =============== */
+
+/* ป้องกันข้อความยาวล้นกล่อง */
+.bonustime-card .bt-value,
+.bonustime-card .bt-value span,
+.bonustime-card .bt-value a {
+  word-break: break-all;
+  overflow-wrap: break-word;
+}
+
+/* Layout เดิมสำหรับ desktop = 2 columns */
+.bonustime-card .bt-grid {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 3px 25px;
+}
+
+/* ---------- MOBILE MODE ---------- */
+@media (max-width: 768px) {
+
+  /* 1 คอลัมน์: label บน / value ล่าง */
+  .bonustime-card .bt-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bonustime-card .bt-label {
+    font-weight: 400;
+    margin-top: 12px;
+  }
+
+  .bonustime-card .bt-value {
+    margin-bottom: 4px;
+  }
+
+  /* ช่องลิงก์ ปุ่มคัดลอก ให้อยู่บรรทัดเดียวกันแบบ flex */
+  .bonustime-card .link-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .bonustime-card .copy-link-btn {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* countdown + status pill */
+  .bonustime-card .bt-status-wrap {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
 }
 </style>
 
