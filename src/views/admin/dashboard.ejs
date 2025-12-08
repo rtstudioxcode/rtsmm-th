@@ -196,23 +196,17 @@
 
           <!-- ข้อมูลผู้โอน -->
           <td>
-            <% if (method === 'truewallet' || method === 'tw') { %>
-              <!-- <img src="/static/assets/payment/tw.webp" class="bank-logo" />
-              <div><b>TrueWallet</b></div> -->
+            <div class="user-inline">
               <img
-                    class="avatar-sm"
-                    src="<%= (tx.user?.avatarUrl || '/static/assets/img/user-blue.png') %>?v=<%= tx.user?.avatarVer || 0 %>"
-                    alt="<%= tx.user?.username || tx.username || 'user' %>" width="28" height="28" loading="lazy"/>
-              <div class="muted">ยูสเซอร์: <%= tx.user?.username || '-' %></div>
-            <% } else { %>
-              <!-- <img src="/static/assets/payment/mobilebanking.png" class="bank-logo" />
-              <div><b><%= BANK_LABELS[tx.senderBank] || 'ไม่ระบุธนาคาร' %></b></div> -->
-              <img
-                    class="avatar-sm"
-                    src="<%= (tx.user?.avatarUrl || '/static/assets/img/user-blue.png') %>?v=<%= tx.userId?.avatarVer || 0 %>"
-                    alt="<%= tx.user?.username || tx.username || 'user' %>" width="28" height="28" loading="lazy"/>
-              <div class="muted">ยูสเซอร์: <%= tx.user?.username || '-' %></div>
-            <% } %>
+                class="avatar-sm"
+                src="<%= (tx.userId?.avatarUrl || '/static/assets/img/user-blue.png') %>?v=<%= tx.userId?.avatarVer || 0 %>"
+                alt="<%= tx.userId?.username || tx.username || 'user' %>"
+                width="28"
+                height="28"
+                loading="lazy"
+              />
+              <span class="muted username-text">ยูสเซอร์: <%= tx.user?.username || '-' %></span>
+            </div>
           </td>
 
           <!-- ข้อมูลผู้รับ -->
@@ -294,23 +288,17 @@
         <div class="tx-row">
           <div class="tx-label">ยูสเซอร์</div>
           <div class="tx-value">
-            <% if (method === 'truewallet' || method === 'tw') { %>
-              <!-- <img src="/static/assets/payment/tw.webp" class="bank-logo" alt="">
-              <b>TrueWallet</b><br> -->
+            <div class="user-inline">
               <img
-                    class="avatar-sm"
-                    src="<%= (tx.user?.avatarUrl || '/static/assets/img/user-blue.png') %>?v=<%= tx.user?.avatarVer || 0 %>"
-                    alt="<%= tx.user?.username || tx.username || 'user' %>" width="28" height="28" loading="lazy"/>
-              <span class="muted">ยูสเซอร์: <%= tx.user?.username || '-' %></span>
-            <% } else { %>
-              <!-- <img src="/static/assets/payment/<%= tx.senderBank %>.webp" class="bank-logo" alt="">
-              <b><%= BANK_LABELS[tx.senderBank] || 'ไม่ระบุธนาคาร' %></b><br> -->
-              <img
-                    class="avatar-sm"
-                    src="<%= (tx.user?.avatarUrl || '/static/assets/img/user-blue.png') %>?v=<%= tx.user?.avatarVer || 0 %>"
-                    alt="<%= tx.user?.username || tx.username || 'user' %>" width="28" height="28" loading="lazy"/>
-              <span class="muted">ยูสเซอร์: <%= tx.user?.username || '-' %></span>
-            <% } %>
+                class="avatar-sm"
+                src="<%= (tx.userId?.avatarUrl || '/static/assets/img/user-blue.png') %>?v=<%= tx.userId?.avatarVer || 0 %>"
+                alt="<%= tx.userId?.username || tx.username || 'user' %>"
+                width="28"
+                height="28"
+                loading="lazy"
+              />
+              <span class="muted username-text">ยูสเซอร์: <%= tx.user?.username || '-' %></span>
+            </div>
           </div>
         </div>
 
@@ -1472,5 +1460,25 @@ html[data-theme="light"] .metric-badge{
 /* light theme tune */
 html[data-theme="light"] .avatar-sm{
   border-color:#e5e7eb; background:#fff;
+}
+
+.user-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.user-inline .username-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px; /* กันชื่อยาวเกินสำหรับมือถือ */
+}
+
+@media (min-width: 768px) {
+  .user-inline .username-text {
+    max-width: 260px; /* เดสก์ท็อปกว้างขึ้น */
+  }
 }
 </style>

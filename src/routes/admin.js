@@ -173,7 +173,7 @@ function normalizeAndValidateAccount(row) {
 // Dashboard
 router.get("/", async (req, res) => {
   try {
-    // 🟣 Get provider settings
+    // 🟣 Provider settings
     let ps = await ProviderSettings.findOne();
     if (!ps) ps = new ProviderSettings();
 
@@ -185,66 +185,89 @@ router.get("/", async (req, res) => {
 
     const userCount = await User.countDocuments({});
 
-    // 🟢 ดึงรายการเติมเงินที่รอ
+    // 🟢 ดึงรายการเติมเงิน pending + populate avatar
     const pendingTransactions = await Transaction.find({ status: "pending" })
       .sort({ createdAt: -1 })
       .limit(100)
-      // populate ไว้ก่อน เผื่อมี userId พร้อม
-      .populate({ path: 'userId', select: 'username' })
+      .populate({
+        path: "userId",
+        select: "username avatarUrl avatarVer email"
+      })
       .lean();
 
-    // 👉 สร้างแผนที่ userId -> username (กันกรณี populate ไม่ครบ)
-    const uidList = [...new Set(
-      pendingTransactions
-        .map(tx => (tx.userId?._id || tx.userId))  // ทั้งกรณีเป็น obj หรือ id
-        .filter(Boolean)
-        .map(String)
-    )];
+    // 👉 สร้าง userMap ป้องกัน populate ไม่ครบ
+    const uidList = [
+      ...new Set(
+        pendingTransactions
+          .map(tx => (tx.userId?._id || tx.userId))
+          .filter(Boolean)
+          .map(String)
+      ),
+    ];
 
     let userMap = {};
     if (uidList.length) {
       const users = await User.find(
         { _id: { $in: uidList } },
-        { username: 1 }
+        { username: 1, avatarUrl: 1, avatarVer: 1, email: 1 }
       ).lean();
-      userMap = Object.fromEntries(users.map(u => [String(u._id), u.username]));
+
+      userMap = Object.fromEntries(
+        users.map(u => [
+          String(u._id),
+          {
+            username: u.username,
+            avatarUrl: u.avatarUrl,
+            avatarVer: u.avatarVer,
+            email: u.email
+          }
+        ])
+      );
     }
 
-    // 🧩 เย็บ username + จัด method ให้พร้อมใช้
+    // 🧩 เย็บข้อมูลใส่ tx.user ให้สมบูรณ์
     for (const tx of pendingTransactions) {
-      const idStr = String(tx.userId?._id || tx.userId || '');
-      const unameFromPopulate = tx.userId && typeof tx.userId === 'object' ? tx.userId.username : null;
+      const idStr = String(tx.userId?._id || tx.userId || "");
+      const popUser = typeof tx.userId === "object" ? tx.userId : null;
+      const mapUser = userMap[idStr] || null;
 
-      // สร้างฟิลด์ user ให้มี username เสมอ (ฝั่ง EJS ใช้ tx.user.username ได้ตรงๆ)
-      tx.user = tx.user || {};
-      tx.user.username = unameFromPopulate || userMap[idStr] || tx.user?.username || null;
+      // สร้างฟิลด์ user ให้สมบูรณ์ที่สุด
+      tx.user = {
+        username:
+          popUser?.username || mapUser?.username || tx.user?.username || null,
+        avatarUrl:
+          popUser?.avatarUrl || mapUser?.avatarUrl || "/static/assets/img/user-blue.png",
+        avatarVer:
+          popUser?.avatarVer || mapUser?.avatarVer || 0,
+        email:
+          popUser?.email || mapUser?.email || null
+      };
 
-      // เก็บ method ให้เป็น lower-case ใช้งานง่าย
-      tx.method = String(tx.method || '').toLowerCase();
+      tx.method = String(tx.method || "").toLowerCase();
     }
 
-    // 🟩 กระเป๋ารับเงินทั้งหมด (สำหรับแม็ปฝั่ง UI)
+    // 🟩 wallets
     const webWallets = await Topup.find({ isActive: true }).lean();
 
-    const otp24Doc = await Otp24Setting.findOne({ name: 'otp24' }).lean();
+    // OTP24 info
+    const otp24Doc = await Otp24Setting.findOne({ name: "otp24" }).lean();
     const {
       lastBalance: otp24Bal = 0,
-      lastSyncAt:  otp24LastSyncAt = null,
-      lastSyncError: otp24LastError = ''
+      lastSyncAt: otp24LastSyncAt = null,
+      lastSyncError: otp24LastError = ""
     } = otp24Doc || {};
 
-    // จำนวนสินค้า OTP24 ปัจจุบัน
-    const otp24ProductsTotal = await Otp24Product.countDocuments({ provider: 'otp24' });
-
-    // ✅ นับออเดอร์ OTP24 ที่ success เท่านั้น
-    const otp24SuccessCount = await Otp24Order.countDocuments({
-      status: /^success$/i   // กันเคสตัวพิมพ์เล็ก/ใหญ่
+    const otp24ProductsTotal = await Otp24Product.countDocuments({
+      provider: "otp24"
     });
 
-    // ✅ รวมยอดขายทั้งหมด (SMM + OTP24 success)
+    const otp24SuccessCount = await Otp24Order.countDocuments({
+      status: /^success$/i
+    });
+
     const totalSoldCount = (orderCount || 0) + (otp24SuccessCount || 0);
 
-    // ✅ Render admin dashboard
+    // 🎯 Render
     res.render("admin/dashboard", {
       title: "หลังบ้าน",
       balance: ps.lastBalance || 0,
@@ -252,20 +275,19 @@ router.get("/", async (req, res) => {
       lastSyncAt: ps.lastSyncAt || null,
       transactions: pendingTransactions,
       webWallets,
-      stats: { 
+      stats: {
         orderCount,
         userCount,
         otp24SuccessCount,
         totalSoldCount
       },
-      // OTP24
       otp24Bal,
       otp24LastSyncAt,
       otp24LastError,
-      
       otp24ProductsTotal,
-      otp24ProductsLastSyncAt: otp24Doc?.productsLastSyncAt ?? null,
+      otp24ProductsLastSyncAt: otp24Doc?.productsLastSyncAt ?? null
     });
+
   } catch (err) {
     console.error("Dashboard error:", err);
     res.status(500).send("เกิดข้อผิดพลาดในระบบ");
