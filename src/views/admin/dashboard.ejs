@@ -196,15 +196,15 @@
 
           <!-- ข้อมูลผู้โอน -->
           <td>
-            <!-- <% if (method === 'truewallet' || method === 'tw') { %>
-              <img src="/static/assets/payment/tw.webp" class="bank-logo" />
-              <div><b>TrueWallet</b></div>
-              <div class="muted">ยูสเซอร์: <%= tx.userId?._id || '-' %></div>
+            <% if (method === 'truewallet' || method === 'tw') { %>
+              <!-- <img src="/static/assets/payment/tw.webp" class="bank-logo" />
+              <div><b>TrueWallet</b></div> -->
+              <div class="muted">ยูสเซอร์: <%= tx.user?.username || '-' %></div>
             <% } else { %>
-              <img src="/static/assets/payment/mobilebanking.png" class="bank-logo" />
+              <!-- <img src="/static/assets/payment/mobilebanking.png" class="bank-logo" />
               <div><b><%= BANK_LABELS[tx.senderBank] || 'ไม่ระบุธนาคาร' %></b></div> -->
               <div class="muted">ยูสเซอร์: <%= tx.user?.username || '-' %></div>
-            <!-- <% } %> -->
+            <% } %>
           </td>
 
           <!-- ข้อมูลผู้รับ -->
@@ -286,15 +286,15 @@
         <div class="tx-row">
           <div class="tx-label">ยูสเซอร์</div>
           <div class="tx-value">
-            <!-- <% if (method === 'truewallet' || method === 'tw') { %>
-              <img src="/static/assets/payment/tw.webp" class="bank-logo" alt="">
-              <b>TrueWallet</b><br>
-              <span class="muted">ยูสเซอร์: <%= tx.userId?._id || '-' %></span>
+            <% if (method === 'truewallet' || method === 'tw') { %>
+              <!-- <img src="/static/assets/payment/tw.webp" class="bank-logo" alt="">
+              <b>TrueWallet</b><br> -->
+              <span class="muted">ยูสเซอร์: <%= tx.user?.username || '-' %></span>
             <% } else { %>
-              <img src="/static/assets/payment/<%= tx.senderBank %>.webp" class="bank-logo" alt="">
+              <!-- <img src="/static/assets/payment/<%= tx.senderBank %>.webp" class="bank-logo" alt="">
               <b><%= BANK_LABELS[tx.senderBank] || 'ไม่ระบุธนาคาร' %></b><br> -->
               <span class="muted">ยูสเซอร์: <%= tx.user?.username || '-' %></span>
-            <!-- <% } %> -->
+            <% } %>
           </div>
         </div>
 
