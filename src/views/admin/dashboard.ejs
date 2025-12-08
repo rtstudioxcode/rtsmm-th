@@ -201,16 +201,16 @@
               <div><b>TrueWallet</b></div> -->
               <img
                     class="avatar-sm"
-                    src="<%= (tx.userId?.avatarUrl || '/static/assets/img/user-blue.png') %>?v=<%= tx.userId?.avatarVer || 0 %>"
-                    alt="<%= tx.userId?.username || tx.username || 'user' %>" width="28" height="28" loading="lazy"/>
+                    src="<%= (tx.user?.avatarUrl || '/static/assets/img/user-blue.png') %>?v=<%= tx.user?.avatarVer || 0 %>"
+                    alt="<%= tx.user?.username || tx.username || 'user' %>" width="28" height="28" loading="lazy"/>
               <div class="muted">ยูสเซอร์: <%= tx.user?.username || '-' %></div>
             <% } else { %>
               <!-- <img src="/static/assets/payment/mobilebanking.png" class="bank-logo" />
               <div><b><%= BANK_LABELS[tx.senderBank] || 'ไม่ระบุธนาคาร' %></b></div> -->
               <img
                     class="avatar-sm"
-                    src="<%= (tx.userId?.avatarUrl || '/static/assets/img/user-blue.png') %>?v=<%= tx.userId?.avatarVer || 0 %>"
-                    alt="<%= tx.userId?.username || tx.username || 'user' %>" width="28" height="28" loading="lazy"/>
+                    src="<%= (tx.user?.avatarUrl || '/static/assets/img/user-blue.png') %>?v=<%= tx.userId?.avatarVer || 0 %>"
+                    alt="<%= tx.user?.username || tx.username || 'user' %>" width="28" height="28" loading="lazy"/>
               <div class="muted">ยูสเซอร์: <%= tx.user?.username || '-' %></div>
             <% } %>
           </td>
@@ -299,16 +299,16 @@
               <b>TrueWallet</b><br> -->
               <img
                     class="avatar-sm"
-                    src="<%= (tx.userId?.avatarUrl || '/static/assets/img/user-blue.png') %>?v=<%= tx.userId?.avatarVer || 0 %>"
-                    alt="<%= tx.userId?.username || tx.username || 'user' %>" width="28" height="28" loading="lazy"/>
+                    src="<%= (tx.user?.avatarUrl || '/static/assets/img/user-blue.png') %>?v=<%= tx.user?.avatarVer || 0 %>"
+                    alt="<%= tx.user?.username || tx.username || 'user' %>" width="28" height="28" loading="lazy"/>
               <span class="muted">ยูสเซอร์: <%= tx.user?.username || '-' %></span>
             <% } else { %>
               <!-- <img src="/static/assets/payment/<%= tx.senderBank %>.webp" class="bank-logo" alt="">
               <b><%= BANK_LABELS[tx.senderBank] || 'ไม่ระบุธนาคาร' %></b><br> -->
               <img
                     class="avatar-sm"
-                    src="<%= (tx.userId?.avatarUrl || '/static/assets/img/user-blue.png') %>?v=<%= tx.userId?.avatarVer || 0 %>"
-                    alt="<%= tx.userId?.username || tx.username || 'user' %>" width="28" height="28" loading="lazy"/>
+                    src="<%= (tx.user?.avatarUrl || '/static/assets/img/user-blue.png') %>?v=<%= tx.user?.avatarVer || 0 %>"
+                    alt="<%= tx.user?.username || tx.username || 'user' %>" width="28" height="28" loading="lazy"/>
               <span class="muted">ยูสเซอร์: <%= tx.user?.username || '-' %></span>
             <% } %>
           </div>
