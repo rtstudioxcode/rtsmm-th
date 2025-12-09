@@ -236,6 +236,10 @@ const HAS_OTP = (v) => {
               <button class="toggle" aria-label="toggle" type="button">+</button>
           </div>
           <div class="row2">
+            <div class="appmobile">
+              แอป: <span class="v"><%= o.appName || '—' %></span>
+            </div>
+
             <div class="phone mono">
               เบอร์: <span class="v"><%= phoneStr %></span>
               <% if (o.phone) { %>
@@ -1410,6 +1414,7 @@ window.addEventListener('resize', () => {
 .flag{ display:inline-grid; place-items:center; width:28px; height:28px; border-radius:6px; }
 .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 .otp b{ font-weight:500; color: #f7d438;}
+.appmobile{ color: #48f738d3; }
 .copy{ border:none; background:transparent; cursor:pointer; margin-left:6px; }
 .pill{ display:inline-block; padding:6px 12px; border-radius:999px; font-weight:400; }
 .pill.success{ background:#16a34a22; color:#34d399; }
