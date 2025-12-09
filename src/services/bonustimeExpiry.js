@@ -190,12 +190,12 @@ export async function checkAndSendBonustimeExpiryMails(opts = {}) {
            style="display:inline-block;padding:12px 32px;border-radius:999px;
                   background:#facc15;color:#000;font-weight:600;font-size:14px;
                   text-decoration:none;">
-          ต่ออายุเซิร์ฟ Bonustime
+          ต่ออายุ Service (${serviceName})
         </a>
       </div>
 
       <p style="margin:0 0 8px;font-size:13px;color:#9ca3af;line-height:1.6;">
-        เมื่อต้องการต่ออายุ ให้คลิกปุ่ม <strong>“ต่ออายุเซิร์ฟ Bonustime”</strong> ระบบจะพาคุณไปยังหน้า
+        เมื่อต้องการต่ออายุ ให้คลิกปุ่ม <strong>“ต่ออายุ Service (${serviceName})”</strong> ระบบจะพาคุณไปยังหน้า
         <strong>Bonustime &gt; ประวัติการสั่งซื้อ</strong> ในเว็บ RTSMM-TH แล้วเปิดหน้าต่าง
         <strong>“ต่ออายุการใช้งาน”</strong> ของ Service นี้ให้อัตโนมัติ
       </p>
