@@ -1,0 +1,1283 @@
+<% const PAGE_TITLE = "Telegram — รวมบอท"; %>
+
+<section class="page telegram-page" style="padding:0; width: 100%;">
+
+  <!-- ====================== PAGE HEADER ====================== -->
+  <div class="page-head" style="padding:22px 20px 10px; width: 100%">
+    <div class="page-title">
+      <h1><%= PAGE_TITLE %></h1>
+      <small class="muted">เครื่องมือ → <%= PAGE_TITLE %></small>
+    </div>
+  </div>
+
+  <!-- ====================== TABS ====================== -->
+  <div class="tabs" id="tgTabs" style="padding:0 25px; width: 100%;">
+    <button class="tab active" data-tab="accounts">
+      ตั้งค่าบัญชี
+    </button>
+    <button class="tab" data-tab="pull">
+      ดึงสมาชิก
+    </button>
+    <button class="tab" data-tab="history">
+      ประวัติการดึง
+    </button>
+  </div>
+
+  <!-- ========== TAB 1: ACCOUNTS (ตั้งค่าบัญชีเทเลแกรม) ========== -->
+  <section id="tab-accounts" class="tabpane show">
+    <section class="card" style="padding:18px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <div class="title">
+                บัญชี Telegram ของคุณ <span id="tgAccCount">(โหลดข้อมูล...)</span>
+            </div>
+
+            <button id="btnAddTgAcc" class="btn gold" style="padding:6px 14px; font-size:13px;">
+                ➕ เพิ่มบัญชี Telegram
+            </button>
+        </div>
+        <!-- รายการบัญชี -->
+        <div id="tgAccList" class="tg-acc-list">
+            <!-- JS จะเติมข้อมูลลงตรงนี้ -->
+        </div>
+    </section>
+
+    <!-- ───────────── วิธีเพิ่มบัญชี Telegram ───────────── -->
+    <section class="card howto-add-telegram" style="margin-top:22px; padding:20px 20px 26px;">
+
+    <h3 class="title" style="margin-bottom:14px;">วิธีเพิ่มบัญชี Telegram (แบบละเอียด)</h3>
+
+    <ol style="list-style:none; padding-left:0; margin:0;">
+        
+        <!-- STEP 1 -->
+        <li style="margin-bottom:18px; display:flex; gap:12px; align-items:flex-start;">
+        <div class="step-circle">1</div>
+        <div>
+            เข้าเว็บไซต์สำหรับสร้าง <b style="color:#e3b863;">APP_ID</b> และ <b style="color:#e3b863;">API_HASH</b>  
+            <br>
+            <a href="https://my.telegram.org/auth" target="_blank" rel="noopener" style="
+                /* background:#111; */
+                padding:3px 6px;
+                border-radius:4px;
+                font-family: monospace;
+                color:#4ea1ff;
+                text-decoration: underline;
+                ">https://my.telegram.org/auth
+            </a>
+        </div>
+        </li>
+
+        <!-- STEP 2 -->
+        <li style="margin-bottom:18px; display:flex; gap:12px; align-items:flex-start;">
+        <div class="step-circle">2</div>
+        <div>
+            ล็อกอินด้วยเบอร์โทรของคุณ (Telegram จะส่งรหัส OTP ให้ในแอป)
+        </div>
+        </li>
+
+        <!-- STEP 3 -->
+        <li style="margin-bottom:18px; display:flex; gap:12px; align-items:flex-start;">
+        <div class="step-circle">3</div>
+        <div>
+            เลือกเมนู <b style="color:#e3b863;">API Development Tools</b>
+        </div>
+        </li>
+
+        <!-- STEP 4 -->
+        <li style="margin-bottom:18px; display:flex; gap:12px; align-items:flex-start;">
+        <div class="step-circle">4</div>
+        <div>
+            กรอกข้อมูลให้ครบ:
+            <ul style="margin:4px 0 0 6px; color:#cfcfcf; font-size:14px;">
+            <li><b style="color:#e3b863;">App title:</b> ใส่อะไรก็ได้ เช่น RTSMMBOT (ใส่ตัวเลขก็ได้)</li>
+            <li><b style="color:#e3b863;">Short name:</b> ชื่อย่อ เช่น rtsmm (ใส่ตัวเลขก็ได้)</li>
+            <li><b style="color:#e3b863;">Platform:</b> Android</li>
+            <li><b style="color:#e3b863;">Description:</b> ใส่หรือไม่ใส่ก็ได้</li>
+            </ul>
+             <div class="tg-help-img mt-xs" style="max-width:520px;">
+                <img
+                src="/static/telegrambot/helpers.jpg"
+                alt="ตัวอย่างการคัดลอก โดยตรง link จาก pic.in.th"
+                loading="lazy"
+                class="previewable"
+                >
+            </div>
+        </div>
+        </li>
+
+        <!-- STEP 5 -->
+        <li style="margin-bottom:18px; display:flex; gap:12px; align-items:flex-start;">
+        <div class="step-circle">5</div>
+        <div>
+            ระบบจะสร้าง <b style="color:#e3b863;">APP_ID</b> และ  
+            <b style="color:#e3b863;">API_HASH</b> ให้คุณ — ให้คัดลอกไปใส่ในฟอร์มเพิ่มบัญชี
+        </div>
+        </li>
+
+        <!-- STEP 6 -->
+        <li style="margin-bottom:18px; display:flex; gap:12px; align-items:flex-start;">
+        <div class="step-circle">6</div>
+        <div>
+            เมื่อกด <b style="color:#e3b863;">“เริ่มเข้าสู่ระบบ”</b> ระบบจะส่งรหัส <b style="color:#639ae3;">OTP</b> ไปที่แอป Telegram ของคุณทันที  
+            <br>กรอกให้ถูกต้อง → หากมี <b style="color:#639ae3;">2FA</b> ให้ใส่รหัสผ่านด้วย
+        </div>
+        </li>
+
+        <!-- STEP 7 -->
+        <li style="margin-bottom:10px; display:flex; gap:12px; align-items:flex-start;">
+        <div class="step-circle">7</div>
+        <div>
+            เพิ่มสำเร็จแล้ว บัญชีจะขึ้นสถานะ  
+            <span style="color:#9be169; font-weight:600;">READY</span>  
+            และพร้อมใช้งานทันที
+        </div>
+        </li>
+    </ol>
+
+    </section>
+
+    <!-- ===================== Modal เริ่มต้น Login ===================== -->
+    <div id="tgLoginBackdrop" class="modal-backdrop" style="display:none;">
+        <div class="modal tg-modal">
+
+            <div class="modal-head">
+            <h3 class="title modal-title">เพิ่มบัญชี Telegram</h3>
+            <button id="tgLoginClose" class="modal-close">&times;</button>
+            </div>
+
+            <div class="modal-body">
+
+            <div class="form-group">
+                <label>เบอร์โทรศัพท์</label>
+                <input id="tg_phone" type="text" class="input" placeholder="+669xxxxxxxx">
+            </div>
+
+            <div class="row2">
+                <div class="form-group">
+                <label>API ID</label>
+                <input id="tg_apiId" type="number" class="input" placeholder="123456">
+                </div>
+                <div class="form-group">
+                <label>API Hash</label>
+                <input id="tg_apiHash" type="text" class="input" placeholder="API Hash">
+                </div>
+            </div>
+
+            </div>
+
+            <div class="modal-actions">
+            <button id="tgLoginCancel" class="btn dark">ยกเลิก</button>
+            <button id="tgLoginNext" class="btn gold">ถัดไป</button>
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- ===================== Modal OTP / Password ===================== -->
+    <div id="tgOtpBackdrop" class="modal-backdrop" style="display:none;">
+        <div class="modal tg-modal">
+
+            <div class="modal-head">
+            <h3 class="title modal-title">ยืนยันรหัส OTP</h3>
+            <button id="tgOtpClose" class="modal-close">&times;</button>
+            </div>
+
+            <div class="modal-body">
+
+            <div id="otpSection" class="form-group">
+                <label>รหัส OTP (5 หลัก)</label>
+                <input id="tg_otp" type="text" class="input" placeholder="12345">
+            </div>
+
+            <div id="passSection" class="form-group" style="display:none;">
+                <label>รหัสผ่าน 2FA</label>
+                <input id="tg_password" class="input" type="password" placeholder="Password 2FA">
+            </div>
+
+            </div>
+
+            <div class="modal-actions">
+            <button id="tgOtpCancel" class="btn dark">ยกเลิก</button>
+            <button id="tgOtpSubmit" class="btn gold">ยืนยัน</button>
+            </div>
+
+        </div>
+    </div>
+  </section>
+  
+  <!-- ========== TAB 2: PULL MEMBERS ========== -->
+  <section id="tab-pull" class="tabpane">
+
+    <section class="card" style="padding:18px 18px 22px;">
+      <h3 class="title" style="margin-bottom:12px;">ตั้งค่าการดึงสมาชิก</h3>
+
+      <!-- FORM -->
+      <form id="tgPullForm" class="form" onsubmit="return false;">
+        
+        <!-- Source Group -->
+        <div class="form-row">
+          <label>กลุ่มเป้าหมาย (กลุ่มที่ต้องการดึงสมาชิก)</label>
+          <input type="text" id="srcGroup" placeholder="@sourcegroup หรือ ลิงก์กลุ่ม" />
+        </div>
+
+        <!-- Destination Group -->
+        <div class="form-row" style="margin-top:14px;">
+          <label>กลุ่มปลายทาง (กลุ่มที่ต้องการเพิ่มสมาชิก)</label>
+          <input type="text" id="destGroup" placeholder="@targetgroup หรือ ลิงก์กลุ่ม" />
+        </div>
+
+        <!-- Limit -->
+        <div class="form-row" style="margin-top:14px;">
+          <label>จำนวนสมาชิกที่ต้องการดึง</label>
+          <input type="number" id="limit" min="1" placeholder="ใส่จำนวนสมาชิก" />
+        </div>
+
+        <!-- Cost Preview -->
+        <div id="costPreview" style="margin-top:10px; font-size:13px; color:#3fbd0d;">
+          เครดิตที่ใช้: 0 เครดิต
+        </div>
+
+        <!-- Start btn -->
+        <div style="margin-top:20px;">
+          <button id="startBtn" class="btn-lux" style="width:100%;">
+            เริ่มการทำงาน
+          </button>
+        </div>
+      </form>
+      <!-- ================= Progress Section ================= -->
+      <section id="tgProgressBox" class="card" style="margin-top:18px; display:none; padding:18px;">
+        <h3 class="title" style="margin-bottom:10px;">ความคืบหน้า</h3>
+
+        <!-- STATUS TEXT -->
+        <div id="tgStatusText" class="muted" style="margin-bottom:8px;">
+            — 
+        </div>
+
+        <!-- PROGRESS BAR -->
+        <div class="progress-wrap" style="margin-top:6px; margin-bottom:12px;">
+            <div class="progress-bar-bg" style="height:8px; background:#2b2b2f; border-radius:6px;">
+            <div id="tgProgressBar" style="height:8px; width:0%; background:#e3b863; border-radius:6px;"></div>
+            </div>
+        </div>
+
+        <!-- COUNTS -->
+        <div id="tgCounts" style="font-size:13px; color:#dcdcdc;">
+            เชิญแล้ว 0 คน • ล้มเหลว 0 คน • ทั้งหมด 0 คน
+        </div>
+
+        <!-- STOP BUTTON -->
+        <div style="margin-top:16px;">
+            <button id="stopBtn" class="btn danger" style="width:100%;">
+            หยุดการดึง
+            </button>
+        </div>
+
+        <!-- LOG -->
+        <div id="tgLogBox" style="margin-top:20px; max-height:220px; overflow-y:auto; background:#1d1d21; padding:10px 12px; border-radius:8px; font-size:12px;">
+            <div class="muted">ยังไม่มีข้อมูล…</div>
+        </div>
+      </section>
+    </section>
+    <!-- ========== HOW TO USE ========== -->
+    <section class="card" style="margin-top:22px; padding:20px 20px 26px;">
+
+    <h3 class="title" style="margin-bottom:14px;">วิธีใช้งานแบบละเอียด</h3>
+
+    <ol style="list-style:none; padding-left:0; margin:0;">
+        <li style="margin-bottom:16px; display:flex; gap:10px;">
+        <div style="
+            width:28px; height:28px; background:#2f3238; 
+            border-radius:50%; display:flex; 
+            align-items:center; justify-content:center;
+            color:#9be169; font-weight:600;">
+            1
+        </div>
+        <div>
+            วางลิงก์กลุ่มเป้าหมาย — รองรับทั้ง 
+            <code style="color:#8ec7ff;">https://t.me/group</code> 
+            หรือ <code style="color:#8ec7ff;">t.me/+invitehash</code>
+            หรือ <code style="color:#8ec7ff;">@group</code>
+        </div>
+        </li>
+
+        <li style="margin-bottom:16px; display:flex; gap:10px;">
+        <div style="
+            width:28px; height:28px; background:#2f3238; 
+            border-radius:50%; display:flex; 
+            align-items:center; justify-content:center;
+            color:#9be169; font-weight:600;">
+            2
+        </div>
+        <div>
+            วางลิงก์กลุ่มปลายทาง — รองรับทั้ง 
+            <code style="color:#8ec7ff;">https://t.me/yourgroup</code> 
+            หรือ <code style="color:#8ec7ff;">t.me/+invitehash</code>
+            หรือ <code style="color:#8ec7ff;">@yourgroup</code>
+        </div>
+        </li>
+
+        <li style="margin-bottom:16px; display:flex; gap:10px;">
+        <div style="
+            width:28px; height:28px; background:#2f3238;
+            border-radius:50%; display:flex;
+            align-items:center; justify-content:center;
+            color:#9be169; font-weight:600;">
+            3
+        </div>
+        <div>
+            กรอกจำนวนสมาชิกที่ต้องการเชิญ — ระบบจะคำนวณเครดิตอัตโนมัติ 
+            <b style="color:#e3b863;">(2 เครดิต/คน)</b>
+        </div>
+        </li>
+
+        <li style="margin-bottom:16px; display:flex; gap:10px;">
+        <div style="
+            width:28px; height:28px; background:#2f3238;
+            border-radius:50%; display:flex;
+            align-items:center; justify-content:center;
+            color:#9be169; font-weight:600;">
+            4
+        </div>
+        <div>
+            กดเริ่มงาน — ถ้า <b style="color:#f78c6c;">ยังไม่มีบัญชีพร้อมใช้งาน</b> ระบบจะแจ้งเตือนอัตโนมัติ
+        </div>
+        </li>
+
+        <li style="margin-bottom:16px; display:flex; gap:10px;">
+        <div style="
+            width:28px; height:28px; background:#2f3238;
+            border-radius:50%; display:flex;
+            align-items:center; justify-content:center;
+            color:#9be169; font-weight:600;">
+            5
+        </div>
+        <div>
+            ติดตามผลที่หน้า <b style="color:#e3b863;">ประวัติการใช้งาน</b> (อัปเดตแบบเรียลไทม์)
+        </div>
+        </li>
+
+        <li style="margin-bottom:16px; display:flex; gap:10px;">
+        <div style="
+            width:28px; height:28px; background:#2f3238;
+            border-radius:50%; display:flex;
+            align-items:center; justify-content:center;
+            color:#9be169; font-weight:600;">
+            6
+        </div>
+        <div>
+            จบงานแล้วระบบจะสรุปผลและ 
+            <b style="color:#e3b863;">คืนเครดิตอัตโนมัติ</b> สำหรับจำนวนที่เชิญไม่สำเร็จ
+        </div>
+        </li>
+    </ol>
+
+    <!-- ───────────── 2 Columns Detail Boxes ───────────── -->
+    <div class="detail-boxes">
+    
+    <!-- ช่องกรอกในฟอร์ม -->
+    <div class="box">
+        <h4 class="box-title">ช่องกรอกในฟอร์ม</h4>
+        <ul>
+        <li>ลิงก์กลุ่มที่ต้องการเพิ่มสมาชิก</li>
+        <li>ลิงก์กลุ่มต้นทาง (กรณีต้องการเช็ค)</li>
+        <li>จำนวนสมาชิกที่ต้องการดึง — เช่น 5, 10, 25</li>
+        </ul>
+    </div>
+
+    <!-- นโยบายเครดิต -->
+    <div class="box">
+        <h4 class="box-title">นโยบายเครดิต</h4>
+        <ul>
+        <li>หักก่อนเริ่มงาน: <b>2 เครดิต/คน</b></li>
+        <li>รีฟันด์ (จำนวนที่ขาด): <b>คืน 2 เครดิต/คน</b></li>
+        <li>สถานะงานในประวัติ: กำลังทำงาน / สำเร็จ / ล้มเหลว</li>
+        </ul>
+    </div>
+
+    </div>
+    </section>
+  </section>
+
+  <!-- ========== TAB 3: HISTORY (ยังไม่เขียน) ========== -->
+  <section id="tab-history" class="tabpane">
+    <section class="card" style="padding:18px;">
+        
+        <h3 class="title">ประวัติการดึงสมาชิก</h3>
+
+        <!-- ========== JOB LIST ========== -->
+        <div id="tgHistoryWrap" style="margin-top:16px;">
+        <div class="muted">กำลังโหลดประวัติ…</div>
+        </div>
+
+    </section>
+
+    <!-- ========== MODAL: VIEW LOG ========== -->
+    <div id="tgLogModal" class="modal-backdrop" style="display:none;">
+        <div class="modal">
+        <div class="modal-head">
+            <h3>บันทึกการทำงาน</h3>
+            <button class="modal-close" onclick="closeLogModal()">×</button>
+        </div>
+
+        <div id="tgModalContent" class="modal-body" 
+            style="max-height:400px; overflow-y:auto; font-size:13px;">
+            <!-- logs appear here -->
+        </div>
+        </div>
+    </div>
+
+  </section>
+
+</section>
+
+<!-- Image Preview Modal -->
+<div id="imgPreviewModal" class="img-modal">
+    <img id="imgPreviewTarget" class="img-modal-content">
+</div>
+
+<!-- ====================== CSS ====================== -->
+<style>
+    
+/* modal */
+.modal-backdrop{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.65);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:1200;
+}
+
+.modal{
+  width:90%;
+  max-width:440px;
+  background:#1c1c20;
+  border-radius:10px;
+  border:1px solid #2d2d31;
+  padding:18px;
+  animation:fadeIn .2s ease;
+}
+
+.modal-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:12px;
+}
+
+.modal-close{
+  border:0;
+  background:transparent;
+  color:#fff;
+  font-size:22px;
+  cursor:pointer;
+}
+
+.modal-head h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #ffdd9c;
+}
+
+.modal-body label {
+  display: block;
+  margin-top: 12px;
+  margin-bottom: 4px;
+  font-size: 13px;
+  color: #d8d8d8;
+}
+
+.modal-body input,
+.modal-body textarea {
+  width: 100%;
+  padding: 10px 12px;
+  background: #222226;
+  border: 1px solid #333338;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+}
+
+.modal-actions .btn {
+  min-width: 92px;
+  padding: 9px 14px;
+  font-size: 14px;
+}
+
+.pill{
+  display:inline-block;
+  padding:4px 10px;
+  border-radius:20px;
+  font-size:12px;
+  color:#000;
+  font-weight:600;
+}
+
+.pill.running{ background:#e3b863; }
+.pill.finished{ background:#4caf50; color:#fff; }
+.pill.error{ background:#d9534f; color:#fff; }
+.pill.stopped{ background:#777; color:#fff; }
+
+/* ================= Modal ปรับโฉม ================= */
+.tg-modal {
+  background: #191a1e;
+  border: 1px solid #2b2b31;
+  border-radius: 14px;
+  padding: 22px 22px 18px;
+  width: 90%;
+  max-width: 460px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+}
+
+.modal-title {
+  font-size: 19px;
+  font-weight: 600;
+  color: #ffd37a;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.row2 {
+  display: flex;
+  gap: 12px;
+}
+
+.row2 .form-group {
+  flex: 1;
+}
+
+.form-group label {
+  font-size: 13px;
+  color: #c9c9d1;
+}
+
+.input {
+  background: #111114;
+  border: 1px solid #2c2c2f;
+  color: #fff;
+  padding: 9px 12px;
+  border-radius: 8px;
+  outline: none;
+  transition: border-color .15s;
+}
+
+.input:focus {
+  border-color: #e3b863;
+}
+
+.modal-actions {
+  margin-top: 18px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.btn.dark {
+  background: #2b2b31;
+  color: #cccccc;
+  padding: 8px 20px;
+  border-radius: 8px;
+}
+
+.btn.gold {
+  background: #e3b863;
+  color: #111;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.tg-acc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tg-acc-item {
+  padding: 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tg-acc-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tg-status {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  width: fit-content;
+}
+
+.tg-status.ready { background:#1b5e20; color:#fff; }
+.tg-status.error { background:#b71c1c; color:#fff; }
+.tg-status.cooldown { background:#fbc02d; color:#000; }
+
+.detail-boxes {
+    margin-top: 22px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+}
+
+.detail-boxes .box {
+    background: #1d1d21;
+    padding: 16px;
+    border-radius: 10px;
+    border: 1px solid #2c2c33;
+}
+
+.detail-boxes .box-title {
+    margin: 0 0 10px;
+    color: #e3b863;
+}
+
+.detail-boxes ul {
+    padding-left: 18px;
+    margin: 0;
+    font-size: 14px;
+    color: #cdcdcd;
+}
+
+/* 📱 MOBILE FIX (สำคัญสุด) */
+@media (max-width: 640px) {
+    .detail-boxes {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    }
+
+    .detail-boxes .box {
+    padding: 14px;
+    }
+}
+
+/* ===== Image Blocks ===== */
+.tg-help-img {
+  margin-top: 8px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: #000;
+  max-width: 640px;
+}
+
+.tg-help-img img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Modal BG */
+.img-modal {
+  display: none;
+  position: fixed;
+  z-index: 9999;
+  inset: 0;
+  backdrop-filter: blur(12px);
+  background: rgba(0, 0, 0, 0.35);
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+}
+
+/* รูปที่ขยาย */
+.img-modal-content {
+  max-width: 90vw;
+  max-height: 90vh;
+  border-radius: 8px;
+  cursor: zoom-out;
+  box-shadow: 0 0 25px rgba(0,0,0,0.5);
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.93); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.previewable {
+  cursor: zoom-in;
+}
+</style>
+
+<!-- ====================== SCRIPT ====================== -->
+<script>
+/* ======================================================
+   ELEMENTS
+====================================================== */
+const tabs = document.querySelectorAll(".tab");
+const panes = {
+  accounts: document.getElementById("tab-accounts"),
+  pull:     document.getElementById("tab-pull"),
+  history:  document.getElementById("tab-history")
+};
+
+/* ======================================================
+   TAB SWITCH
+====================================================== */
+tabs.forEach(tab => {
+  tab.addEventListener("click", () => {
+
+    // active state
+    tabs.forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+
+    // hide all panes
+    Object.values(panes).forEach(p => p.classList.remove("show"));
+
+    // show the target pane
+    const name = tab.dataset.tab;
+
+    if (name === "accounts") {
+      panes.accounts.classList.add("show");
+      loadTgAccounts();
+    }
+    else if (name === "pull") {
+      panes.pull.classList.add("show");
+    }
+    else if (name === "history") {
+      panes.history.classList.add("show");
+      loadHistory();
+    }
+  });
+});
+
+
+/* ---------- FORM: CALCULATE COST ---------- */
+const limitInput = document.getElementById("limit");
+const costPreview = document.getElementById("costPreview");
+const costPer = 0; // สมมติราคาคนละ 5 เครดิต
+
+limitInput?.addEventListener("input", () => {
+    const n = Number(limitInput.value || 0);
+    if (n > 0) {
+    costPreview.textContent = "เครดิตที่ใช้: " + (n * costPer) + " เครดิต";
+    } else {
+    costPreview.textContent = "เครดิตที่ใช้: 0"+ " เครดิต";
+    }
+});
+
+
+/* ---------- START JOB ---------- */
+const startBtn = document.getElementById("startBtn");
+const progressBox = document.getElementById("tgProgressBox");
+const logBox = document.getElementById("tgLogBox");
+const progressBar = document.getElementById("tgProgressBar");
+const statusText = document.getElementById("tgStatusText");
+const countText = document.getElementById("tgCounts");
+
+let currentJob = null;
+let evtSource = null;
+
+startBtn.addEventListener("click", async () => {
+    const srcGroup = srcGroup.value.trim();
+    const destGroup = destGroup.value.trim();
+    const limit = Number(limitInput.value.trim());
+
+    if (!srcGroup || !destGroup || !limit) {
+    return notify("⚠️ กรุณากรอกข้อมูลให้ครบ");
+    }
+
+    const res = await fetch("/telegram/create-job", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ srcGroup, destGroup, limit })
+    });
+    const data = await res.json();
+
+    if (!data.ok) return notify(data.message || "เกิดข้อผิดพลาด");
+
+    currentJob = data.jobId;
+    showProgressUI();
+    attachStream();
+});
+
+
+function showProgressUI() {
+    progressBox.style.display = "block";
+    logBox.innerHTML = "";
+    progressBar.style.width = "0%";
+    statusText.textContent = "กำลังเริ่มงาน…";
+    countText.textContent = "—";
+}
+
+
+/* ---------- SSE STREAM ---------- */
+function attachStream() {
+    evtSource = new EventSource("/telegram/" + currentJob + "/stream");
+
+    evtSource.onmessage = (ev) => {
+    const msg = JSON.parse(ev.data);
+
+    if (msg.log) appendLog(msg.log);
+
+    if (msg.invited != null && msg.total != null) {
+        const pct = Math.round((msg.invited / msg.total) * 100);
+        progressBar.style.width = pct + "%";
+        countText.textContent =
+        `เชิญแล้ว ${msg.invited} คน • ล้มเหลว ${msg.failed || 0} คน • ทั้งหมด ${msg.total} คน`;
+    }
+
+    if (msg.status) {
+        statusText.textContent =
+        msg.status === "finished" ? "สำเร็จ" :
+        msg.status === "running" ? "กำลังทำงาน…" :
+        msg.status === "stopped" ? "หยุดแล้ว" :
+        msg.status === "error" ? "มีข้อผิดพลาด" : msg.status;
+    }
+    };
+}
+
+
+/* ---------- STOP JOB ---------- */
+document.getElementById("stopBtn").addEventListener("click", async () => {
+    if (!currentJob) return;
+
+    await fetch("/telegram/" + currentJob + "/stop", { method: "POST" });
+    notify("⛔ หยุดงานแล้ว");
+});
+
+
+/* ---------- LOG HELPER ---------- */
+function appendLog(t) {
+    const div = document.createElement("div");
+    div.textContent = t;
+    logBox.appendChild(div);
+    logBox.scrollTop = logBox.scrollHeight;
+}
+
+/* ===========================================================
+   STATUS LABEL
+===========================================================*/
+function mapStatus(st) {
+  return st === "running" ? "กำลังทำงาน" :
+         st === "finished" ? "สำเร็จ" :
+         st === "stopped" ? "หยุด" :
+         st === "error" ? "ผิดพลาด" :
+         st;
+}
+
+/* ===========================================================
+   DATE FORMAT
+===========================================================*/
+function formatDate(d){
+  return new Date(d).toLocaleString("th-TH", {
+    dateStyle:"short",
+    timeStyle:"short"
+  });
+}
+
+/* ===========================================================
+   MODAL LOGIN TELEGRAM
+===========================================================*/
+function showOtpModal(mode = "otp") {
+  const backdrop = document.getElementById("tgOtpBackdrop");
+  const title = document.querySelector(".modal-title");
+  const otpSection = document.getElementById("otpSection");
+  const passSection = document.getElementById("passSection");
+
+  backdrop.style.display = "flex";
+
+  if (mode === "2fa") {
+    title.textContent = "ยืนยัน 2FA";
+    otpSection.style.display = "none";
+    passSection.style.display = "block";
+  } else {
+    title.textContent = "ยืนยันรหัส OTP";
+    otpSection.style.display = "block";
+    passSection.style.display = "none";
+  }
+}
+
+/* ===========================================================
+   LOAD HISTORY WHEN SWITCH TAB 2
+===========================================================*/
+document.querySelector('.tab[data-tab="history"]').addEventListener("click", loadHistory);
+
+/* ============================
+   ELEMENTS
+============================ */
+const m1 = document.getElementById("tgLoginBackdrop");
+const m2 = document.getElementById("tgOtpBackdrop");
+
+const btnAdd = document.getElementById("btnAddTgAcc");
+const btnClose1 = document.getElementById("tgLoginClose");
+const btnCancel1 = document.getElementById("tgLoginCancel");
+const btnNext = document.getElementById("tgLoginNext");
+
+const btnClose2 = document.getElementById("tgOtpClose");
+const btnCancel2 = document.getElementById("tgOtpCancel");
+const btnSubmitOtp = document.getElementById("tgOtpSubmit");
+
+const otpSection = document.getElementById("otpSection");
+const passSection = document.getElementById("passSection");
+
+const otpModalTitle = document.querySelector("#tgOtpBackdrop .modal-title");
+
+let LOGIN_TOKEN = null;
+
+/* ============================
+   เปิด Modal Step 1
+============================ */
+btnAdd.onclick = () => {
+  otpModalTitle.textContent = "ยืนยันรหัส OTP";
+
+  document.getElementById("tg_phone").value = "";
+  document.getElementById("tg_apiId").value = "";
+  document.getElementById("tg_apiHash").value = "";
+  document.getElementById("tg_otp").value = "";
+  document.getElementById("tg_password").value = "";
+
+  otpSection.style.display = "block";
+  passSection.style.display = "none";
+
+  m1.style.display = "flex";
+};
+
+const closeAll = () => {
+  m1.style.display = "none";
+  m2.style.display = "none";
+};
+
+btnClose1.onclick = closeAll;
+btnCancel1.onclick = closeAll;
+btnClose2.onclick = closeAll;
+btnCancel2.onclick = closeAll;
+
+
+/* ============================
+   STEP 1 → ส่ง OTP
+============================ */
+btnNext.onclick = async () => {
+  const phone = document.getElementById("tg_phone").value.trim();
+  const apiId = document.getElementById("tg_apiId").value.trim();
+  const apiHash = document.getElementById("tg_apiHash").value.trim();
+
+  if (!phone || !apiId || !apiHash)
+    return notify.error("⚠️ กรุณากรอกข้อมูลให้ครบ");
+
+  notify.info("กำลังส่งรหัส OTP...");
+
+  const res = await fetch("/telegram/accounts/login/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, apiId, apiHash })
+  }).then(r => r.json());
+
+  if (!res.ok) {
+    return notify.error(res.error || "เริ่มการยืนยันไม่สำเร็จ");
+  }
+
+  LOGIN_TOKEN = res.loginToken;
+
+  m1.style.display = "none";
+  m2.style.display = "flex";
+
+  // ⭐ ยืนยัน OTP
+  otpModalTitle.textContent = "ยืนยันรหัส OTP";
+
+  otpSection.style.display = "block";
+  passSection.style.display = "none";
+
+  notify.success("ส่ง OTP แล้ว โปรดตรวจสอบ Telegram");
+};
+
+
+/* ============================
+   STEP 2 → OTP / 2FA
+============================ */
+btnSubmitOtp.onclick = async () => {
+  const code = document.getElementById("tg_otp").value.trim();
+  const password = document.getElementById("tg_password").value.trim();
+
+  if (!code && !password)
+    return notify.error("กรุณากรอก OTP หรือรหัสผ่าน 2FA");
+
+  const res = await fetch("/telegram/accounts/login/finish", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      loginToken: LOGIN_TOKEN,
+      code,
+      password
+    })
+  }).then(r => r.json());
+
+  // ⭐ ต้องการรหัส 2FA → เปลี่ยนหัวข้อ!
+  if (res.needPassword) {
+    LOGIN_TOKEN = res.loginToken;
+
+    otpModalTitle.textContent = "ยืนยัน 2FA";
+
+    otpSection.style.display = "none";
+    passSection.style.display = "block";
+
+    return notify.info("บัญชีนี้เปิดใช้งาน 2FA กรุณาใส่รหัสผ่าน");
+  }
+
+  if (!res.ok)
+    return notify.error(res.error || "ยืนยันไม่สำเร็จ");
+
+  notify.success("เพิ่มบัญชีสำเร็จ 🎉");
+  closeAll();
+  setTimeout(() => location.reload(), 600);
+};
+/* ======================================================
+   LOAD ACCOUNTS
+====================================================== */
+async function loadTgAccounts() {
+  try {
+    const res = await fetch("/telegram/accounts");
+    const data = await res.json();
+
+    if (!data.ok) {
+      notify.error("ไม่สามารถโหลดบัญชีได้");
+      return;
+    }
+
+    const list  = data.accounts || [];
+    const wrap  = document.getElementById("tgAccList");
+    const count = document.getElementById("tgAccCount");
+
+    // update count
+    const ready = list.filter(a => a.status === "READY").length;
+    count.textContent = `(พร้อมใช้งาน ${ready} บัญชี)`;
+
+    wrap.innerHTML = "";
+
+    list.forEach(acc => {
+      const item = document.createElement("div");
+      item.className = "tg-acc-item";
+
+      const created = new Date(acc.createdAt).toLocaleString("th-TH");
+
+      let statusClass = "ready";
+      if (acc.status === "ERROR") statusClass = "error";
+      if (acc.status === "COOLDOWN") statusClass = "cooldown";
+
+      item.innerHTML = `
+        <div class="tg-acc-left">
+          <div><b>${acc.phone}</b></div>
+          <div class="tg-status ${statusClass}">${acc.status}</div>
+          <div style="font-size:12px; opacity:0.7;">เพิ่มเมื่อ: ${created}</div>
+        </div>
+        <div class="tg-acc-actions">
+          <button class="btn dark small" onclick="removeTgAcc('${acc._id}')">ลบ</button>
+        </div>
+      `;
+
+      wrap.appendChild(item);
+    });
+
+  } catch (e) {
+    console.error("loadTgAccounts ERR", e);
+    notify.error("โหลดบัญชีผิดพลาด");
+  }
+}
+
+
+/* ======================================================
+   REMOVE ACCOUNT
+====================================================== */
+async function removeTgAcc(id) {
+  // เปิด modal uiConfirm
+  const ok = await uiConfirm({
+    variant: "danger",
+    title: "ต้องการลบบัญชี Telegram นี้หรือไม่?",
+    sub: "บัญชีจะถูกลบออกจากระบบทันที",
+    okText: "ลบเลย",
+    cancelText: "ยกเลิก",
+    focus: "cancel"
+  });
+
+  if (!ok) return;
+
+  try {
+    const res = await fetch(`/telegram/accounts/${id}/unlink`, {
+      method: "DELETE"
+    });
+
+    const data = await res.json();
+
+    if (data.ok) {
+      notify.success("ลบสำเร็จ", "บัญชี Telegram ถูกลบออกแล้ว");
+      loadTgAccounts(); // โหลดรายการใหม่
+    } else {
+      notify.error("เกิดข้อผิดพลาด", data.message || "ลบไม่สำเร็จ ");
+    }
+  } catch (err) {
+    console.error("unlink ERR", err);
+    notify.error("ลบไม่สำเร็จ", "มีปัญหาในการเชื่อมต่อเซิร์ฟเวอร์");
+  }
+}
+
+
+/* ======================================================
+   LOAD HISTORY
+====================================================== */
+async function loadHistory() {
+  const wrap = document.getElementById("tgHistoryWrap");
+  wrap.innerHTML = `<div class="muted">กำลังโหลด…</div>`;
+
+  const res = await fetch("/telegram/history/list");
+  const data = await res.json();
+
+  if (!data.ok) {
+    wrap.innerHTML = `<div class="muted">โหลดข้อมูลไม่สำเร็จ</div>`;
+    return;
+  }
+
+  const list = data.list || [];
+
+  if (list.length === 0) {
+    wrap.innerHTML = `<div class="muted">ยังไม่มีประวัติการทำงาน</div>`;
+    return;
+  }
+
+  wrap.innerHTML = renderHistoryTable(list);
+}
+
+
+/* ======================================================
+   RENDER HISTORY TABLE
+====================================================== */
+function renderHistoryTable(list) {
+  let html = `
+    <div class="table-wrap" style="overflow-x:auto;">
+    <table class="tg-table table">
+      <thead>
+        <tr>
+          <th>วันที่</th>
+          <th>ต้นทาง ➜ ปลายทาง</th>
+          <th>ผลลัพธ์</th>
+          <th>สถานะ</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  list.forEach(j => {
+    const invited = Number(j.invited || 0);
+    const limit   = Number(j.limit || 0);
+    const pct     = limit > 0 ? Math.round((invited / limit) * 100) : 0;
+
+    const pill = mapStatus(j.status);
+    const logs = j.logs || [];
+
+    html += `
+      <tr>
+        <td>${formatDate(j.createdAt)}</td>
+
+        <td>
+          <div class="mono">${j.srcGroup || "-"}</div>
+          <div class="mono">➜ ${j.destGroup || "-"}</div>
+        </td>
+
+        <td>
+          ${invited}/${limit || "-"} 
+          <small class="muted">(${pct}%)</small>
+        </td>
+
+        <td><span class="pill ${j.status}">${pill}</span></td>
+
+        <td>
+          <button class="btn small" onclick='openLogModal(${JSON.stringify(logs)})'>
+            ดู Log
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+
+  html += `
+      </tbody>
+    </table>
+    </div>
+  `;
+  return html;
+}
+
+
+/* ======================================================
+   HELPERS
+====================================================== */
+function mapStatus(s) {
+  return s === "running"  ? "กำลังทำงาน" :
+         s === "finished" ? "สำเร็จ" :
+         s === "stopped"  ? "หยุด" :
+         s === "error"    ? "ผิดพลาด" :
+         (s || "-");
+}
+
+function formatDate(d) {
+  return new Date(d).toLocaleString("th-TH", {
+    dateStyle: "short",
+    timeStyle: "short"
+  });
+}
+
+
+/* ======================================================
+   OPEN LOG MODAL
+====================================================== */
+function openLogModal(logs = []) {
+  const modal = document.getElementById("tgLogModal");
+  const body  = document.getElementById("tgModalContent");
+
+  if (!logs || logs.length === 0) {
+    body.innerHTML = `<div class="muted">ไม่มีบันทึก</div>`;
+  } else {
+    body.innerHTML = logs
+      .map(l => `<div>[${formatDate(l.time)}] ${l.text}</div>`)
+      .join("");
+  }
+
+  modal.style.display = "flex";
+}
+
+function closeLogModal() {
+  document.getElementById("tgLogModal").style.display = "none";
+}
+
+/* ======================================================
+   INITIAL LOAD — โหลดบัญชีตอนเปิดหน้า
+====================================================== */
+window.addEventListener("DOMContentLoaded", loadTgAccounts);
+
+// ================== Modal ขยายรูป ==================
+document.addEventListener("click", function (e) {
+  // ถ้าคลิกที่รูปที่ขยายได้
+  if (e.target.classList.contains("previewable")) {
+    const modal = document.getElementById("imgPreviewModal");
+    const imgTarget = document.getElementById("imgPreviewTarget");
+
+    imgTarget.src = e.target.src;
+    modal.style.display = "flex";
+  }
+});
+
+// คลิกพื้นที่ว่าง = ปิด modal
+document.getElementById("imgPreviewModal").addEventListener("click", function () {
+  this.style.display = "none";
+});
+</script>

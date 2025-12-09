@@ -48,6 +48,7 @@ import { initBonustimeExpiryJob } from "./jobs/bonustimeExpiryJob.js";
 import { initTopupAutoRejectJob } from "./jobs/topupAutoRejectJob.js";
 import sitemapRouter from "./routes/sitemap.js";
 import robotsRoute from "./routes/robots.js";
+import telegramRouter from "./routes/telegram.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -324,6 +325,7 @@ app.use(adminReport);
 app.use("/blog", blogRoutes);
 app.use('/otp24', otp24Routes);
 app.use(bonustimeRouter);
+app.use("/telegram", telegramRouter);
 
 // Healthcheck (optional)
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
