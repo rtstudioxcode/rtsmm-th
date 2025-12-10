@@ -781,23 +781,24 @@ limitInput?.addEventListener("input", () => {
    PRECHECK FAIL UI HANDLER
 ====================================================== */
 function showPrecheckErrors(reasons = []) {
-    const box = document.getElementById("precheckBox");
-    const list = document.getElementById("precheckList");
+  const box = document.getElementById("precheckBox");
+  const list = document.getElementById("precheckList");
 
-    if (!reasons.length) {
-        box.style.display = "none";
-        return;
-    }
+  if (!reasons.length) {
+    box.style.display = "none"; // ถ้าไม่มีข้อผิดพลาดให้ซ่อน
+    return;
+  }
 
-    list.innerHTML = reasons.map(r => `• ${r}`).join("<br>");
-    box.style.display = "block";
+  list.innerHTML = reasons.map(r => `• ${r}`).join("<br>"); // แสดงรายการเหตุผล
+  box.style.display = "block"; // แสดงข้อผิดพลาด
 
-    // ปิดปุ่ม START
-    const btn = document.getElementById("startBtn");
-    btn.disabled = true;
-    btn.classList.add("disabled");
+  // ปิดปุ่ม START เมื่อมีข้อผิดพลาด
+  const btn = document.getElementById("startBtn");
+  btn.disabled = true;
+  btn.classList.add("disabled"); // เพิ่มคลาส disabled เพื่อให้ปุ่มไม่สามารถคลิกได้
 
-    notify.error("ไม่สามารถเริ่มงานได้<br>" + list.innerHTML);
+  // แสดงการแจ้งเตือน
+  notify.error("ไม่สามารถเริ่มงานได้<br>" + list.innerHTML);
 }
 
 /* ---------- START JOB ---------- */
@@ -1118,34 +1119,30 @@ btnSubmitOtp.onclick = async () => {
 // Update cooldown and status on account
 function updateCooldown(account) {
   const now = Date.now();
-  const cooldownUntil = new Date(account.cooldownUntil).getTime();
+  const cooldownUntil = new Date(account.cooldownUntil).getTime();  // เวลาเมื่อถึงคูลดาวน์
 
-  // If the account is in cooldown and still within the cooldown period
   if (cooldownUntil > now) {
     const remainingTime = cooldownUntil - now;
-    const hours = Math.floor(remainingTime / 3600000);
-    const minutes = Math.floor((remainingTime % 3600000) / 60000);
-    const seconds = Math.floor((remainingTime % 60000) / 1000);
+    const hours = Math.floor(remainingTime / 3600000);  // ชั่วโมง
+    const minutes = Math.floor((remainingTime % 3600000) / 60000);  // นาที
+    const seconds = Math.floor((remainingTime % 60000) / 1000);  // วินาที
 
-    // Construct the countdown message
     const statusText = `จะกลับมาใช้ได้ในอีก ${hours > 0 ? hours + ' ชั่วโมง ' : ''}${minutes} นาที ${seconds} วินาที`;
 
-    // Update the account status in the UI
     const statusElement = document.getElementById(`tg-status-${account._id}`);
     const timerElement = document.getElementById(`tg-timer-${account._id}`);
 
     if (statusElement && timerElement) {
-      console.log(`Updating countdown for account: ${account._id}`);
-      statusElement.innerHTML = statusText; // Update the status text
-      timerElement.innerHTML = `${hours > 0 ? hours + ' ชั่วโมง ' : ''}${minutes} นาที ${seconds} วินาที`; // Show the countdown below
+      statusElement.innerHTML = statusText;  // แสดงสถานะ
+      timerElement.innerHTML = `${hours > 0 ? hours + ' ชั่วโมง ' : ''}${minutes} นาที ${seconds} วินาที`; // แสดงเวลา
     }
 
-    // Continue updating every second for real-time countdown
-    setInterval(() => updateCooldown(account), 1000); // Update every second
+    // อัปเดตทุกๆ วินาที
+    setTimeout(() => updateCooldown(account), 1000);  // อัปเดตทุกๆ วินาที
   }
 }
 
-// Load Telegram accounts
+// เรียกใช้ฟังก์ชันเมื่อโหลดบัญชี
 async function loadTgAccounts() {
   try {
     const res = await fetch("/telegram/accounts");
@@ -1160,7 +1157,7 @@ async function loadTgAccounts() {
     const wrap = document.getElementById("tgAccList");
     const count = document.getElementById("tgAccCount");
 
-    // Update count
+    // อัปเดตจำนวนบัญชี
     const ready = list.filter(a => a.status === "READY").length;
     count.textContent = `(พร้อมใช้งาน ${ready} บัญชี)`;  // อัพเดทจำนวนบัญชี
 
@@ -1177,7 +1174,7 @@ async function loadTgAccounts() {
       if (acc.status === "COOLDOWN") {
         statusClass = "cooldown";
         statusText = "ติดคูลดาวน์";
-        updateCooldown(acc); // อัพเดทการแสดงผลคูลดาวน์
+        updateCooldown(acc); // อัปเดตการแสดงผลคูลดาวน์
       } else if (acc.status === "LOCKED") {
         statusClass = "locked";
         statusText = "พักการใช้งาน";
@@ -1187,7 +1184,7 @@ async function loadTgAccounts() {
         <div class="tg-acc-left">
           <div><b>${acc.phone}</b></div>
           <div class="tg-status ${statusClass}" id="tg-status-${acc._id}">${statusText}</div>
-          <div class="tg-cooldown-timer" id="tg-timer-${acc.cooldownUntil}" style="font-size: 12px; color: #e3b863;"></div>
+          <div class="tg-cooldown-timer" id="tg-timer-${acc._id}" style="font-size: 12px; color: #e3b863;"></div>
           <div style="font-size:12px; opacity:0.7;">เพิ่มเมื่อ: ${created}</div>
         </div>
         <div class="tg-acc-actions">

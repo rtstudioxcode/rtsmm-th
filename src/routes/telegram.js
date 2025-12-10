@@ -236,7 +236,7 @@ router.post("/accounts/login/finish", requireAuth, async (req, res) => {
     });
 
     if (!acc) {
-      acc = await TgAccount.create({
+      acc = new TgAccount({
         userId: data.userId,
         username: data.username,
         phone: data.phone,
@@ -252,8 +252,8 @@ router.post("/accounts/login/finish", requireAuth, async (req, res) => {
       acc.apiHash = data.apiHash;
       acc.session = result.sessionString;
       acc.status = "READY";
-      await acc.save();
     }
+    await acc.save();
 
     return res.json({ ok:true, me:result.me });
 

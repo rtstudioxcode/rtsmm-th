@@ -76,4 +76,4 @@ export async function checkAndUpdateAccounts() {
 // เรียกใช้ฟังก์ชันนี้ทุกๆ 1 นาที
 setInterval(() => {
   checkAndUpdateAccounts();
-}, 60000);  // 1000 ms = 1 วินาที (กรณีต้องการทดสอบให้เร็วขึ้น)
+}, 5000);  // 1000 ms = 1 วินาที (กรณีต้องการทดสอบให้เร็วขึ้น)

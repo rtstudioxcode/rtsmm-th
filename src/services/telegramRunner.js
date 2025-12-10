@@ -160,12 +160,23 @@ async function inviteOne(client, dstEntity, user) {
   } catch (err) {
     const msg = String(err.message || err);
 
-    if (msg.includes("FLOOD_WAIT")) return { flood: true, message: msg };
-    if (msg.includes("PEER_FLOOD") || msg.includes("PRIVACY")) return { spam: true };
+    if (msg.includes("FLOOD_WAIT")) {
+      const ms = extractFloodWait(msg) || 7200000; // Default to 2 hours if no flood wait time found
+      user.cooldownUntil = new Date(Date.now() + ms); // Set cooldownUntil to the calculated time
+      user.status = "COOLDOWN"; // Set status to COOLDOWN
+      await user.save(); // Save updated user in DB
+      return { flood: true, message: msg };
+    }
+
+    if (msg.includes("PEER_FLOOD") || msg.includes("PRIVACY")) {
+      user.status = "LOCKED"; // Set status to LOCKED
+      await user.save(); // Save updated user in DB
+      return { spam: true };
+    }
+
     return { error: msg };
   }
 }
-
 // --------------------------------------------
 // Risk scoring / rotation
 // --------------------------------------------
@@ -200,25 +211,16 @@ async function pickAccounts() {
 }
 
 
-function showPrecheckErrors(reasons = []) {
-    const box = document.getElementById("precheckBox");
-    const list = document.getElementById("precheckList");
+function showPrecheckErrors(reasons = [], jobId) {
+  // ส่งข้อมูลไปที่ client โดยใช้ SSE หรือ WebSocket
+  telegramPush(jobId, {
+    status: "error",
+    type: "precheck_fail",
+    reasons
+  });
 
-    if (!reasons.length) {
-        box.style.display = "none"; // Hide if no errors
-        return;
-    }
-
-    list.innerHTML = reasons.map(r => `• ${r}`).join("<br>"); // Format reasons into list
-    box.style.display = "block"; // Show error box
-
-    // Disable the start button if errors exist
-    const btn = document.getElementById("startBtn");
-    btn.disabled = true;
-    btn.classList.add("disabled"); // Add visual cue that the button is disabled
-
-    // Show notification
-    notify.error("ไม่สามารถเริ่มงานได้<br>" + list.innerHTML); // Display errors in notification
+  // แสดงข้อมูลจากเหตุผลใน UI ผ่าน SSE หรือ WebSocket
+  // ไม่ใช้ document.getElementById หรือ DOM ในฝั่ง server
 }
 
 // --------------------------------------------
