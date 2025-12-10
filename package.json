@@ -23,6 +23,7 @@
     "express-ejs-layouts": "^2.5.1",
     "express-rate-limit": "^7.4.0",
     "express-session": "^1.17.3",
+    "input": "^1.0.1",
     "jose": "^6.1.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^8.6.0",

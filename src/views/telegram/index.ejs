@@ -12,10 +12,10 @@
 
   <!-- ====================== TABS ====================== -->
   <div class="tabs" id="tgTabs" style="padding:0 25px; width: 100%;">
-    <button class="tab active" data-tab="accounts">
+    <button class="tab" data-tab="accounts">
       ตั้งค่าบัญชี
     </button>
-    <button class="tab" data-tab="pull">
+    <button class="tab active" data-tab="pull">
       ดึงสมาชิก
     </button>
     <button class="tab" data-tab="history">
@@ -24,7 +24,7 @@
   </div>
 
   <!-- ========== TAB 1: ACCOUNTS (ตั้งค่าบัญชีเทเลแกรม) ========== -->
-  <section id="tab-accounts" class="tabpane show">
+  <section id="tab-accounts" class="tabpane">
     <section class="card" style="padding:18px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
             <div class="title">
@@ -206,7 +206,13 @@
   </section>
   
   <!-- ========== TAB 2: PULL MEMBERS ========== -->
-  <section id="tab-pull" class="tabpane">
+  <section id="tab-pull" class="tabpane show">
+    <!-- PRECHECK WARNING BOX -->
+    <div id="precheckBox" 
+        style="display:none; margin-bottom:14px; padding:12px; border:1px solid #b86f41; background:#3b2a20; border-radius:8px; color:#ffddb8;">
+      <div style="font-weight:600; margin-bottom:4px;">⚠ ไม่สามารถเริ่มงานได้</div>
+      <div id="precheckList" style="font-size:13px; line-height:1.45;"></div>
+    </div>
 
     <section class="card" style="padding:18px 18px 22px;">
       <h3 class="title" style="margin-bottom:12px;">ตั้งค่าการดึงสมาชิก</h3>
@@ -245,38 +251,32 @@
         </div>
       </form>
       <!-- ================= Progress Section ================= -->
-      <section id="tgProgressBox" class="card" style="margin-top:18px; display:none; padding:18px;">
+      <!-- <section id="tgProgressBox" class="card" style="margin-top:18px; display:none; padding:18px;">
         <h3 class="title" style="margin-bottom:10px;">ความคืบหน้า</h3>
 
-        <!-- STATUS TEXT -->
         <div id="tgStatusText" class="muted" style="margin-bottom:8px;">
             — 
         </div>
-
-        <!-- PROGRESS BAR -->
         <div class="progress-wrap" style="margin-top:6px; margin-bottom:12px;">
             <div class="progress-bar-bg" style="height:8px; background:#2b2b2f; border-radius:6px;">
             <div id="tgProgressBar" style="height:8px; width:0%; background:#e3b863; border-radius:6px;"></div>
             </div>
         </div>
 
-        <!-- COUNTS -->
         <div id="tgCounts" style="font-size:13px; color:#dcdcdc;">
             เชิญแล้ว 0 คน • ล้มเหลว 0 คน • ทั้งหมด 0 คน
         </div>
 
-        <!-- STOP BUTTON -->
         <div style="margin-top:16px;">
             <button id="stopBtn" class="btn danger" style="width:100%;">
             หยุดการดึง
             </button>
         </div>
 
-        <!-- LOG -->
         <div id="tgLogBox" style="margin-top:20px; max-height:220px; overflow-y:auto; background:#1d1d21; padding:10px 12px; border-radius:8px; font-size:12px;">
             <div class="muted">ยังไม่มีข้อมูล…</div>
         </div>
-      </section>
+      </section> -->
     </section>
     <!-- ========== HOW TO USE ========== -->
     <section class="card" style="margin-top:22px; padding:20px 20px 26px;">
@@ -515,6 +515,7 @@
 }
 
 .pill.running{ background:#e3b863; }
+.pill.pending{ background:#e3b863; }
 .pill.finished{ background:#4caf50; color:#fff; }
 .pill.error{ background:#d9534f; color:#fff; }
 .pill.stopped{ background:#777; color:#fff; }
@@ -776,6 +777,28 @@ limitInput?.addEventListener("input", () => {
     }
 });
 
+/* ======================================================
+   PRECHECK FAIL UI HANDLER
+====================================================== */
+function showPrecheckErrors(reasons = []) {
+    const box = document.getElementById("precheckBox");
+    const list = document.getElementById("precheckList");
+
+    if (!reasons.length) {
+        box.style.display = "none";
+        return;
+    }
+
+    list.innerHTML = reasons.map(r => `• ${r}`).join("<br>");
+    box.style.display = "block";
+
+    // ปิดปุ่ม START
+    const btn = document.getElementById("startBtn");
+    btn.disabled = true;
+    btn.classList.add("disabled");
+
+    notify.error("ไม่สามารถเริ่มงานได้<br>" + list.innerHTML);
+}
 
 /* ---------- START JOB ---------- */
 const startBtn = document.getElementById("startBtn");
@@ -784,85 +807,133 @@ const logBox = document.getElementById("tgLogBox");
 const progressBar = document.getElementById("tgProgressBar");
 const statusText = document.getElementById("tgStatusText");
 const countText = document.getElementById("tgCounts");
+document.getElementById("precheckBox").style.display = "none";
+document.getElementById("precheckList").innerHTML = "";
 
+startBtn.disabled = false;
 let currentJob = null;
+let orderId = null;
 let evtSource = null;
 
 startBtn.addEventListener("click", async () => {
-    const srcGroup = srcGroup.value.trim();
-    const destGroup = destGroup.value.trim();
-    const limit = Number(limitInput.value.trim());
+  const srcGroup = document.getElementById("srcGroup").value.trim();
+  const destGroup = document.getElementById("destGroup").value.trim();
+  const limit = Number(document.getElementById("limit").value.trim());
 
-    if (!srcGroup || !destGroup || !limit) {
+  if (!srcGroup || !destGroup || !limit) {
     return notify("⚠️ กรุณากรอกข้อมูลให้ครบ");
-    }
+  }
 
-    const res = await fetch("/telegram/create-job", {
+  const res = await fetch("/telegram/jobs/start", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ srcGroup, destGroup, limit })
-    });
-    const data = await res.json();
+  });
 
-    if (!data.ok) return notify(data.message || "เกิดข้อผิดพลาด");
+  const data = await res.json();
 
-    currentJob = data.jobId;
-    showProgressUI();
-    attachStream();
+  if (!data.ok) {
+    // ตรวจสอบข้อผิดพลาดและแสดงเหตุผลที่ชัดเจน
+    const errorMessage = data.error || data.message || "ไม่ทราบข้อผิดพลาด";
+    return notify.error("เกิดข้อผิดพลาด: " + errorMessage);
+  }
+
+  // ⭐ เก็บตัวแปรสำคัญ
+  currentJob = data.jobId;
+  orderId = data.orderId;
+
+  notify.success("เริ่มงาน #" + orderId + " แล้ว");
+
+  showProgressUI();
+  attachStream();
+
+  document.querySelector('.tab[data-tab="history"]').click();
+  setTimeout(() => loadHistory(), 300);
 });
 
-
 function showProgressUI() {
-    progressBox.style.display = "block";
-    logBox.innerHTML = "";
-    progressBar.style.width = "0%";
-    statusText.textContent = "กำลังเริ่มงาน…";
-    countText.textContent = "—";
+  progressBox.style.display = "block";
+  logBox.innerHTML = "";
+  progressBar.style.width = "0%";
+  statusText.textContent = "กำลังเริ่มงาน…";
+  countText.textContent = "—";
 }
-
 
 /* ---------- SSE STREAM ---------- */
 function attachStream() {
-    evtSource = new EventSource("/telegram/" + currentJob + "/stream");
+  if (evtSource) evtSource.close();
 
-    evtSource.onmessage = (ev) => {
+  // ⭐ FIX: ใช้ currentJob ไม่ใช่ jobId
+  evtSource = new EventSource(`/telegram/jobs/${currentJob}/stream`);
+
+  evtSource.onmessage = (ev) => {
     const msg = JSON.parse(ev.data);
 
     if (msg.log) appendLog(msg.log);
 
     if (msg.invited != null && msg.total != null) {
-        const pct = Math.round((msg.invited / msg.total) * 100);
-        progressBar.style.width = pct + "%";
-        countText.textContent =
+      const pct = Math.round((msg.invited / msg.total) * 100);
+      progressBar.style.width = pct + "%";
+      countText.textContent =
         `เชิญแล้ว ${msg.invited} คน • ล้มเหลว ${msg.failed || 0} คน • ทั้งหมด ${msg.total} คน`;
     }
 
-    if (msg.status) {
-        statusText.textContent =
-        msg.status === "finished" ? "สำเร็จ" :
-        msg.status === "running" ? "กำลังทำงาน…" :
-        msg.status === "stopped" ? "หยุดแล้ว" :
-        msg.status === "error" ? "มีข้อผิดพลาด" : msg.status;
+    // ถ้า PRECHECK FAIL
+    if (msg.type === "precheck_fail") {
+
+      showPrecheckErrors(msg.reasons || []);
+
+      // ปิด progress UI (ถ้าเริ่มแสดง)
+      progressBox.style.display = "none";
+
+      // ปิด stream
+      if (evtSource) evtSource.close();
+
+      return; 
     }
-    };
+
+    if (msg.status) {
+      statusText.textContent =
+        msg.status === "finished" ? "สำเร็จ" :
+        msg.status === "running"  ? "กำลังทำงาน…" :
+        msg.status === "stopped"  ? "หยุดแล้ว" :
+        msg.status === "error"    ? "มีข้อผิดพลาด" : msg.status;
+    }
+
+    if (msg.status === "finished") {
+      notify.success("งาน #" + orderId + " เสร็จสิ้นแล้ว!");
+      evtSource.close();
+    }
+  };
 }
 
-
 /* ---------- STOP JOB ---------- */
-document.getElementById("stopBtn").addEventListener("click", async () => {
-    if (!currentJob) return;
+document.addEventListener("DOMContentLoaded", () => {
+  // Dynamically added button handling
+  const interval = setInterval(() => {
+    const stopBtn = document.getElementById("stopBtn");
+    if (stopBtn) {
+      stopBtn.addEventListener("click", async () => {
+        if (!currentJob) return;
 
-    await fetch("/telegram/" + currentJob + "/stop", { method: "POST" });
-    notify("⛔ หยุดงานแล้ว");
+        await fetch(`/telegram/jobs/${currentJob}/stop`, { method: "POST" });
+        notify("⛔ หยุดงานแล้ว");
+      });
+
+      // Stop the interval once the button is found
+      clearInterval(interval);
+    }
+  }, 100);  // Check every 100ms for the button
+
 });
 
 
 /* ---------- LOG HELPER ---------- */
 function appendLog(t) {
-    const div = document.createElement("div");
-    div.textContent = t;
-    logBox.appendChild(div);
-    logBox.scrollTop = logBox.scrollHeight;
+  const div = document.createElement("div");
+  div.textContent = t;
+  logBox.appendChild(div);
+  logBox.scrollTop = logBox.scrollHeight;
 }
 
 /* ===========================================================
@@ -1044,6 +1115,37 @@ btnSubmitOtp.onclick = async () => {
 /* ======================================================
    LOAD ACCOUNTS
 ====================================================== */
+// Update cooldown and status on account
+function updateCooldown(account) {
+  const now = Date.now();
+  const cooldownUntil = new Date(account.cooldownUntil).getTime();
+
+  // If the account is in cooldown and still within the cooldown period
+  if (cooldownUntil > now) {
+    const remainingTime = cooldownUntil - now;
+    const hours = Math.floor(remainingTime / 3600000);
+    const minutes = Math.floor((remainingTime % 3600000) / 60000);
+    const seconds = Math.floor((remainingTime % 60000) / 1000);
+
+    // Construct the countdown message
+    const statusText = `จะกลับมาใช้ได้ในอีก ${hours > 0 ? hours + ' ชั่วโมง ' : ''}${minutes} นาที ${seconds} วินาที`;
+
+    // Update the account status in the UI
+    const statusElement = document.getElementById(`tg-status-${account._id}`);
+    const timerElement = document.getElementById(`tg-timer-${account._id}`);
+
+    if (statusElement && timerElement) {
+      console.log(`Updating countdown for account: ${account._id}`);
+      statusElement.innerHTML = statusText; // Update the status text
+      timerElement.innerHTML = `${hours > 0 ? hours + ' ชั่วโมง ' : ''}${minutes} นาที ${seconds} วินาที`; // Show the countdown below
+    }
+
+    // Continue updating every second for real-time countdown
+    setInterval(() => updateCooldown(account), 1000); // Update every second
+  }
+}
+
+// Load Telegram accounts
 async function loadTgAccounts() {
   try {
     const res = await fetch("/telegram/accounts");
@@ -1054,30 +1156,38 @@ async function loadTgAccounts() {
       return;
     }
 
-    const list  = data.accounts || [];
-    const wrap  = document.getElementById("tgAccList");
+    const list = data.accounts || [];
+    const wrap = document.getElementById("tgAccList");
     const count = document.getElementById("tgAccCount");
 
-    // update count
+    // Update count
     const ready = list.filter(a => a.status === "READY").length;
-    count.textContent = `(พร้อมใช้งาน ${ready} บัญชี)`;
+    count.textContent = `(พร้อมใช้งาน ${ready} บัญชี)`;  // อัพเดทจำนวนบัญชี
 
-    wrap.innerHTML = "";
+    wrap.innerHTML = "";  // ลบข้อมูลเก่าออก
 
     list.forEach(acc => {
       const item = document.createElement("div");
       item.className = "tg-acc-item";
-
       const created = new Date(acc.createdAt).toLocaleString("th-TH");
 
       let statusClass = "ready";
-      if (acc.status === "ERROR") statusClass = "error";
-      if (acc.status === "COOLDOWN") statusClass = "cooldown";
+      let statusText = "พร้อมใช้งาน";
+
+      if (acc.status === "COOLDOWN") {
+        statusClass = "cooldown";
+        statusText = "ติดคูลดาวน์";
+        updateCooldown(acc); // อัพเดทการแสดงผลคูลดาวน์
+      } else if (acc.status === "LOCKED") {
+        statusClass = "locked";
+        statusText = "พักการใช้งาน";
+      }
 
       item.innerHTML = `
         <div class="tg-acc-left">
           <div><b>${acc.phone}</b></div>
-          <div class="tg-status ${statusClass}">${acc.status}</div>
+          <div class="tg-status ${statusClass}" id="tg-status-${acc._id}">${statusText}</div>
+          <div class="tg-cooldown-timer" id="tg-timer-${acc.cooldownUntil}" style="font-size: 12px; color: #e3b863;"></div>
           <div style="font-size:12px; opacity:0.7;">เพิ่มเมื่อ: ${created}</div>
         </div>
         <div class="tg-acc-actions">
@@ -1085,7 +1195,7 @@ async function loadTgAccounts() {
         </div>
       `;
 
-      wrap.appendChild(item);
+      wrap.appendChild(item);  // เพิ่มรายการบัญชีไปที่ UI
     });
 
   } catch (e) {
@@ -1094,6 +1204,8 @@ async function loadTgAccounts() {
   }
 }
 
+// เรียกใช้งานเมื่อโหลดหน้าใหม่
+window.addEventListener("DOMContentLoaded", loadTgAccounts);
 
 /* ======================================================
    REMOVE ACCOUNT
@@ -1223,6 +1335,7 @@ function renderHistoryTable(list) {
 ====================================================== */
 function mapStatus(s) {
   return s === "running"  ? "กำลังทำงาน" :
+         s === "pending"  ? "กำลังทำงาน" :
          s === "finished" ? "สำเร็จ" :
          s === "stopped"  ? "หยุด" :
          s === "error"    ? "ผิดพลาด" :
@@ -1258,11 +1371,6 @@ function openLogModal(logs = []) {
 function closeLogModal() {
   document.getElementById("tgLogModal").style.display = "none";
 }
-
-/* ======================================================
-   INITIAL LOAD — โหลดบัญชีตอนเปิดหน้า
-====================================================== */
-window.addEventListener("DOMContentLoaded", loadTgAccounts);
 
 // ================== Modal ขยายรูป ==================
 document.addEventListener("click", function (e) {

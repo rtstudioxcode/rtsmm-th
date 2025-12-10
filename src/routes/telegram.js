@@ -1,3 +1,4 @@
+// route/telegram.js
 import { Router } from "express";
 import { User } from "../models/User.js";
 import { TelegramJob } from "../models/TelegramJob.js";
@@ -32,7 +33,7 @@ router.get("/accounts", requireAuth, async (req, res) => {
   try {
     const uid = req.session.user._id;
 
-    const accounts = await TgAccount.find({ ownerId: uid })
+    const accounts = await TgAccount.find({ userId: uid })
       .select("phone status invitesToday lastError createdAt")
       .sort({ createdAt: -1 })
       .lean();
@@ -79,8 +80,8 @@ router.post("/accounts/login/start", requireAuth, async (req, res) => {
 
     /** ลบ exp ออกก่อนเสมอ */
     const loginToken = signPayload({
-      ownerId: uid,
-      ownerUsername: username,
+      userId: uid,
+      username: username,
       phone,
       apiId,
       apiHash,
@@ -231,13 +232,13 @@ router.post("/accounts/login/finish", requireAuth, async (req, res) => {
     ================================================================ */
     let acc = await TgAccount.findOne({
       phone: data.phone,
-      ownerId: data.ownerId
+      userId: data.userId
     });
 
     if (!acc) {
       acc = await TgAccount.create({
-        ownerId: data.ownerId,
-        ownerUsername: data.ownerUsername,
+        userId: data.userId,
+        username: data.username,
         phone: data.phone,
         apiId: data.apiId,
         apiHash: data.apiHash,
@@ -273,13 +274,13 @@ router.delete("/accounts/:id/unlink", requireAuth, async (req, res) => {
     const acc = await TgAccount.findById(id);
     if (!acc) return res.json({ ok: false, message: "ไม่พบข้อมูลบัญชี" });
 
-    if (String(acc.ownerId) !== String(uid)) {
+    if (String(acc.userId) !== String(uid)) {
       return res.json({ ok: false, message: "ไม่มีสิทธิ์ลบ" });
     }
 
     await TgAccount.updateOne(
       { _id: id },
-      { $unset: { ownerId: "", ownerUsername: "" } }
+      { $unset: { userId: "", username: "" } }
     );
 
     return res.json({ ok: true });
@@ -289,11 +290,153 @@ router.delete("/accounts/:id/unlink", requireAuth, async (req, res) => {
   }
 });
 
+/* ===============================================================
+   START TELEGRAM JOB — พร้อมระบบ PRECHECK แบบเต็ม
+=============================================================== */
+router.post("/jobs/start", requireAuth, async (req, res) => {
+  try {
+    const uid  = req.session.user._id;
+    const user = await User.findById(uid).lean();
+    if (!user) return res.json({ ok:false, error:"ไม่พบผู้ใช้" });
+
+    const { srcGroup, destGroup, limit, maxSecurity } = req.body;
+
+    const reasons = [];
+
+    /* =========================
+       VALIDATE INPUT
+    ========================== */
+    if (!srcGroup || !destGroup) {
+      reasons.push("กรุณากรอกลิงก์กลุ่มต้นทางและปลายทาง");
+    }
+
+    const qty = Number(limit) || 0;
+    if (qty <= 0) {
+      reasons.push("จำนวนสมาชิกต้องมากกว่า 0");
+    }
+
+    /* =========================
+       ตรวจ CREDIT (2 เครดิต/คน)
+    ========================== */
+    const cost = qty * 2; // สมมติว่า 2 เครดิตต่อคน
+    if (user.credit < cost) {
+      reasons.push(`เครดิตไม่เพียงพอ (ต้องใช้ ${cost} เครดิต)`);
+    }
+
+    /* =========================
+       ตรวจบัญชี Telegram พร้อมใช้งาน
+    ========================== */
+    const accounts = await TgAccount.find({
+      userId: uid
+    }).lean();
+
+    if (!accounts.length) {
+      reasons.push("คุณยังไม่มีบัญชี Telegram ในระบบ");
+    }
+
+    const readyAcc = accounts.filter(a => a.status === "READY");
+
+    if (!readyAcc.length) {
+      reasons.push("ยังไม่มีบัญชีพร้อมใช้งาน (READY)");
+    }
+
+    /* =========================
+       ตรวจ COOL DOWN
+    ========================== */
+    const now = Date.now();
+    const cooldownReasons = [];
+
+    accounts.forEach(acc => {
+      if (acc.status === "COOLDOWN" && acc.cooldownUntil) {
+        const diff = acc.cooldownUntil - now;
+        if (diff > 0) {
+          const min = Math.ceil(diff / 60000);
+          cooldownReasons.push(`บัญชี ${acc.phone} ติดคูลดาวน์อีก ${min} นาที`);
+          acc.status = "COOLDOWN"; // Update account status to COOLDOWN immediately
+          acc.save(); // Save the updated status in DB
+        }
+      }
+    });
+
+    if (cooldownReasons.length) {
+      reasons.push(...cooldownReasons);
+    }
+
+    /* =========================
+       มีเหตุผลที่งานเริ่มไม่ได้?
+    ========================== */
+    if (reasons.length > 0) {
+      return res.json({
+        ok: false,
+        type: "precheck_fail",
+        reasons
+      });
+    }
+
+    /* =========================
+       PRECHECK ผ่าน → เริ่มสร้างงาน
+    ========================== */
+    const orderId = "TG" + Date.now().toString().slice(-8);
+
+    const job = await TelegramJob.create({
+      orderId,
+      userId: uid,
+      username: user.username,
+      srcGroup,
+      destGroup,
+      limit: qty,
+      invited: 0,
+      failed: 0,
+      status: "running",
+      maxSecurity: !!maxSecurity,
+      logs: [],
+      createdAt: new Date()
+    });
+
+    // ตัดเครดิต (กรณี cost = 0 = ไม่ตัด)
+    await User.updateOne(
+      { _id: uid },
+      { $inc: { credit: -cost } }
+    );
+
+    // เริ่มทำงานแบบ async
+    startTelegramJob(job._id);
+
+    return res.json({ ok:true, jobId: job._id, orderId: job.orderId });
+
+  } catch (err) {
+    console.error("START_JOB_ERROR:", err);
+    return res.json({ ok:false, error:"เกิดข้อผิดพลาด" });
+  }
+});
+
+/* ===============================================================
+   STOP TELEGRAM JOB
+=============================================================== */
+router.post("/jobs/:jobId/stop", requireAuth, async (req, res) => {
+  try {
+    const uid = req.session.user._id;
+    const jobId = req.params.jobId;
+
+    const job = await TelegramJob.findById(jobId).lean();
+    if (!job) return res.json({ ok:false, error:"ไม่พบงาน" });
+    if (String(job.userId) !== String(uid)) {
+      return res.json({ ok:false, error:"ไม่มีสิทธิ์หยุดงาน" });
+    }
+
+    stopTelegramJob(jobId);
+    return res.json({ ok:true });
+
+  } catch (err) {
+    console.error("STOP_JOB_ERROR:", err);
+    return res.json({ ok:false });
+  }
+});
 
 /* ===============================================================
    JOB STREAM (ไม่ต้อง admin)
 =============================================================== */
-router.get("/:jobId/stream", requireAuth, (req, res) => {
+router.get("/jobs/:jobId/stream", (req, res) => {
   streamTelegramJob(req, res);
 });
 
@@ -317,7 +460,7 @@ router.get("/history/list", requireAuth, async (req, res) => {
   try {
     const uid = req.session.user._id;
 
-    const list = await TelegramJob.find({ ownerId: uid })
+    const list = await TelegramJob.find({ userId: uid })
       .select("srcGroup destGroup invited limit status logs createdAt")
       .sort({ createdAt: -1 })
       .lean();

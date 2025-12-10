@@ -1,92 +1,446 @@
+// =========================================================
+// Telegram Runner PRO+ ULTRA MAX
+// =========================================================
+
+import { TelegramClient } from "telegram";
+import { StringSession } from "telegram/sessions/index.js";
+import { Api } from "telegram";
+
 import { User } from "../models/User.js";
 import { TelegramJob } from "../models/TelegramJob.js";
-import { telegramPush } from "../lib/sseTelegram.js";
+import { TgAccount } from "../models/TgAccount.js";
+import { telegramPush, telegramSubscribe } from "../lib/sseTelegram.js";
+import { TgInviteLog } from "../models/TgInviteLog.js";
 
-// หมายเหตุ: ตรงนี้จะใช้ GramJS หรือ Telethon ก็ได้
-// ฉันเขียนในเชิงโครงเพื่อ integrate
+// Track jobs
+const running = new Set();
 
-let runningJobs = new Set();
+// --------------------------------------------
+// Helper
+// --------------------------------------------
+export const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+function humanDelay() {
+  const r = Math.random();
+  if (r < 0.2) return 700 + Math.random() * 300;
+  if (r < 0.5) return 1200 + Math.random() * 600;
+  if (r < 0.8) return 2000 + Math.random() * 1000;
+  return 3500 + Math.random() * 1500;
+}
+
+function extractFloodWait(msg) {
+  const m = msg.match(/FLOOD_WAIT_(\d+)/i);
+  return m ? Number(m[1]) * 1000 : null;
+}
+
+function sanitize(g) {
+  if (!g) return g;
+  return g.replace("https://t.me/", "")
+          .replace("t.me/", "")
+          .trim();
+}
+
+// --------------------------------------------
+// Create Telegram Client
+// --------------------------------------------
+function makeClient(acc) {
+  return new TelegramClient(
+    new StringSession(acc.session),
+    acc.apiId,
+    acc.apiHash,
+    {
+      connectionRetries: 5,
+      requestTimeout: 60000,
+      autoReconnect: true,
+    }
+  );
+}
+
+async function safeConnect(client) {
+  for (let i = 0; i < 3; i++) {
+    try {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), 12000);
+
+      await client.connect({ signal: controller.signal });
+      clearTimeout(t);
+      return true;
+
+    } catch (e) {
+      console.log("[safeConnect] fail:", e.message);
+      await sleep(1500);
+    }
+  }
+  return false;
+}
+
+async function safeClose(client) {
+    try {
+        client._sender?.stop?.();       // หยุด network sender
+        client._updatesThread?.stop?.(); // หยุด update loop
+    } catch (e) {}
+
+    try {
+        await client.destroy();
+    } catch (e) {
+        console.log("destroy fail:", e.message);
+    }
+}
+
+// --------------------------------------------
+// Ensure join (join ไม่คิดเป็น invite)
+// --------------------------------------------
+async function ensureJoin(client, group) {
+  const g = sanitize(group);
+  try {
+    await client.invoke(new Api.channels.JoinChannel({ channel: g }));
+  } catch (err) {
+    const msg = String(err);
+    if (msg.includes("ALREADY")) return;
+    if (msg.includes("PRIVATE")) return;
+    if (msg.includes("INVITE_HASH_INVALID")) return;
+    console.log("[ensureJoin]", msg);
+  }
+}
+
+// --------------------------------------------
+// Resolve group/channel entity
+// --------------------------------------------
+async function resolveEntity(client, group) {
+  const g = sanitize(group);
+
+  for (let i = 0; i < 3; i++) {
+    try {
+      return await client.getEntity(g);
+    } catch {
+      await ensureJoin(client, g);
+      await sleep(1000);
+    }
+  }
+  return null;
+}
+
+
+// --------------------------------------------
+// Fetch participants (ไม่รวม bot/deleted/self)
+// --------------------------------------------
+async function fetchSrcMembers(client, src, meId) {
+  try {
+    const r = await client.invoke(
+      new Api.channels.GetParticipants({
+        channel: src,
+        filter: new Api.ChannelParticipantsRecent(),
+        offset: 0,
+        limit: 500
+      })
+    );
+
+    let arr = r.users || [];
+    return arr.filter(u => u.id !== meId && !u.bot && !u.deleted);
+  } catch (err) {
+    console.log("fetchSrcMembers:", err.message);
+    return [];
+  }
+}
+
+// --------------------------------------------
+// Invite Member (รองรับ Channel ด้วย)
+// --------------------------------------------
+async function inviteOne(client, dstEntity, user) {
+  try {
+    await client.invoke(
+      new Api.channels.InviteToChannel({
+        channel: dstEntity,
+        users: [user.id]
+      })
+    );
+
+    return { ok: true };
+
+  } catch (err) {
+    const msg = String(err.message || err);
+
+    if (msg.includes("FLOOD_WAIT")) return { flood: true, message: msg };
+    if (msg.includes("PEER_FLOOD") || msg.includes("PRIVACY")) return { spam: true };
+    return { error: msg };
+  }
+}
+
+// --------------------------------------------
+// Risk scoring / rotation
+// --------------------------------------------
+function riskScore(acc) {
+  let r = 0;
+  r += acc.invitesToday;
+
+  if (acc.lastError?.includes("FLOOD")) r += 40;
+  if (acc.cooldownUntil && acc.cooldownUntil > Date.now()) r += 50;
+
+  return r;
+}
+
+function quota(acc, remain) {
+  if (acc.invitesToday < 10) return Math.min(remain, 30);
+  if (acc.invitesToday < 20) return Math.min(remain, 15);
+  if (acc.invitesToday < 30) return Math.min(remain, 10);
+  return Math.min(remain, 5);
+}
+
+async function pickAccounts() {
+  const list = await TgAccount.find({ session: { $ne: null } });
+  let ready = [];
+
+  for (const acc of list) {
+    if (acc.cooldownUntil && acc.cooldownUntil > Date.now()) continue;
+    ready.push({ acc, r: riskScore(acc) });
+  }
+
+  ready.sort((a, b) => a.r - b.r);
+  return ready.map(v => v.acc);
+}
+
+
+function showPrecheckErrors(reasons = []) {
+    const box = document.getElementById("precheckBox");
+    const list = document.getElementById("precheckList");
+
+    if (!reasons.length) {
+        box.style.display = "none"; // Hide if no errors
+        return;
+    }
+
+    list.innerHTML = reasons.map(r => `• ${r}`).join("<br>"); // Format reasons into list
+    box.style.display = "block"; // Show error box
+
+    // Disable the start button if errors exist
+    const btn = document.getElementById("startBtn");
+    btn.disabled = true;
+    btn.classList.add("disabled"); // Add visual cue that the button is disabled
+
+    // Show notification
+    notify.error("ไม่สามารถเริ่มงานได้<br>" + list.innerHTML); // Display errors in notification
+}
+
+// --------------------------------------------
+// MAIN RUNNER
+// --------------------------------------------
 export async function startTelegramJob(jobId) {
-  if (runningJobs.has(jobId)) return;
-  runningJobs.add(jobId);
+  // ------------------------------
+  // PRE CHECK BEFORE START JOB
+  // ------------------------------
+  const allAccounts = await TgAccount.find({ session: { $ne: null } });
 
-  const job = await TelegramJob.findById(jobId);
+  let reasons = [];
+
+  const usable = allAccounts.filter(acc => {
+    if (!acc.session) {
+      reasons.push(`บัญชี ${acc.phone} ไม่มี session (ใช้งานไม่ได้)`);
+      return false;
+    }
+    if (acc.cooldownUntil && acc.cooldownUntil > Date.now()) {
+      const mins = Math.ceil((acc.cooldownUntil - Date.now()) / 60000);
+      reasons.push(`บัญชี ${acc.phone} ติดคูลดาวน์ (${mins} นาที)`);
+      acc.status = "COOLDOWN"; // Set account status to cooldown
+      acc.save(); // Update the account status in the DB
+      return false;
+    }
+    if (acc.invitesToday >= 40) {
+      reasons.push(`บัญชี ${acc.phone} ถึงลิมิตวันนี้แล้ว (40/40)`);
+      return false;
+    }
+    return true;
+  });
+
+  // ❌ ไม่มีบัญชีพร้อมใช้งาน → ไม่เริ่มงาน + แจ้งกลับ UI + Toast
+  if (usable.length === 0) {
+    let job = await TelegramJob.findById(jobId);
+    job.status = "error";
+
+    job.logs.push({ 
+      text: "ไม่สามารถเริ่มงานได้ — ไม่มีบัญชีที่พร้อมใช้งาน",
+      time: new Date()
+    });
+
+    reasons.forEach(r => job.logs.push({ text: r, time: new Date() }));
+
+    await job.save();
+
+    telegramPush(jobId, {
+      status: "error",
+      type: "precheck_fail",
+      reasons
+    });
+
+    running.delete(jobId);
+    showPrecheckErrors(reasons); // Display the errors clearly
+    return;
+  }
+
+  if (running.has(jobId)) return;
+  running.add(jobId);
+
+  let job = await TelegramJob.findById(jobId);
   if (!job) return;
 
-  job.status = "running";
-  job.logs.push({ text: "เริ่มกระบวนการดึงสมาชิก…" });
+  job.logs.push({ text: "เริ่มดึงสมาชิก..." });
   await job.save();
-  telegramPush(jobId, { status: "running" });
+
+  const qty = job.limit;  // ⭐ FIX
+
+  telegramPush(jobId, {
+    status: "running",
+    log: "เริ่มงานแล้ว",
+    total: qty,
+    invited: 0
+  });
 
   try {
-    // ================================
-    // 1) เชื่อมต่อ Account Telegram
-    // ================================
-    const client = await connectTelegramClient(); // ← นายจะยัดฟังก์ชันจริงได้ทีหลัง
+    let remaining = job.limit;
 
-    // ================================
-    // 2) ดึงสมาชิกจากกลุ่มต้นทาง
-    // ================================
-    const members = await fetchMembers(client, job.srcGroup, job.limit);
+    while (remaining > 0) {
+      const accounts = await pickAccounts();
+      if (!accounts.length) break;
 
-    // ================================
-    // 3) เชิญไปกลุ่มปลายทาง
-    // ================================
-    for (let m of members) {
-      if (job.status === "stopped") break;
+      for (const acc of accounts) {
+        if (remaining <= 0) break;
 
-      try {
-        await inviteMember(client, job.destGroup, m);
+        const q = quota(acc, remaining);
+        if (q <= 0) continue;
 
-        job.invited++;
-        telegramPush(jobId, {
-          invited: job.invited,
-          total: job.limit,
-          log: `เชิญ ${m.username || m.id} สำเร็จ`,
-        });
-      } catch (err) {
-        job.failed++;
-        telegramPush(jobId, {
-          error: err.message,
-          log: `เชิญ ${m.username || m.id} ไม่สำเร็จ`,
-        });
+        const client = makeClient(acc);
 
-        if (err.message.includes("FLOOD_WAIT")) {
-          const sec = extractFloodWait(err);
-          telegramPush(jobId, { log: `FLOOD_WAIT ${sec}s → พักชั่วคราว` });
-          await sleep(sec * 1000);
+        try {
+          const ok = await safeConnect(client);
+          if (!ok) continue;
+
+          await client.getMe().catch(() => { throw new Error("GET_ME_FAIL"); });
+          await ensureJoin(client, job.srcGroup);
+          await ensureJoin(client, job.destGroup);
+
+          const src = await resolveEntity(client, job.srcGroup);
+          const dst = await resolveEntity(client, job.destGroup);
+          if (!src || !dst) throw new Error("resolveEntity failed");
+
+          const me = await client.getMe();
+          const members = await fetchSrcMembers(client, src, me.id);
+
+          for (const user of members) {
+            if (remaining <= 0) break;
+
+            const exists = await TgInviteLog.findOne({
+              destGroup: job.destGroup,
+              tgUserId: user.id
+            }).lean();
+
+            if (exists) {
+              // skip member
+              continue;
+            }
+
+            const r = await inviteOne(client, dst, user);
+
+            const username = user.username || user.firstName || ("user_" + user.id);
+
+            if (r.ok) {
+              await TgInviteLog.create({
+                jobId: job._id,
+                accountId: acc._id,
+                tgUserId: user.id,
+                tgUserName: user.username || user.firstName,
+                destGroup: job.destGroup
+              });
+
+              job.logs.push({
+                text: `เชิญ ${username} สำเร็จ`,
+                time: new Date()
+              });
+
+              job.invited++;
+              remaining--;
+              acc.invitesToday++;
+
+              telegramPush(jobId, {
+                invited: job.invited,
+                total: job.limit,
+                user: username,
+                log: `เชิญ ${username} สำเร็จ`
+              });
+
+            } else if (r.flood) {
+              const ms = extractFloodWait(r.message) || 7200000;
+              acc.cooldownUntil = new Date(Date.now() + ms);
+              acc.lastError = r.message;
+              acc.status = "LOCKED";
+              await acc.save();
+              break;
+
+            } else if (r.spam) {
+              acc.cooldownUntil = new Date(Date.now() + 7200000);
+              acc.lastError = "PEER_FLOOD";
+              acc.status = "LOCKED";
+              await acc.save();
+              break;
+            }
+
+            await sleep(humanDelay());
+            await job.save();
+          }
+
+        } catch (err) {
+          job.logs.push({ text: `ERROR ${acc.phone}: ${err.message}` });
+        } finally {
+          try { await safeClose(client); } catch {}
+          await acc.save();
         }
       }
 
-      await job.save();
+      await sleep(800);
     }
 
-    job.status = "finished";
-    job.logs.push({ text: "งานเสร็จสิ้น" });
+    // ------------------------------
+    // FINISH
+    // ------------------------------
+    job.status = (job.invited >= job.limit) ? "finished" : "error";
+    job.logs.push({
+      text: `งานเสร็จสิ้น (${job.invited}/${job.limit})`,
+      time: new Date()
+    });
     await job.save();
 
-    telegramPush(jobId, { status: "finished" });
+    telegramPush(jobId, {
+      status: job.status,
+      invited: job.invited,
+      total: job.limit,
+      log: `งานเสร็จสิ้น (${job.invited}/${job.limit})`
+    });
 
-    // คืนเครดิต (เฉพาะส่วน failed)
-    const user = await User.findById(job.userId);
-    const refund = job.failed * 5;
-    user.wallet += refund;
-    await user.save();
+    // refund
+    const miss = job.limit - job.invited;
+    if (miss > 0) {
+      const refund = miss * 2;
+      const user = await User.findById(job.userId);
+      user.credit += refund;
+      await user.save();
+
+      telegramPush(jobId, {
+        refund,
+        log: `คืนเครดิต ${refund} เครดิต`
+      });
+    }
+
   } catch (err) {
     job.status = "error";
-    job.logs.push({ text: "เกิดข้อผิดพลาด: " + err.message });
+    job.logs.push({ text: err.message });
     await job.save();
-
     telegramPush(jobId, { status: "error", error: err.message });
   }
 
-  runningJobs.delete(jobId);
+  running.delete(jobId);
 }
 
-// ─────────────────────────────
-// STOP JOB
-// ─────────────────────────────
+// --------------------------------------------
+// STOP
+// --------------------------------------------
 export async function stopTelegramJob(jobId) {
   const job = await TelegramJob.findById(jobId);
   if (!job) return;
@@ -95,20 +449,12 @@ export async function stopTelegramJob(jobId) {
   job.logs.push({ text: "หยุดงานโดยผู้ใช้" });
   await job.save();
 
-  telegramPush(jobId, { status: "stopped" });
+  telegramPush(jobId, { status: "stopped", log: "หยุดงานแล้ว" });
 }
 
-// ─────────────────────────────
+// --------------------------------------------
 // SSE STREAM
-// ─────────────────────────────
+// --------------------------------------------
 export function streamTelegramJob(req, res) {
-  const jobId = req.params.jobId;
-  telegramSubscribe(jobId, res);
-}
-
-// ─────────────────────────────
-// Helper
-// ─────────────────────────────
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  telegramSubscribe(req.params.jobId, res);
 }

@@ -46,6 +46,7 @@ import { startOrderStatusJob } from './jobs/orderStatusJob.js';
 import bonustimeRouter from "./routes/bonustime.js";
 import { initBonustimeExpiryJob } from "./jobs/bonustimeExpiryJob.js";
 import { initTopupAutoRejectJob } from "./jobs/topupAutoRejectJob.js";
+import { checkAndUpdateAccounts } from './jobs/checkTelegramAccounts.js';
 import sitemapRouter from "./routes/sitemap.js";
 import robotsRoute from "./routes/robots.js";
 import telegramRouter from "./routes/telegram.js";
@@ -483,6 +484,7 @@ initDailyChangeSync();
 startOtp24ProcessingSweeper();
 initBonustimeExpiryJob();
 initTopupAutoRejectJob();
+checkAndUpdateAccounts();
 
 /* ------------------------------------------------------------------ */
 /* 5) ใช้ PORT จาก DB ก่อน ถ้าไม่มีค่อย fallback env/config           */

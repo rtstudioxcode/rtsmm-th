@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
 
 const TgAccountSchema = new mongoose.Schema({
-    ownerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    ownerUsername: { type: String, required: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    username: { type: String, required: true },
 
     phone: { type: String, required: true, unique: true },
 

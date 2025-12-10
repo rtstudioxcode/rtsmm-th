@@ -1,3 +1,4 @@
+// lib/sseTelegram.js
 const channels = new Map();
 
 export function telegramSubscribe(jobId, res) {
@@ -7,7 +8,9 @@ export function telegramSubscribe(jobId, res) {
 
   channels.set(jobId, res);
 
-  req.on("close", () => {
+  res.write("event: connected\ndata: ok\n\n");
+
+  res.on("close", () => {
     channels.delete(jobId);
   });
 }

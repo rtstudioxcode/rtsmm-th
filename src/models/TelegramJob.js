@@ -6,7 +6,9 @@ const LogSchema = new mongoose.Schema({
 });
 
 const TelegramJobSchema = new mongoose.Schema({
+  orderId:    { type:String, index:true, unique:true, sparse:true },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  username: { type: String, required: true },
 
   srcGroup: { type: String, required: true },
   destGroup: { type: String, required: true },
@@ -17,7 +19,7 @@ const TelegramJobSchema = new mongoose.Schema({
 
   status: {
     type: String,
-    enum: ["pending", "running", "finished", "error", "stopped"],
+    enum: ["pending", "running", "finished", "error", "stopped", "failed"],
     default: "pending",
   },
 
