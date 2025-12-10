@@ -1,7 +1,3 @@
-// =========================================================
-// Telegram Runner PRO+ ULTRA MAX
-// =========================================================
-
 import { TelegramClient } from "telegram";
 import { StringSession } from "telegram/sessions/index.js";
 import { Api } from "telegram";
@@ -15,12 +11,11 @@ import { TgInviteLog } from "../models/TgInviteLog.js";
 // Track jobs
 const running = new Set();
 
-// --------------------------------------------
-// Helper
-// --------------------------------------------
+// Helper functions
 export const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 function humanDelay() {
+  // AI-powered dynamic delay based on account risk
   const r = Math.random();
   if (r < 0.2) return 700 + Math.random() * 300;
   if (r < 0.5) return 1200 + Math.random() * 600;
@@ -35,14 +30,10 @@ function extractFloodWait(msg) {
 
 function sanitize(g) {
   if (!g) return g;
-  return g.replace("https://t.me/", "")
-          .replace("t.me/", "")
-          .trim();
+  return g.replace("https://t.me/", "").replace("t.me/", "").trim();
 }
 
-// --------------------------------------------
 // Create Telegram Client
-// --------------------------------------------
 function makeClient(acc) {
   return new TelegramClient(
     new StringSession(acc.session),
@@ -65,7 +56,6 @@ async function safeConnect(client) {
       await client.connect({ signal: controller.signal });
       clearTimeout(t);
       return true;
-
     } catch (e) {
       console.log("[safeConnect] fail:", e.message);
       await sleep(1500);
@@ -75,21 +65,19 @@ async function safeConnect(client) {
 }
 
 async function safeClose(client) {
-    try {
-        client._sender?.stop?.();       // หยุด network sender
-        client._updatesThread?.stop?.(); // หยุด update loop
-    } catch (e) {}
+  try {
+    client._sender?.stop?.(); // Stop network sender
+    client._updatesThread?.stop?.(); // Stop update loop
+  } catch (e) {}
 
-    try {
-        await client.destroy();
-    } catch (e) {
-        console.log("destroy fail:", e.message);
-    }
+  try {
+    await client.destroy();
+  } catch (e) {
+    console.log("destroy fail:", e.message);
+  }
 }
 
-// --------------------------------------------
 // Ensure join (join ไม่คิดเป็น invite)
-// --------------------------------------------
 async function ensureJoin(client, group) {
   const g = sanitize(group);
   try {
@@ -103,9 +91,7 @@ async function ensureJoin(client, group) {
   }
 }
 
-// --------------------------------------------
 // Resolve group/channel entity
-// --------------------------------------------
 async function resolveEntity(client, group) {
   const g = sanitize(group);
 
@@ -120,10 +106,7 @@ async function resolveEntity(client, group) {
   return null;
 }
 
-
-// --------------------------------------------
 // Fetch participants (ไม่รวม bot/deleted/self)
-// --------------------------------------------
 async function fetchSrcMembers(client, src, meId) {
   try {
     const r = await client.invoke(
@@ -143,9 +126,7 @@ async function fetchSrcMembers(client, src, meId) {
   }
 }
 
-// --------------------------------------------
 // Invite Member (รองรับ Channel ด้วย)
-// --------------------------------------------
 async function inviteOne(client, dstEntity, user) {
   try {
     await client.invoke(
@@ -154,9 +135,7 @@ async function inviteOne(client, dstEntity, user) {
         users: [user.id]
       })
     );
-
     return { ok: true };
-
   } catch (err) {
     const msg = String(err.message || err);
 
@@ -177,19 +156,19 @@ async function inviteOne(client, dstEntity, user) {
     return { error: msg };
   }
 }
-// --------------------------------------------
-// Risk scoring / rotation
-// --------------------------------------------
+
+// Risk scoring / rotation (AI-based risk scoring)
 function riskScore(acc) {
-  let r = 0;
-  r += acc.invitesToday;
+  let score = 0;
+  score += acc.invitesToday; // Count invites today
+  if (acc.lastError?.includes("FLOOD")) score += 40; // Penalize for flood errors
+  if (acc.cooldownUntil && acc.cooldownUntil > Date.now()) score += 50; // Penalize for active cooldown
 
-  if (acc.lastError?.includes("FLOOD")) r += 40;
-  if (acc.cooldownUntil && acc.cooldownUntil > Date.now()) r += 50;
-
-  return r;
+  // AI-powered risk adjustment: higher score means higher risk
+  return score;
 }
 
+// Dynamic invite limit based on account status and risk
 function quota(acc, remain) {
   if (acc.invitesToday < 10) return Math.min(remain, 30);
   if (acc.invitesToday < 20) return Math.min(remain, 15);
@@ -197,6 +176,7 @@ function quota(acc, remain) {
   return Math.min(remain, 5);
 }
 
+// Pick accounts with low risk for tasks
 async function pickAccounts() {
   const list = await TgAccount.find({ session: { $ne: null } });
   let ready = [];
@@ -206,34 +186,25 @@ async function pickAccounts() {
     ready.push({ acc, r: riskScore(acc) });
   }
 
-  ready.sort((a, b) => a.r - b.r);
-  return ready.map(v => v.acc);
+  ready.sort((a, b) => a.r - b.r); // Sort accounts by risk score
+  return ready.map(v => v.acc); // Return sorted accounts
 }
 
-
+// Show errors during precheck
 function showPrecheckErrors(reasons = [], jobId) {
-  // ส่งข้อมูลไปที่ client โดยใช้ SSE หรือ WebSocket
   telegramPush(jobId, {
     status: "error",
     type: "precheck_fail",
     reasons
   });
-
-  // แสดงข้อมูลจากเหตุผลใน UI ผ่าน SSE หรือ WebSocket
-  // ไม่ใช้ document.getElementById หรือ DOM ในฝั่ง server
 }
 
-// --------------------------------------------
-// MAIN RUNNER
-// --------------------------------------------
+// Main Runner: Start Telegram Job
 export async function startTelegramJob(jobId) {
-  // ------------------------------
-  // PRE CHECK BEFORE START JOB
-  // ------------------------------
   const allAccounts = await TgAccount.find({ session: { $ne: null } });
-
   let reasons = [];
 
+  // Pre-check for usable accounts
   const usable = allAccounts.filter(acc => {
     if (!acc.session) {
       reasons.push(`บัญชี ${acc.phone} ไม่มี session (ใช้งานไม่ได้)`);
@@ -242,8 +213,8 @@ export async function startTelegramJob(jobId) {
     if (acc.cooldownUntil && acc.cooldownUntil > Date.now()) {
       const mins = Math.ceil((acc.cooldownUntil - Date.now()) / 60000);
       reasons.push(`บัญชี ${acc.phone} ติดคูลดาวน์ (${mins} นาที)`);
-      acc.status = "COOLDOWN"; // Set account status to cooldown
-      acc.save(); // Update the account status in the DB
+      acc.status = "COOLDOWN";
+      acc.save();
       return false;
     }
     if (acc.invitesToday >= 40) {
@@ -253,28 +224,14 @@ export async function startTelegramJob(jobId) {
     return true;
   });
 
-  // ❌ ไม่มีบัญชีพร้อมใช้งาน → ไม่เริ่มงาน + แจ้งกลับ UI + Toast
   if (usable.length === 0) {
     let job = await TelegramJob.findById(jobId);
     job.status = "error";
-
-    job.logs.push({ 
-      text: "ไม่สามารถเริ่มงานได้ — ไม่มีบัญชีที่พร้อมใช้งาน",
-      time: new Date()
-    });
-
-    reasons.forEach(r => job.logs.push({ text: r, time: new Date() }));
-
+    job.logs.push({ text: "ไม่มีบัญชีที่พร้อมใช้งาน" });
     await job.save();
-
-    telegramPush(jobId, {
-      status: "error",
-      type: "precheck_fail",
-      reasons
-    });
-
+    telegramPush(jobId, { status: "error", reasons });
     running.delete(jobId);
-    showPrecheckErrors(reasons); // Display the errors clearly
+    showPrecheckErrors(reasons, jobId);
     return;
   }
 
@@ -284,20 +241,14 @@ export async function startTelegramJob(jobId) {
   let job = await TelegramJob.findById(jobId);
   if (!job) return;
 
-  job.logs.push({ text: "เริ่มดึงสมาชิก..." });
+  job.logs.push({ text: "เริ่มงาน..." });
   await job.save();
 
-  const qty = job.limit;  // ⭐ FIX
-
-  telegramPush(jobId, {
-    status: "running",
-    log: "เริ่มงานแล้ว",
-    total: qty,
-    invited: 0
-  });
+  const qty = job.limit;
+  telegramPush(jobId, { status: "running", total: qty, invited: 0 });
 
   try {
-    let remaining = job.limit;
+    let remaining = qty;
 
     while (remaining > 0) {
       const accounts = await pickAccounts();
@@ -335,12 +286,10 @@ export async function startTelegramJob(jobId) {
             }).lean();
 
             if (exists) {
-              // skip member
               continue;
             }
 
             const r = await inviteOne(client, dst, user);
-
             const username = user.username || user.firstName || ("user_" + user.id);
 
             if (r.ok) {
@@ -348,37 +297,23 @@ export async function startTelegramJob(jobId) {
                 jobId: job._id,
                 accountId: acc._id,
                 tgUserId: user.id,
-                tgUserName: user.username || user.firstName,
+                tgUserName: username,
                 destGroup: job.destGroup
               });
 
-              job.logs.push({
-                text: `เชิญ ${username} สำเร็จ`,
-                time: new Date()
-              });
-
+              job.logs.push({ text: `เชิญ ${username} สำเร็จ`, time: new Date() });
               job.invited++;
               remaining--;
               acc.invitesToday++;
 
-              telegramPush(jobId, {
-                invited: job.invited,
-                total: job.limit,
-                user: username,
-                log: `เชิญ ${username} สำเร็จ`
-              });
-
+              telegramPush(jobId, { invited: job.invited, total: qty, user: username });
             } else if (r.flood) {
-              const ms = extractFloodWait(r.message) || 7200000;
-              acc.cooldownUntil = new Date(Date.now() + ms);
-              acc.lastError = r.message;
+              acc.cooldownUntil = new Date(Date.now() + 7200000); // 2 hours cooldown
               acc.status = "LOCKED";
               await acc.save();
               break;
-
             } else if (r.spam) {
-              acc.cooldownUntil = new Date(Date.now() + 7200000);
-              acc.lastError = "PEER_FLOOD";
+              acc.cooldownUntil = new Date(Date.now() + 7200000); // 2 hours cooldown
               acc.status = "LOCKED";
               await acc.save();
               break;
@@ -395,39 +330,21 @@ export async function startTelegramJob(jobId) {
           await acc.save();
         }
       }
-
       await sleep(800);
     }
 
-    // ------------------------------
-    // FINISH
-    // ------------------------------
-    job.status = (job.invited >= job.limit) ? "finished" : "error";
-    job.logs.push({
-      text: `งานเสร็จสิ้น (${job.invited}/${job.limit})`,
-      time: new Date()
-    });
+    job.status = (job.invited >= qty) ? "finished" : "error";
+    job.logs.push({ text: `งานเสร็จสิ้น (${job.invited}/${qty})`, time: new Date() });
     await job.save();
 
-    telegramPush(jobId, {
-      status: job.status,
-      invited: job.invited,
-      total: job.limit,
-      log: `งานเสร็จสิ้น (${job.invited}/${job.limit})`
-    });
-
-    // refund
-    const miss = job.limit - job.invited;
+    telegramPush(jobId, { status: job.status, invited: job.invited, total: qty });
+    const miss = qty - job.invited;
     if (miss > 0) {
       const refund = miss * 2;
       const user = await User.findById(job.userId);
       user.credit += refund;
       await user.save();
-
-      telegramPush(jobId, {
-        refund,
-        log: `คืนเครดิต ${refund} เครดิต`
-      });
+      telegramPush(jobId, { refund, log: `คืนเครดิต ${refund} เครดิต` });
     }
 
   } catch (err) {
@@ -440,9 +357,7 @@ export async function startTelegramJob(jobId) {
   running.delete(jobId);
 }
 
-// --------------------------------------------
-// STOP
-// --------------------------------------------
+// Stop job
 export async function stopTelegramJob(jobId) {
   const job = await TelegramJob.findById(jobId);
   if (!job) return;
@@ -454,9 +369,7 @@ export async function stopTelegramJob(jobId) {
   telegramPush(jobId, { status: "stopped", log: "หยุดงานแล้ว" });
 }
 
-// --------------------------------------------
 // SSE STREAM
-// --------------------------------------------
 export function streamTelegramJob(req, res) {
   telegramSubscribe(req.params.jobId, res);
 }

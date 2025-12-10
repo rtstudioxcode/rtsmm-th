@@ -1,0 +1,554 @@
+<% const PAGE_TITLE = "Telegram — ประวัติการใช้งาน"; %>
+
+<section class="page telegram-page" style="padding:0; width: 100%;">
+
+  <div class="page-head" style="padding:22px 20px 10px; width: 100%">
+    <div class="page-title">
+      <h1><%= PAGE_TITLE %></h1>
+      <small class="muted">บริการพิเศษ → <%= PAGE_TITLE %></small>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button type="button" class="tab" data-tab="accounts">สั่งซื้อบริการ</button>
+    <button type="button" class="tab" data-tab="pull">ประวัติคำสั่งซื้อ</button>
+    <button type="button" class="tab active" data-tab="history">ประวัติคำสั่งซื้อ</button>
+  </div>
+
+  <section id="tab-history" class="tabpane show">
+    <section class="card" style="padding: 18px;">
+        <div class="card-container">
+        <% if (history && history.length > 0) { %>
+            <% history.forEach(job => { %>
+            <div class="card-item">
+                <div class="card-header" onclick="toggleCard('<%= job._id %>')">
+                <div class="order-details">
+                    <span><%= job.orderId %> - <%= new Date(job.createdAt).toLocaleString("th-TH") %></span>
+                    
+                </div>
+                <span class="status" style="color: 
+                    <%= job.status === 'finished' ? '#4caf50' : 
+                        (job.status === 'error' ? '#f44336' : '#fbc02d') %>;">
+                    <%= job.status === 'finished' ? 'สำเร็จ' : 
+                        (job.status === 'error' ? 'ไม่สำเร็จ' : 'กำลังดำเนินการ') %>
+                    </span>
+                </div>
+                
+                <div class="card-divider"></div>
+
+                <div class="card-content" id="card-<%= job._id %>">
+                <div>กลุ่มต้นทาง: <%= job.srcGroup %></div>
+                <div>กลุ่มปลายทาง: <%= job.destGroup %></div>
+                <div>จำนวนที่เชิญ: <%= job.invited %>/<%= job.limit %> คน</div>
+                <button onclick='openLogModal(<%= JSON.stringify(job.logs) %>)'>
+                    <img src="/static/assets/emoji/detail.png" alt="Details" class="detail-icon">
+                </button>
+                </div>
+            </div>
+            <% }) %>
+        <% } else { %>
+            <div class="muted">ยังไม่มีประวัติการดึงสมาชิก</div>
+        <% } %>
+        </div>
+    </section>
+    
+    <!-- ========== MODAL: VIEW LOG ========== -->
+    <div id="tgLogModal" class="modal-backdrop" style="display:none;">
+        <div class="modal">
+        <div class="modal-head">
+            <h3>บันทึกการทำงาน</h3>
+            <button class="modal-close" onclick="closeLogModal()">×</button>
+        </div>
+        <div id="tgModalContent" class="modal-body" style="max-height:400px; overflow-y:auto; font-size:13px;">
+            <!-- logs will appear here -->
+        </div>
+        </div>
+    </div>
+  </section>
+
+</section>
+
+<script>
+// TAB - SWITCH 
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.tab');
+  if (!btn) return;
+
+  const tab = btn.dataset.tab;
+
+  // ===== กรณี TAB 1 → Redirect ไป /telegram =====
+  if (tab === 'accounts') {
+    window.location.href = '/telegram';
+    return;
+  } else if (tab === 'pull') {
+    window.location.href = '/telegram';
+    return;
+  }
+  
+  // ===== เปลี่ยนแท็บปกติ (TAB 1) =====
+  document.querySelectorAll('.tab').forEach(t =>
+    t.classList.remove('active')
+  );
+  btn.classList.add('active');
+
+  document.querySelectorAll('.tabpane').forEach(p =>
+    p.classList.remove('show')
+  );
+  document.getElementById('tab-' + tab).classList.add('show');
+});
+
+/* ---------- SSE STREAM ---------- */
+function attachStream() {
+  if (evtSource) evtSource.close();
+
+  // ⭐ FIX: ใช้ currentJob ไม่ใช่ jobId
+  evtSource = new EventSource(`/telegram/jobs/${currentJob}/stream`);
+
+  evtSource.onmessage = (ev) => {
+    const msg = JSON.parse(ev.data);
+
+    if (msg.log) appendLog(msg.log);
+
+    if (msg.invited != null && msg.total != null) {
+      const pct = Math.round((msg.invited / msg.total) * 100);
+      progressBar.style.width = pct + "%";
+      countText.textContent =
+        `เชิญแล้ว ${msg.invited} คน • ล้มเหลว ${msg.failed || 0} คน • ทั้งหมด ${msg.total} คน`;
+    }
+
+    // ถ้า PRECHECK FAIL
+    if (msg.type === "precheck_fail") {
+
+      showPrecheckErrors(msg.reasons || []);
+
+      // ปิด progress UI (ถ้าเริ่มแสดง)
+      progressBox.style.display = "none";
+
+      // ปิด stream
+      if (evtSource) evtSource.close();
+
+      return; 
+    }
+
+    if (msg.status) {
+      statusText.textContent =
+        msg.status === "finished" ? "สำเร็จ" :
+        msg.status === "running"  ? "กำลังทำงาน…" :
+        msg.status === "stopped"  ? "หยุดแล้ว" :
+        msg.status === "failed"  ? "ล้มเหลว" :
+        msg.status === "error"    ? "มีข้อผิดพลาด" : msg.status;
+    }
+
+    if (msg.status === "finished") {
+      notify.success("งาน #" + orderId + " เสร็จสิ้นแล้ว!");
+      evtSource.close();
+    }
+  };
+}
+
+/* ---------- LOG HELPER ---------- */
+function appendLog(t) {
+  const div = document.createElement("div");
+  div.textContent = t;
+  logBox.appendChild(div);
+  logBox.scrollTop = logBox.scrollHeight;
+}
+
+/* ====================================================== 
+   HELPERS
+====================================================== */
+function mapStatus(s) {
+  return s === "running"  ? "กำลังทำงาน" :
+         s === "pending"  ? "กำลังทำงาน" :
+         s === "finished" ? "สำเร็จ" :
+         s === "stopped"  ? "หยุด" :
+         s === "failed" ? "ล้มเหลว" :
+         s === "error"    ? "ผิดพลาด" :
+         (s || "-");
+}
+
+function formatDate(d) {
+  return new Date(d).toLocaleString("th-TH", {
+    dateStyle: "short",
+    timeStyle: "short"
+  });
+}
+
+/* ====================================================== 
+   OPEN LOG MODAL
+====================================================== */
+// Open the modal to show logs
+function openLogModal(logs = []) {
+  const modal = document.getElementById("tgLogModal");
+  const body = document.getElementById("tgModalContent");
+
+  if (!logs || logs.length === 0) {
+    body.innerHTML = `<div class="muted">ไม่มีบันทึก</div>`;
+  } else {
+    body.innerHTML = logs
+      .map(l => `<div>[${new Date(l.time).toLocaleString("th-TH")}] ${l.text}</div>`)
+      .join(""); // แสดงข้อมูล logs
+  }
+
+  modal.style.display = "flex";
+}
+
+// Close the modal
+function closeLogModal() {
+  document.getElementById("tgLogModal").style.display = "none";
+}
+
+/* ===================== Toggle Card ===================== */
+function toggleCard(jobId) {
+  const cardContent = document.getElementById('card-' + jobId);
+  const toggleButton = document.querySelector(`#card-${jobId} .toggle`);
+  
+  if (cardContent.style.display === "block") {
+    cardContent.style.display = "none";
+  } else {
+    cardContent.style.display = "block";
+  }
+}
+</script>
+
+<style>
+/* modal */
+.modal-backdrop{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.65);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:1200;
+}
+
+.modal{
+  width:90%;
+  max-width:440px;
+  background:#1c1c20;
+  border-radius:10px;
+  border:1px solid #2d2d31;
+  padding:18px;
+  animation:fadeIn .2s ease;
+}
+
+.modal-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:12px;
+}
+
+.modal-close{
+  border:0;
+  background:transparent;
+  color:#fff;
+  font-size:22px;
+  cursor:pointer;
+}
+
+.modal-head h3 {
+  font-size: 20px;
+  font-weight: 400;
+  color: #ffdd9c;
+}
+
+.modal-body label {
+  display: block;
+  margin-top: 12px;
+  margin-bottom: 4px;
+  font-size: 13px;
+  color: #d8d8d8;
+}
+
+.modal-body input,
+.modal-body textarea {
+  width: 100%;
+  padding: 10px 12px;
+  background: #222226;
+  border: 1px solid #333338;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+}
+
+.modal-actions .btn {
+  min-width: 92px;
+  padding: 9px 14px;
+  font-size: 14px;
+}
+
+
+.badge {
+  display: inline-block;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  color: #fff;
+}
+
+.badge.error {
+  background-color: #f44336;
+}
+
+.badge.running {
+  background-color: #fbc02d;
+}
+
+.badge.success {
+  background-color: #4caf50;
+}
+
+button.btn-small {
+  padding: 6px 10px;
+  border-radius: 5px;
+  background-color: #2a84ff;
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  border: none;
+}
+
+button.btn-small:hover {
+  background-color: #1d6dbf;
+}
+
+.muted {
+  font-size: 14px;
+  color: #ccc;
+}
+
+@media (max-width: 768px) {
+  th, td {
+    padding: 10px;
+    font-size: 12px;
+  }
+  button.btn-small {
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+}
+/* ===================== Table Styling ===================== */
+#tgHistoryWrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  color: #ddd;
+  text-align: left;
+}
+
+thead {
+  background-color: #333;
+  color: #fff;
+}
+
+th, td {
+  padding: 12px;
+  border: 1px solid #444;
+  text-align: center;
+}
+
+th {
+  font-weight: 400;
+  background-color: #444;
+}
+
+tbody tr:nth-child(even) {
+  background-color: #2a2a2a;
+}
+
+tbody tr:nth-child(odd) {
+  background-color: #222;
+}
+
+tbody tr:hover {
+  background-color: #555;
+}
+
+.badge {
+  display: inline-block;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  color: #fff;
+}
+
+.badge.error {
+  background-color: #f44336;
+}
+
+.badge.running {
+  background-color: #fbc02d;
+}
+
+.badge.success {
+  background-color: #4caf50;
+}
+
+button.btn-small {
+  padding: 6px 10px;
+  border-radius: 5px;
+  background-color: #2a84ff;
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  border: none;
+}
+
+button.btn-small:hover {
+  background-color: #1d6dbf;
+}
+
+.muted {
+  font-size: 14px;
+  color: #ccc;
+}
+
+@media (max-width: 768px) {
+  th, td {
+    padding: 10px;
+    font-size: 12px;
+  }
+  button.btn-small {
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+}
+
+/* ===================== Card Styling ===================== */
+.card-container {
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.card-item {
+  background: #00000857; /* ใช้พื้นหลังเข้มสำหรับธีมมืด */
+  border-radius: 12px;  /* เพิ่มมุมโค้งให้ดูหรู */
+  margin-bottom: 10px;
+  padding: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* เงาเพิ่มมิติ */
+  transition: all 0.3s ease;
+}
+
+/* ===================== Divider ===================== */
+.card-divider {
+  height: 1px;
+  background: #333;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  cursor: pointer;
+  font-weight: 400;
+  color: #fff;
+  padding-bottom: 10px;
+  align-items: center;
+}
+
+.card-header .status {
+  font-weight: 400;
+  font-size: 16px;
+}
+
+.card-header .toggle {
+  font-size: 20px;
+  color: #fff;
+}
+
+.card-content {
+  display: none;
+  margin-top: 10px;
+  font-size: 14px;
+  color: #ccc;
+}
+
+.card-content div {
+  margin-bottom: 12px;
+}
+
+.card .btn-small {
+  padding: 8px 15px;
+  border-radius: 5px;
+  background-color: #4CAF50;  /* ปุ่มสีเขียวสำหรับสถานะสำเร็จ */
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  border: none;
+  transition: background-color 0.3s ease;
+}
+
+.card .btn-small:hover {
+  background-color: #45a049; /* เอฟเฟกต์เมื่อ hover */
+}
+
+.card .btn-small.error {
+  background-color: #f44336;  /* ปุ่มสีแดงสำหรับสถานะผิดพลาด */
+}
+
+.card .btn-small.warning {
+  background-color: #fbc02d;  /* ปุ่มสีเหลืองสำหรับสถานะกำลังดำเนินการ */
+}
+
+.card .btn-small.success {
+  background-color: #4caf50;  /* ปุ่มสีเขียวสำหรับสถานะสำเร็จ */
+}
+
+.card .btn-small:hover {
+  background-color: #1d6dbf;
+}
+
+/* ===================== Card Status Color ===================== */
+.card-header .status.finished {
+  color: #4caf50; /* สีเขียวสำหรับสถานะสำเร็จ */
+}
+
+.card-header .status.error {
+  color: #f44336; /* สีแดงสำหรับสถานะผิดพลาด */
+}
+
+.card-header .status.running {
+  color: #fbc02d; /* สีเหลืองสำหรับสถานะกำลังดำเนินการ */
+}
+
+/* ===================== Divider for Card Items ===================== */
+
+.card-header .status, .card-header .toggle {
+  margin-right: 10px; /* เพิ่มช่องว่างระหว่างสถานะและปุ่มขยาย */
+}
+
+/* ===================== Hover Effect ===================== */
+.card-item:hover {
+  transform: scale(1.01); /* เมื่อ hover เพิ่มขนาดการ์ดเล็กน้อย */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); /* เพิ่มเงาเมื่อ hover */
+  background-color: #00000888;
+}
+
+/* ลบพื้นหลังของปุ่ม */
+button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* ทำให้ภาพไม่มีพื้นหลัง */
+.detail-icon {
+  width: 20px;
+  height: 20px;
+  background: none;
+  display: block;
+  transition: transform 0.3s ease; /* เปลี่ยนจาก background-color เป็น transform */
+}
+
+.detail-icon:hover {
+  transform: scale(1.1); /* ขยายขนาดเล็กน้อยเมื่อ hover */
+}
+</style>

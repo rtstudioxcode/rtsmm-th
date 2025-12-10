@@ -425,7 +425,6 @@
         </div>
         </div>
     </div>
-
   </section>
 
 </section>
@@ -435,9 +434,652 @@
     <img id="imgPreviewTarget" class="img-modal-content">
 </div>
 
+<!-- ====================== SCRIPT ====================== -->
+<script>
+/* ======================================================
+   ELEMENTS
+====================================================== */
+const tabs = document.querySelectorAll(".tab");
+const panes = {
+  accounts: document.getElementById("tab-accounts"),
+  pull:     document.getElementById("tab-pull"),
+  history:  document.getElementById("tab-history")
+};
+
+/* ======================================================
+   TAB SWITCH
+====================================================== */
+tabs.forEach(tab => {
+  tab.addEventListener("click", () => {
+
+    // active state
+    tabs.forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+
+    // hide all panes
+    Object.values(panes).forEach(p => p.classList.remove("show"));
+
+    // show the target pane
+    const name = tab.dataset.tab;
+
+    if (name === "accounts") {
+      panes.accounts.classList.add("show");
+      loadTgAccounts();
+    }
+    else if (name === "pull") {
+      panes.pull.classList.add("show");
+    }
+    else if (name === "history") {
+      panes.history.classList.add("show");
+      loadHistory();
+    }
+  });
+});
+
+
+/* ---------- FORM: CALCULATE COST ---------- */
+const limitInput = document.getElementById("limit");
+const costPreview = document.getElementById("costPreview");
+const costPer = 0; // สมมติราคาคนละ 5 เครดิต
+
+limitInput?.addEventListener("input", () => {
+    const n = Number(limitInput.value || 0);
+    if (n > 0) {
+    costPreview.textContent = "เครดิตที่ใช้: " + (n * costPer) + " เครดิต";
+    } else {
+    costPreview.textContent = "เครดิตที่ใช้: 0"+ " เครดิต";
+    }
+});
+
+/* ======================================================
+   PRECHECK FAIL UI HANDLER
+====================================================== */
+function showPrecheckErrors(reasons = []) {
+  const box = document.getElementById("precheckBox");
+  const list = document.getElementById("precheckList");
+
+  if (!reasons.length) {
+    box.style.display = "none"; // ถ้าไม่มีข้อผิดพลาดให้ซ่อน
+    return;
+  }
+
+  list.innerHTML = reasons.map(r => `• ${r}`).join("<br>"); // แสดงรายการเหตุผล
+  box.style.display = "block"; // แสดงข้อผิดพลาด
+
+  // ปิดปุ่ม START เมื่อมีข้อผิดพลาด
+  const btn = document.getElementById("startBtn");
+  btn.disabled = true;
+  btn.classList.add("disabled"); // เพิ่มคลาส disabled เพื่อให้ปุ่มไม่สามารถคลิกได้
+
+  // แสดงการแจ้งเตือน
+  notify.error("ไม่สามารถเริ่มงานได้<br>" + list.innerHTML);
+}
+
+/* ---------- START JOB ---------- */
+const startBtn = document.getElementById("startBtn");
+const progressBox = document.getElementById("tgProgressBox");
+const logBox = document.getElementById("tgLogBox");
+const progressBar = document.getElementById("tgProgressBar");
+const statusText = document.getElementById("tgStatusText");
+const countText = document.getElementById("tgCounts");
+document.getElementById("precheckBox").style.display = "none";
+document.getElementById("precheckList").innerHTML = "";
+
+startBtn.disabled = false;
+let currentJob = null;
+let orderId = null;
+let evtSource = null;
+
+startBtn.addEventListener("click", async () => {
+  const srcGroup = document.getElementById("srcGroup").value.trim();
+  const destGroup = document.getElementById("destGroup").value.trim();
+  const limit = Number(document.getElementById("limit").value.trim());
+
+  if (!srcGroup || !destGroup || !limit) {
+    return notify("⚠️ กรุณากรอกข้อมูลให้ครบ");
+  }
+
+  const res = await fetch("/telegram/jobs/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ srcGroup, destGroup, limit })
+  });
+
+  const data = await res.json();
+
+  if (!data.ok) {
+    // ตรวจสอบข้อผิดพลาดและแสดงเหตุผลที่ชัดเจน
+    const errorMessage = data.error || data.message || "ไม่ทราบข้อผิดพลาด";
+    return notify.error("เกิดข้อผิดพลาด: " + errorMessage);
+  }
+
+  // ⭐ เก็บตัวแปรสำคัญ
+  currentJob = data.jobId;
+  orderId = data.orderId;
+
+  notify.success("เริ่มงาน #" + orderId + " แล้ว");
+
+  showProgressUI();
+  attachStream();
+
+  document.querySelector('.tab[data-tab="history"]').click();
+  setTimeout(() => loadHistory(), 300);
+});
+
+function showProgressUI() {
+  progressBox.style.display = "block";
+  logBox.innerHTML = "";
+  progressBar.style.width = "0%";
+  statusText.textContent = "กำลังเริ่มงาน…";
+  countText.textContent = "—";
+}
+
+/* ---------- SSE STREAM ---------- */
+function attachStream() {
+  if (evtSource) evtSource.close();
+
+  // ⭐ FIX: ใช้ currentJob ไม่ใช่ jobId
+  evtSource = new EventSource(`/telegram/jobs/${currentJob}/stream`);
+
+  evtSource.onmessage = (ev) => {
+    const msg = JSON.parse(ev.data);
+
+    if (msg.log) appendLog(msg.log);
+
+    if (msg.invited != null && msg.total != null) {
+      const pct = Math.round((msg.invited / msg.total) * 100);
+      progressBar.style.width = pct + "%";
+      countText.textContent =
+        `เชิญแล้ว ${msg.invited} คน • ล้มเหลว ${msg.failed || 0} คน • ทั้งหมด ${msg.total} คน`;
+    }
+
+    // ถ้า PRECHECK FAIL
+    if (msg.type === "precheck_fail") {
+
+      showPrecheckErrors(msg.reasons || []);
+
+      // ปิด progress UI (ถ้าเริ่มแสดง)
+      progressBox.style.display = "none";
+
+      // ปิด stream
+      if (evtSource) evtSource.close();
+
+      return; 
+    }
+
+    if (msg.status) {
+      statusText.textContent =
+        msg.status === "finished" ? "สำเร็จ" :
+        msg.status === "running"  ? "กำลังทำงาน…" :
+        msg.status === "stopped"  ? "หยุดแล้ว" :
+        msg.status === "failed"  ? "ล้มเหลว" :
+        msg.status === "error"    ? "มีข้อผิดพลาด" : msg.status;
+    }
+
+    if (msg.status === "finished") {
+      notify.success("งาน #" + orderId + " เสร็จสิ้นแล้ว!");
+      evtSource.close();
+    }
+  };
+}
+
+/* ---------- STOP JOB ---------- */
+document.addEventListener("DOMContentLoaded", () => {
+  // Dynamically added button handling
+  const interval = setInterval(() => {
+    const stopBtn = document.getElementById("stopBtn");
+    if (stopBtn) {
+      stopBtn.addEventListener("click", async () => {
+        if (!currentJob) return;
+
+        await fetch(`/telegram/jobs/${currentJob}/stop`, { method: "POST" });
+        notify("⛔ หยุดงานแล้ว");
+      });
+
+      // Stop the interval once the button is found
+      clearInterval(interval);
+    }
+  }, 100);  // Check every 100ms for the button
+
+});
+
+
+/* ---------- LOG HELPER ---------- */
+function appendLog(t) {
+  const div = document.createElement("div");
+  div.textContent = t;
+  logBox.appendChild(div);
+  logBox.scrollTop = logBox.scrollHeight;
+}
+
+/* ===========================================================
+   STATUS LABEL
+===========================================================*/
+function mapStatus(st) {
+  return st === "running" ? "กำลังทำงาน" :
+         st === "finished" ? "สำเร็จ" :
+         st === "stopped" ? "หยุด" :
+         st === "failed" ? "ล้มเหลว" :
+         st === "error" ? "ผิดพลาด" :
+         st;
+}
+
+/* ===========================================================
+   DATE FORMAT
+===========================================================*/
+function formatDate(d){
+  return new Date(d).toLocaleString("th-TH", {
+    dateStyle:"short",
+    timeStyle:"short"
+  });
+}
+
+/* ===========================================================
+   MODAL LOGIN TELEGRAM
+===========================================================*/
+function showOtpModal(mode = "otp") {
+  const backdrop = document.getElementById("tgOtpBackdrop");
+  const title = document.querySelector(".modal-title");
+  const otpSection = document.getElementById("otpSection");
+  const passSection = document.getElementById("passSection");
+
+  backdrop.style.display = "flex";
+
+  if (mode === "2fa") {
+    title.textContent = "ยืนยัน 2FA";
+    otpSection.style.display = "none";
+    passSection.style.display = "block";
+  } else {
+    title.textContent = "ยืนยันรหัส OTP";
+    otpSection.style.display = "block";
+    passSection.style.display = "none";
+  }
+}
+
+/* ===========================================================
+   LOAD HISTORY WHEN SWITCH TAB 3
+===========================================================*/
+document.querySelector('.tab[data-tab="history"]').addEventListener("click", loadHistory);
+
+/* ============================
+   ELEMENTS
+============================ */
+const m1 = document.getElementById("tgLoginBackdrop");
+const m2 = document.getElementById("tgOtpBackdrop");
+
+const btnAdd = document.getElementById("btnAddTgAcc");
+const btnClose1 = document.getElementById("tgLoginClose");
+const btnCancel1 = document.getElementById("tgLoginCancel");
+const btnNext = document.getElementById("tgLoginNext");
+
+const btnClose2 = document.getElementById("tgOtpClose");
+const btnCancel2 = document.getElementById("tgOtpCancel");
+const btnSubmitOtp = document.getElementById("tgOtpSubmit");
+
+const otpSection = document.getElementById("otpSection");
+const passSection = document.getElementById("passSection");
+
+const otpModalTitle = document.querySelector("#tgOtpBackdrop .modal-title");
+
+let LOGIN_TOKEN = null;
+
+/* ============================
+   เปิด Modal Step 1
+============================ */
+btnAdd.onclick = () => {
+  otpModalTitle.textContent = "ยืนยันรหัส OTP";
+
+  document.getElementById("tg_phone").value = "";
+  document.getElementById("tg_apiId").value = "";
+  document.getElementById("tg_apiHash").value = "";
+  document.getElementById("tg_otp").value = "";
+  document.getElementById("tg_password").value = "";
+
+  otpSection.style.display = "block";
+  passSection.style.display = "none";
+
+  m1.style.display = "flex";
+};
+
+const closeAll = () => {
+  m1.style.display = "none";
+  m2.style.display = "none";
+};
+
+btnClose1.onclick = closeAll;
+btnCancel1.onclick = closeAll;
+btnClose2.onclick = closeAll;
+btnCancel2.onclick = closeAll;
+
+
+/* ============================
+   STEP 1 → ส่ง OTP
+============================ */
+btnNext.onclick = async () => {
+  const phone = document.getElementById("tg_phone").value.trim();
+  const apiId = document.getElementById("tg_apiId").value.trim();
+  const apiHash = document.getElementById("tg_apiHash").value.trim();
+
+  if (!phone || !apiId || !apiHash)
+    return notify.error("⚠️ กรุณากรอกข้อมูลให้ครบ");
+
+  notify.info("กำลังส่งรหัส OTP...");
+
+  const res = await fetch("/telegram/accounts/login/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, apiId, apiHash })
+  }).then(r => r.json());
+
+  if (!res.ok) {
+    return notify.error(res.error || "เริ่มการยืนยันไม่สำเร็จ");
+  }
+
+  LOGIN_TOKEN = res.loginToken;
+
+  m1.style.display = "none";
+  m2.style.display = "flex";
+
+  // ⭐ ยืนยัน OTP
+  otpModalTitle.textContent = "ยืนยันรหัส OTP";
+
+  otpSection.style.display = "block";
+  passSection.style.display = "none";
+
+  notify.success("ส่ง OTP แล้ว โปรดตรวจสอบ Telegram");
+};
+
+
+/* ============================
+   STEP 2 → OTP / 2FA
+============================ */
+btnSubmitOtp.onclick = async () => {
+  const code = document.getElementById("tg_otp").value.trim();
+  const password = document.getElementById("tg_password").value.trim();
+
+  if (!code && !password)
+    return notify.error("กรุณากรอก OTP หรือรหัสผ่าน 2FA");
+
+  const res = await fetch("/telegram/accounts/login/finish", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      loginToken: LOGIN_TOKEN,
+      code,
+      password
+    })
+  }).then(r => r.json());
+
+  // ⭐ ต้องการรหัส 2FA → เปลี่ยนหัวข้อ!
+  if (res.needPassword) {
+    LOGIN_TOKEN = res.loginToken;
+
+    otpModalTitle.textContent = "ยืนยัน 2FA";
+
+    otpSection.style.display = "none";
+    passSection.style.display = "block";
+
+    return notify.info("บัญชีนี้เปิดใช้งาน 2FA กรุณาใส่รหัสผ่าน");
+  }
+
+  if (!res.ok)
+    return notify.error(res.error || "ยืนยันไม่สำเร็จ");
+
+  notify.success("เพิ่มบัญชีสำเร็จ 🎉");
+  closeAll();
+  setTimeout(() => location.reload(), 600);
+};
+/* ======================================================
+   LOAD ACCOUNTS
+====================================================== */
+// Update cooldown and status on account
+function updateCooldown(account) {
+  const now = Date.now();
+  const cooldownUntil = new Date(account.cooldownUntil).getTime(); // เวลาเมื่อถึงคูลดาวน์
+
+  if (cooldownUntil > now) {
+    const remainingTime = cooldownUntil - now;
+    const hours = Math.floor(remainingTime / 3600000);  // ชั่วโมง
+    const minutes = Math.floor((remainingTime % 3600000) / 60000);  // นาที
+    const seconds = Math.floor((remainingTime % 60000) / 1000);  // วินาที
+
+    // แสดงข้อความเวลา
+    const statusText = `จะกลับมาใช้ได้ในอีก ${hours > 0 ? hours + ' ชั่วโมง ' : ''}${minutes} นาที ${seconds} วินาที`;
+
+    const timerElement = document.getElementById(`tg-timer-${account._id}`);  // อัปเดตเฉพาะส่วน timer
+
+    if (timerElement) {
+      timerElement.innerHTML = `${hours > 0 ? hours + ' ชั่วโมง ' : ''}${minutes} นาที ${seconds} วินาที`; // แสดงเวลา
+    }
+
+    // อัปเดตทุกๆ วินาที
+    setTimeout(() => updateCooldown(account), 1000);  // อัปเดตทุกๆ วินาที
+  }
+}
+
+// เรียกใช้ฟังก์ชันเมื่อโหลดบัญชี
+async function loadTgAccounts() {
+  try {
+    const res = await fetch("/telegram/accounts");
+    const data = await res.json();
+
+    if (!data.ok) {
+      notify.error("ไม่สามารถโหลดบัญชีได้");
+      return;
+    }
+
+    const list = data.accounts || [];
+    const wrap = document.getElementById("tgAccList");
+    const count = document.getElementById("tgAccCount");
+
+    // อัปเดตจำนวนบัญชี
+    const ready = list.filter(a => a.status === "READY").length;
+    count.textContent = `(พร้อมใช้งาน ${ready} บัญชี)`;  // อัพเดทจำนวนบัญชี
+
+    wrap.innerHTML = "";  // ลบข้อมูลเก่าออก
+
+    list.forEach(acc => {
+      const item = document.createElement("div");
+      item.className = "tg-acc-item";
+      const created = new Date(acc.createdAt).toLocaleString("th-TH");
+
+      let statusClass = "ready";
+      let statusText = "พร้อมใช้งาน";
+
+      if (acc.status === "COOLDOWN") {
+        statusClass = "cooldown";
+        statusText = "ติดคูลดาวน์";
+        updateCooldown(acc);
+      } else if (acc.status === "LOCKED") {
+        statusClass = "locked";
+        statusText = "พักการใช้งาน";
+      }
+
+      item.innerHTML = `
+        <div class="tg-acc-left">
+          <div><b>${acc.phone}</b></div>
+          <div class="tg-status ${statusClass}" id="tg-status-${acc._id}">${statusText}</div>
+          <!-- เพิ่ม div สำหรับเวลานับถอยหลัง (timer) ใต้สถานะ -->
+          <div class="tg-cooldown-timer" id="tg-timer-${acc._id}" style="font-size: 12px; color: #e3b863; margin-top: 5px;"></div>
+          <div style="font-size:12px; opacity:0.7;">เพิ่มเมื่อ: ${created}</div>
+        </div>
+        <div class="tg-acc-actions">
+          <button class="btn dark small" onclick="removeTgAcc('${acc._id}')">ลบ</button>
+        </div>
+      `;
+
+      wrap.appendChild(item);  // เพิ่มรายการบัญชีไปที่ UI
+    });
+
+  } catch (e) {
+    console.error("loadTgAccounts ERR", e);
+    notify.error("โหลดบัญชีผิดพลาด");
+  }
+}
+
+// เรียกใช้งานเมื่อโหลดหน้าใหม่
+window.addEventListener("DOMContentLoaded", loadTgAccounts);
+
+/* ======================================================
+   REMOVE ACCOUNT
+====================================================== */
+async function removeTgAcc(id) {
+  // เปิด modal uiConfirm
+  const ok = await uiConfirm({
+    variant: "danger",
+    title: "ต้องการลบบัญชี Telegram นี้หรือไม่?",
+    sub: "บัญชีจะถูกลบออกจากระบบทันที",
+    okText: "ลบเลย",
+    cancelText: "ยกเลิก",
+    focus: "cancel"
+  });
+
+  if (!ok) return;
+
+  try {
+    const res = await fetch(`/telegram/accounts/${id}/unlink`, {
+      method: "DELETE"
+    });
+
+    const data = await res.json();
+
+    if (data.ok) {
+      notify.success("ลบสำเร็จ", "บัญชี Telegram ถูกลบออกแล้ว");
+      loadTgAccounts(); // โหลดรายการใหม่
+    } else {
+      notify.error("เกิดข้อผิดพลาด", data.message || "ลบไม่สำเร็จ ");
+    }
+  } catch (err) {
+    console.error("unlink ERR", err);
+    notify.error("ลบไม่สำเร็จ", "มีปัญหาในการเชื่อมต่อเซิร์ฟเวอร์");
+  }
+}
+
+
+/* ======================================================
+   LOAD HISTORY
+====================================================== */
+async function loadHistory() {
+  const wrap = document.getElementById("tgHistoryWrap");
+  wrap.innerHTML = '<div class="muted">กำลังโหลด…</div>';
+  
+  const res = await fetch("/telegram/history/list");
+  const data = await res.json();
+
+  if (!data.ok) {
+    wrap.innerHTML = '<div class="muted">โหลดข้อมูลไม่สำเร็จ</div>';
+    return;
+  }
+  
+  const list = data.list || [];
+  if (list.length === 0) {
+    wrap.innerHTML = '<div class="muted">ยังไม่มีประวัติการทำงาน</div>';
+    return;
+  }
+  
+  wrap.innerHTML = renderHistoryTable(list);  // ใช้ฟังก์ชันนี้ที่ทำให้ข้อมูลถูกแสดง
+}
+
+
+/* ======================================================
+   RENDER HISTORY TABLE
+====================================================== */
+function renderHistoryTable(list) {
+  let html = `<div class="table-wrap" style="overflow-x:auto;">
+    <table class="tg-table table">
+      <thead>
+        <tr>
+          <th style="text-align: start;">วันที่</th>
+          <th style="text-align: center;">ต้นทาง ➜ ปลายทาง</th>
+          <th style="text-align: center;">ผลลัพธ์</th>
+          <th style="text-align: end;">สถานะ</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+  list.forEach(j => {
+    const invited = Number(j.invited || 0);
+    const limit = Number(j.limit || 0);
+    const pct = limit > 0 ? Math.round((invited / limit) * 100) : 0;
+    const pill = mapStatus(j.status);
+    const logs = j.logs || [];
+
+    html += `<tr>
+      <td style="text-align: start;">${formatDate(j.createdAt)}</td>
+      <td style="text-align: center;">
+        <div class="mono">${j.srcGroup || "-"}</div>
+        <div class="mono">➜ ${j.destGroup || "-"}</div>
+      </td>
+      <td style="text-align: center;">${invited}/${limit || "-"} <small class="muted">(${pct}%)</small></td>
+      <td style="text-align: end;">
+        <span class="pill ${j.status}">${pill}</span>
+        <button onclick='openLogModal(${JSON.stringify(logs)})'>
+          <img src="/static/assets/emoji/detail.png" alt="Details" class="detail-icon">
+        </button>
+      </td>
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  return html;
+}
+
+
+/* ======================================================
+   HELPERS
+====================================================== */
+function mapStatus(s) {
+  return s === "running"  ? "กำลังทำงาน" :
+         s === "pending"  ? "กำลังทำงาน" :
+         s === "finished" ? "สำเร็จ" :
+         s === "stopped"  ? "หยุด" :
+         s === "failed" ? "ล้มเหลว" :
+         s === "error"    ? "ผิดพลาด" :
+         (s || "-");
+}
+
+/* ======================================================
+   OPEN LOG MODAL
+====================================================== */
+function openLogModal(logs = []) {
+  const modal = document.getElementById("tgLogModal");
+  const body  = document.getElementById("tgModalContent");
+
+  if (!logs || logs.length === 0) {
+    body.innerHTML = `<div class="muted">ไม่มีบันทึก</div>`;
+  } else {
+    body.innerHTML = logs
+      .map(l => `<div>[${formatDate(l.time)}] ${l.text}</div>`)
+      .join("");
+  }
+
+  modal.style.display = "flex";
+}
+
+function closeLogModal() {
+  document.getElementById("tgLogModal").style.display = "none";
+}
+
+// ================== Modal ขยายรูป ==================
+document.addEventListener("click", function (e) {
+  // ถ้าคลิกที่รูปที่ขยายได้
+  if (e.target.classList.contains("previewable")) {
+    const modal = document.getElementById("imgPreviewModal");
+    const imgTarget = document.getElementById("imgPreviewTarget");
+
+    imgTarget.src = e.target.src;
+    modal.style.display = "flex";
+  }
+});
+
+// คลิกพื้นที่ว่าง = ปิด modal
+document.getElementById("imgPreviewModal").addEventListener("click", function () {
+  this.style.display = "none";
+});
+</script>
+
 <!-- ====================== CSS ====================== -->
 <style>
-    
 /* modal */
 .modal-backdrop{
   position:fixed;
@@ -718,671 +1360,71 @@
 .previewable {
   cursor: zoom-in;
 }
+
+.tg-cooldown-timer {
+  font-size: 12px;
+  color: #e3b863;
+  margin-top: 5px; /* เพิ่มช่องว่างระหว่างสถานะกับเวลา */
+}
+
+/* CSS สำหรับ Card Section ที่สามารถหุบ/ขยายได้ */
+.toggle-section .history-card {
+  background: #222;
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 15px;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  cursor: pointer;
+  padding: 10px;
+  background-color: #333;
+  color: #fff;
+  border-radius: 8px;
+}
+
+.history-content {
+  display: none; /* หุบเนื้อหาตอนเริ่มต้น */
+  padding: 15px;
+  background-color: #444;
+  border-radius: 8px;
+  color: #ddd;
+}
+
+/* เมื่อเนื้อหาถูกขยาย */
+.history-content.open {
+  display: block;
+}
+
+.chevron {
+  font-size: 20px;
+  transition: transform 0.3s ease;
+}
+
+.history-card .history-header.active .chevron {
+  transform: rotate(180deg); /* ทำให้ลูกศรกลับหัวเมื่อขยาย */
+}
+
+/* ลบพื้นหลังของปุ่ม */
+button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* ทำให้ภาพไม่มีพื้นหลัง */
+.detail-icon {
+  width: 20px;
+  height: 20px;
+  background: none;
+  display: block;
+  transition: transform 0.3s ease; /* เปลี่ยนจาก background-color เป็น transform */
+}
+
+.detail-icon:hover {
+  transform: scale(1.1); /* ขยายขนาดเล็กน้อยเมื่อ hover */
+}
 </style>
-
-<!-- ====================== SCRIPT ====================== -->
-<script>
-/* ======================================================
-   ELEMENTS
-====================================================== */
-const tabs = document.querySelectorAll(".tab");
-const panes = {
-  accounts: document.getElementById("tab-accounts"),
-  pull:     document.getElementById("tab-pull"),
-  history:  document.getElementById("tab-history")
-};
-
-/* ======================================================
-   TAB SWITCH
-====================================================== */
-tabs.forEach(tab => {
-  tab.addEventListener("click", () => {
-
-    // active state
-    tabs.forEach(t => t.classList.remove("active"));
-    tab.classList.add("active");
-
-    // hide all panes
-    Object.values(panes).forEach(p => p.classList.remove("show"));
-
-    // show the target pane
-    const name = tab.dataset.tab;
-
-    if (name === "accounts") {
-      panes.accounts.classList.add("show");
-      loadTgAccounts();
-    }
-    else if (name === "pull") {
-      panes.pull.classList.add("show");
-    }
-    else if (name === "history") {
-      panes.history.classList.add("show");
-      loadHistory();
-    }
-  });
-});
-
-
-/* ---------- FORM: CALCULATE COST ---------- */
-const limitInput = document.getElementById("limit");
-const costPreview = document.getElementById("costPreview");
-const costPer = 0; // สมมติราคาคนละ 5 เครดิต
-
-limitInput?.addEventListener("input", () => {
-    const n = Number(limitInput.value || 0);
-    if (n > 0) {
-    costPreview.textContent = "เครดิตที่ใช้: " + (n * costPer) + " เครดิต";
-    } else {
-    costPreview.textContent = "เครดิตที่ใช้: 0"+ " เครดิต";
-    }
-});
-
-/* ======================================================
-   PRECHECK FAIL UI HANDLER
-====================================================== */
-function showPrecheckErrors(reasons = []) {
-  const box = document.getElementById("precheckBox");
-  const list = document.getElementById("precheckList");
-
-  if (!reasons.length) {
-    box.style.display = "none"; // ถ้าไม่มีข้อผิดพลาดให้ซ่อน
-    return;
-  }
-
-  list.innerHTML = reasons.map(r => `• ${r}`).join("<br>"); // แสดงรายการเหตุผล
-  box.style.display = "block"; // แสดงข้อผิดพลาด
-
-  // ปิดปุ่ม START เมื่อมีข้อผิดพลาด
-  const btn = document.getElementById("startBtn");
-  btn.disabled = true;
-  btn.classList.add("disabled"); // เพิ่มคลาส disabled เพื่อให้ปุ่มไม่สามารถคลิกได้
-
-  // แสดงการแจ้งเตือน
-  notify.error("ไม่สามารถเริ่มงานได้<br>" + list.innerHTML);
-}
-
-/* ---------- START JOB ---------- */
-const startBtn = document.getElementById("startBtn");
-const progressBox = document.getElementById("tgProgressBox");
-const logBox = document.getElementById("tgLogBox");
-const progressBar = document.getElementById("tgProgressBar");
-const statusText = document.getElementById("tgStatusText");
-const countText = document.getElementById("tgCounts");
-document.getElementById("precheckBox").style.display = "none";
-document.getElementById("precheckList").innerHTML = "";
-
-startBtn.disabled = false;
-let currentJob = null;
-let orderId = null;
-let evtSource = null;
-
-startBtn.addEventListener("click", async () => {
-  const srcGroup = document.getElementById("srcGroup").value.trim();
-  const destGroup = document.getElementById("destGroup").value.trim();
-  const limit = Number(document.getElementById("limit").value.trim());
-
-  if (!srcGroup || !destGroup || !limit) {
-    return notify("⚠️ กรุณากรอกข้อมูลให้ครบ");
-  }
-
-  const res = await fetch("/telegram/jobs/start", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ srcGroup, destGroup, limit })
-  });
-
-  const data = await res.json();
-
-  if (!data.ok) {
-    // ตรวจสอบข้อผิดพลาดและแสดงเหตุผลที่ชัดเจน
-    const errorMessage = data.error || data.message || "ไม่ทราบข้อผิดพลาด";
-    return notify.error("เกิดข้อผิดพลาด: " + errorMessage);
-  }
-
-  // ⭐ เก็บตัวแปรสำคัญ
-  currentJob = data.jobId;
-  orderId = data.orderId;
-
-  notify.success("เริ่มงาน #" + orderId + " แล้ว");
-
-  showProgressUI();
-  attachStream();
-
-  document.querySelector('.tab[data-tab="history"]').click();
-  setTimeout(() => loadHistory(), 300);
-});
-
-function showProgressUI() {
-  progressBox.style.display = "block";
-  logBox.innerHTML = "";
-  progressBar.style.width = "0%";
-  statusText.textContent = "กำลังเริ่มงาน…";
-  countText.textContent = "—";
-}
-
-/* ---------- SSE STREAM ---------- */
-function attachStream() {
-  if (evtSource) evtSource.close();
-
-  // ⭐ FIX: ใช้ currentJob ไม่ใช่ jobId
-  evtSource = new EventSource(`/telegram/jobs/${currentJob}/stream`);
-
-  evtSource.onmessage = (ev) => {
-    const msg = JSON.parse(ev.data);
-
-    if (msg.log) appendLog(msg.log);
-
-    if (msg.invited != null && msg.total != null) {
-      const pct = Math.round((msg.invited / msg.total) * 100);
-      progressBar.style.width = pct + "%";
-      countText.textContent =
-        `เชิญแล้ว ${msg.invited} คน • ล้มเหลว ${msg.failed || 0} คน • ทั้งหมด ${msg.total} คน`;
-    }
-
-    // ถ้า PRECHECK FAIL
-    if (msg.type === "precheck_fail") {
-
-      showPrecheckErrors(msg.reasons || []);
-
-      // ปิด progress UI (ถ้าเริ่มแสดง)
-      progressBox.style.display = "none";
-
-      // ปิด stream
-      if (evtSource) evtSource.close();
-
-      return; 
-    }
-
-    if (msg.status) {
-      statusText.textContent =
-        msg.status === "finished" ? "สำเร็จ" :
-        msg.status === "running"  ? "กำลังทำงาน…" :
-        msg.status === "stopped"  ? "หยุดแล้ว" :
-        msg.status === "error"    ? "มีข้อผิดพลาด" : msg.status;
-    }
-
-    if (msg.status === "finished") {
-      notify.success("งาน #" + orderId + " เสร็จสิ้นแล้ว!");
-      evtSource.close();
-    }
-  };
-}
-
-/* ---------- STOP JOB ---------- */
-document.addEventListener("DOMContentLoaded", () => {
-  // Dynamically added button handling
-  const interval = setInterval(() => {
-    const stopBtn = document.getElementById("stopBtn");
-    if (stopBtn) {
-      stopBtn.addEventListener("click", async () => {
-        if (!currentJob) return;
-
-        await fetch(`/telegram/jobs/${currentJob}/stop`, { method: "POST" });
-        notify("⛔ หยุดงานแล้ว");
-      });
-
-      // Stop the interval once the button is found
-      clearInterval(interval);
-    }
-  }, 100);  // Check every 100ms for the button
-
-});
-
-
-/* ---------- LOG HELPER ---------- */
-function appendLog(t) {
-  const div = document.createElement("div");
-  div.textContent = t;
-  logBox.appendChild(div);
-  logBox.scrollTop = logBox.scrollHeight;
-}
-
-/* ===========================================================
-   STATUS LABEL
-===========================================================*/
-function mapStatus(st) {
-  return st === "running" ? "กำลังทำงาน" :
-         st === "finished" ? "สำเร็จ" :
-         st === "stopped" ? "หยุด" :
-         st === "error" ? "ผิดพลาด" :
-         st;
-}
-
-/* ===========================================================
-   DATE FORMAT
-===========================================================*/
-function formatDate(d){
-  return new Date(d).toLocaleString("th-TH", {
-    dateStyle:"short",
-    timeStyle:"short"
-  });
-}
-
-/* ===========================================================
-   MODAL LOGIN TELEGRAM
-===========================================================*/
-function showOtpModal(mode = "otp") {
-  const backdrop = document.getElementById("tgOtpBackdrop");
-  const title = document.querySelector(".modal-title");
-  const otpSection = document.getElementById("otpSection");
-  const passSection = document.getElementById("passSection");
-
-  backdrop.style.display = "flex";
-
-  if (mode === "2fa") {
-    title.textContent = "ยืนยัน 2FA";
-    otpSection.style.display = "none";
-    passSection.style.display = "block";
-  } else {
-    title.textContent = "ยืนยันรหัส OTP";
-    otpSection.style.display = "block";
-    passSection.style.display = "none";
-  }
-}
-
-/* ===========================================================
-   LOAD HISTORY WHEN SWITCH TAB 2
-===========================================================*/
-document.querySelector('.tab[data-tab="history"]').addEventListener("click", loadHistory);
-
-/* ============================
-   ELEMENTS
-============================ */
-const m1 = document.getElementById("tgLoginBackdrop");
-const m2 = document.getElementById("tgOtpBackdrop");
-
-const btnAdd = document.getElementById("btnAddTgAcc");
-const btnClose1 = document.getElementById("tgLoginClose");
-const btnCancel1 = document.getElementById("tgLoginCancel");
-const btnNext = document.getElementById("tgLoginNext");
-
-const btnClose2 = document.getElementById("tgOtpClose");
-const btnCancel2 = document.getElementById("tgOtpCancel");
-const btnSubmitOtp = document.getElementById("tgOtpSubmit");
-
-const otpSection = document.getElementById("otpSection");
-const passSection = document.getElementById("passSection");
-
-const otpModalTitle = document.querySelector("#tgOtpBackdrop .modal-title");
-
-let LOGIN_TOKEN = null;
-
-/* ============================
-   เปิด Modal Step 1
-============================ */
-btnAdd.onclick = () => {
-  otpModalTitle.textContent = "ยืนยันรหัส OTP";
-
-  document.getElementById("tg_phone").value = "";
-  document.getElementById("tg_apiId").value = "";
-  document.getElementById("tg_apiHash").value = "";
-  document.getElementById("tg_otp").value = "";
-  document.getElementById("tg_password").value = "";
-
-  otpSection.style.display = "block";
-  passSection.style.display = "none";
-
-  m1.style.display = "flex";
-};
-
-const closeAll = () => {
-  m1.style.display = "none";
-  m2.style.display = "none";
-};
-
-btnClose1.onclick = closeAll;
-btnCancel1.onclick = closeAll;
-btnClose2.onclick = closeAll;
-btnCancel2.onclick = closeAll;
-
-
-/* ============================
-   STEP 1 → ส่ง OTP
-============================ */
-btnNext.onclick = async () => {
-  const phone = document.getElementById("tg_phone").value.trim();
-  const apiId = document.getElementById("tg_apiId").value.trim();
-  const apiHash = document.getElementById("tg_apiHash").value.trim();
-
-  if (!phone || !apiId || !apiHash)
-    return notify.error("⚠️ กรุณากรอกข้อมูลให้ครบ");
-
-  notify.info("กำลังส่งรหัส OTP...");
-
-  const res = await fetch("/telegram/accounts/login/start", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone, apiId, apiHash })
-  }).then(r => r.json());
-
-  if (!res.ok) {
-    return notify.error(res.error || "เริ่มการยืนยันไม่สำเร็จ");
-  }
-
-  LOGIN_TOKEN = res.loginToken;
-
-  m1.style.display = "none";
-  m2.style.display = "flex";
-
-  // ⭐ ยืนยัน OTP
-  otpModalTitle.textContent = "ยืนยันรหัส OTP";
-
-  otpSection.style.display = "block";
-  passSection.style.display = "none";
-
-  notify.success("ส่ง OTP แล้ว โปรดตรวจสอบ Telegram");
-};
-
-
-/* ============================
-   STEP 2 → OTP / 2FA
-============================ */
-btnSubmitOtp.onclick = async () => {
-  const code = document.getElementById("tg_otp").value.trim();
-  const password = document.getElementById("tg_password").value.trim();
-
-  if (!code && !password)
-    return notify.error("กรุณากรอก OTP หรือรหัสผ่าน 2FA");
-
-  const res = await fetch("/telegram/accounts/login/finish", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      loginToken: LOGIN_TOKEN,
-      code,
-      password
-    })
-  }).then(r => r.json());
-
-  // ⭐ ต้องการรหัส 2FA → เปลี่ยนหัวข้อ!
-  if (res.needPassword) {
-    LOGIN_TOKEN = res.loginToken;
-
-    otpModalTitle.textContent = "ยืนยัน 2FA";
-
-    otpSection.style.display = "none";
-    passSection.style.display = "block";
-
-    return notify.info("บัญชีนี้เปิดใช้งาน 2FA กรุณาใส่รหัสผ่าน");
-  }
-
-  if (!res.ok)
-    return notify.error(res.error || "ยืนยันไม่สำเร็จ");
-
-  notify.success("เพิ่มบัญชีสำเร็จ 🎉");
-  closeAll();
-  setTimeout(() => location.reload(), 600);
-};
-/* ======================================================
-   LOAD ACCOUNTS
-====================================================== */
-// Update cooldown and status on account
-function updateCooldown(account) {
-  const now = Date.now();
-  const cooldownUntil = new Date(account.cooldownUntil).getTime();  // เวลาเมื่อถึงคูลดาวน์
-
-  if (cooldownUntil > now) {
-    const remainingTime = cooldownUntil - now;
-    const hours = Math.floor(remainingTime / 3600000);  // ชั่วโมง
-    const minutes = Math.floor((remainingTime % 3600000) / 60000);  // นาที
-    const seconds = Math.floor((remainingTime % 60000) / 1000);  // วินาที
-
-    const statusText = `จะกลับมาใช้ได้ในอีก ${hours > 0 ? hours + ' ชั่วโมง ' : ''}${minutes} นาที ${seconds} วินาที`;
-
-    const statusElement = document.getElementById(`tg-status-${account._id}`);
-    const timerElement = document.getElementById(`tg-timer-${account._id}`);
-
-    if (statusElement && timerElement) {
-      statusElement.innerHTML = statusText;  // แสดงสถานะ
-      timerElement.innerHTML = `${hours > 0 ? hours + ' ชั่วโมง ' : ''}${minutes} นาที ${seconds} วินาที`; // แสดงเวลา
-    }
-
-    // อัปเดตทุกๆ วินาที
-    setTimeout(() => updateCooldown(account), 1000);  // อัปเดตทุกๆ วินาที
-  }
-}
-
-// เรียกใช้ฟังก์ชันเมื่อโหลดบัญชี
-async function loadTgAccounts() {
-  try {
-    const res = await fetch("/telegram/accounts");
-    const data = await res.json();
-
-    if (!data.ok) {
-      notify.error("ไม่สามารถโหลดบัญชีได้");
-      return;
-    }
-
-    const list = data.accounts || [];
-    const wrap = document.getElementById("tgAccList");
-    const count = document.getElementById("tgAccCount");
-
-    // อัปเดตจำนวนบัญชี
-    const ready = list.filter(a => a.status === "READY").length;
-    count.textContent = `(พร้อมใช้งาน ${ready} บัญชี)`;  // อัพเดทจำนวนบัญชี
-
-    wrap.innerHTML = "";  // ลบข้อมูลเก่าออก
-
-    list.forEach(acc => {
-      const item = document.createElement("div");
-      item.className = "tg-acc-item";
-      const created = new Date(acc.createdAt).toLocaleString("th-TH");
-
-      let statusClass = "ready";
-      let statusText = "พร้อมใช้งาน";
-
-      if (acc.status === "COOLDOWN") {
-        statusClass = "cooldown";
-        statusText = "ติดคูลดาวน์";
-        updateCooldown(acc); // อัปเดตการแสดงผลคูลดาวน์
-      } else if (acc.status === "LOCKED") {
-        statusClass = "locked";
-        statusText = "พักการใช้งาน";
-      }
-
-      item.innerHTML = `
-        <div class="tg-acc-left">
-          <div><b>${acc.phone}</b></div>
-          <div class="tg-status ${statusClass}" id="tg-status-${acc._id}">${statusText}</div>
-          <div class="tg-cooldown-timer" id="tg-timer-${acc._id}" style="font-size: 12px; color: #e3b863;"></div>
-          <div style="font-size:12px; opacity:0.7;">เพิ่มเมื่อ: ${created}</div>
-        </div>
-        <div class="tg-acc-actions">
-          <button class="btn dark small" onclick="removeTgAcc('${acc._id}')">ลบ</button>
-        </div>
-      `;
-
-      wrap.appendChild(item);  // เพิ่มรายการบัญชีไปที่ UI
-    });
-
-  } catch (e) {
-    console.error("loadTgAccounts ERR", e);
-    notify.error("โหลดบัญชีผิดพลาด");
-  }
-}
-
-// เรียกใช้งานเมื่อโหลดหน้าใหม่
-window.addEventListener("DOMContentLoaded", loadTgAccounts);
-
-/* ======================================================
-   REMOVE ACCOUNT
-====================================================== */
-async function removeTgAcc(id) {
-  // เปิด modal uiConfirm
-  const ok = await uiConfirm({
-    variant: "danger",
-    title: "ต้องการลบบัญชี Telegram นี้หรือไม่?",
-    sub: "บัญชีจะถูกลบออกจากระบบทันที",
-    okText: "ลบเลย",
-    cancelText: "ยกเลิก",
-    focus: "cancel"
-  });
-
-  if (!ok) return;
-
-  try {
-    const res = await fetch(`/telegram/accounts/${id}/unlink`, {
-      method: "DELETE"
-    });
-
-    const data = await res.json();
-
-    if (data.ok) {
-      notify.success("ลบสำเร็จ", "บัญชี Telegram ถูกลบออกแล้ว");
-      loadTgAccounts(); // โหลดรายการใหม่
-    } else {
-      notify.error("เกิดข้อผิดพลาด", data.message || "ลบไม่สำเร็จ ");
-    }
-  } catch (err) {
-    console.error("unlink ERR", err);
-    notify.error("ลบไม่สำเร็จ", "มีปัญหาในการเชื่อมต่อเซิร์ฟเวอร์");
-  }
-}
-
-
-/* ======================================================
-   LOAD HISTORY
-====================================================== */
-async function loadHistory() {
-  const wrap = document.getElementById("tgHistoryWrap");
-  wrap.innerHTML = `<div class="muted">กำลังโหลด…</div>`;
-
-  const res = await fetch("/telegram/history/list");
-  const data = await res.json();
-
-  if (!data.ok) {
-    wrap.innerHTML = `<div class="muted">โหลดข้อมูลไม่สำเร็จ</div>`;
-    return;
-  }
-
-  const list = data.list || [];
-
-  if (list.length === 0) {
-    wrap.innerHTML = `<div class="muted">ยังไม่มีประวัติการทำงาน</div>`;
-    return;
-  }
-
-  wrap.innerHTML = renderHistoryTable(list);
-}
-
-
-/* ======================================================
-   RENDER HISTORY TABLE
-====================================================== */
-function renderHistoryTable(list) {
-  let html = `
-    <div class="table-wrap" style="overflow-x:auto;">
-    <table class="tg-table table">
-      <thead>
-        <tr>
-          <th>วันที่</th>
-          <th>ต้นทาง ➜ ปลายทาง</th>
-          <th>ผลลัพธ์</th>
-          <th>สถานะ</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-  `;
-
-  list.forEach(j => {
-    const invited = Number(j.invited || 0);
-    const limit   = Number(j.limit || 0);
-    const pct     = limit > 0 ? Math.round((invited / limit) * 100) : 0;
-
-    const pill = mapStatus(j.status);
-    const logs = j.logs || [];
-
-    html += `
-      <tr>
-        <td>${formatDate(j.createdAt)}</td>
-
-        <td>
-          <div class="mono">${j.srcGroup || "-"}</div>
-          <div class="mono">➜ ${j.destGroup || "-"}</div>
-        </td>
-
-        <td>
-          ${invited}/${limit || "-"} 
-          <small class="muted">(${pct}%)</small>
-        </td>
-
-        <td><span class="pill ${j.status}">${pill}</span></td>
-
-        <td>
-          <button class="btn small" onclick='openLogModal(${JSON.stringify(logs)})'>
-            ดู Log
-          </button>
-        </td>
-      </tr>
-    `;
-  });
-
-  html += `
-      </tbody>
-    </table>
-    </div>
-  `;
-  return html;
-}
-
-
-/* ======================================================
-   HELPERS
-====================================================== */
-function mapStatus(s) {
-  return s === "running"  ? "กำลังทำงาน" :
-         s === "pending"  ? "กำลังทำงาน" :
-         s === "finished" ? "สำเร็จ" :
-         s === "stopped"  ? "หยุด" :
-         s === "error"    ? "ผิดพลาด" :
-         (s || "-");
-}
-
-function formatDate(d) {
-  return new Date(d).toLocaleString("th-TH", {
-    dateStyle: "short",
-    timeStyle: "short"
-  });
-}
-
-
-/* ======================================================
-   OPEN LOG MODAL
-====================================================== */
-function openLogModal(logs = []) {
-  const modal = document.getElementById("tgLogModal");
-  const body  = document.getElementById("tgModalContent");
-
-  if (!logs || logs.length === 0) {
-    body.innerHTML = `<div class="muted">ไม่มีบันทึก</div>`;
-  } else {
-    body.innerHTML = logs
-      .map(l => `<div>[${formatDate(l.time)}] ${l.text}</div>`)
-      .join("");
-  }
-
-  modal.style.display = "flex";
-}
-
-function closeLogModal() {
-  document.getElementById("tgLogModal").style.display = "none";
-}
-
-// ================== Modal ขยายรูป ==================
-document.addEventListener("click", function (e) {
-  // ถ้าคลิกที่รูปที่ขยายได้
-  if (e.target.classList.contains("previewable")) {
-    const modal = document.getElementById("imgPreviewModal");
-    const imgTarget = document.getElementById("imgPreviewTarget");
-
-    imgTarget.src = e.target.src;
-    modal.style.display = "flex";
-  }
-});
-
-// คลิกพื้นที่ว่าง = ปิด modal
-document.getElementById("imgPreviewModal").addEventListener("click", function () {
-  this.style.display = "none";
-});
-</script>
