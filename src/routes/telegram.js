@@ -211,6 +211,8 @@ function quota(acc, remain) {
 }
 // Pick accounts with low risk for tasks
 async function pickAccounts(userId) {
+  if (!userId) return [];
+
   const list = await TgAccount.find({
     userId,
     session: { $ne: null }
@@ -279,6 +281,15 @@ export async function startTelegramJob(jobId) {
     if (!job) return;
 
     const uid = job.userId; // ✅ เจ้าของงาน
+
+    if (!uid) {
+      job.status = "error";
+      job.logs.push({ text: "เจ้าของงานหายไป: userId ว่างเปล่า", time: new Date() });
+      await job.save();
+      telegramPush(jobId, { status: "error", log: "เจ้าของงานหายไป" });
+      return;
+    }
+
     const now = Date.now();
     const reasons = [];
 
@@ -912,7 +923,11 @@ router.post("/jobs/:jobId/stop", requireAuth, async (req, res) => {
 /* ===============================================================
    JOB STREAM (ไม่ต้อง admin)
 =============================================================== */
-router.get("/jobs/:jobId/stream", (req, res) => {
+router.get("/jobs/:jobId/stream", requireAuth, async (req, res) => {
+  const uid = req.session.user._id;
+  const job = await TelegramJob.findById(req.params.jobId).select("userId").lean();
+  if (!job) return res.status(404).end();
+  if (String(job.userId) !== String(uid)) return res.status(403).end();
   streamTelegramJob(req, res);
 });
 
