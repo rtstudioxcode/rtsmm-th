@@ -211,14 +211,14 @@ export async function startTelegramJob(jobId) {
       return false;
     }
     if (acc.cooldownUntil && acc.cooldownUntil > Date.now()) {
-      const mins = Math.ceil((acc.cooldownUntil - Date.now()) / 60000);
+      const mins = Math.ceil((acc.cooldownUntil - Date.now()) / 120000);
       reasons.push(`บัญชี ${acc.phone} ติดคูลดาวน์ (${mins} นาที)`);
       acc.status = "COOLDOWN";
       acc.save();
       return false;
     }
     if (acc.invitesToday >= 40) {
-      reasons.push(`บัญชี ${acc.phone} ถึงลิมิตวันนี้แล้ว (40/40)`);
+      reasons.push(`บัญชี ${acc.phone} ถึงลิมิตรอบนี้แล้ว (40/40)`);
       return false;
     }
     return true;

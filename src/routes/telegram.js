@@ -138,26 +138,34 @@ async function fetchSrcMembers(client, src, meId) {
 }
 
 // Invite Member (รองรับ Channel ด้วย)
-async function inviteOne(client, dstEntity, targetUser) {
+async function inviteOne(client, dstEntity, user) {
   try {
     await client.invoke(
       new Api.channels.InviteToChannel({
         channel: dstEntity,
-        users: [targetUser.id]
+        users: [user.id]
       })
     );
     return { ok: true };
   } catch (err) {
     const msg = String(err.message || err);
-    const m = msg.match(/FLOOD_WAIT_(\d+)/i);
-    const ms = (m ? Number(m[1]) : 7200) * 1000; // default 2h
 
     if (msg.includes("FLOOD_WAIT")) {
-      return { flood: true, ms, message: msg };
+      const ms = extractFloodWait(msg) || 7200000; // Default to 2 hours if no flood wait time found
+      user.cooldownUntil = new Date(Date.now() + ms); // Set cooldownUntil to the calculated time
+      user.status = "COOLDOWN"; // Set status to COOLDOWN
+      await user.save(); // Save updated user in DB
+      return { flood: true, message: msg };
     }
+
     if (msg.includes("PEER_FLOOD") || msg.includes("PRIVACY")) {
-      return { spam: true, ms, message: msg };
+      const ms = extractFloodWait(msg) || 7200000; // Default to 2 hours if no flood wait time found
+      user.cooldownUntil = new Date(Date.now() + ms); // Set cooldownUntil to the calculated time
+      user.status = "LOCKED"; // Set status to LOCKED
+      await user.save(); // Save updated user in DB
+      return { spam: true };
     }
+
     return { error: msg };
   }
 }
@@ -182,17 +190,28 @@ function quota(acc, remain) {
 }
 
 // Pick accounts with low risk for tasks
-async function pickAccounts() {
-  const list = await TgAccount.find({ session: { $ne: null } });
-  let ready = [];
+async function pickAccounts(userId) {
+  const list = await TgAccount.find({
+    userId,
+    session: { $ne: null }
+  });
+
+  const now = Date.now();
+  const ready = [];
 
   for (const acc of list) {
-    if (acc.cooldownUntil && acc.cooldownUntil > Date.now()) continue;
+    // ไม่เอาบัญชีคนอื่น (กันพลาด เผื่อ userId เป็น null)
+    if (!acc.userId || String(acc.userId) !== String(userId)) continue;
+
+    // ตัด LOCKED / COOLDOWN
+    if (acc.status === "LOCKED") continue;
+    if (acc.cooldownUntil && acc.cooldownUntil.getTime() > now) continue;
+
     ready.push({ acc, r: riskScore(acc) });
   }
 
-  ready.sort((a, b) => a.r - b.r); // Sort accounts by risk score
-  return ready.map(v => v.acc); // Return sorted accounts
+  ready.sort((a, b) => a.r - b.r);
+  return ready.map(v => v.acc);
 }
 
 // Show errors during precheck
@@ -231,77 +250,87 @@ async function checkTelegramAccountStatus(client, acc) {
 
 // Main Runner: Start Telegram Job
 export async function startTelegramJob(jobId) {
-  const allAccounts = await TgAccount.find({ session: { $ne: null } });
-  let reasons = [];
-
-  // Pre-check for usable accounts
-  const usable = allAccounts.filter(acc => {
-    console.log(`ตรวจสอบบัญชี ${acc.phone}, สถานะ: ${acc.status}, LastError: ${acc.lastError}`);
-    
-    if (!acc.session) {
-      reasons.push(`บัญชี ${acc.phone} ไม่มี session (ใช้งานไม่ได้)`);
-      return false;
-    }
-    
-    if (acc.cooldownUntil && acc.cooldownUntil > Date.now()) {
-      const mins = Math.ceil((acc.cooldownUntil - Date.now()) / 60000);
-      reasons.push(`บัญชี ${acc.phone} ติดคูลดาวน์ (${mins} นาที)`);
-      acc.status = "COOLDOWN";
-      acc.save();
-      return false;
-    }
-    
-    if (acc.invitesToday >= 40) {
-      reasons.push(`บัญชี ${acc.phone} ถึงลิมิตวันนี้แล้ว (40/40)`);
-      acc.invitesToday = 0; // Reset for the next round
-      acc.status = "READY"; // Reset to READY after completing a round
-      acc.save();
-      return false;
-    }
-    
-    // สร้าง Telegram Client เพื่อการตรวจสอบสถานะจริงจาก API
-    const client = new TelegramClient(
-      new StringSession(acc.session), // ใช้ session ของบัญชีที่มี
-      acc.apiId,
-      acc.apiHash,
-      { connectionRetries: 5, requestTimeout: 60000, autoReconnect: true }
-    );
-
-    // ตรวจสอบสถานะบัญชีจาก API
-    checkTelegramAccountStatus(client, acc);  // เพิ่มการตรวจสอบจาก API
-
-    console.log(`บัญชี ${acc.phone} ผ่านการตรวจสอบสถานะและพร้อมใช้งาน`);
-    return true;
-  });
-
-  if (usable.length === 0) {
-    let job = await TelegramJob.findById(jobId);
-    job.status = "error";
-    job.logs.push({ text: "ไม่มีบัญชีที่พร้อมใช้งาน" });
-    await job.save();
-    telegramPush(jobId, { status: "error", reasons });
-    running.delete(jobId);
-    showPrecheckErrors(reasons, jobId);
-    return;
-  }
-
   if (running.has(jobId)) return;
   running.add(jobId);
 
-  let job = await TelegramJob.findById(jobId);
-  if (!job) return;
-
-  job.logs.push({ text: "เริ่มงาน..." });
-  await job.save();
-
-  const qty = job.limit;
-  telegramPush(jobId, { status: "running", total: qty, invited: 0 });
-
+  let job = null;
   try {
+    job = await TelegramJob.findById(jobId);
+    if (!job) return;
+
+    const uid = job.userId; // ✅ เจ้าของงาน
+    const now = Date.now();
+    const reasons = [];
+
+    // ✅ ดึงเฉพาะบัญชีของ user นี้เท่านั้น
+    const allAccounts = await TgAccount.find({
+      userId: uid,
+      session: { $ne: null }
+    });
+
+    // Pre-check for usable accounts (เฉพาะของ user นี้)
+    const usable = [];
+
+    for (const acc of allAccounts) {
+      console.log(`ตรวจสอบบัญชี ${acc.phone}, owner=${acc.userId}, jobOwner=${uid}`);
+
+      if (!acc.session) {
+        reasons.push(`บัญชี ${acc.phone} ไม่มี session (ใช้งานไม่ได้)`);
+        continue;
+      }
+
+      // กันเผื่อหลุดมา
+      if (!acc.userId || String(acc.userId) !== String(uid)) {
+        reasons.push(`บัญชี ${acc.phone} ไม่ใช่ของผู้ใช้งานนี้`);
+        continue;
+      }
+
+      if (acc.status === "LOCKED") {
+        reasons.push(`บัญชี ${acc.phone} ถูกล็อก (LOCKED)`);
+        continue;
+      }
+
+      if (acc.cooldownUntil && acc.cooldownUntil.getTime() > now) {
+        const mins = Math.ceil((acc.cooldownUntil.getTime() - now) / 60000);
+        reasons.push(`บัญชี ${acc.phone} ติดคูลดาวน์ (${mins} นาที)`);
+        acc.status = "COOLDOWN";
+        await acc.save();
+        continue;
+      }
+
+      if (acc.invitesToday >= 40) {
+        reasons.push(`บัญชี ${acc.phone} ถึงลิมิตรอบนี้แล้ว (40/40)`);
+        // ถ้ายังอยาก reset แบบเดิมก็เก็บไว้ได้ แต่ "usable=false" เหมือนเดิม
+        // acc.invitesToday = 0;
+        // acc.status = "READY";
+        await acc.save();
+        continue;
+      }
+
+      usable.push(acc);
+    }
+
+    if (usable.length === 0) {
+      job.status = "error";
+      job.logs.push({ text: "ไม่มีบัญชีที่พร้อมใช้งาน" });
+      await job.save();
+
+      telegramPush(jobId, { status: "error", reasons });
+      showPrecheckErrors(reasons, jobId);
+      return;
+    }
+
+    job.logs.push({ text: "เริ่มงาน..." });
+    await job.save();
+
+    const qty = job.limit;
+    telegramPush(jobId, { status: "running", total: qty, invited: 0 });
+
     let remaining = qty;
 
     while (remaining > 0) {
-      const accounts = await pickAccounts();
+      // ✅ หมุนเฉพาะบัญชีของ user นี้
+      const accounts = await pickAccounts(uid);
       if (!accounts.length) break;
 
       for (const acc of accounts) {
@@ -335,9 +364,7 @@ export async function startTelegramJob(jobId) {
               tgUserId: user.id
             }).lean();
 
-            if (exists) {
-              continue;
-            }
+            if (exists) continue;
 
             const r = await inviteOne(client, dst, user);
             const username = user.username || user.firstName || ("user_" + user.id);
@@ -356,59 +383,21 @@ export async function startTelegramJob(jobId) {
               remaining--;
               acc.invitesToday++;
 
-              // ครบโควตาวันนี้ → เข้า COOLDOWN 2 ชม.
               if (acc.invitesToday >= 40) {
                 acc.cooldownUntil = new Date(Date.now() + 7200000);
                 acc.status = "COOLDOWN";
-                acc.lastError = ""; // เคลียร์
                 await acc.save();
-                job.logs.push({ text: `บัญชี ${acc.phone} เข้าพักคูลดาวน์ 120 นาที (ครบลิมิตรายวัน)`, time: new Date() });
-                await job.save();
-                telegramPush(jobId, { type: "info", msg: `บัญชี ${acc.phone} เข้าพักคูลดาวน์ 120 นาที (ครบลิมิตรายวัน)` });
                 break;
               }
 
               telegramPush(jobId, { invited: job.invited, total: qty, user: username });
-            }
-            else if (r.flood) {
-              const mins = Math.ceil((r.ms || 7200000) / 60000);
+            } else if (r.flood || r.spam) {
+              acc.cooldownUntil = new Date(Date.now() + 7200000);
               acc.status = "COOLDOWN";
-              acc.cooldownUntil = new Date(Date.now() + (r.ms || 7200000));
-              acc.lastError = r.message || "FLOOD_WAIT";
               await acc.save();
-
-              job.logs.push({ text: `บัญชี ${acc.phone} โดนจำกัด (FLOOD_WAIT) พัก ${mins} นาที`, time: new Date() });
-              await job.save();
-
-              telegramPush(jobId, {
-                type: "warn",
-                msg: `บัญชี ${acc.phone} โดนจำกัด (FLOOD_WAIT) พัก ${mins} นาที`
-              });
-              break; // เปลี่ยนไปใช้อีกบัญชี
-            }
-            else if (r.spam) {
-              const mins = Math.ceil((r.ms || 7200000) / 60000);
-              acc.status = "LOCKED"; // กรณี PEER_FLOOD/PRIVACY ให้ล็อคไว้ก่อน
-              acc.cooldownUntil = new Date(Date.now() + (r.ms || 7200000));
-              acc.lastError = r.message || "PEER_FLOOD/PRIVACY";
-              await acc.save();
-
-              job.logs.push({ text: `บัญชี ${acc.phone} ถูกจำกัดด้านความเป็นส่วนตัว/สแปม (LOCKED) พัก ${mins} นาที`, time: new Date() });
-              await job.save();
-
-              telegramPush(jobId, {
-                type: "error",
-                msg: `บัญชี ${acc.phone} ถูกจำกัดด้านความเป็นส่วนตัว/สแปม (LOCKED) พัก ${mins} นาที`
-              });
-              break; // เปลี่ยนไปใช้อีกบัญชี
-            }
-            else if (r.error) {
-              job.logs.push({ text: `เชิญ ${username} ล้มเหลว: ${r.error}`, time: new Date() });
-              await job.save();
-              telegramPush(jobId, { type: "error", msg: `เชิญ ${username} ล้มเหลว: ${r.error}` });
+              break;
             }
 
-            // จังหวะพักแบบมนุษย์ + เซฟงาน
             await sleep(humanDelay());
             await job.save();
           }
@@ -420,6 +409,7 @@ export async function startTelegramJob(jobId) {
           await acc.save();
         }
       }
+
       await sleep(800);
     }
 
@@ -428,6 +418,7 @@ export async function startTelegramJob(jobId) {
     await job.save();
 
     telegramPush(jobId, { status: job.status, invited: job.invited, total: qty });
+
     const miss = qty - job.invited;
     if (miss > 0) {
       const refund = miss * 2;
@@ -438,13 +429,15 @@ export async function startTelegramJob(jobId) {
     }
 
   } catch (err) {
-    job.status = "error";
-    job.logs.push({ text: err.message });
-    await job.save();
+    if (job) {
+      job.status = "error";
+      job.logs.push({ text: err.message });
+      await job.save();
+    }
     telegramPush(jobId, { status: "error", error: err.message });
+  } finally {
+    running.delete(jobId);
   }
-
-  running.delete(jobId);
 }
 
 // Stop job
@@ -711,7 +704,7 @@ router.delete("/accounts/:id/unlink", requireAuth, async (req, res) => {
 });
 
 /* ===============================================================
-   START TELEGRAM JOB — PRECHECK เข้ม + UX ดีขึ้น
+   START TELEGRAM JOB — พร้อมระบบ PRECHECK แบบเต็ม
 =============================================================== */
 router.post("/jobs/start", requireAuth, async (req, res) => {
   try {
@@ -719,72 +712,85 @@ router.post("/jobs/start", requireAuth, async (req, res) => {
     const user = await User.findById(uid).lean();
     if (!user) return res.json({ ok:false, error:"ไม่พบผู้ใช้" });
 
-    // ── helpers
-    const sanitize = (g) => String(g||"").replace(/^https?:\/\/t\.me\//i,"").replace(/^t\.me\//i,"").trim();
-    const toInt = (v, d=0) => Number.isFinite(Number(v)) ? Number(v) : d;
-
-    // ── รับค่า
-    let { srcGroup, destGroup, limit, maxSecurity } = req.body;
-    srcGroup  = sanitize(srcGroup);
-    destGroup = sanitize(destGroup);
-    const qty = Math.max(0, Math.min(toInt(limit, 0), 500)); // cap 500/งาน
+    const { srcGroup, destGroup, limit, maxSecurity } = req.body;
 
     const reasons = [];
-    const warnings = [];
 
-    // ── VALIDATE INPUT
-    if (!srcGroup || !destGroup) reasons.push("กรุณากรอกลิงก์กลุ่มต้นทางและปลายทาง");
-    if (srcGroup && destGroup && srcGroup.toLowerCase() === destGroup.toLowerCase()) {
-      reasons.push("กลุ่มต้นทางและปลายทางต้องไม่เหมือนกัน");
+    /* =========================
+       VALIDATE INPUT
+    ========================== */
+    if (!srcGroup || !destGroup) {
+      reasons.push("กรุณากรอกลิงก์กลุ่มต้นทางและปลายทาง");
     }
-    if (qty <= 0) reasons.push("จำนวนสมาชิกต้องมากกว่า 0");
 
-    // ── ค่าใช้จ่าย
-    const UNIT_CREDIT = 2; // 2 เครดิต/คน
-    const cost = qty * UNIT_CREDIT;
-    if ((user.credit || 0) < cost) {
+    const qty = Number(limit) || 0;
+    if (qty <= 0) {
+      reasons.push("จำนวนสมาชิกต้องมากกว่า 0");
+    }
+
+    /* =========================
+       ตรวจ CREDIT (2 เครดิต/คน)
+    ========================== */
+    const cost = qty * 2; // สมมติว่า 2 เครดิตต่อคน
+    if (user.credit < cost) {
       reasons.push(`เครดิตไม่เพียงพอ (ต้องใช้ ${cost} เครดิต)`);
     }
 
-    // ── ตรวจบัญชีผู้ใช้
-    const accounts = await TgAccount.find({ userId: uid }).lean();
-    if (!accounts.length) reasons.push("คุณยังไม่มีบัญชี Telegram ในระบบ");
+    /* =========================
+       ตรวจบัญชี Telegram พร้อมใช้งาน
+    ========================== */
+    const accounts = await TgAccount.find({
+      userId: uid
+    }).lean();
 
+    if (!accounts.length) {
+      reasons.push("คุณยังไม่มีบัญชี Telegram ในระบบ");
+    }
+
+    const readyAcc = accounts.filter(a => a.status === "READY");
+
+    if (!readyAcc.length) {
+      reasons.push("ยังไม่มีบัญชีพร้อมใช้งาน (READY)");
+    }
+
+    /* =========================
+       ตรวจ COOL DOWN
+    ========================== */
     const now = Date.now();
+    const cooldownReasons = [];
 
-    // พร้อมใช้งานจริง: READY และไม่ติดคูลดาวน์/ล็อก
-    const usable = accounts.filter(a => {
-      const cdOk   = !(a.cooldownUntil && a.cooldownUntil > now);
-      const lockOk = a.status !== "LOCKED";
-      return a.session && a.status === "READY" && cdOk && lockOk;
-    });
-
-    if (!usable.length) reasons.push("ยังไม่มีบัญชีพร้อมใช้งาน (READY และไม่ติดคูลดาวน์/ล็อก)");
-
-    // ── เขียน warning รายบัญชีที่ติดคูลดาวน์
-    accounts.forEach(a => {
-      if (a.cooldownUntil && a.cooldownUntil > now) {
-        const min = Math.ceil((a.cooldownUntil - now)/60000);
-        warnings.push(`บัญชี ${a.phone} ติดคูลดาวน์อีก ~${min} นาที`);
-      }
-      if (a.status === "LOCKED") {
-        warnings.push(`บัญชี ${a.phone} ถูกล็อก (LOCKED)`);
+    accounts.forEach(acc => {
+      if (acc.status === "COOLDOWN" && acc.cooldownUntil) {
+        const diff = acc.cooldownUntil - now;
+        if (diff > 0) {
+          const min = Math.ceil(diff / 60000);
+          cooldownReasons.push(`บัญชี ${acc.phone} ติดคูลดาวน์อีก ${min} นาที`);
+          acc.status = "COOLDOWN"; // Update account status to COOLDOWN immediately
+          acc.save(); // Save the updated status in DB
+        }
       }
     });
 
-    // ── สรุปเหตุผลถ้าสตาร์ทไม่ได้
-    if (reasons.length) {
+    if (cooldownReasons.length) {
+      reasons.push(...cooldownReasons);
+    }
+
+    /* =========================
+       มีเหตุผลที่งานเริ่มไม่ได้?
+    ========================== */
+    if (reasons.length > 0) {
       return res.json({
         ok: false,
         type: "precheck_fail",
-        reasons,
-        warnings,
-        summary: { srcGroup, destGroup, qty, unitCredit: UNIT_CREDIT, cost }
+        reasons
       });
     }
 
-    // ── สร้างงาน
+    /* =========================
+       PRECHECK ผ่าน → เริ่มสร้างงาน
+    ========================== */
     const orderId = "TG" + Date.now().toString().slice(-8);
+
     const job = await TelegramJob.create({
       orderId,
       userId: uid,
@@ -800,22 +806,16 @@ router.post("/jobs/start", requireAuth, async (req, res) => {
       createdAt: new Date()
     });
 
-    // ── ตัดเครดิตทันที (กัน overuse)
-    if (cost > 0) {
-      await User.updateOne({ _id: uid }, { $inc: { credit: -cost } });
-    }
+    // ตัดเครดิต (กรณี cost = 0 = ไม่ตัด)
+    await User.updateOne(
+      { _id: uid },
+      { $inc: { credit: -cost } }
+    );
 
-    // ── เริ่มงาน async
+    // เริ่มทำงานแบบ async
     startTelegramJob(job._id);
 
-    return res.json({
-      ok: true,
-      jobId: job._id,
-      orderId: job.orderId,
-      streamUrl: `/telegram/jobs/${job._id}/stream`,
-      warnings,
-      summary: { srcGroup, destGroup, qty, unitCredit: UNIT_CREDIT, cost }
-    });
+    return res.json({ ok:true, jobId: job._id, orderId: job.orderId });
 
   } catch (err) {
     console.error("START_JOB_ERROR:", err);

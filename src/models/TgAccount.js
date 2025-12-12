@@ -35,7 +35,7 @@ const TgAccountSchema = new mongoose.Schema({
     },
 
     // กำลังถูกใช้งานกับงานไหน
-    activeJobId: { type: mongoose.Schema.Types.ObjectId, default: null },
+    activeJobId: { type: mongoose.Schema.Types.ObjectId, ref: 'TelegramJob', default: null },
 
     // lock account (ป้องกันงานอื่นใช้ชนกัน)
     lockedAt: { type: Date, default: null },
@@ -45,5 +45,9 @@ const TgAccountSchema = new mongoose.Schema({
     cooldownUntil: { type: Date, default: null },
 
 }, { timestamps: true });
+
+TgAccountSchema.index({ userId: 1, phone: 1 }, { unique: true });
+TgAccountSchema.index({ userId: 1, status: 1, cooldownUntil: 1 });
+TgAccountSchema.index({ activeJobId: 1 });
 
 export const TgAccount = mongoose.model("TgAccount", TgAccountSchema);
