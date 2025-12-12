@@ -457,7 +457,7 @@ router.get("/accounts", requireAuth, async (req, res) => {
     const uid = req.session.user._id;
 
     const accounts = await TgAccount.find({ userId: uid })
-      .select("phone status invitesToday lastError createdAt cooldownUntil")
+      .select("name phone status invitesToday lastError createdAt cooldownUntil")
       .sort({ createdAt: -1 })
       .lean();
 
@@ -662,6 +662,7 @@ router.post("/accounts/login/finish", requireAuth, async (req, res) => {
       acc = new TgAccount({
         userId: data.userId,
         username: data.username,
+        username: data.name,
         phone: data.phone,
         apiId: data.apiId,
         apiHash: data.apiHash,

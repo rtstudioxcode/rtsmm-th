@@ -9,35 +9,6 @@ export async function checkAndUpdateAccounts() {
   for (let acc of accounts) {
     const now = Date.now();
 
-    // ถ้าบัญชีติดสถานะ COOLDOWN และยังไม่หมดเวลา
-    if (acc.status === "COOLDOWN" && acc.cooldownUntil && acc.cooldownUntil > now) {
-    //   console.log(`บัญชี ${acc.phone} อยู่ในสถานะ COOLDOWN`);
-      continue;  // ไม่ต้องอัปเดตอะไรเพิ่มเติม
-    }
-
-    // ถ้าบัญชีติดสถานะ COOLDOWN แต่หมดเวลาแล้ว
-    if (acc.status === "COOLDOWN" && acc.cooldownUntil && acc.cooldownUntil <= now) {
-      bulkOps.push({
-        updateOne: {
-          filter: { _id: acc._id },
-          update: { status: "READY", cooldownUntil: null }
-        }
-      });
-    //   console.log(`บัญชี ${acc.phone} จะเปลี่ยนสถานะเป็น READY`);
-    }
-
-    // ถ้าบัญชีสถานะ READY แต่ยังค้างอยู่ในสถานะ COOLDOWN
-    // ถ้าบัญชีไม่มีสถานะ COOLDOWN แต่ฟิลด์ cooldownUntil ยังไม่เป็น null, อัปเดตให้เป็น READY
-    if (acc.status !== "COOLDOWN" && acc.cooldownUntil && acc.cooldownUntil <= now) {
-      bulkOps.push({
-        updateOne: {
-          filter: { _id: acc._id },
-          update: { status: "READY", cooldownUntil: null }
-        }
-      });
-    //   console.log(`บัญชี ${acc.phone} เปลี่ยนสถานะเป็น READY`);
-    }
-
     // เพิ่มเงื่อนไขใหม่:
     // ถ้าบัญชีเป็น READY แต่มีเวลาติด COOLDOWN (มี cooldownUntil) ให้เปลี่ยนสถานะเป็น COOLDOWN
     if (acc.status === "READY" && acc.cooldownUntil && acc.cooldownUntil > now) {
@@ -50,15 +21,74 @@ export async function checkAndUpdateAccounts() {
     //   console.log(`บัญชี ${acc.phone} จะเปลี่ยนสถานะเป็น COOLDOWN`);
     }
 
-    // ถ้าบัญชีติดสถานะ LOCKED และถึงเวลาที่จะปลดล็อก
-    if (acc.status === "LOCKED" && acc.lockUntil && acc.lockUntil <= now) {
-      bulkOps.push({
-        updateOne: {
-          filter: { _id: acc._id },
-          update: { status: "READY", lockUntil: null }
+    // ===== 1) LOCKED ก่อนเสมอ =====
+    if (acc.lockUntil) {
+      const lockDue = toTs(acc.lockUntil) <= now;
+
+      if (!lockDue) {
+        // (1) ยังไม่หมดเวลา → บังคับเป็น LOCKED
+        if (acc.status !== "LOCKED") {
+          bulkOps.push({
+            updateOne: {
+              filter: { _id: acc._id, status: { $ne: "LOCKED" } },
+              update: { $set: { status: "LOCKED" } }
+            }
+          });
         }
-      });
-    //   console.log(`บัญชี ${acc.phone} จะเปลี่ยนสถานะเป็น READY`);
+      } else {
+        if (acc.status === "LOCKED") {
+          // (2) หมดเวลา & อยู่ใน LOCKED → กลับ READY + ล้างฟิลด์
+          bulkOps.push({
+            updateOne: {
+              filter: { _id: acc._id, status: "LOCKED" },
+              update: { $set: { status: "READY" }, $unset: { lockUntil: "", lastError: "" } }
+            }
+          });
+        } else {
+          // (3) ไม่ได้อยู่ LOCKED แต่ lockUntil ค้าง & หมดเวลา → ล้างทิ้งเฉย ๆ
+          bulkOps.push({
+            updateOne: {
+              filter: { _id: acc._id, status: { $ne: "LOCKED" } },
+              update: { $unset: { lockUntil: "", lastError: "" } }
+            }
+          });
+        }
+      }
+    }
+
+    // ===== 2) COOLDOWN รองลงมา =====
+    if (acc.cooldownUntil) {
+      const cdDue = toTs(acc.cooldownUntil) <= now;
+
+      if (!cdDue) {
+        // (1) ยังไม่หมดเวลา → บังคับเป็น COOLDOWN
+        if (acc.status !== "COOLDOWN" && acc.status !== "LOCKED") { // อย่าไปทับ LOCKED
+          bulkOps.push({
+            updateOne: {
+              filter: { _id: acc._id, status: { $nin: ["COOLDOWN", "LOCKED"] } },
+              update: { $set: { status: "COOLDOWN" } }
+            }
+          });
+        }
+      } else {
+        if (acc.status === "COOLDOWN") {
+          // (2) หมดเวลา & อยู่ใน COOLDOWN → กลับ READY + ล้างฟิลด์
+          bulkOps.push({
+            updateOne: {
+              filter: { _id: acc._id, status: "COOLDOWN" },
+              update: { $set: { status: "READY" }, $unset: { cooldownUntil: "", lastError: "" } }
+            }
+          });
+        } else {
+          // (3) ไม่ได้อยู่ COOLDOWN แต่ cooldownUntil ค้าง & หมดเวลา → ล้างทิ้งเฉย ๆ
+          bulkOps.push({
+            updateOne: {
+              filter: { _id: acc._id, status: { $ne: "COOLDOWN" } },
+              update: { $unset: { cooldownUntil: "", lastError: "" } }
+            }
+          });
+        }
+      }
     }
   }
 
