@@ -370,7 +370,7 @@ export async function startTelegramJob(jobId) {
     job.logs.push({ text: "เริ่มงาน..." });
     await job.save();
 
-    const qty = job.limit;
+    const qty = Number(job.limit || 0);
     telegramPush(jobId, { status: "running", total: qty, invited: 0 });
 
     let remaining = qty;
@@ -379,7 +379,7 @@ export async function startTelegramJob(jobId) {
       // ✅ หมุนเฉพาะบัญชีของ user นี้
       const accounts = await pickAccounts(uid);
       if (!accounts.length) {
-        await finalizeEarly(job, jobId, qty, "โดน FLOOD/PEER_FLOOD แล้วบัญชีทั้งหมดพัก");
+        await finalizeEarly(job, jobId, qty, "บัญชีทั้งหมดติด COOLDOWN/LOCKED ก่อนเสร็จงาน");
         return;
       }
 
@@ -443,7 +443,7 @@ export async function startTelegramJob(jobId) {
                 if (remaining > 0) {
                   const left = await pickAccounts(uid);
                   if (!left.length) {
-                    await finalizeEarly(`บัญชีครบโควต้า ${ROUND_LIMIT}/รอบ และไม่มีบัญชีสำรอง`);
+                    await finalizeEarly(job, jobId, qty, `บัญชีครบโควต้า ${ROUND_LIMIT}/รอบ และไม่มีบัญชีสำรอง`);
                     return;
                   }
                 }
@@ -460,7 +460,7 @@ export async function startTelegramJob(jobId) {
               if (remaining > 0) {
                 const left = await pickAccounts(uid);
                 if (!left.length) {
-                  await finalizeEarly("โดน FLOOD/PEER_FLOOD แล้วบัญชีทั้งหมดพัก");
+                  await finalizeEarly(job, jobId, qty, "โดน FLOOD/PEER_FLOOD แล้วบัญชีทั้งหมดพัก");
                   return;
                 }
               }
