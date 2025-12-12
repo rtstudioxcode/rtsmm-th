@@ -228,19 +228,19 @@
         <!-- Source Group -->
         <div class="form-row">
           <label>กลุ่มเป้าหมาย (กลุ่มที่ต้องการดึงสมาชิก)</label>
-          <input type="text" id="srcGroup" placeholder="@sourcegroup หรือ ลิงก์กลุ่ม" />
+          <input type="text" id="srcGroup" placeholder="รองรับทั้ง https://t.me/group หรือ t.me/+invitehash หรือ @group" />
         </div>
 
         <!-- Destination Group -->
         <div class="form-row" style="margin-top:14px;">
-          <label>กลุ่มปลายทาง (กลุ่มที่ต้องการเพิ่มสมาชิก)</label>
-          <input type="text" id="destGroup" placeholder="@targetgroup หรือ ลิงก์กลุ่ม" />
+          <label>กลุ่ม/ช่องปลายทาง (กลุ่มที่ต้องการเพิ่มสมาชิก)</label>
+          <input type="text" id="destGroup" placeholder="รองรับทั้ง https://t.me/yourgroup หรือ t.me/+invitehash หรือ @yourgroup" />
         </div>
 
         <!-- Limit -->
         <div class="form-row" style="margin-top:14px;">
-          <label>จำนวนสมาชิกที่ต้องการดึง</label>
-          <input type="number" id="limit" min="1" placeholder="ใส่จำนวนสมาชิก" />
+          <label>จำนวนสมาชิกที่ต้องการ</label>
+          <input type="number" id="limit" min="1" placeholder="เช่น 10" />
         </div>
 
         <!-- Cost Preview -->
@@ -314,7 +314,7 @@
             2
         </div>
         <div>
-            วางลิงก์กลุ่มปลายทาง — รองรับทั้ง 
+            วางลิงก์กลุ่ม/ช่องปลายทาง — รองรับทั้ง 
             <code style="color:#8ec7ff;">https://t.me/yourgroup</code> 
             หรือ <code style="color:#8ec7ff;">t.me/+invitehash</code>
             หรือ <code style="color:#8ec7ff;">@yourgroup</code>
@@ -331,8 +331,8 @@
         </div>
         <div>
             กรอกจำนวนสมาชิกที่ต้องการเชิญ — ระบบจะคำนวณเครดิตอัตโนมัติ 
-            <b style="color:#e3b863;">(2 เครดิต/คน)</b>
-            ตอนนี้ใช้ฟรีไม่เสียเงิน
+            <!-- <b style="color:#e3b863;">(2 เครดิต/คน)</b> -->
+            <b style="color:#57d110;">ตอนนี้ใช้ฟรีไม่เสียเงิน</b>
         </div>
         </li>
 
@@ -375,6 +375,20 @@
             <b style="color:#e3b863;">คืนเครดิตอัตโนมัติ</b> สำหรับจำนวนที่เชิญไม่สำเร็จ
         </div>
         </li>
+
+        <li style="margin-bottom:16px; display:flex; gap:10px;">
+        <div style="
+            width:28px; height:28px; background:#2f3238;
+            border-radius:50%; display:flex;
+            align-items:center; justify-content:center;
+            color:#9be169; font-weight:600;">
+            7
+        </div>
+        <div>
+            กลุ่ม/ช่องปลายทางต้องเปิด 
+            <b style="color:#e3b863;">สิทธิ์การเชิญเพื่อน (Add Members)</b> ของกลุ่มหรือช่องแล้วเท่านั้น
+        </div>
+        </li>
     </ol>
 
     <!-- ───────────── 2 Columns Detail Boxes ───────────── -->
@@ -384,30 +398,41 @@
     <div class="box">
         <h4 class="box-title">ช่องกรอกในฟอร์ม</h4>
         <ul>
-        <li>ลิงก์กลุ่มที่ต้องการเพิ่มสมาชิก</li>
-        <li>ลิงก์กลุ่มต้นทาง (กรณีต้องการเช็ค)</li>
-        <li>จำนวนสมาชิกที่ต้องการดึง — เช่น 5, 10, 25</li>
+        <li>ลิงก์กลุ่มเป้าหมาย</li>
+        <li>ลิงก์กลุ่มตัวเอง (หรือกลุ่มที่ต้องการเพิ่มสมาชิก)</li>
+        <li>จำนวนสมาชิกที่ต้องการ — เช่น <b style="color:#57d110;">5</b>, <b style="color:#57d110;">10</b>, <b style="color:#57d110;">25</b></li>
         </ul>
     </div>
 
-    <!-- นโยบายเครดิต -->
+    <!-- นโยบาย -->
     <div class="box">
-        <h4 class="box-title">นโยบายเครดิต</h4>
+        <h4 class="box-title">นโยบายการใช้งาน</h4>
         <ul>
-        <li>หักก่อนเริ่มงาน: <b>2 เครดิต/คน</b></li>
-        <li>รีฟันด์ (จำนวนที่ขาด): <b>คืน 2 เครดิต/คน</b></li>
-        <li>สถานะงานในประวัติ: กำลังทำงาน / สำเร็จ / ล้มเหลว</li>
+        <li>หักก่อนเริ่มงาน: <b style="color:#e3b863;">2 เครดิต/คน</b></li>
+        <li>รีฟันด์ (จำนวนที่ขาด): <b style="color:#e3b863;">คืน 2 เครดิต/คน</b></li>
+        <li>สถานะงานในประวัติ: <b style="color:#e3b863;">กำลังทำงาน</b> / <b style="color:#57d110;">สำเร็จ</b> / <b style="color:#d60e0e;">ล้มเหลว</b> / <b style="color:#868686;">จบงาน</b> / <b style="color:#868686;">จบงานอัตโนมัติ</b></li>
         </ul>
     </div>
 
-    <!-- นโยบายเครดิต -->
+    <!-- คำแนะนำบัญชี -->
     <div class="box">
         <h4 class="box-title">คำแนะนำบัญชี</h4>
         <ul>
-        <li>บัญชีควรมีอายุ: <b>1 เดือน++ ขึ้่นไป</b></li>
-        <li>ไม่ควรใช้บัญชีที่มีอายุต่ำกว่า 1 เดือน</li>
+        <li>บัญชีควรมีอายุ: <b style="color:#e3b863;">1 เดือน++ ขึ้่นไป</b></li>
+        <li>ไม่ควรใช้บัญชีที่มีอายุต่ำกว่า <b style="color:#e3b863;">1 เดือน</b></li>
         <li>บัญชีควรเป็นบัญชีที่ไม่เคยใช้งานบอทจะปลอดภัยที่สุด</li>
-        <li>1 บัญชีจะดึงได้ 40 คนต่อ 1 ครั้งแล้วจะพักบัญชี 2 ชั่วโมง</li>
+        <li>1 บัญชีจะดึงได้ <b style="color:#e3b863;">40 คนต่อ 1 รอบและจะพักบัญชี 2 ชั่วโมง</b></li>
+        </ul>
+    </div>
+
+    <!-- การทำงานของระบบ -->
+    <div class="box">
+        <h4 class="box-title">การทำงานของระบบ</h4>
+        <ul>
+        <li>ระบบจะมี <b style="color:#e3b863;">AI</b> ช่วยคำนวณความเสี่ยงของบัญชีอยู่ตลอดเวลา</li>
+        <li>จะบบจะเปลี่ยนบัญชีการใช้งานไปเรื่อยไม่ซ้ำกันเพื่อลดความเสี่ยง</li>
+        <li>อัตราความเสี่ยงคิดเป็นคะแนนจากการ <b style="color:#e3b863;">ติดลิมิต, จำนวนที่เคยดึงไปแล้ว, ระยะเวลาพักบัญชี</b></li>
+        <li>บัญชีที่ไม่เคยใช้งานจะเป็นบัญชีที่มีคุณภาพสูงกว่าเสมอ</li>
         </ul>
     </div>
 
