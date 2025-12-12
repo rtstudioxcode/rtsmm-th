@@ -177,7 +177,7 @@
 
 /* fields */
 .f-field{ display:flex; flex-direction:column; gap:6px; width:100% }
-.f-label{ font-weight:800; color:var(--text); line-height:1.2 }
+.f-label{ font-weight:300; color:var(--text); line-height:1.2 }
 .f-hint{ color:var(--muted); font-size:12px; }
 .f-input{
   width:100%; background:var(--input-bg); border:1px solid var(--border); color:var(--text);
@@ -193,7 +193,7 @@
   padding:2px 10px 2px calc(var(--sw) + 10px);
   border-radius:999px; border:1px solid var(--border);
   background: color-mix(in srgb, var(--card) 92%, transparent); color:var(--text);
-  font-weight:400; cursor:pointer; display:flex; align-items:center; gap:10px;
+  font-weight:300; cursor:pointer; display:flex; align-items:center; gap:10px;
   transition: background .15s, border-color .15s;
 }
 .pwd-toggle .txt{ font-size:12px; opacity:.9 }
@@ -210,6 +210,32 @@
 .btn{ border:1px solid transparent; border-radius:14px; padding:12px 16px; font-weight:400; }
 .btn.primary{ background:linear-gradient(180deg,var(--accent),var(--accent)); color:#fff }
 .btn.block{ width:100% }
+
+/* =========================
+   Mobile: ให้ auth-card เต็มจอ
+========================= */
+@media (max-width: 640px){
+  .auth-card{
+    width: 100vw;
+    max-width: 100%;
+    margin: 0;
+    border-radius: 5px;              /* เต็มจอจริง ๆ ไม่ต้องโค้ง */
+    padding: 18px max(14px, env(safe-area-inset-left)) 22px max(14px, env(safe-area-inset-right));
+  }
+
+  .auth-card .auth-head{
+    max-width: none;
+    margin: 0 0 14px;
+    text-align: center;
+  }
+
+  .auth-card .auth-form.stack{
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    gap: 14px;
+  }
+}
 
 /* =========================================
    3) <dialog> RESET / BACKDROP
@@ -252,11 +278,11 @@ dialog::backdrop{ background:var(--backdrop); backdrop-filter: blur(8px) }
 }
 .toast-badge{
   width:40px; height:40px; flex:0 0 40px; display:grid; place-items:center;
-  border-radius:14px; font-weight:900; font-size:20px;
+  border-radius:14px; font-weight:400; font-size:20px;
   background: color-mix(in srgb, #ffffff 22%, transparent);
   box-shadow: 0 8px 18px rgba(0,0,0,.18) inset;
 }
-.toast-title{ margin:0; font-size:18px; font-weight:950; letter-spacing:.2px; color:#fff }
+.toast-title{ margin:0; font-size:18px; font-weight:450; letter-spacing:.2px; color:#fff }
 
 /* body */
 .toast-body{ padding:16px 18px 8px; min-height:72px; }
@@ -306,6 +332,99 @@ dialog::backdrop{ background:var(--backdrop); backdrop-filter: blur(8px) }
 .muted{ color:var(--muted) }
 
 #registerNoticeModal .toast-body ul { margin-left: 1rem; }
+
+/* =========================
+   Register Notice Modal: fit mobile
+========================= */
+#registerNoticeModal .toast-card{
+  width: min(520px, calc(100vw - 28px)); /* เว้นขอบซ้ายขวา 14px */
+  max-width: calc(100vw - 28px);
+  margin: 0 max(12px, env(safe-area-inset-left)) 0 max(12px, env(safe-area-inset-right));
+}
+
+@media (max-width: 640px){
+  #registerNoticeModal .toast-card{
+    width: calc(95vw - 24px);           /* เว้นขอบซ้ายขวา 12px */
+    max-width: calc(100vw - 24px);
+    border-radius: 20px;                 /* ลดโค้งนิดให้ดูพอดี */
+  }
+
+  #registerNoticeModal .toast-headbar{
+    padding: 12px 14px;
+    gap: 10px;
+  }
+
+  #registerNoticeModal .toast-badge{
+    width: 36px; height: 36px; flex: 0 0 36px;
+    border-radius: 12px;
+    font-size: 18px;
+  }
+
+  #registerNoticeModal .toast-title{
+    font-size: 16px;
+  }
+
+  #registerNoticeModal .toast-body{
+    padding: 14px 14px 6px;
+  }
+
+  #registerNoticeModal .toast-actions{
+    padding: 10px 14px 14px;
+  }
+
+  /* กันข้อความยาว/รายการไม่ดันการ์ด */
+  #registerNoticeModal .toast-body ul{
+    margin-left: 18px;
+    padding: 8px 0;
+  }
+}
+
+/* =========================
+   msgDialog: fit mobile (no overflow)
+========================= */
+#msgDialog .toast-card{
+  width: min(520px, calc(100vw - 28px));
+  max-width: calc(100vw - 28px);
+}
+
+@media (max-width: 640px){
+  #msgDialog .toast-card{
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    border-radius: 20px;
+  }
+
+  #msgDialog .toast-headbar{
+    padding: 12px 14px;
+    gap: 10px;
+  }
+
+  #msgDialog .toast-badge{
+    width: 36px; height: 36px; flex: 0 0 36px;
+    border-radius: 12px;
+    font-size: 18px;
+  }
+
+  #msgDialog .toast-title{ font-size: 16px; }
+
+  #msgDialog .toast-body{ padding: 14px 14px 6px; }
+
+  #msgDialog .toast-actions{
+    padding: 10px 14px 14px;
+    gap: 8px;
+    flex-wrap: wrap;               /* กันปุ่มดันล้น */
+  }
+
+  #msgDialog .pill{
+    padding: 10px 16px;
+  }
+}
+
+/* กัน safe-area (บางเครื่อง/บาง browser) */
+#msgDialog .toast-card{
+  margin: 0 max(12px, env(safe-area-inset-left)) 0 max(12px, env(safe-area-inset-right));
+}
+
 </style>
 
 <script>

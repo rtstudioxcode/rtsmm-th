@@ -1679,12 +1679,12 @@ router.post("/bonustime/tenant", async (req, res) => {
     const doc = {
       tenantId: tenantId.trim(),
       serial_key: "",
-      CHANNEL_ACCESS_TOKEN: "",
-      CHANNEL_SECRET: "",
-      LOGO: "",
-      LOGIN_URL: "",
-      SIGNUP_URL: "",
-      LINE_ADMIN: "",
+      CHANNEL_ACCESS_TOKEN: "dUzDrt7JYRfaUPeWYY48KhSZEICvuyecSVhcdXi0ijsAO2SXuv4i4G7yNU1p2LNSh8bQHmufI5w0tmZ0UpZM03h7bo0et9zYGzXkzg4EaOIPcXpbJv0F0xmKPRad/xbn0qme9dnLg0je4XOpF1X7XwdB04t89/1O/w1cDnyilFU=",
+      CHANNEL_SECRET: "5025bbd6d7314ce9aad824339a424171",
+      LOGO: "https://img5.pic.in.th/file/secure-sv1/LOGO-RT-AUTO-BOT-3.png",
+      LOGIN_URL: "https://rtsmm-th.com/bonustime",
+      SIGNUP_URL: "https://rtsmm-th.com/bonustime",
+      LINE_ADMIN: "https://lin.ee/uaOykAk",
       ALLOW_TEXT_PROVIDER: false,
       LOTTO_ENABLED: !!LOTTO_ENABLED,              // จาก body
       LICENSE_START_DATE: toThaiDate(now),         // วัน/เดือน/ปี ไทย
