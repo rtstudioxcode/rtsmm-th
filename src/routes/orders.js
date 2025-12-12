@@ -29,9 +29,18 @@ const REFRESH_COOLDOWN_MS = 45_000;
 // ─────────────────────────────────────────────────────────────
 const toNum = v => { const n = Number(v); return Number.isFinite(n) ? n : null; };
 const nz = v => (Number.isFinite(Number(v)) ? Number(v) : 0);
-const calcCost = (q, rate) => Math.max(0, (nz(q)/1000) * nz(rate));
 const round2 = n => Math.round((Number(n) || 0) * 100) / 100;
 const moneyRound = n => Math.round((Number(n) || 0) * 100) / 100;
+
+/** คิดราคารวมตาม unit (หน่วย/step)
+ * - unit <= 1  → คิดแบบต่อชิ้น: cost = qty * rate
+ * - unit > 1   → คิดแบบเป็นก้อนต่อ unit: cost = (qty / unit) * rate
+ */
+const calcCostByUnit = (qty, rate, unit) => {
+  const q = nz(qty), r = nz(rate), u = Math.max(1, nz(unit));
+  const cost = (u <= 1) ? (q * r) : ((q / u) * r);
+  return cost < 0 ? 0 : cost;
+};
 
 // ใช้ map สถานะไทย (ใช้ซ้ำ)
 const mapTH = (x='') => ({
@@ -61,11 +70,9 @@ function normalizeProviderFields(resp) {
 /** คืนค่า flags {refill, cancel} ของ service (รองรับทั้ง group-child และตัวหลัก) */
 function getServiceFlags(serviceDoc, providerServiceId) {
   if (!serviceDoc) return { refill: false, cancel: false };
-  // base flags
   let refill = !!serviceDoc.refill;
   let cancel = !!serviceDoc.cancel;
 
-  // child overrides
   const children = Array.isArray(serviceDoc?.details?.services)
     ? serviceDoc.details.services : [];
   if (children.length) {
@@ -104,15 +111,12 @@ async function refundIdempotent({ userId, orderId, currency = 'THB', amount }) {
 
   let already = 0;
   try {
-    // รวมยอดที่เคยคืนไปแล้วจาก usage_logs
     const agg = await UsageLog.aggregate([
       { $match: { orderId, type: 'refund' } },
       { $group: { _id: '$orderId', sum: { $sum: '$amount' } } }
     ]);
     already = Number(agg?.[0]?.sum || 0);
-  } catch {
-    // ถ้าไม่มี UsageLog model ก็ปล่อยผ่าน (ยังกันซ้ำจาก refundCommitted ได้อีกชั้น ถ้าคุณเพิ่มใน schema)
-  }
+  } catch {}
 
   const delta = Math.max(0, amt - already);
   if (delta <= 0) return { refunded: 0, already, delta: 0 };
@@ -123,12 +127,10 @@ async function refundIdempotent({ userId, orderId, currency = 'THB', amount }) {
       userId, orderId, type: 'refund', amount: delta, currency, note: 'cancel/partial refund'
     });
   } catch (e) {
-    // กันซ้ำระดับ DB (unique index) — ถ้าชน 11000 แปลว่ามี Log แล้ว → ไม่ต้อง inc ซ้ำ
     if (e?.code === 11000) return { refunded: 0, already: amt, delta: 0 };
     throw e;
   }
 
-  // เพิ่มเงินเข้าบัญชีผู้ใช้ตาม "ส่วนต่าง"
   await User.updateOne({ _id: userId }, { $inc: { balance: delta } });
   return { refunded: delta, already, delta, logId: log?._id || null };
 }
@@ -154,12 +156,10 @@ async function refreshProviderBalanceNow() {
 const sleep = (ms)=>new Promise(r=>setTimeout(r, ms));
 
 async function forceCheckProviderAndUpdate(order) {
-  // 1) ถ้ามี cancelId ก็ลองถามปลายทางตรง ๆ
   const cancelId = order?.meta?.cancelId || order?.cancelId;
   if (cancelId) {
     try {
       const r = await getCancelById(cancelId);
-      // ตัวอย่าง: r.status อาจเป็น 'canceled' | 'partial' | 'processing'
       if (r?.status === 'canceled' || r?.status === 'partial') {
         order.status = (r.status === 'canceled') ? 'canceled' : 'partial';
         if (r?.refundAmount != null) {
@@ -168,14 +168,12 @@ async function forceCheckProviderAndUpdate(order) {
         }
         order.updatedAt = new Date();
         await order.save();
-        // อัปเดตยอด/รีคอนซายล์เครดิต ฯลฯ
         await reconcileUserByOrderEvent(order, 'cancel_confirmed');
         return true;
       }
-    } catch { /* เงียบไว้ แล้วไป fallback ต่อ */ }
+    } catch {}
   }
 
-  // 2) Fallback: หา by orderId ถ้าผู้ให้บริการรองรับ
   try {
     const r2 = await findCancelsByIds([order.providerOrderId].filter(Boolean));
     const hit = Array.isArray(r2) ? r2.find(x => String(x.orderId) === String(order.providerOrderId)) : null;
@@ -190,9 +188,8 @@ async function forceCheckProviderAndUpdate(order) {
       await reconcileUserByOrderEvent(order, 'cancel_confirmed');
       return true;
     }
-  } catch { /* ผ่าน */ }
+  } catch {}
 
-  // 3) สำรองสุดท้าย: เช็กสถานะออเดอร์
   try {
     const s = await getOrderStatus(order.providerOrderId);
     const st = String(s?.status || '').toLowerCase();
@@ -207,11 +204,10 @@ async function forceCheckProviderAndUpdate(order) {
       await reconcileUserByOrderEvent(order._id, { reason: 'cancel_confirmed', force: true });
       return true;
     }
-  } catch { /* ผ่าน */ }
+  } catch {}
 
   return false;
 }
-
 
 const PERPAGE_DEFAULT = 20;
 const PERPAGE_ALLOWED = [10, 20, 50, 100, 250, 500, 1000];
@@ -236,8 +232,8 @@ router.post('/orders', async (req, res) => {
     let quantity = nz(req.body.quantity);
 
     // Comments & Keywords
-    const commentsRaw = (req.body.comments || '').trim();
-    const keywordsRaw = (req.body.keywords || '').trim();
+    const bodyComments = (req.body.comments || '').trim();
+    const bodyKeywords = (req.body.keywords || '').trim();
 
     if (!link || !quantity) {
       return res.status(400).json({ error: 'missing fields' });
@@ -301,18 +297,19 @@ router.post('/orders', async (req, res) => {
     if (chosen.max && quantity > chosen.max)
       return res.status(400).json({ error: `สูงสุด ${chosen.max}` });
 
-    const step = Math.max(1, nz(chosen.step));
-    if (quantity % step !== 0) {
-      const fixed = Math.floor(quantity / step) * step;
+    const stepUnit = Math.max(1, nz(chosen.step)); // unit/step ที่ DB กำหนด
+    if (quantity % stepUnit !== 0) {
+      const fixed = Math.floor(quantity / stepUnit) * stepUnit;
       if (fixed < Math.max(1, nz(chosen.min))) {
-        return res.status(400).json({ error: `ปริมาณต้องเป็นทวีคูณของ ${step}` });
+        return res.status(400).json({ error: `ปริมาณต้องเป็นทวีคูณของ ${stepUnit}` });
       }
       quantity = fixed;
     }
 
     // 3) คิดราคา
     let rate = nz(chosen.rate);
-    let cost = moneyRound(calcCost(quantity, rate));
+    // fallback (เผื่อ pricing ล่ม): ใช้หน่วยจริง ไม่ใช่หาร 1000 ตายตัว
+    let cost = moneyRound(calcCostByUnit(quantity, rate, stepUnit));
 
     try {
       const ex = await computeEffectiveRateEx({
@@ -323,8 +320,11 @@ router.post('/orders', async (req, res) => {
         quantity
       });
       rate = nz(ex.finalRate ?? rate);
-      cost = moneyRound(ex.lineCost ?? calcCost(quantity, rate));
-    } catch {}
+      // ใช้ lineCost ที่คิดด้วย unit จาก pricing (ถูกต้องสุด)
+      cost = moneyRound(ex.lineCost ?? calcCostByUnit(quantity, rate, ex.unit ?? stepUnit));
+    } catch {
+      // ใช้ fallback ต่อไป
+    }
 
     const currency = chosen.currency || 'THB';
 
@@ -349,17 +349,14 @@ router.post('/orders', async (req, res) => {
 
     // === รวม comments + keywords ===
     let combinedComments = null;
-    if (commentsRaw && keywordsRaw) {
-      combinedComments = `${commentsRaw} | ${keywordsRaw}`;
-    } else if (commentsRaw) {
-      combinedComments = commentsRaw;
-    } else if (keywordsRaw) {
-      combinedComments = keywordsRaw;
+    if (bodyComments && bodyKeywords) {
+      combinedComments = `${bodyComments} | ${bodyKeywords}`;
+    } else if (bodyComments) {
+      combinedComments = bodyComments;
+    } else if (bodyKeywords) {
+      combinedComments = bodyKeywords;
     }
-
-    if (combinedComments) {
-      providerPayload.comments = combinedComments;
-    }
+    if (combinedComments) providerPayload.comments = combinedComments;
 
     // 6) ยิง Provider
     let providerResp;
@@ -402,11 +399,9 @@ router.post('/orders', async (req, res) => {
       subcategory: baseDoc.subcategory
     };
 
-    // บันทึก comments/keywords ลง DB แยก
-    if (commentsRaw) fields.comments = commentsRaw;
-    if (keywordsRaw) fields.keywords = keywordsRaw;
+    if (bodyComments) fields.comments = bodyComments;
+    if (bodyKeywords) fields.keywords = bodyKeywords;
 
-    // คำนวณ progress (ถ้าผู้ให้บริการไม่ส่ง progress มา)
     if (
       fields.progress == null &&
       fields.startCount != null &&
@@ -414,10 +409,7 @@ router.post('/orders', async (req, res) => {
       quantity > 0
     ) {
       fields.progress = round2(
-        Math.max(
-          0,
-          Math.min(100, ((fields.currentCount - fields.startCount) / quantity) * 100)
-        )
+        Math.max(0, Math.min(100, ((fields.currentCount - fields.startCount) / quantity) * 100))
       );
     }
 
@@ -462,25 +454,21 @@ router.get('/my/orders', requireAuth, async (req, res, next) => {
       from,
       to,
       q = '',
-      status = 'all',          // ← เพิ่มรับ status
+      status = 'all',
     } = req.query || {};
 
-    // ---------- ตัวกรองหลัก ----------
     const find = { user: userId };
 
-    // วันที่ (inclusive)
     if (from || to) {
       find.createdAt = {};
       if (from) find.createdAt.$gte = new Date(from + 'T00:00:00.000Z');
       if (to)   find.createdAt.$lte = new Date(to   + 'T23:59:59.999Z');
     }
 
-    // สถานะ (เหมือนฝั่งแอดมิน)
     if (status && status !== 'all') {
       find.status = String(status).toLowerCase();
     }
 
-    // คำค้น
     if (q && q.trim()) {
       const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const rx   = new RegExp(safe, 'i');
@@ -492,10 +480,8 @@ router.get('/my/orders', requireAuth, async (req, res, next) => {
       ];
     }
 
-    // ---------- จำนวนรวม (สำหรับ pager) ----------
     const total = await Order.countDocuments(find);
 
-    // ---------- perPage/page ----------
     const PERPAGE_OPTIONS = [10,20,50,100,250,500,1000];
     const perPageRaw = String(req.query.perPage ?? '20').toLowerCase();
 
@@ -513,14 +499,12 @@ router.get('/my/orders', requireAuth, async (req, res, next) => {
 
     const skip = (page - 1) * perPage;
 
-    // ---------- ดึงข้อมูล ----------
     const list = await Order.find(find)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(perPage)
       .lean();
 
-    // ---------- เติมข้อมูล service ----------
     const serviceIds = [...new Set(list.map(o => o?.service).filter(Boolean).map(String))];
     const services = serviceIds.length
       ? await Service.find({ _id: { $in: serviceIds } })
@@ -547,7 +531,6 @@ router.get('/my/orders', requireAuth, async (req, res, next) => {
       };
     });
 
-    // ---------- helper UI ----------
     const pillClass = (s = '') => {
       s = String(s).toLowerCase();
       if (s === 'processing') return 'warn';
@@ -560,7 +543,6 @@ router.get('/my/orders', requireAuth, async (req, res, next) => {
     const thStatus = (s = '') =>
       ({ processing:'รอดำเนินการ', inprogress:'กำลังทำ', completed:'เสร็จสิ้น', partial:'คืนบางส่วน', canceled:'ยกเลิก' }[String(s).toLowerCase()] || s);
 
-    // ---------- ส่งออกให้ EJS ----------
     res.render('orders/history', {
       list: listWithSvc,
       from,
@@ -632,15 +614,14 @@ router.post('/api/orders/:id/refresh', async (req, res) => {
       partial:'ส่วนบางส่วน', canceled:'ยกเลิก', canceling:'กำลังยกเลิก'
     }[String(x).toLowerCase()] || x);
 
-    // ถ้าอยู่ในสถานะ "canceling" และมี cancelId → เช็คสถานะจาก provider ก่อน
     if (String(o.status||'').toLowerCase() === 'canceling' && o.lastCancelId) {
       try {
         const c = await getCancelById(o.lastCancelId);
         const st = String(c.status || '').toLowerCase();
 
         if (/^(canceled|cancelled|success|ok|accepted|done|finished|completed)$/.test(st)) {
-          // ✅ provider คอนเฟิร์มยกเลิกแล้ว → เปลี่ยนเป็น canceled + คืนเงินตามสัดส่วน
-          const est       = nz(o.estCost ?? o.cost ?? calcCost(o.quantity, o.rateAtOrder));
+          const est0 = nz(o.estCost ?? o.cost);
+          const est  = Math.max(0, Number(est0) || 0);
           const donePct   = computeDonePct(o);
           const leftRatio = Math.max(0, Math.min(1, 1 - (donePct/100)));
           const refund    = round2(est * leftRatio);
@@ -671,7 +652,6 @@ router.post('/api/orders/:id/refresh', async (req, res) => {
             current_count: o.currentCount ?? null
           });
         }
-        // ถ้ายังไม่สำเร็จ → ปล่อยให้เป็น canceling ต่อไป
       } catch (e) {
         console.warn('check cancel status failed:', e?.response?.data || e.message);
       }
@@ -684,7 +664,6 @@ router.post('/api/orders/:id/refresh', async (req, res) => {
     const s  = await getOrderStatus(o.providerOrderId);
     const st = String(s.status || o.status || 'processing').toLowerCase();
 
-    // เตรียมอัปเดตจาก provider
     const upd = {
       status: st,
       startCount:   toNum(s.start_count ?? s.startCount)     ?? o.startCount,
@@ -706,7 +685,8 @@ router.post('/api/orders/:id/refresh', async (req, res) => {
     setTimeout(() => reconcileUserByOrderEvent(o._id).catch(()=>{}), 0);
 
     if (st === 'canceled' && prevStatus !== 'canceled') {
-      const est       = nz(o.estCost ?? o.cost ?? calcCost(o.quantity, o.rateAtOrder));
+      const est0 = nz(o.estCost ?? o.cost);
+      const est  = Math.max(0, Number(est0) || 0);
       const donePct   = computeDonePct(o);     
       const leftRatio = Math.max(0, Math.min(1, 1 - (donePct/100)));
       const refund    = round2(est * leftRatio);
@@ -723,7 +703,7 @@ router.post('/api/orders/:id/refresh', async (req, res) => {
           await User.updateOne({ _id: o.user }, { $inc: { balance: refund } });
         }
       } else {
-        await o.save(); // เคยคืนแล้ว ก็แค่อัปเดตเวลา/สถานะ
+        await o.save();
       }
     }
 
@@ -761,7 +741,6 @@ router.post('/api/orders/refresh-all', async (req, res) => {
     }
     lastRefreshAt.set(userId, now);
 
-    // ดึงเฉพาะที่ยัง active เพื่อลดโหลด
     const list = await Order.find({
       user: userId,
       status: { $in: ['processing', 'inprogress', 'partial', 'canceling'] }
@@ -770,9 +749,6 @@ router.post('/api/orders/refresh-all', async (req, res) => {
     let updated = 0;
     const changes = [];
 
-    // ─────────────────────────────────────────────
-    // 1) ตรวจผลยกเลิกจาก Cancel API แบบรวดเดียว
-    // ─────────────────────────────────────────────
     const canceling = list.filter(o =>
       String(o.status).toLowerCase() === 'canceling' && o.lastCancelId
     );
@@ -781,7 +757,7 @@ router.post('/api/orders/refresh-all', async (req, res) => {
     let cancelMap = {};
     if (cancelIds.length) {
       try {
-        const arr = await findCancelsByIds(cancelIds); // ← adapter คืน array
+        const arr = await findCancelsByIds(cancelIds);
         cancelMap = Object.fromEntries(arr
           .filter(x => x && x.id)
           .map(x => [String(x.id), x]));
@@ -793,16 +769,13 @@ router.post('/api/orders/refresh-all', async (req, res) => {
     for (const o of list) {
       const curSt = String(o.status || '').toLowerCase();
 
-      // ─────────────────────────────────────────────
-      // 1.1) ถ้าเป็น "canceling" → อนุญาตอัปเดตเป็น canceled
-      //      เฉพาะเมื่อ Cancel API ยืนยันเท่านั้น
-      // ─────────────────────────────────────────────
       if (curSt === 'canceling' && o.lastCancelId) {
         const c = cancelMap[String(o.lastCancelId)];
         if (c) {
           const st = String(c.status || '').toLowerCase();
           if (/^(canceled|cancelled|success|ok|accepted|done|finished|completed)$/.test(st)) {
-            const est       = nz(o.estCost ?? o.cost ?? calcCost(o.quantity, o.rateAtOrder));
+            const est0 = nz(o.estCost ?? o.cost);
+            const est  = Math.max(0, Number(est0) || 0);
             const donePct   = computeDonePct(o);
             const leftRatio = Math.max(0, Math.min(1, 1 - (donePct / 100)));
             const refund    = round2(est * leftRatio);
@@ -837,22 +810,15 @@ router.post('/api/orders/refresh-all', async (req, res) => {
             });
           }
         }
-
-        // ⛔️ ข้ามการรีเฟรชสถานะ (ไม่เรียก getOrderStatus) สำหรับออเดอร์ที่ยัง canceling
         continue;
       }
 
-      // ─────────────────────────────────────────────
-      // 2) ออเดอร์อื่น ๆ (ไม่ใช่ canceling) ค่อยดึงสถานะตามปกติ
-      // ─────────────────────────────────────────────
       if (!o.providerOrderId) continue;
 
       try {
         const s  = await getOrderStatus(o.providerOrderId);
         let st   = String(s.status || o.status || 'processing').toLowerCase();
 
-        // 🔒 กันโดน override เป็น canceled จากช่อง status ทั่วไป
-        //    (ต้องให้ cancel API เป็นผู้ยืนยันเท่านั้น)
         if (String(o.status).toLowerCase() === 'canceling') {
           st = 'canceling';
         }
@@ -884,10 +850,6 @@ router.post('/api/orders/refresh-all', async (req, res) => {
         Object.assign(o, upd);
         await o.save();
 
-        // ⛔️ ตัดทิ้งการ flip เป็น canceled จากช่องสถานะทั่วไป
-        //    เรา "ไม่" คืนเงิน/ปิดงานที่นี่อีกแล้ว
-        //    (ให้ cancel API เป็นผู้ flip เท่านั้น)
-
         const changed =
           before.status !== o.status ||
           before.startCount !== o.startCount ||
@@ -909,13 +871,12 @@ router.post('/api/orders/refresh-all', async (req, res) => {
           });
         }
       } catch {
-        // เงียบไว้; ไม่ให้ทั้งหน้า error
+        // เงียบไว้
       }
     }
 
     setTimeout(() => recalcUserTotals(userId, { force: true }).catch(() => {}), 0);
 
-    // รวมรายการที่ DB เพิ่งอัปเดตในช่วงสั้น ๆ (กันตกหล่น)
     const RECENT_WINDOW_MS = 10 * 60 * 1000; // 10 นาที
     const recent = await Order.find({
       user: userId,
@@ -953,7 +914,6 @@ router.post('/api/orders/refresh-all', async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 // NEW: cancel (สั่งยกเลิก → ตั้ง canceling) และ refill
 // ─────────────────────────────────────────────────────────────
-// UI กดจากหน้ารายการ (web) → สั่งยกเลิกและตั้งสถานะ "canceling"
 router.post('/orders/:id/cancel', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
@@ -971,11 +931,10 @@ router.post('/orders/:id/cancel', requireAuth, async (req, res) => {
       return res.status(400).json({ ok:false, error:`สถานะ "${st}" ไม่สามารถยกเลิกได้` });
     }
 
-    // ยิงไป provider ถ้ามี providerOrderId
     let cancelId = null;
     if (ord.providerOrderId) {
       try {
-        const resp = await providerCancelOrder(ord.providerOrderId); // POST /cancels/:orderId
+        const resp = await providerCancelOrder(ord.providerOrderId);
         cancelId = resp?.cancelId ?? null;
       } catch (e) {
         const msg = e?.response?.data?.error || e?.response?.data?.message || e.message || 'cancel denied by provider';
@@ -983,7 +942,6 @@ router.post('/orders/:id/cancel', requireAuth, async (req, res) => {
       }
     }
 
-    // ตั้งเป็นกำลังยกเลิก + เก็บ cancelInfo
     ord.status = 'canceling';
     ord.cancelInfo = {
       providerCancelId: cancelId || null,
@@ -992,7 +950,6 @@ router.post('/orders/:id/cancel', requireAuth, async (req, res) => {
     };
     ord.lastCancelId = cancelId || ord.lastCancelId || null;
 
-    // ล้างฟิลด์ผลยกเลิก/คืนเงินเก่า (กันแสดงผลก่อนเวลา)
     ord.canceledAt   = null;
     ord.refundAmount = null;
     ord.refundType   = null;
@@ -1005,7 +962,6 @@ router.post('/orders/:id/cancel', requireAuth, async (req, res) => {
   }
 });
 
-// ปุ่ม refresh ของ modal ยกเลิก
 router.post('/orders/:id/cancel/refresh', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
@@ -1018,7 +974,6 @@ router.post('/orders/:id/cancel/refresh', requireAuth, async (req, res) => {
     const isAdmin = me?.role === 'admin';
     if (!(isOwner || isAdmin)) return res.status(403).json({ ok:false, error:'forbidden' });
 
-    // ถ้าปัจจุบันเป็น canceled อยู่แล้ว → ไม่ต้องทำซ้ำ
     if (String(ord.status||'').toLowerCase() === 'canceled') {
       return res.json({ ok:true, updated:false, providerStatus: ord.cancelInfo?.providerStatus || 'done' });
     }
@@ -1030,7 +985,6 @@ router.post('/orders/:id/cancel/refresh', requireAuth, async (req, res) => {
 
     ord.cancelInfo = ord.cancelInfo || { providerCancelId: cancelId, requestedAt: ord.createdAt || new Date() };
 
-    // 1) เรียกผลจาก Cancel API
     let c;
     try {
       c = await getCancelById(cancelId);
@@ -1044,29 +998,24 @@ router.post('/orders/:id/cancel/refresh', requireAuth, async (req, res) => {
     const DONE = /^(canceled|cancelled|success|ok|accepted|done|finished|completed|partial)$/i;
 
     if (!DONE.test(provStatus)) {
-      // ยังไม่จบ → คง canceling
       ord.cancelInfo.providerStatus = provStatus || 'pending';
       if (String(ord.status||'').toLowerCase() !== 'canceling') ord.status = 'canceling';
       await ord.save();
       return res.json({ ok:true, updated:false, providerStatus: provStatus || 'pending' });
     }
 
-    // 2) เสร็จสิ้นฝั่ง provider → คำนวณยอดที่ควรคืน
-    const est0   = nz(ord.estCost ?? ord.cost ?? calcCost(ord.quantity, ord.rateAtOrder));
+    const est0   = nz(ord.estCost ?? ord.cost);
     const est    = Math.max(0, Number(est0) || 0);
     const donePct   = computeDonePct(ord);
     const leftRatio = Math.max(0, Math.min(1, 1 - (donePct/100)));
     const computed  = round2(est * leftRatio);
 
-    // ถ้า API ส่ง amount มาให้ ใช้อันนั้น; ไม่งั้นใช้คำนวณเอง
     let shouldRefund = Number.isFinite(+c?.amount) ? +c.amount : computed;
     shouldRefund = Math.max(0, Math.min(shouldRefund, est));
 
-    // ตัดสินสถานะสุดท้าย: partial ถ้าได้คืน < est (และ > 0), ไม่งั้น canceled (เต็มหรือศูนย์)
     let finalStatus = 'canceled';
     if (shouldRefund > 0 && shouldRefund < est) finalStatus = 'partial';
 
-    // 3) คืนเงินแบบ idempotent (คืนเฉพาะ “ส่วนต่าง” ที่ยังไม่เคยคืน)
     const { delta } = await refundIdempotent({
       userId: ord.user,
       orderId: ord._id,
@@ -1074,7 +1023,6 @@ router.post('/orders/:id/cancel/refresh', requireAuth, async (req, res) => {
       amount: shouldRefund
     });
 
-    // 4) อัปเดตออเดอร์ครั้งเดียว
     ord.status = finalStatus;
     ord.canceledAt = new Date();
     ord.refundAmount = shouldRefund;
@@ -1083,7 +1031,6 @@ router.post('/orders/:id/cancel/refresh', requireAuth, async (req, res) => {
     ord.cancelInfo.confirmedAt = new Date();
     await ord.save();
 
-    // sync totals (async)
     setTimeout(() => reconcileUserByOrderEvent(ord._id).catch(()=>{}), 0);
 
     return res.json({
@@ -1103,7 +1050,6 @@ router.post('/orders/:id/cancel/refresh', requireAuth, async (req, res) => {
   }
 });
 
-// API เส้นทางสั้น ๆ (ถ้า UI เรียกผ่าน fetch)
 router.post('/api/orders/:id/cancel/start', async (req, res) => {
   try {
     const me = req.session?.user || req.user;
@@ -1248,22 +1194,18 @@ router.post('/api/orders/:id/refill', async (req, res) => {
     return res.status(500).json({ error: 'internal error' });
   }
 });
+
 /**
  * Long-poll endpoint: รอผลยกเลิกให้จริงก่อนค่อยตอบ
- * จะเช็กทุก 3 วินาที สูงสุด ~7 นาที (ปรับได้ตามต้องการ)
  */
 router.post('/orders/:id/cancel/await', async (req, res) => {
   const { id } = req.params;
 
-  // หน้าต่างรอครั้งละ 30s เพื่อกันรีเวสต์ค้างนานเกินไป (client จะยิงซ้ำอัตโนมัติ)
   const PER_REQUEST_WAIT = 30_000;
-  const DEADLINE_MS      = 7 * 60 * 1000; // รวม ๆ ถ้าคลิกซ้ำต่อเนื่อง
-
   const start = Date.now();
   let order = await Order.findById(id);
   if (!order) return res.status(404).json({ ok:false, error:'ไม่พบออเดอร์' });
 
-  // ถ้าระหว่างรอกลายเป็น canceled/partial แล้ว ให้ตอบเลย
   const early = String(order.status||'').toLowerCase();
   if (early === 'canceled' || early === 'partial') {
     return res.json({
@@ -1275,10 +1217,8 @@ router.post('/orders/:id/cancel/await', async (req, res) => {
     });
   }
 
-  // วนเช็กในหน้าต่าง 30s พร้อมกระตุ้นปรับสถานะจาก provider
   const interval = 3_000;
   while (Date.now() - start < PER_REQUEST_WAIT) {
-    // พยายามกระตุ้น/อัปเดตสถานะ (ถ้าพร้อม)
     await order.populate('service');
     const advanced = await forceCheckProviderAndUpdate(order);
     if (advanced) {
@@ -1291,7 +1231,6 @@ router.post('/orders/:id/cancel/await', async (req, res) => {
       });
     }
 
-    // เผื่อมี worker อื่นอัปเดต DB
     order = await Order.findById(id);
     const st = String(order?.status||'').toLowerCase();
     if (st === 'canceled' || st === 'partial') {
@@ -1307,7 +1246,6 @@ router.post('/orders/:id/cancel/await', async (req, res) => {
     await sleep(interval);
   }
 
-  // ยังไม่เสร็จภายในหน้าต่างรอครั้งนี้ → ให้ client ยิงมาใหม่เพื่อยืดเวลารอต่อ (จนสุด 7 นาที)
   return res.json({ ok:true, updated:false, keepWaiting:true });
 });
 
@@ -1315,7 +1253,6 @@ router.get('/api/orders/:id/local-status', async (req, res) => {
   try {
     const { id } = req.params;
 
-    // จำกัดสิทธิ์: user เห็นได้เฉพาะของตัวเอง ยกเว้น admin
     const query = { _id: id };
     if (req.user?.role !== 'admin') {
       query.user = req.user._id;
@@ -1328,7 +1265,6 @@ router.get('/api/orders/:id/local-status', async (req, res) => {
       return res.status(404).json({ error: 'Order not found' });
     }
 
-    // คืนค่าที่ฝั่ง client ใช้โดยตรง
     return res.json({
       ok: true,
       status:        o.status,

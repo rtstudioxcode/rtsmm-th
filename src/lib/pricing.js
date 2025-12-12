@@ -5,7 +5,7 @@ import { Service } from '../models/Service.js';
 // ─────────────────────────────────────────────────────────────
 // Numeric utils
 // ─────────────────────────────────────────────────────────────
-const round4 = n => Number((+n || 0).toFixed(4));     // สำหรับเรตต่อ 1k
+const round4 = n => Number((+n || 0).toFixed(4));     // สำหรับเรต (เก็บเป็นเลขย่อย ๆ ได้)
 const round2 = n => Number((+n || 0).toFixed(2));     // สำหรับจำนวนเงิน
 const nn = n => Math.max(0, Number.isFinite(+n) ? +n : 0);
 const S  = v => (v == null ? '' : String(v));
@@ -13,7 +13,6 @@ const S  = v => (v == null ? '' : String(v));
 // ─────────────────────────────────────────────────────────────
 // Match helpers (รองรับ targetIds, scopes, และ child services)
 // ─────────────────────────────────────────────────────────────
-
 function anyMatchTargetIds(rule, valStr) {
   if (!valStr) return false;
   const one  = (rule?.targetId ?? '').toString();
@@ -37,15 +36,12 @@ function matchRule(rule, s, childId = null) {
   }
 
   if (scope === 'service') {
-    // จับที่ระดับเอกสาร Service (_id)
     const vDoc = String(s?._id ?? '');
     if (anyMatchTargetIds(rule, vDoc)) return true;
 
-    // back-compat: dev บางรายเคยใส่ child.id ใน scope=service
     const cid = childId != null ? String(childId) : null;
     if (cid && anyMatchTargetIds(rule, cid)) return true;
 
-    // ไล่ใน children
     if (Array.isArray(s?.details?.services)) {
       return s.details.services.some(c => anyMatchTargetIds(rule, String(c?.id)));
     }
@@ -65,11 +61,38 @@ function applyMode(oldRate, rule) {
   const v = Number(rule?.value || 0);
 
   if (rule?.mode === 'percent') r = r * (1 + v / 100);
-  else if (rule?.mode === 'delta') r = r + v;      // (ถ้าจะส่งเป็นต่อ 1k ก็ส่งตรงนี้มาเลย)
+  else if (rule?.mode === 'delta') r = r + v;
   else if (rule?.mode === 'set') r = v;
 
   r = nn(round4(r));
   return r < 0 ? 0 : r;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Unit/step helpers (ชี้ว่าขายต่อ 1 หรือ ต่อ 1000/step อื่น)
+// ─────────────────────────────────────────────────────────────
+function _isPerPiece(obj = {}) {
+  const type = String(obj.type || '').toLowerCase();
+  const step = Number(obj.step ?? NaN);
+  const min  = Number(obj.min  ?? NaN);
+  const max  = Number(obj.max  ?? NaN);
+  return (
+    type === 'package' ||
+    step === 1 ||
+    (min === 1 && max === 1)
+  );
+}
+
+function pickUnitStep(serviceDoc, childId = null) {
+  const s = serviceDoc || {};
+  if (childId != null && Array.isArray(s?.details?.services)) {
+    const c = s.details.services.find(cc => S(cc?.id) === S(childId)) || {};
+    if (_isPerPiece(c)) return 1;
+    if (Number.isFinite(+c.step) && +c.step > 0) return +c.step;
+  }
+  if (_isPerPiece(s)) return 1;
+  if (Number.isFinite(+s.step) && +s.step > 0) return +s.step;
+  return 1000; // fallback เดิม
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -91,11 +114,6 @@ export function computePrice(oldRate, rule) {
 // Core runtime pricing (ไม่แตะ DB) — ต่อผู้ใช้ / ต่อ child
 // ─────────────────────────────────────────────────────────────
 
-/**
- * คำนวณ "เรตฐาน" ก่อนใช้กฎ
- * - ถ้ามี childId: ใช้ rate ของ child (details.services[].rate) ถ้ามี, ไม่งั้นใช้ s.rate
- * - ถ้าไม่มี childId: ใช้ baseRate ที่ส่งมา (ถ้ามี) ไม่งั้นใช้ s.rate
- */
 function pickBaseRate(serviceDoc, childId, baseRate) {
   if (typeof baseRate === 'number') return Number(baseRate || 0);
   const s = serviceDoc || {};
@@ -106,17 +124,12 @@ function pickBaseRate(serviceDoc, childId, baseRate) {
   return Number(s.rate || 0);
 }
 
-/** ดึงกฎ (active) ทั้งหมด เรียงตาม priority สูง→ต่ำ แล้วตาม createdAt ใหม่→เก่า */
 async function fetchActiveRules() {
   return PriceRule.find({ isActive: true })
     .sort({ priority: -1, createdAt: -1 })
     .lean();
 }
 
-/**
- * คัดกฎที่เข้าเงื่อนไข scope + user
- * userScope: 'all' | 'user'
- */
 function filterRulesForContext(rules, serviceDoc, childId, userId) {
   return rules.filter(r => {
     if (!matchRule(r, serviceDoc, childId)) return false;
@@ -132,8 +145,7 @@ function filterRulesForContext(rules, serviceDoc, childId, userId) {
   });
 }
 
-/** คำนวณเรตสุดท้ายจากเรตฐาน + กฎที่เข้าเงื่อนไข */
-async function _computeEffectiveRateCore({ service, serviceId, childId = null, userId = null, baseRate }) {
+async function _computeEffectiveRateCore({ service, serviceId, childId = null, userId = null, baseRate, ignoreRules = false }) {
   let s = service;
   if (!s) {
     if (!serviceId) throw new Error('computeEffectiveRate: require service or serviceId');
@@ -143,61 +155,54 @@ async function _computeEffectiveRateCore({ service, serviceId, childId = null, u
 
   const base = pickBaseRate(s, childId, baseRate);
 
-  const rules = await fetchActiveRules();
-  const matched = filterRulesForContext(rules, s, childId, userId);
-
-  // apply ตาม priority (สูงก่อน) และ createdAt (ใหม่ก่อน) — เผื่อมีการ sort ซ้ำ
+  const matched = ignoreRules
+    ? []
+    : filterRulesForContext(await fetchActiveRules(), s, childId, userId);
   matched.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0) || (b.createdAt ?? 0) - (a.createdAt ?? 0));
 
   let rate = base;
-  for (const r of matched) {
-    rate = applyMode(rate, r);
-  }
+  for (const r of matched) rate = applyMode(rate, r);
 
-  // safety
   if (!Number.isFinite(rate) || isNaN(rate)) rate = Number(s.rate || 0);
   if (rate < 0) rate = 0;
 
-  return { baseRate: round4(base), finalRate: round4(rate) };
+  return { serviceDoc: s, baseRate: round4(base), finalRate: round4(rate) };
 }
 
-/**
- * (เดิม) คืนค่าคือ "finalRate" เป็นตัวเลขเดียว — คงความเข้ากันได้
- * opts: { service, serviceId, childId?, userId?, baseRate? }
- */
 export async function computeEffectiveRate(opts = {}) {
-  const { finalRate } = await _computeEffectiveRateCore(opts);
+  const { finalRate } =
+  await _computeEffectiveRateCore(opts);
   return finalRate;
 }
 
 /**
- * (ใหม่) เวอร์ชันขยาย — อยากได้ทั้ง baseRate/finalRate และ lineCost ในการยิงออเดอร์
- * opts: { service, serviceId, childId?, userId?, baseRate?, quantity? }
- * returns: { baseRate, finalRate, lineCost? }
+ * เวอร์ชันขยาย — คืน { baseRate, finalRate, lineCost, step }
+ * - lineCost จะคำนวณตาม step:
+ *    - ถ้า step = 1 (หรือ type=Package/min-max=1)  → lineCost = qty * finalRate
+ *    - ถ้า step > 1 → lineCost = (qty / step) * finalRate
  */
 export async function computeEffectiveRateEx(opts = {}) {
-  const { quantity } = opts;
-  const { baseRate, finalRate } = await _computeEffectiveRateCore(opts);
+  const { quantity, childId } = opts;
+  const { serviceDoc, baseRate, finalRate } = await _computeEffectiveRateCore(opts);
 
+  const step = pickUnitStep(serviceDoc, childId);
   let lineCost = undefined;
+
   if (quantity != null) {
-    // lineCost = qty * (rate per 1k) / 1000
-    lineCost = round2((Number(quantity) || 0) * finalRate / 1000);
+    const qty = Number(quantity) || 0;
+    lineCost = step <= 1
+      ? round2(qty * finalRate)
+      : round2((qty / step) * finalRate);
   }
-  return { baseRate, finalRate, lineCost };
+  return { baseRate, finalRate, lineCost, step };
 }
 
 /**
  * ดึงราคาที่คำนวณแล้วทั้ง “หัวเอกสาร” และ “children” สำหรับผู้ใช้รายหนึ่ง
- * (ยังคงซิกเนเจอร์เดิมเพื่อ back-compat)
- * ใช้แบบใหม่: computeEffectiveServiceBundle(serviceId, userId, { quantityTop, childQuantities: { [childId]: qty } })
  */
 export async function computeEffectiveServiceBundle(serviceId, userId, opts = {}) {
-  // รองรับซิกเนเจอร์เดิม (2 พารามิเตอร์)
   let options = {};
-  if (opts && typeof opts === 'object') {
-    options = opts;
-  }
+  if (opts && typeof opts === 'object') options = opts;
 
   const s = await Service.findById(serviceId).lean();
   if (!s) throw new Error('service not found');
@@ -205,7 +210,7 @@ export async function computeEffectiveServiceBundle(serviceId, userId, opts = {}
   const top = await computeEffectiveRateEx({
     service: s,
     userId,
-    quantity: options.quantityTop, // อาจไม่ใส่ก็ได้
+    quantity: options.quantityTop,
   });
 
   let children = [];
@@ -217,16 +222,22 @@ export async function computeEffectiveServiceBundle(serviceId, userId, opts = {}
           service: s,
           childId: c.id,
           userId,
-          baseRate: c.rate,                         // ยึดต้นทุน child ตาม provider
-          quantity: childQuantities[String(c.id)],  // ถ้าอยากได้ lineCost ของแต่ละ child
+          baseRate: c.rate,
+          quantity: childQuantities[String(c.id)],
         });
-        return { ...c, effectiveRate: ex.finalRate, effectiveLineCost: ex.lineCost };
+        return {
+          ...c,
+          step: ex.step,
+          effectiveRate: ex.finalRate,
+          effectiveLineCost: ex.lineCost,
+        };
       })
     );
   }
 
   return {
     service: s,
+    step: pickUnitStep(s, null),
     effectiveRate: top.finalRate,
     effectiveLineCost: top.lineCost,
     children,

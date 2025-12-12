@@ -224,6 +224,26 @@ const notify = (opts = {}) => {
 </script>
 
 <script>
+// === หน่วยคำนวณตาม DB (เลิกยึด 1/1000 ตายตัว) ===
+let currentUnitStep = 1000; // หน่วยที่ใช้คำนวณ ณ ตอนนี้
+
+function isPerPiece(obj = {}) {
+  const type = String(obj.type || '').toLowerCase();
+  const step = Number(obj.step ?? NaN);
+  const min  = Number(obj.min  ?? NaN);
+  const max  = Number(obj.max  ?? NaN);
+  // “แบบชิ้นเดียว” หรือแพ็กเกจ -> ต่อ 1 ชิ้น
+  return (type === 'package') || (step === 1) || (min === 1 && max === 1);
+}
+function pickUnitStepFromSvc(svc = {}) {
+  if (isPerPiece(svc)) return 1;
+  if (Number.isFinite(+svc.step) && +svc.step > 0) return +svc.step;
+  return 1000; // fallback เดิม
+}
+function unitLabel(u){ return (u <= 1 ? '1' : u.toLocaleString()); }
+</script>
+
+<script>
 document.addEventListener('DOMContentLoaded', () => {
   const filtersBar  = document.getElementById('filtersBar');
   const searchWrap  = document.querySelector('.search-all-wrap');
@@ -551,6 +571,11 @@ const GROUP_ICON_MAP = [
     icon: '/static/assets/services_icon/douyin.png', 
     match: ['douyin']
   },
+  // Telegram
+  {
+    icon: '/static/assets/services_icon/telegram.png',
+    match: ['Telegram']
+  },
   {
     icon: '/static/assets/services_icon/line.png',
     match: ['Line']
@@ -638,7 +663,7 @@ const GROUP_ICON_MAP = [
   },
   {
     icon: '/static/assets/services_icon/tiktok-lives.png',
-    match: ['TikTok 🔴 Live Stream', 'TikTok ❤️️ Live Likes', 'TikTok 💬 Live Comments']
+    match: ['TikTok 🔴 Live Stream', 'TikTok ❤️️ Live Likes', 'TikTok 💬 Live Comments', '✅TikTok 🥊 PK Battle Points']
   },
   // Youtube
   {
@@ -1029,11 +1054,6 @@ const GROUP_ICON_MAP = [
     icon: '/static/assets/services_icon/Rarible.png',
     match: ['Rarible']
   },
-  // Telegram
-  {
-    icon: '/static/assets/services_icon/telegram.png',
-    match: ['Telegram']
-  },
   // Spotify
   {
     icon: '/static/assets/services_icon/spotify.png',
@@ -1264,46 +1284,6 @@ async function init(){
   await loadPlatforms();
   await tryAutoSelectFromURL();
 
-  // ค้นหาโดยเลขบริการ: ลองในแพลตฟอร์มปัจจุบันก่อน แล้วค่อยไล่ทุกแพลตฟอร์ม
-  async function autoPickByServiceId(pid){
-    const pidStr = String(pid);
-
-    const pickInsideCurrent = () => {
-      const grp = (groups || []).find(g =>
-        Array.isArray(g?.details?.services) &&
-        g.details.services.some(s => String(s.id) === pidStr)
-      );
-      if (!grp) return false;
-
-      chooseGroup(grp);
-      const svc = grp.details.services.find(s => String(s.id) === pidStr);
-      if (svc) {
-        chooseChild(svc);
-        document.getElementById('detailBox').style.display = '';
-        document.getElementById('qty')?.focus();
-      }
-      return true;
-    };
-
-    // 1) หาในแพลตฟอร์มปัจจุบันก่อน
-    if (pickInsideCurrent()) return true;
-
-    // 2) ไม่เจอ -> วนทุกแพลตฟอร์ม
-    for (const p of platforms){
-      if (String(p._id) === String(currentPlatform)) continue;
-      await choosePlatform(p._id);
-      if (pickInsideCurrent()){
-        // ทำ tile ให้ active ให้ตรงแพลตฟอร์มที่เจอ
-        $$('#platformGrid .p-tile').forEach(el=>{
-          el.classList.toggle('active', el.dataset.id === String(p._id));
-        });
-        return true;
-      }
-    }
-    // ไม่พบ -> ไม่ทำอะไร (ตามที่ต้องการ)
-    return false;
-  }
-
   const onGlobalSearch = debounce(async () => {
     const v = ($('#searchAll').value || '').trim();
 
@@ -1333,6 +1313,44 @@ async function init(){
       }
     }
   });
+}
+
+async function autoPickByServiceId(pid){
+  const pidStr = String(pid);
+
+  const pickInsideCurrent = () => {
+    const grp = (groups || []).find(g =>
+      Array.isArray(g?.details?.services) &&
+      g.details.services.some(s => String(s.id) === pidStr)
+    );
+    if (!grp) return false;
+
+    chooseGroup(grp);
+    const svc = grp.details.services.find(s => String(s.id) === pidStr);
+    if (svc) {
+      chooseChild(svc);
+      document.getElementById('detailBox').style.display = '';
+      document.getElementById('qty')?.focus();
+    }
+    return true;
+  };
+
+  // 1) หาในแพลตฟอร์มปัจจุบันก่อน
+  if (pickInsideCurrent()) return true;
+
+  // 2) ไม่เจอ -> วนทุกแพลตฟอร์ม
+  for (const p of platforms){
+    if (String(p._id) === String(currentPlatform)) continue;
+    await choosePlatform(p._id);
+    if (pickInsideCurrent()){
+      // ทำ tile ให้ active
+      $$('#platformGrid .p-tile').forEach(el=>{
+        el.classList.toggle('active', el.dataset.id === String(p._id));
+      });
+      return true;
+    }
+  }
+  return false;
 }
 
 /* ---------- auto-pick service from ?type=service&id=xxx ---------- */
@@ -1514,6 +1532,14 @@ function chooseGroup(grp){
   if (children.length) chooseChild(children[0]); else resetDetail();
 }
 /* ---------- รายการบริการย่อย ---------- */
+function computeUnitForService(c) {
+  const type = String(c?.type || '').toLowerCase();
+  const min  = Number(c?.min);
+  const max  = Number(c?.max);
+  const isPackage = (type === 'package') || (min === 1 && max === 1);
+  return isPackage ? 1 : 1000;
+}
+
 function renderChildList(){
   const q = ($('#childSearch').value || '').toLowerCase().trim();
   const globalQ = ($('#searchAll').value || '').toLowerCase().trim();
@@ -1526,25 +1552,33 @@ function renderChildList(){
   const gid = $('#groupId').value;
 
   // ใส่ base rate ไว้ก่อน
-  $('#childList').innerHTML = list.length ? list.map(c=>`
-    <div class="opt" data-id="${c.id}">
-      <div class="row">
-        <div>
-          <span class="id">ID: ${c.id}</span>
-          <span class="name"> — ${c.name||''}</span>
+  $('#childList').innerHTML = list.length ? list.map(c => {
+    const u = computeUnitForService(c);
+    const unitStr = (u <= 1 ? '1' : u.toLocaleString());
+    return `
+      <div class="opt" data-id="${c.id}">
+        <div class="row">
+          <div>
+            <span class="id">ID: ${c.id}</span>
+            <span class="name"> — ${c.name || ''}</span>
+          </div>
+          <div class="rate" data-rate-for="${c.id}">
+            ${fmt(c.rate || 0)} ${c.currency || 'THB'} / ${unitStr}
+          </div>
         </div>
-        <div class="rate" data-rate-for="${c.id}">
-          ${fmt(c.rate||0)} ${c.currency||'THB'} / 1,000
-        </div>
-      </div>
-    </div>`).join('') : `<div class="empty muted">ไม่พบบริการที่ตรงกับคำค้น</div>`;
+      </div>`;
+  }).join('') : `<div class="empty muted">ไม่พบบริการที่ตรงกับคำค้น</div>`;
 
   // แล้วค่อยอัปเดตเป็น effective rate ทีละตัว (async + cache)
   list.forEach(async (c) => {
     const er = await fetchEffectiveRateIfAvailable(gid, String(c.id), Number(c.rate||0));
     if (er !== null) {
       const el = document.querySelector(`.rate[data-rate-for="${CSS.escape(String(c.id))}"]`);
-      if (el) el.textContent = `${fmt(er)} ${c.currency||'THB'} / 1,000`;
+      if (el) {
+        const u = computeUnitForService(c);
+        const unitStr = (u <= 1 ? '1' : u.toLocaleString());
+        el.textContent = `${fmt(er)} ${c.currency || 'THB'} / ${unitStr}`;
+      }
     }
   });
 
@@ -1786,6 +1820,7 @@ async function fetchEffectiveRateIfAvailable(groupId, childId, baseRate){
 /* ---------- รายละเอียด/ฟอร์ม ---------- */
 async function chooseChild(svc){
   currentChild = svc;
+  currentUnitStep = pickUnitStepFromSvc(svc);
 
   $('#childText').textContent = svc?.name || '—';
   $('#providerServiceId').value = svc?.id || '';
@@ -1804,13 +1839,14 @@ async function chooseChild(svc){
     effectiveRate = er;
     rateSource = 'effective';
     $('#rateNote').style.display = '';
-    $('#rateNote').textContent = `อัตรานี้เป็นราคาหลังปรับตามกฎของบัญชีคุณ (ต่อ 1,000 หน่วย)`;
+    $('#rateNote').textContent =
+      `อัตรานี้เป็นราคาหลังปรับตามกฎของบัญชีคุณ (ต่อ ${unitLabel(currentUnitStep)} หน่วย)`;
   }
 
   const displayRate = rateSource==='effective' ? effectiveRate : rate;
 
   const bits = [];
-  bits.push(`อัตรา: ${fmt(displayRate)} ${currency} / 1,000`);
+  bits.push(`อัตรา: ${fmt(displayRate)} ${currency} / ${unitLabel(currentUnitStep)}`);
   bits.push(`ช่วง: ${svc.min||0}-${svc.max||0}${svc.step? ' | ขั้นละ '+svc.step: ''}`);
   if (svc.average_delivery) bits.push(`เฉลี่ย: ${svc.average_delivery}`);
   if (svc.dripfeed) bits.push('Dripfeed');
@@ -1898,7 +1934,8 @@ function calcUnitRate(){
 function updateEstimate(){
   const n = Number($('#qty').value || 0);
   const unit = calcUnitRate();
-  const price = Math.max(0, (n/1000) * unit);
+  const step = Math.max(1, Number(currentUnitStep || 1000));
+  const price = Math.max(0, (step <= 1 ? (n * unit) : ((n / step) * unit)));
   const el = document.getElementById('est');
   el.value = `${fmt(price)} ${currency}`;
 }
