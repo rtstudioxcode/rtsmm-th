@@ -88,6 +88,28 @@ async function safeClose(client) {
   }
 }
 
+async function finalizeEarly(reasonText) {
+  // จบงานทันที
+  job.status = "stopped"; // หรือ "error" ถ้าอยากให้เป็นแดง
+  job.logs.push({ text: `⛔ จบงานอัตโนมัติ: ${reasonText}`, time: new Date() });
+  await job.save();
+
+  telegramPush(jobId, {
+    status: job.status,
+    invited: job.invited,
+    total: qty,
+    log: `⛔ จบงานอัตโนมัติ: ${reasonText}`
+  });
+
+  // คืนเครดิตที่ขาด
+  const miss = qty - job.invited;
+  if (miss > 0) {
+    const refund = miss * 2;
+    await User.updateOne({ _id: job.userId }, { $inc: { credit: refund } });
+    telegramPush(jobId, { refund, log: `คืนเครดิต ${refund} เครดิต (ขาด ${miss} คน)` });
+  }
+}
+
 // Ensure join (join ไม่คิดเป็น invite)
 async function ensureJoin(client, group) {
   const g = sanitize(group);
@@ -140,35 +162,27 @@ async function fetchSrcMembers(client, src, meId) {
 // Invite Member (รองรับ Channel ด้วย)
 async function inviteOne(client, dstEntity, user) {
   try {
-    await client.invoke(
-      new Api.channels.InviteToChannel({
-        channel: dstEntity,
-        users: [user.id]
-      })
-    );
+    await client.invoke(new Api.channels.InviteToChannel({
+      channel: dstEntity,
+      users: [user.id]
+    }));
     return { ok: true };
   } catch (err) {
     const msg = String(err.message || err);
 
     if (msg.includes("FLOOD_WAIT")) {
-      const ms = extractFloodWait(msg) || 7200000; // Default to 2 hours if no flood wait time found
-      user.cooldownUntil = new Date(Date.now() + ms); // Set cooldownUntil to the calculated time
-      user.status = "COOLDOWN"; // Set status to COOLDOWN
-      await user.save(); // Save updated user in DB
-      return { flood: true, message: msg };
+      const ms = extractFloodWait(msg) || 7200000;
+      return { flood: true, waitMs: ms, message: msg };
     }
 
     if (msg.includes("PEER_FLOOD") || msg.includes("PRIVACY")) {
-      const ms = extractFloodWait(msg) || 7200000; // Default to 2 hours if no flood wait time found
-      user.cooldownUntil = new Date(Date.now() + ms); // Set cooldownUntil to the calculated time
-      user.status = "LOCKED"; // Set status to LOCKED
-      await user.save(); // Save updated user in DB
-      return { spam: true };
+      return { spam: true, message: msg };
     }
 
     return { error: msg };
   }
 }
+
 
 // Risk scoring / rotation (AI-based risk scoring)
 function riskScore(acc) {
@@ -183,12 +197,25 @@ function riskScore(acc) {
 
 // Dynamic invite limit based on account status and risk
 function quota(acc, remain) {
-  if (acc.invitesToday < 10) return Math.min(remain, 30);
-  if (acc.invitesToday < 20) return Math.min(remain, 15);
-  if (acc.invitesToday < 30) return Math.min(remain, 10);
-  return Math.min(remain, 5);
-}
+  const ROUND_LIMIT = 40;
 
+  const total = Number(acc.invitesToday || 0);
+  const usedInRound = total % ROUND_LIMIT;          // 0..39
+  const leftInRound = ROUND_LIMIT - usedInRound;    // 40..1
+
+  // ปลอดภัย: ถ้าเต็มรอบแล้ว (usedInRound=0 แต่ total>0) แปลว่าเพิ่งครบ 40/80/120
+  // ควรพักบัญชี (แต่ใน runner คุณจะ set COOLDOWN แล้ว) ตรงนี้กันหลุดไว้เฉยๆ
+  if (total > 0 && usedInRound === 0) return 0;
+
+  // logic เดิม แต่ใช้ "usedInRound" แทน invitesToday
+  let dynamic;
+  if (usedInRound < 10) dynamic = 30;
+  else if (usedInRound < 20) dynamic = 15;
+  else if (usedInRound < 30) dynamic = 10;
+  else dynamic = 5;
+
+  return Math.min(remain, leftInRound, dynamic);
+}
 // Pick accounts with low risk for tasks
 async function pickAccounts(userId) {
   const list = await TgAccount.find({
@@ -271,6 +298,10 @@ export async function startTelegramJob(jobId) {
     // Pre-check for usable accounts (เฉพาะของ user นี้)
     const usable = [];
 
+    const ROUND_LIMIT = 40;
+    const COOLDOWN_MS = 2 * 60 * 60 * 1000;
+
+    
     for (const acc of allAccounts) {
       console.log(`ตรวจสอบบัญชี ${acc.phone}, owner=${acc.userId}, jobOwner=${uid}`);
 
@@ -290,6 +321,7 @@ export async function startTelegramJob(jobId) {
         continue;
       }
 
+      // ✅ ถ้าคูลดาวน์ยังไม่หมด = ใช้ไม่ได้
       if (acc.cooldownUntil && acc.cooldownUntil.getTime() > now) {
         const mins = Math.ceil((acc.cooldownUntil.getTime() - now) / 60000);
         reasons.push(`บัญชี ${acc.phone} ติดคูลดาวน์ (${mins} นาที)`);
@@ -298,12 +330,23 @@ export async function startTelegramJob(jobId) {
         continue;
       }
 
-      if (acc.invitesToday >= 40) {
-        reasons.push(`บัญชี ${acc.phone} ถึงลิมิตรอบนี้แล้ว (40/40)`);
-        // ถ้ายังอยาก reset แบบเดิมก็เก็บไว้ได้ แต่ "usable=false" เหมือนเดิม
-        // acc.invitesToday = 0;
-        // acc.status = "READY";
+      // ✅ ถ้าคูลดาวน์หมดแล้ว ให้ปลดกลับ READY
+      if (acc.status === "COOLDOWN" && acc.cooldownUntil && acc.cooldownUntil.getTime() <= now) {
+        acc.status = "READY";
+        acc.cooldownUntil = null;
         await acc.save();
+      }
+
+      // ✅ “ต่อรอบ” = ดูยอดในรอบจาก mod 40
+      const total = Number(acc.invitesToday || 0);
+      const usedInRound = total % ROUND_LIMIT;
+
+      // ✅ กันหลุด: ถ้าครบ 40/80/120 แล้วแต่ยังไม่ถูกตั้ง cooldown (เช่น crash ก่อน save)
+      if (total > 0 && usedInRound === 0 && !acc.cooldownUntil) {
+        acc.status = "COOLDOWN";
+        acc.cooldownUntil = new Date(now + COOLDOWN_MS);
+        await acc.save();
+        reasons.push(`บัญชี ${acc.phone} ครบโควต้ารอบละ ${ROUND_LIMIT} แล้ว (พัก 2 ชม.)`);
         continue;
       }
 
@@ -331,7 +374,10 @@ export async function startTelegramJob(jobId) {
     while (remaining > 0) {
       // ✅ หมุนเฉพาะบัญชีของ user นี้
       const accounts = await pickAccounts(uid);
-      if (!accounts.length) break;
+      if (!accounts.length) {
+        await finalizeEarly("บัญชีทั้งหมดติด COOLDOWN/LOCKED ก่อนงานครบ");
+        return;
+      }
 
       for (const acc of accounts) {
         if (remaining <= 0) break;
@@ -383,18 +429,37 @@ export async function startTelegramJob(jobId) {
               remaining--;
               acc.invitesToday++;
 
-              if (acc.invitesToday >= 40) {
-                acc.cooldownUntil = new Date(Date.now() + 7200000);
+              if (acc.invitesToday % ROUND_LIMIT === 0) {
+                acc.cooldownUntil = new Date(Date.now() + COOLDOWN_MS);
                 acc.status = "COOLDOWN";
                 await acc.save();
+
+                // ✅ ถ้ายังเหลืองาน แต่ไม่มีบัญชีให้ทำต่อ -> จบเลย
+                if (remaining > 0) {
+                  const left = await pickAccounts(uid);
+                  if (!left.length) {
+                    await finalizeEarly(`บัญชีครบโควต้า ${ROUND_LIMIT}/รอบ และไม่มีบัญชีสำรอง`);
+                    return;
+                  }
+                }
+
                 break;
               }
 
               telegramPush(jobId, { invited: job.invited, total: qty, user: username });
             } else if (r.flood || r.spam) {
-              acc.cooldownUntil = new Date(Date.now() + 7200000);
+              acc.cooldownUntil = new Date(Date.now() + COOLDOWN_MS);
               acc.status = "COOLDOWN";
               await acc.save();
+
+              if (remaining > 0) {
+                const left = await pickAccounts(uid);
+                if (!left.length) {
+                  await finalizeEarly("โดน FLOOD/PEER_FLOOD แล้วบัญชีทั้งหมดพัก");
+                  return;
+                }
+              }
+
               break;
             }
 

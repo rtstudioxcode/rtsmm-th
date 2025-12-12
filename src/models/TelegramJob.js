@@ -19,7 +19,7 @@ const TelegramJobSchema = new mongoose.Schema({
 
   status: {
     type: String,
-    enum: ["pending", "running", "finished", "error", "stopped", "failed"],
+    enum: ["pending", "running", "finished", "error", "stopped", "failed", "stopped"],
     default: "pending",
   },
 

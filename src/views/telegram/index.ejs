@@ -479,6 +479,8 @@ tabs.forEach(tab => {
     // show the target pane
     const name = tab.dataset.tab;
 
+    if (name !== "history") stopHistoryLive();
+
     if (name === "accounts") {
       panes.accounts.classList.add("show");
       loadTgAccounts();
@@ -489,6 +491,7 @@ tabs.forEach(tab => {
     else if (name === "history") {
       panes.history.classList.add("show");
       loadHistory();
+      startHistoryLive(1000);
     }
   });
 });
@@ -595,48 +598,70 @@ function showProgressUI() {
 function attachStream() {
   if (evtSource) evtSource.close();
 
-  // ⭐ FIX: ใช้ currentJob ไม่ใช่ jobId
   evtSource = new EventSource(`/telegram/jobs/${currentJob}/stream`);
 
-  evtSource.onmessage = (ev) => {
-    const msg = JSON.parse(ev.data);
+  const TERMINAL = new Set(["finished", "stopped", "auto_stopped", "failed", "error"]);
 
+  evtSource.onmessage = (ev) => {
+    const msg = JSON.parse(ev.data || "{}");
+
+    // log
     if (msg.log) appendLog(msg.log);
 
+    // progress
     if (msg.invited != null && msg.total != null) {
-      const pct = Math.round((msg.invited / msg.total) * 100);
+      const pct = msg.total > 0 ? Math.round((msg.invited / msg.total) * 100) : 0;
       progressBar.style.width = pct + "%";
       countText.textContent =
         `เชิญแล้ว ${msg.invited} คน • ล้มเหลว ${msg.failed || 0} คน • ทั้งหมด ${msg.total} คน`;
     }
 
-    // ถ้า PRECHECK FAIL
+    // ถ้าอยู่แท็บ history ให้รีเฟรชทันที (realtime)
+    if (panes.history.classList.contains("show")) {
+      loadHistoryLiveOnce().catch(() => {});
+    }
+
+    // PRECHECK FAIL → ปิดงานทันที
     if (msg.type === "precheck_fail") {
-
       showPrecheckErrors(msg.reasons || []);
-
-      // ปิด progress UI (ถ้าเริ่มแสดง)
       progressBox.style.display = "none";
-
-      // ปิด stream
-      if (evtSource) evtSource.close();
-
-      return; 
+      try { evtSource.close(); } catch {}
+      evtSource = null;
+      return;
     }
 
+    // status text (ไทย)
     if (msg.status) {
+      const st = String(msg.status).toLowerCase();
       statusText.textContent =
-        msg.status === "finished" ? "สำเร็จ" :
-        msg.status === "running"  ? "กำลังทำงาน…" :
-        msg.status === "stopped"  ? "หยุดแล้ว" :
-        msg.status === "failed"  ? "ล้มเหลว" :
-        msg.status === "error"    ? "มีข้อผิดพลาด" : msg.status;
+        st === "finished"     ? "สำเร็จ" :
+        st === "running"      ? "กำลังทำงาน…" :
+        st === "stopped"      ? "หยุดแล้ว" :
+        st === "auto_stopped" ? "หยุดอัตโนมัติ" :
+        st === "failed"       ? "ล้มเหลว" :
+        st === "error"        ? "มีข้อผิดพลาด" : msg.status;
     }
 
-    if (msg.status === "finished") {
-      notify.success("งาน #" + orderId + " เสร็จสิ้นแล้ว!");
-      evtSource.close();
+    // จบงานทุกกรณี → ปิดสตรีม + อัปเดต history ทันที
+    if (msg.status && TERMINAL.has(String(msg.status).toLowerCase())) {
+      loadHistoryLiveOnce().catch(() => {});
+
+      const st = String(msg.status).toLowerCase();
+      if (st === "finished") notify.success("งาน #" + orderId + " เสร็จสิ้นแล้ว!");
+      else if (st === "stopped") notify.info("งาน #" + orderId + " ถูกหยุดแล้ว");
+      else if (st === "auto_stopped") notify.info("งาน #" + orderId + " หยุดอัตโนมัติ");
+      else notify.error("งาน #" + orderId + " จบด้วยสถานะ: " + st);
+
+      try { evtSource.close(); } catch {}
+      evtSource = null;
     }
+  };
+
+  // กันกรณี SSE หลุด (เน็ต/โปรเซสรีสตาร์ท)
+  evtSource.onerror = () => {
+    // ไม่ต้อง spam notify — แค่ปิด แล้วให้ history auto refresh ทำงานต่อก็พอ
+    try { evtSource.close(); } catch {}
+    evtSource = null;
   };
 }
 
@@ -675,7 +700,8 @@ function appendLog(t) {
 function mapStatus(st) {
   return st === "running" ? "กำลังทำงาน" :
          st === "finished" ? "สำเร็จ" :
-         st === "stopped" ? "หยุด" :
+         st === "stopped" ? "จบงาน" :
+         st === "auto_stopped" ? "จบงานอัตโนมัติ" :
          st === "failed" ? "ล้มเหลว" :
          st === "error" ? "ผิดพลาด" :
          st;
@@ -1050,7 +1076,8 @@ function mapStatus(s) {
   return s === "running"  ? "กำลังทำงาน" :
          s === "pending"  ? "กำลังทำงาน" :
          s === "finished" ? "สำเร็จ" :
-         s === "stopped"  ? "หยุด" :
+         s === "stopped"  ? "จบงาน" :
+         s === "auto_stopped" ? "หยุดอัตโนมัติ" :
          s === "failed" ? "ล้มเหลว" :
          s === "error"    ? "ผิดพลาด" :
          (s || "-");
@@ -1094,6 +1121,51 @@ document.addEventListener("click", function (e) {
 document.getElementById("imgPreviewModal").addEventListener("click", function () {
   this.style.display = "none";
 });
+
+
+let historyTimer = null;
+let lastHistorySig = "";
+
+function buildHistorySig(list){
+  // ทำลายเซ็นกัน rerender ถ้าข้อมูลไม่เปลี่ยน
+  return JSON.stringify((list||[]).map(j => ({
+    id: j._id,
+    st: j.status,
+    inv: j.invited,
+    lim: j.limit,
+    t: j.createdAt
+  })));
+}
+
+async function loadHistoryLiveOnce() {
+  const wrap = document.getElementById("tgHistoryWrap");
+  const res = await fetch("/telegram/history/list");
+  const data = await res.json();
+  if (!data.ok) return;
+
+  const list = data.list || [];
+  const sig = buildHistorySig(list);
+  if (sig === lastHistorySig) return;      // ไม่เปลี่ยน ไม่ต้องวาดใหม่
+  lastHistorySig = sig;
+
+  wrap.innerHTML = list.length ? renderHistoryTable(list)
+                               : '<div class="muted">ยังไม่มีประวัติการทำงาน</div>';
+}
+
+function startHistoryLive(intervalMs = 2000){
+  stopHistoryLive();
+  historyTimer = setInterval(() => {
+    // อัปเดตเฉพาะตอนอยู่แท็บ history
+    if (panes.history.classList.contains("show")) {
+      loadHistoryLiveOnce().catch(()=>{});
+    }
+  }, intervalMs);
+}
+
+function stopHistoryLive(){
+  if (historyTimer) clearInterval(historyTimer);
+  historyTimer = null;
+}
 </script>
 
 <!-- ====================== CSS ====================== -->
@@ -1179,6 +1251,7 @@ document.getElementById("imgPreviewModal").addEventListener("click", function ()
 .pill.finished{ background:#4caf50; color:#fff; }
 .pill.error{ background:#d9534f; color:#fff; }
 .pill.stopped{ background:#777; color:#fff; }
+.pill.auto_stopped{ background:#777; color:#fff; }
 
 /* ================= Modal ปรับโฉม ================= */
 .tg-modal {

@@ -1,29 +1,36 @@
 import { TgAccount } from "../models/TgAccount.js";
 
+// แปลง Date / string / number -> timestamp (ms)
+function toTs(v) {
+  if (!v) return NaN;
+  if (v instanceof Date) return v.getTime();
+  if (typeof v === "number") return v;
+  const t = new Date(v).getTime();
+  return Number.isFinite(t) ? t : NaN;
+}
+
 // ตรวจสอบสถานะของบัญชี Telegram และอัปเดตสถานะตามความเหมาะสม
 export async function checkAndUpdateAccounts() {
   const accounts = await TgAccount.find().lean();
-
   const bulkOps = [];
+  const now = Date.now();
 
   for (let acc of accounts) {
-    const now = Date.now();
-
     // เพิ่มเงื่อนไขใหม่:
     // ถ้าบัญชีเป็น READY แต่มีเวลาติด COOLDOWN (มี cooldownUntil) ให้เปลี่ยนสถานะเป็น COOLDOWN
-    if (acc.status === "READY" && acc.cooldownUntil && acc.cooldownUntil > now) {
+    if (acc.status === "READY" && acc.cooldownUntil && toTs(acc.cooldownUntil) > now) {
       bulkOps.push({
         updateOne: {
-          filter: { _id: acc._id },
-          update: { status: "COOLDOWN" }
+          filter: { _id: acc._id, status: "READY" },
+          update: { $set: { status: "COOLDOWN" } } // ✅ ต้อง $set
         }
       });
-    //   console.log(`บัญชี ${acc.phone} จะเปลี่ยนสถานะเป็น COOLDOWN`);
     }
 
     // ===== 1) LOCKED ก่อนเสมอ =====
     if (acc.lockUntil) {
-      const lockDue = toTs(acc.lockUntil) <= now;
+      const lockTs = toTs(acc.lockUntil);
+      const lockDue = Number.isFinite(lockTs) ? (lockTs <= now) : true; // ถ้าเพี้ยน ให้ถือว่าหมดเวลาเพื่อเคลียร์
 
       if (!lockDue) {
         // (1) ยังไม่หมดเวลา → บังคับเป็น LOCKED
@@ -58,11 +65,12 @@ export async function checkAndUpdateAccounts() {
 
     // ===== 2) COOLDOWN รองลงมา =====
     if (acc.cooldownUntil) {
-      const cdDue = toTs(acc.cooldownUntil) <= now;
+      const cdTs = toTs(acc.cooldownUntil);
+      const cdDue = Number.isFinite(cdTs) ? (cdTs <= now) : true; // ถ้าเพี้ยน ให้ถือว่าหมดเวลาเพื่อเคลียร์
 
       if (!cdDue) {
-        // (1) ยังไม่หมดเวลา → บังคับเป็น COOLDOWN
-        if (acc.status !== "COOLDOWN" && acc.status !== "LOCKED") { // อย่าไปทับ LOCKED
+        // (1) ยังไม่หมดเวลา → บังคับเป็น COOLDOWN (อย่าไปทับ LOCKED)
+        if (acc.status !== "COOLDOWN" && acc.status !== "LOCKED") {
           bulkOps.push({
             updateOne: {
               filter: { _id: acc._id, status: { $nin: ["COOLDOWN", "LOCKED"] } },
@@ -92,18 +100,19 @@ export async function checkAndUpdateAccounts() {
     }
   }
 
-  // ใช้ bulkWrite เพื่อประสิทธิภาพที่ดีขึ้นในการอัปเดตหลายๆ บัญชีพร้อมกัน
   if (bulkOps.length > 0) {
     try {
       await TgAccount.bulkWrite(bulkOps);
-      console.log(`อัปเดตสถานะบัญชีทั้งหมดที่ต้องการ`);
+      console.log(`อัปเดตสถานะบัญชีทั้งหมดที่ต้องการ (${bulkOps.length})`);
     } catch (err) {
       console.error("เกิดข้อผิดพลาดในการอัปเดตบัญชี:", err);
     }
   }
 }
 
-// เรียกใช้ฟังก์ชันนี้ทุกๆ 1 นาที
+// ตั้งใจ 1 นาทีให้ใช้ 60000
 setInterval(() => {
   checkAndUpdateAccounts();
-}, 5000);  // 1000 ms = 1 วินาที (กรณีต้องการทดสอบให้เร็วขึ้น)
+}, 5000);
+
+// ถ้าจะเทสต์เร็ว ค่อยชั่วคราวเป็น 5000 แบบเดิม
