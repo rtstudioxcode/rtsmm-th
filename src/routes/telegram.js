@@ -88,20 +88,13 @@ async function safeClose(client) {
   }
 }
 
-async function finalizeEarly(reasonText) {
-  // จบงานทันที
-  job.status = "stopped"; // หรือ "error" ถ้าอยากให้เป็นแดง
+async function finalizeEarly(job, jobId, qty, reasonText) {
+  job.status = "stopped";
   job.logs.push({ text: `⛔ จบงานอัตโนมัติ: ${reasonText}`, time: new Date() });
   await job.save();
 
-  telegramPush(jobId, {
-    status: job.status,
-    invited: job.invited,
-    total: qty,
-    log: `⛔ จบงานอัตโนมัติ: ${reasonText}`
-  });
+  telegramPush(jobId, { status: job.status, invited: job.invited, total: qty, log: `⛔ จบงานอัตโนมัติ: ${reasonText}` });
 
-  // คืนเครดิตที่ขาด
   const miss = qty - job.invited;
   if (miss > 0) {
     const refund = miss * 2;
@@ -375,7 +368,7 @@ export async function startTelegramJob(jobId) {
       // ✅ หมุนเฉพาะบัญชีของ user นี้
       const accounts = await pickAccounts(uid);
       if (!accounts.length) {
-        await finalizeEarly("บัญชีทั้งหมดติด COOLDOWN/LOCKED ก่อนงานครบ");
+        await finalizeEarly(job, jobId, qty, "โดน FLOOD/PEER_FLOOD แล้วบัญชีทั้งหมดพัก");
         return;
       }
 
@@ -803,42 +796,46 @@ router.post("/jobs/start", requireAuth, async (req, res) => {
     }
 
     /* =========================
-       ตรวจบัญชี Telegram พร้อมใช้งาน
+      ตรวจบัญชี Telegram พร้อมใช้งาน
     ========================== */
-    const accounts = await TgAccount.find({
-      userId: uid
-    }).lean();
+    const accounts = await TgAccount.find({ userId: uid })
+      .select("phone status cooldownUntil session")
+      .lean();
 
     if (!accounts.length) {
       reasons.push("คุณยังไม่มีบัญชี Telegram ในระบบ");
     }
 
-    const readyAcc = accounts.filter(a => a.status === "READY");
+    const now = Date.now();
+
+    /* READY ใช้งานได้จริง = READY + มี session + ไม่ติดคูลดาวน์ */
+    const readyAcc = accounts.filter(a => {
+      if (a.status !== "READY") return false;
+      if (!a.session) return false;
+
+      if (!a.cooldownUntil) return true;
+
+      const until = new Date(a.cooldownUntil).getTime();
+      return until <= now;
+    });
 
     if (!readyAcc.length) {
       reasons.push("ยังไม่มีบัญชีพร้อมใช้งาน (READY)");
     }
 
     /* =========================
-       ตรวจ COOL DOWN
+      ตรวจ COOL DOWN (แค่รายงาน ไม่ต้องแก้ DB)
     ========================== */
-    const now = Date.now();
-    const cooldownReasons = [];
-
-    accounts.forEach(acc => {
+    for (const acc of accounts) {
       if (acc.status === "COOLDOWN" && acc.cooldownUntil) {
-        const diff = acc.cooldownUntil - now;
+        const until = new Date(acc.cooldownUntil).getTime();
+        const diff = until - now;
+
         if (diff > 0) {
           const min = Math.ceil(diff / 60000);
-          cooldownReasons.push(`บัญชี ${acc.phone} ติดคูลดาวน์อีก ${min} นาที`);
-          acc.status = "COOLDOWN"; // Update account status to COOLDOWN immediately
-          acc.save(); // Save the updated status in DB
+          reasons.push(`บัญชี ${acc.phone} ติดคูลดาวน์อีก ${min} นาที`);
         }
       }
-    });
-
-    if (cooldownReasons.length) {
-      reasons.push(...cooldownReasons);
     }
 
     /* =========================
