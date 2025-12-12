@@ -2194,4 +2194,36 @@ async function startCancel(orderId) {
     if (!matchMedia('(max-width:640px)').matches) wrap.classList.remove('open');
   });
 })();
+
+// ① dedicated handler สำหรับปุ่ม .o-toggle
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.o-toggle');
+  if (!btn) return;
+  const card = btn.closest('.o-card');
+  if (!card) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  card.classList.toggle('open');
+  btn.textContent = card.classList.contains('open') ? '−' : '＋';
+  // ออปชัน: ARIA
+  btn.setAttribute('aria-expanded', card.classList.contains('open') ? 'true' : 'false');
+});
+
+// ② คลิกตรงพื้นที่การ์ดให้ขยาย/หุบ แต่ "ยกเว้น" ลิงก์และปุ่มควบคุมอื่น ๆ (ยังอนุญาต .o-toggle)
+document.getElementById('orderCards')?.addEventListener('click', (e) => {
+  // กันคลิกบนลิงก์/ปุ่มควบคุม แต่ไม่กัน .o-toggle (เพราะมี handler แยกแล้ว)
+  if (e.target.closest('a, .btn-copy, .btn-refresh, .st-actions, .st-actions *')) return;
+
+  const card = e.target.closest('.o-card');
+  if (!card) return;
+
+  card.classList.toggle('open');
+  const t = card.querySelector('.o-toggle');
+  if (t) {
+    t.textContent = card.classList.contains('open') ? '−' : '＋';
+    t.setAttribute('aria-expanded', card.classList.contains('open') ? 'true' : 'false');
+  }
+});
 </script>
