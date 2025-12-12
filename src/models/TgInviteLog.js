@@ -6,6 +6,7 @@ const TgInviteLogSchema = new mongoose.Schema({
   accountId: { type: mongoose.Schema.Types.ObjectId, ref: "TgAccount" },
   tgUserId: { type: Number, index: true },
   tgUserName: String,
+  scrGroup: String,
   destGroup: String,
   createdAt: { type: Date, default: Date.now }
 });

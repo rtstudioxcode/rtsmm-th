@@ -421,6 +421,7 @@ export async function startTelegramJob(jobId) {
                 accountId: acc._id,
                 tgUserId: user.id,
                 tgUserName: username,
+                srcGroup: job.srcGroup,
                 destGroup: job.destGroup
               });
 
