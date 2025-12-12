@@ -903,7 +903,7 @@ async function loadTgAccounts() {
 
       item.innerHTML = `
         <div class="tg-acc-left">
-          <div><b>${acc.phone} - ${acc.name}</b></div>
+          <div><b>${acc.phone} - </b><b class="text-yellow">${acc.name}</b></div>
           <div class="tg-status ${statusClass}" id="tg-status-${acc._id}">${statusText}</div>
           <!-- เพิ่ม div สำหรับเวลานับถอยหลัง (timer) ใต้สถานะ -->
           <div class="tg-cooldown-timer" id="tg-timer-${acc._id}" style="font-size: 12px; color: #e3b863; margin-top: 5px;"></div>
@@ -1433,4 +1433,6 @@ button {
 .detail-icon:hover {
   transform: scale(1.1); /* ขยายขนาดเล็กน้อยเมื่อ hover */
 }
+
+.text-yellow { color:#FFD700; }
 </style>
