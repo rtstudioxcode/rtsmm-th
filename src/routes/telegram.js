@@ -440,6 +440,23 @@ export function streamTelegramJob(req, res) {
   telegramSubscribe(req.params.jobId, res);
 }
 
+// ───────────────────────────────────────────────────────────────
+// helpers (วางไว้ด้านบนไฟล์ routes)
+// ───────────────────────────────────────────────────────────────
+function clamp(str, max = 60) {
+  return String(str || "").trim().slice(0, max);
+}
+
+function safeUsername(input, fallback) {
+  let u = String(input || "").trim();
+  // อนุญาต a-z 0-9 _ . (เหมือนๆ ข้อจำกัดที่เจอบ่อย)
+  u = u.toLowerCase().replace(/[^a-z0-9_\.]/g, "");
+  if (!u) u = String(fallback || "").replace(/\D/g, "");
+  if (!u) u = "tguser_" + Date.now();
+  return clamp(u, 32);
+}
+
+
 /* ===============================================================
    PAGE: Telegram UI
 =============================================================== */
@@ -479,53 +496,33 @@ router.post("/accounts/login/start", requireAuth, async (req, res) => {
     const uid = user._id;
     const username = user.username;
 
-    console.log("LOGIN_START_BODY_RAW:", req.body);
+    let phone    = String(req.body.phone || "").trim();
+    let apiId    = Number(req.body.apiId);
+    let apiHash  = String(req.body.apiHash || "").trim();
+    const name   = clamp(req.body.name, 60); // optional ชื่อที่ผู้ใช้กรอก
 
-    let phone   = String(req.body.phone || "").trim();
-    let apiId   = Number(req.body.apiId);
-    let apiHash = String(req.body.apiHash || "").trim();
-
-    console.log("LOGIN_START_PARSED:", { phone, apiId, apiHash });
-
-    if (!phone || !apiId || !apiHash) {
-      return res.json({ ok:false, error:"กรอกข้อมูลให้ครบ" });
-    }
-    if (isNaN(apiId)) {
-      return res.json({ ok:false, error:"apiId ต้องเป็นตัวเลข" });
-    }
+    if (!phone || !apiId || !apiHash) return res.json({ ok:false, error:"กรอกข้อมูลให้ครบ" });
+    if (isNaN(apiId)) return res.json({ ok:false, error:"apiId ต้องเป็นตัวเลข" });
 
     const r = await sendCodeAndGetSession({ phone, apiId, apiHash });
+    if (!r || !r.ok) return res.json({ ok:false, error:r?.error || "ส่งรหัสไม่สำเร็จ" });
 
-    if (!r || !r.ok) {
-      console.log("GRAMJS_SENDCODE_FAIL:", r);
-      return res.json({ ok:false, error:r?.error || "ส่งรหัสไม่สำเร็จ" });
-    }
-
-    /** ลบ exp ออกก่อนเสมอ */
     const loginToken = signPayload({
       userId: uid,
-      username: username,
-      phone,
-      apiId,
-      apiHash,
+      username,              // username ฝั่งเว็บ
+      displayName: name,     // เก็บชื่อจากฟอร์ม (ถ้ามี)
+      phone, apiId, apiHash,
       phoneCodeHash: r.phoneCodeHash,
       sessionString: r.sessionString,
       ts: Date.now()
     });
 
-    return res.json({
-      ok: true,
-      codeSent: true,
-      loginToken
-    });
-
+    return res.json({ ok:true, codeSent:true, loginToken });
   } catch (err) {
     console.error("START_LOGIN_ERROR:", err);
     return res.json({ ok:false, error:"เกิดข้อผิดพลาด" });
   }
 });
-
-
 
 /* =====================================================================
    STEP 1.1 — RESEND OTP
@@ -544,10 +541,9 @@ router.post("/accounts/login/resend", requireAuth, async (req, res) => {
       apiId: data.apiId,
       apiHash: data.apiHash
     });
-
     if (!r.ok) return res.json(r);
 
-    const clean = { ...data };
+    const clean = { ...data }; // displayName จะถูกเก็บต่ออยู่ในนี้
     delete clean.exp;
 
     const newToken = signPayload({
@@ -558,7 +554,6 @@ router.post("/accounts/login/resend", requireAuth, async (req, res) => {
     });
 
     return res.json({ ok:true, loginToken:newToken });
-
   } catch (err) {
     console.error("RESEND ERROR:", err);
     return res.json({ ok:false });
@@ -571,98 +566,67 @@ router.post("/accounts/login/resend", requireAuth, async (req, res) => {
 router.post("/accounts/login/finish", requireAuth, async (req, res) => {
   try {
     const { loginToken } = req.body;
-
     const code = (req.body.code || "").trim();
     const password = (req.body.password || "").trim();
 
     const data = verifyPayload(loginToken);
     if (!data) return res.json({ ok:false, error:"token ผิด" });
-
     if (Date.now() - data.ts > 15 * 60 * 1000)
       return res.json({ ok:false, error:"หมดอายุแล้ว" });
 
     let result = null;
 
-    /* ===============================================================
-       CASE 1 — ถ้าส่งทั้ง code + password → ให้ตรวจ password ก่อน
-       (เพราะ Telegram ขอ 2FA อยู่แล้ว)
-    ================================================================ */
     if (password && code) {
       result = await checkPasswordWithSession({
         sessionString: data.sessionString,
-        password,
-        apiId: data.apiId,
-        apiHash: data.apiHash
+        password, apiId: data.apiId, apiHash: data.apiHash
       });
-    }
-
-    /* ===============================================================
-       CASE 2 — ส่งเฉพาะ password
-    ================================================================ */
-    else if (password && !code) {
+    } else if (password) {
       result = await checkPasswordWithSession({
         sessionString: data.sessionString,
-        password,
-        apiId: data.apiId,
-        apiHash: data.apiHash
+        password, apiId: data.apiId, apiHash: data.apiHash
       });
-    }
-
-    /* ===============================================================
-       CASE 3 — ส่งเฉพาะ OTP
-    ================================================================ */
-    else if (code && !password) {
+    } else if (code) {
       result = await signInWithSession({
         sessionString: data.sessionString,
         phone: data.phone,
         phoneCodeHash: data.phoneCodeHash,
-        code,
-        apiId: data.apiId,
-        apiHash: data.apiHash
+        code, apiId: data.apiId, apiHash: data.apiHash
       });
-
-      // Telegram ต้องการรหัสผ่าน 2FA → แจ้ง UI
       if (result.needPassword) {
-        const clean = { ...data };
-        delete clean.exp;
-
-        const nextToken = signPayload({
-          ...clean,
-          sessionString: result.sessionString,
-          ts: Date.now()
-        });
-
+        const clean = { ...data }; delete clean.exp;
+        const nextToken = signPayload({ ...clean, sessionString: result.sessionString, ts: Date.now() });
         return res.json({ ok:false, needPassword:true, loginToken:nextToken });
       }
-    }
-
-    /* ===============================================================
-       CASE 4 — ไม่ส่งอะไรเลย
-    ================================================================ */
-    else {
+    } else {
       return res.json({ ok:false, error:"กรุณากรอกข้อมูล" });
     }
 
-    /* ===============================================================
-       ถ้าผิด → ส่ง error กลับ
-    ================================================================ */
     if (!result || !result.ok) {
       return res.json({ ok:false, error:result?.error || "เกิดข้อผิดพลาด" });
     }
 
-    /* ===============================================================
-       CASE SUCCESS → บันทึกบัญชีลง DB
-    ================================================================ */
-    let acc = await TgAccount.findOne({
-      phone: data.phone,
-      userId: data.userId
-    });
+    // สร้างชื่อ/ยูสเซอร์เนมสุดท้าย
+    const me = result.me || {};
+    const providedName = clamp(data.displayName, 60);
+    const tgName = clamp([me.firstName, me.lastName].filter(Boolean).join(" "), 60);
+
+    const nameFinal =
+      providedName || tgName || (me.username ? `@${me.username}` : String(data.phone));
+
+    const usernameFinal = safeUsername(
+      me.username,
+      data.username || data.phone || ("tguser_" + Date.now())
+    );
+
+    // upsert
+    let acc = await TgAccount.findOne({ phone: data.phone, userId: data.userId });
 
     if (!acc) {
       acc = new TgAccount({
         userId: data.userId,
-        username: data.username,
-        username: data.name,
+        name: nameFinal,
+        username: usernameFinal,
         phone: data.phone,
         apiId: data.apiId,
         apiHash: data.apiHash,
@@ -672,14 +636,22 @@ router.post("/accounts/login/finish", requireAuth, async (req, res) => {
         lastInviteResetAt: new Date()
       });
     } else {
-      acc.apiId = data.apiId;
+      acc.apiId   = data.apiId;
       acc.apiHash = data.apiHash;
       acc.session = result.sessionString;
-      acc.status = "READY";
+      acc.status  = "READY";
+      if (providedName) acc.name = providedName;
+      if (!acc.name) acc.name = nameFinal;
+      if (!acc.username) acc.username = usernameFinal;
     }
+
     await acc.save();
 
-    return res.json({ ok:true, me:result.me });
+    return res.json({
+      ok:true,
+      me: result.me,
+      account: { id: acc._id, name: acc.name, username: acc.username }
+    });
 
   } catch (err) {
     console.error("FINISH LOGIN ERROR:", err);
