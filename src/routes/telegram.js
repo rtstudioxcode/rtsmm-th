@@ -428,12 +428,12 @@ async function fetchSrcMembers(client, src, meId, jobId, want = 2000) {
     if (msg.includes("CHAT_ADMIN_REQUIRED")) {
       telegramPush(jobId, {
         status: "failed",
-        log: "❌ ดึงรายชื่อสมาชิกไม่ได้ (ต้องเป็นแอดมินในกลุ่มต้นทาง หรือกลุ่ม/ช่องนี้ไม่อนุญาตให้ดึงสมาชิก)"
+        log: "❌ ดึงรายชื่อสมาชิกไม่ได้ (ต้องเป็นแอดมินในกลุ่มปลายทาง หรือกลุ่ม/ช่องนี้ไม่อนุญาตให้ดึงสมาชิก)"
       });
 
       await TelegramJob.updateOne(
         { _id: jobId },
-        { $set: { status: "failed" }, $push: { logs: { text: "CHAT_ADMIN_REQUIRED: ต้องเป็นแอดมินในกลุ่ม", time: new Date() } } }
+        { $set: { status: "failed" }, $push: { logs: { text: "CHAT_ADMIN_REQUIRED: ต้องเป็นแอดมินในกลุ่มปลายทาง", time: new Date() } } }
       );
 
       return [];
