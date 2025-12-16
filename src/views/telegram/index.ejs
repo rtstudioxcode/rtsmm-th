@@ -1789,6 +1789,18 @@ async function stopJobFromHistory(jobId) {
           <code style="color:#8ec7ff;">.txt</code> และ <code style="color:#8ec7ff;">.csv</code>
           (1 บรรทัด/1 ค่า) เช่น
           <code style="color:#8ec7ff;">+66123456789 | 0123456789</code> หรือ <code style="color:#8ec7ff;">@username | https://t.me/username</code>
+          <br><br>
+          <img src="/static/telegrambot/ตัวอย่างไฟล์.png" alt="ตัวอย่างไฟล์" class="previewable" title="คลิกเพื่อขยายดูภาพ">
+          <br><br>
+          <a href="/static/telegrambot/ตัวอย่าง.txt" download style="
+              padding:3px 6px;
+              border-radius:4px;
+              font-family: monospace;
+              color:#4ea1ff;
+              text-decoration: underline;
+              "> 
+            ดาวน์โหลดไฟล์ตัวอย่าง
+          </a>
         `;
 
         howto3.innerHTML = `
@@ -2175,7 +2187,23 @@ async function stopJobFromHistory(jobId) {
 }
 
 .previewable {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
   cursor: zoom-in;
+}
+
+@media (max-width: 768px) {
+  .previewable {
+    max-width: 90%;
+    margin: 0 auto;
+    display: block;
+  }
+
+  a {
+    font-size: 14px;
+    padding: 5px 10px;
+  }
 }
 
 .tg-cooldown-timer {
