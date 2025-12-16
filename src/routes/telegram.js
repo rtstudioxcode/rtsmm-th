@@ -197,22 +197,34 @@ async function fetchSrcMembers(client, src, meId, jobId, want = 2000) {
 // Invite Member (รองรับ Channel ด้วย)
 async function inviteOne(client, dstEntity, user) {
   try {
-    const inputUser = await client.getInputEntity(user); // ✅ แปลงเป็น InputUser
+    const inputUser = await client.getInputEntity(user);
     await client.invoke(new Api.channels.InviteToChannel({
       channel: dstEntity,
       users: [inputUser]
     }));
     return { ok: true };
-  } catch (err) {
-    const msg = String(err?.message || err);
 
+  } catch (err) {
+    const msg = String(err?.errorMessage || err?.message || err || "").toUpperCase();
+
+    // 1) Telegram บังคับให้รอ (ตามวินาทีที่สั่ง)
     if (msg.includes("FLOOD_WAIT")) {
-      const ms = extractFloodWait(msg) || 7200000;
+      const ms = extractFloodWait(msg) || 2 * 60 * 60 * 1000;
       return { flood: true, waitMs: ms, message: msg };
     }
-    if (msg.includes("PEER_FLOOD") || msg.includes("PRIVACY")) {
-      return { spam: true, message: msg };
+
+    // 2) บัญชีเราโดนจำกัด/เสี่ยงสแปม
+    if (msg.includes("PEER_FLOOD")) {
+      return { peerFlood: true, message: msg };
     }
+
+    // 3) คนที่เชิญไม่รับคำเชิญ (privacy)
+    // GramJS/Telegram มักเจอ USER_PRIVACY_RESTRICTED มากกว่าแค่คำว่า PRIVACY
+    if (msg.includes("USER_PRIVACY_RESTRICTED") || msg.includes("PRIVACY")) {
+      return { privacy: true, message: msg };
+    }
+
+    // อื่นๆ
     return { error: msg };
   }
 }
@@ -528,13 +540,19 @@ export async function startTelegramJob(jobId) {
                     return;
                   }
                 }
-
                 break;
               }
 
               telegramPush(jobId, { invited: job.invited, total: qty, user: username });
+
+            } else if (r.privacy) {
+              job.failed++;
+              job.logs.push({ text: `ข้าม ${username}: ผู้ใช้งานตั้งค่าความเป็นส่วนตัว ไม่รับคำเชิญ`, time: new Date() });
+              telegramPush(jobId, { invited: job.invited, total: qty, log: `ข้าม ${username} (privacy)` });
+              continue;
+
             } else if (r.flood) {
-              const waitMs = Math.max(60_000, Number(r.waitMs || COOLDOWN_MS)); // อย่างน้อย 1 นาที
+              const waitMs = Math.max(60_000, Number(r.waitMs || COOLDOWN_MS));
               const mins = Math.ceil(waitMs / 60000);
 
               acc.cooldownUntil = new Date(Date.now() + waitMs);
@@ -554,7 +572,7 @@ export async function startTelegramJob(jobId) {
               }
               break;
 
-            } else if (r.spam) {
+            } else if (r.spam || r.peerFlood) {
               const hrs = Math.ceil(PEER_FLOOD_COOLDOWN_MS / 3600000);
 
               acc.cooldownUntil = new Date(Date.now() + PEER_FLOOD_COOLDOWN_MS);
@@ -573,6 +591,12 @@ export async function startTelegramJob(jobId) {
                 }
               }
               break;
+            } else {
+              // error อื่นๆ: ไม่พักบัญชีทันที แค่เก็บ log แล้วข้าม
+              job.failed++;
+              job.logs.push({ text: `เชิญ ${username} ไม่สำเร็จ: ${r.error || "unknown error"}`, time: new Date() });
+              telegramPush(jobId, { invited: job.invited, total: qty, log: `เชิญ ${username} ไม่สำเร็จ` });
+              continue;
             }
 
             await sleep(humanDelay());
