@@ -24,6 +24,7 @@ const running = new Set();
 const stopRequested = new Set();
 const PRICE_PER_PERSON = 0;
 const MAX_LIMIT_PER_JOB = 1000;
+const PEER_FLOOD_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 // Helper functions
 export const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -338,7 +339,7 @@ export async function startTelegramJob(jobId) {
     // Pre-check for usable accounts (เฉพาะของ user นี้)
     const usable = [];
 
-    const ROUND_LIMIT = 40;
+    const ROUND_LIMIT = 50;
     const COOLDOWN_MS = 2 * 60 * 60 * 1000;
 
     
@@ -532,19 +533,45 @@ export async function startTelegramJob(jobId) {
               }
 
               telegramPush(jobId, { invited: job.invited, total: qty, user: username });
-            } else if (r.flood || r.spam) {
-              acc.cooldownUntil = new Date(Date.now() + COOLDOWN_MS);
+            } else if (r.flood) {
+              const waitMs = Math.max(60_000, Number(r.waitMs || COOLDOWN_MS)); // อย่างน้อย 1 นาที
+              const mins = Math.ceil(waitMs / 60000);
+
+              acc.cooldownUntil = new Date(Date.now() + waitMs);
               acc.status = "COOLDOWN";
+              acc.lastError = `FLOOD_WAIT (${mins} นาที)`;
               await acc.save();
 
               if (remaining > 0) {
                 const left = await pickAccounts(uid);
                 if (!left.length) {
-                  await finalizeEarly(job, jobId, qty, "ระบบของ Telegram จำกัดการเชิญชั่วคราว (ถูกมองว่าส่งคำเชิญถี่เกินไป/เสี่ยงสแปม) จึงพักบัญชีทั้งหมดไว้ก่อน เพื่อความปลอดภัย");
+                  await finalizeEarly(
+                    job, jobId, qty,
+                    `Telegram จำกัดการเชิญชั่วคราว เพราะเชิญถี่เกินไป (ระบบป้องกันสแปม) — พักบัญชีประมาณ ${mins} นาที แล้วค่อยลองใหม่`
+                  );
                   return;
                 }
               }
+              break;
 
+            } else if (r.spam) {
+              const hrs = Math.ceil(PEER_FLOOD_COOLDOWN_MS / 3600000);
+
+              acc.cooldownUntil = new Date(Date.now() + PEER_FLOOD_COOLDOWN_MS);
+              acc.status = "COOLDOWN";
+              acc.lastError = `PEER_FLOOD (${hrs} ชม.)`;
+              await acc.save();
+
+              if (remaining > 0) {
+                const left = await pickAccounts(uid);
+                if (!left.length) {
+                  await finalizeEarly(
+                    job, jobId, qty,
+                    `Telegram มองว่าบัญชีมีความเสี่ยงสแปมหรือถูกจำกัดการเชิญ (PEER_FLOOD/PRIVACY) — ระบบพักบัญชีไว้ ${hrs} ชม. เพื่อความปลอดภัย แล้วค่อยลองใหม่`
+                  );
+                  return;
+                }
+              }
               break;
             }
 
