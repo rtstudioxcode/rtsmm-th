@@ -5058,3 +5058,17 @@ html[data-theme="dark"]{ --pv-bg: var(--page, #0b1620); --pv-border: var(--borde
     0 0 0 3px color-mix(in oklab, var(--accent) 35%, transparent),
     0 14px 34px rgba(0,0,0,.38);
 }
+
+.row2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.row2 > label:has(#est) {
+  grid-column: 1 / -1;
+}
+
+.row2 > .full-row {
+  grid-column: 1 / -1;
+}

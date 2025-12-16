@@ -106,7 +106,7 @@
         </div>
 
         <div class="row2">
-          <label class="with-hint">ปริมาณ
+          <label class="with-hint full-row">ปริมาณ
             <input id="qty" name="quantity" type="number" required>
             <div id="qtyHint" class="hintline">
               <span class="min">ขั้นต่ำ: <b id="minVal">—</b></span>
@@ -115,7 +115,8 @@
             </div>
           </label>
 
-          <label>ค่าใช้จ่ายโดยประมาณ
+          <label class="full-row">
+            ค่าใช้จ่ายโดยประมาณ
             <div class="input-group">
               <span class="input-prefix">฿</span>
               <input id="est" class="input right" type="text" readonly value="0">
@@ -467,6 +468,7 @@ let rateSource='base';  // 'base' | 'effective'
 /* ✅ flag สำหรับตรวจว่า service นี้เป็น comment/SEO หรือไม่ */
 let isCommentService = false;
 let isSeoService = false;
+let isPerPieceService = false;
 
 /* ✅ ช่วงขั้นต่ำ/สูงสุดของ service ปัจจุบัน (ไว้ใช้ validate ตอน submit) */
 let currentMin = 1;
@@ -1867,6 +1869,14 @@ async function chooseChild(svc){
   currentChild = svc;
   currentUnitStep = getRateUnit(String(svc.id));
 
+  // ===============================
+  // 🔒 ตรวจว่าเป็น service ราคา/ชิ้น
+  // ===============================
+  isPerPieceService =
+    currentUnitStep === 1 &&
+    Number(svc.min) === 1 &&
+    Number(svc.max) === 1;
+
   $('#childText').textContent = svc?.name || '—';
   $('#providerServiceId').value = svc?.id || '';
 
@@ -1909,14 +1919,24 @@ async function chooseChild(svc){
   const max  = Math.max(min, Number(svc.max || min));
   const step = Number(svc.step || 1);
 
+  const qtyWrap = q.closest('.with-hint');
+
   currentMin = min;
   currentMax = max;
 
-  q.min  = String(min);
-  q.max  = String(max);
-  q.step = 'any';
-  q.value = '';
-  q.placeholder = `เช่น ${min.toLocaleString()} – ${max.toLocaleString()}`;
+  // ===== ราคา/ชิ้น → ล็อก qty =====
+  if (isPerPieceService) {
+    q.value = '1';
+    q.readOnly = true;
+    q.style.display = 'none';
+    if (qtyWrap) qtyWrap.style.display = 'none';
+  } else {
+    q.readOnly = false;
+    q.style.display = '';
+    if (qtyWrap) qtyWrap.style.display = '';
+    q.value = '';
+  }
+  // q.placeholder = `เช่น ${min.toLocaleString()} – ${max.toLocaleString()}`;
 
   const minVal = $('#minVal'), maxVal = $('#maxVal');
   if (minVal) minVal.textContent = min.toLocaleString();
@@ -1964,6 +1984,9 @@ async function chooseChild(svc){
 
   updateEstimate();
   $('#detailBox').style.display = '';
+
+  const note = document.getElementById('perPieceNote');
+  if (note) note.style.display = isPerPieceService ? '' : 'none';
 }
 function resetDetail(){ $('#childText').textContent='—'; $('#detailBox').style.display='none'; }
 function clearAll(){
@@ -1977,7 +2000,7 @@ function calcUnitRate(){
   return rateSource==='effective' && Number.isFinite(effectiveRate) ? effectiveRate : rate;
 }
 function updateEstimate(){
-  const n = Number($('#qty').value || 0);
+  const n = isPerPieceService ? 1 : Number($('#qty').value || 0);
   const rateUsed = calcUnitRate(); // base หรือ effective
   const unit = Math.max(1, Number(currentUnitStep || 1000));
 
@@ -1996,7 +2019,7 @@ async function submitOrder(ev){
   const groupId = $('#groupId').value?.trim();
   const childId = $('#providerServiceId').value?.trim();
   const link    = $('#link').value?.trim();
-  const qty     = Number($('#qty').value || 0);
+  const qty = isPerPieceService ? 1 : Number($('#qty').value || 0);
 
   const commentsVal = document.getElementById('comments')?.value.trim() || '';
   const keywordsVal = document.getElementById('keywords')?.value.trim() || '';
@@ -2008,7 +2031,7 @@ async function submitOrder(ev){
   if (!(qty > 0)) errs.push('จำนวนต้องมากกว่า 0');
 
   // ✅ บังคับให้อยู่ในช่วงขั้นต่ำ-สูงสุดของบริการ
-  if (qty > 0 && (qty < currentMin || qty > currentMax)) {
+  if (!isPerPieceService && qty > 0 && (qty < currentMin || qty > currentMax)) {
     errs.push(`จำนวนต้องอยู่ในช่วงขั้นต่ำ ${currentMin.toLocaleString()} ถึงสูงสุด ${currentMax.toLocaleString()}`);
   }
 
