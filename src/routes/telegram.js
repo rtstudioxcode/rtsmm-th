@@ -21,6 +21,8 @@ const router = Router();
 // HELPERS
 // Track jobs
 const running = new Set();
+const stopRequested = new Set();
+const PRICE_PER_PERSON = 0;
 
 // Helper functions
 export const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -97,7 +99,7 @@ async function finalizeEarly(job, jobId, qty, reasonText) {
 
   const miss = qty - job.invited;
   if (miss > 0) {
-    const refund = miss * 2;
+    const refund = miss * PRICE_PER_PERSON;
     await User.updateOne({ _id: job.userId }, { $inc: { credit: refund } });
     telegramPush(jobId, { refund, log: `คืนเครดิต ${refund} เครดิต (ขาด ${miss} คน)` });
   }
@@ -245,28 +247,25 @@ function showPrecheckErrors(reasons = [], jobId) {
   });
 }
 
-async function checkTelegramAccountStatus(client, acc) {
-  try {
-    // เชื่อมต่อกับ Telegram API
-    await client.connect(); // ต้องเชื่อมต่อก่อนที่จะเรียกใช้งาน
-    console.log(`บัญชี ${acc.phone} เชื่อมต่อสำเร็จ`);
+async function finalizeAutoStop(job, jobId, qty, reasonText) {
+  job.status = "auto_stopped";
+  job.logs.push({ text: `🛑 หยุดงานอัตโนมัติ: ${reasonText}`, time: new Date() });
+  await job.save();
 
-    const me = await client.getMe(); // Get account details
-    console.log(`ข้อมูลจาก Telegram: ${JSON.stringify(me)}`);
+  telegramPush(jobId, {
+    status: job.status,
+    invited: job.invited,
+    total: qty,
+    log: `🛑 หยุดงานอัตโนมัติ: ${reasonText}`
+  });
 
-    // เช็คการติดสถานะต่างๆ เช่น COOLDOWN หรือ PEER_FLOOD
-    if (acc.lastError === 'PEER_FLOOD') {
-      console.log(`บัญชี ${acc.phone} ถูก Flood! กำหนดสถานะเป็น COOLDOWN`);
-      acc.status = "COOLDOWN";
-      acc.cooldownUntil = new Date(Date.now() + 7200000); // 2 ชั่วโมง
-      await acc.save();
-    } else if (acc.status === 'READY') {
-      console.log(`บัญชี ${acc.phone} พร้อมใช้งาน`);
-    }
-  } catch (err) {
-    console.error(`ไม่สามารถตรวจสอบสถานะบัญชี ${acc.phone}: ${err.message}`);
-    acc.status = 'LOCKED';
-    await acc.save();  // เปลี่ยนสถานะเป็น LOCKED หากไม่สามารถตรวจสอบได้
+  const miss = qty - job.invited;
+  if (miss > 0) {
+    const refund = miss * PRICE_PER_PERSON;
+    await User.updateOne({ _id: job.userId }, { $inc: { credit: refund } });
+    job.logs.push({ text: `คืนเครดิต ${refund} เครดิต (ขาด ${miss} คน)`, time: new Date() });
+    await job.save();
+    telegramPush(jobId, { refund, log: `คืนเครดิต ${refund} เครดิต (ขาด ${miss} คน)` });
   }
 }
 
@@ -376,6 +375,7 @@ export async function startTelegramJob(jobId) {
     let remaining = qty;
 
     while (remaining > 0) {
+      if (stopRequested.has(String(jobId))) return;
       // ✅ หมุนเฉพาะบัญชีของ user นี้
       const accounts = await pickAccounts(uid);
       if (!accounts.length) {
@@ -404,9 +404,45 @@ export async function startTelegramJob(jobId) {
           if (!src || !dst) throw new Error("resolveEntity failed");
 
           const me = await client.getMe();
-          const members = await fetchSrcMembers(client, src, me.id);
+          let members = [];
+          try {
+            members = await fetchSrcMembers(client, src, me.id);
+          } catch (err) {
+            const msg = String(err?.message || err || "");
+
+            const isAdminRequired =
+              msg.includes("CHAT_ADMIN_REQUIRED") ||
+              msg.includes("CHAT_ADMINISTRATOR_REQUIRED") ||
+              msg.includes("channels.getParticipants");
+
+            if (isAdminRequired) {
+              const srcTxt = job?.srcGroup ? String(job.srcGroup) : "-";
+              const dstTxt = job?.destGroup ? String(job.destGroup) : "-";
+              const phone  = acc?.phone ? String(acc.phone) : "-";
+
+              const reason =
+                `ดึงสมาชิกไม่ได้ (ต้องเป็นแอดมินกลุ่ม/ช่อง) [CHAT_ADMIN_REQUIRED]\n` +
+                `• บัญชีที่ใช้: ${phone}\n` +
+                `• กลุ่มเป้าหมาย: ${srcTxt}\n` +
+                `• กลุ่มปลายทาง: ${dstTxt}\n` +
+                `วิธีแก้: เพิ่มบัญชีนี้เป็น Admin ในกลุ่ม/ช่องหรือใช้กลุ่ม/ช่องที่อนุญาตเพิ่มสมาชิกได้`;
+
+              // ✅ เก็บลงรายงาน
+              job.logs.push({ text: `🛑 AUTO STOP: ${reason}`, time: new Date() });
+              await job.save();
+
+              // ✅ จบงานทันที + เปลี่ยนสถานะ auto_stopped + คืนเครดิตที่เหลือ
+              await finalizeAutoStop(job, jobId, qty, reason);
+              return;
+            }
+
+            // ไม่ใช่เคส admin required ก็โยนให้ catch ใหญ่จัดการ
+            throw err;
+          }
 
           for (const user of members) {
+            if (stopRequested.has(String(jobId))) return;
+
             if (remaining <= 0) break;
 
             const exists = await TgInviteLog.findOne({
@@ -491,7 +527,7 @@ export async function startTelegramJob(jobId) {
 
     const miss = qty - job.invited;
     if (miss > 0) {
-      const refund = miss * 2;
+      const refund = miss * PRICE_PER_PERSON;
       const user = await User.findById(job.userId);
       user.credit += refund;
       await user.save();
@@ -507,19 +543,54 @@ export async function startTelegramJob(jobId) {
     telegramPush(jobId, { status: "error", error: err.message });
   } finally {
     running.delete(jobId);
+    stopRequested.delete(String(jobId));
   }
 }
 
 // Stop job
-export async function stopTelegramJob(jobId) {
-  const job = await TelegramJob.findById(jobId);
-  if (!job) return;
+export async function stopTelegramJob(jobId, by = "user") {
+  const id = String(jobId || "");
+  if (!id) return { ok:false, error:"missing jobId" };
 
+  const job = await TelegramJob.findById(id);
+  if (!job) return { ok:false, error:"not_found" };
+
+  // กันซ้ำ: ถ้าไม่ใช่ running แล้ว ไม่ต้องทำอะไร
+  if (String(job.status) !== "running") {
+    return { ok:false, error:`not_running:${job.status}` };
+  }
+
+  const qty = Number(job.limit || 0);
+  const invited = Number(job.invited || 0);
+  const miss = Math.max(0, qty - invited);
+  const refund = miss * PRICE_PER_PERSON;
+
+  // สั่ง runner ให้หยุดทันที (signal)
+  stopRequested.add(id);
+
+  // ปิดงานทันที + เก็บ log ไว้ในรายงาน
   job.status = "stopped";
-  job.logs.push({ text: "หยุดงานโดยผู้ใช้" });
+  job.logs.push({
+    text: `⛔ หยุดงานโดย ${by === "user" ? "ผู้ใช้" : by} (คืน ${refund} เครดิต / ขาด ${miss} คน)`,
+    time: new Date()
+  });
   await job.save();
 
-  telegramPush(jobId, { status: "stopped", log: "หยุดงานแล้ว" });
+  // คืนเครดิตตามที่เหลือ
+  if (refund > 0) {
+    await User.updateOne({ _id: job.userId }, { $inc: { credit: refund } });
+  }
+
+  // ส่ง realtime ไปหน้าเว็บ
+  telegramPush(id, {
+    status: "stopped",
+    invited,
+    total: qty,
+    refund,
+    log: `⛔ หยุดงานแล้ว • คืน ${refund} เครดิต (ขาด ${miss} คน)`
+  });
+
+  return { ok:true, refund, miss, invited, total: qty };
 }
 
 // SSE STREAM
@@ -801,7 +872,9 @@ router.post("/jobs/start", requireAuth, async (req, res) => {
     /* =========================
        ตรวจ CREDIT (2 เครดิต/คน)
     ========================== */
-    const cost = qty * 2; // สมมติว่า 2 เครดิตต่อคน
+    
+
+    const cost = qty * PRICE_PER_PERSON;
     if (user.credit < cost) {
       reasons.push(`เครดิตไม่เพียงพอ (ต้องใช้ ${cost} เครดิต)`);
     }
@@ -838,6 +911,8 @@ router.post("/jobs/start", requireAuth, async (req, res) => {
       ตรวจ COOL DOWN (แค่รายงาน ไม่ต้องแก้ DB)
     ========================== */
     for (const acc of accounts) {
+      if (stopRequested.has(String(jobId))) return;
+
       if (acc.status === "COOLDOWN" && acc.cooldownUntil) {
         const until = new Date(acc.cooldownUntil).getTime();
         const diff = until - now;
@@ -905,18 +980,49 @@ router.post("/jobs/:jobId/stop", requireAuth, async (req, res) => {
     const uid = req.session.user._id;
     const jobId = req.params.jobId;
 
-    const job = await TelegramJob.findById(jobId).lean();
+    const job = await TelegramJob.findById(jobId); // ✅ ไม่ใช้ lean เพราะต้อง save()
     if (!job) return res.json({ ok:false, error:"ไม่พบงาน" });
+
     if (String(job.userId) !== String(uid)) {
       return res.json({ ok:false, error:"ไม่มีสิทธิ์หยุดงาน" });
     }
 
-    stopTelegramJob(jobId);
-    return res.json({ ok:true });
+    // ✅ แสดงปุ่มเฉพาะ running อยู่แล้ว แต่กันซ้ำอีกชั้น
+    if (String(job.status) !== "running") {
+      return res.json({ ok:false, error:`งานไม่อยู่ในสถานะ running (ตอนนี้: ${job.status})` });
+    }
+
+    const qty = Number(job.limit || 0);
+    const invited = Number(job.invited || 0);
+    const miss = Math.max(0, qty - invited);
+    const refund = miss * PRICE_PER_PERSON;
+
+    // ✅ สั่งให้ runner หยุดทันที (in-memory signal)
+    stopRequested.add(String(jobId));
+
+    // ✅ ปิดงานทันที
+    job.status = "stopped";
+    job.logs.push({ text: `⛔ หยุดงานโดยผู้ใช้ (คืน ${refund} เครดิต / ขาด ${miss} คน)`, time: new Date() });
+    await job.save();
+
+    // ✅ คืนเครดิตตามคนที่เหลือ
+    if (refund > 0) {
+      await User.updateOne({ _id: job.userId }, { $inc: { credit: refund } });
+    }
+
+    telegramPush(jobId, {
+      status: "stopped",
+      invited,
+      total: qty,
+      refund,
+      log: `⛔ หยุดงานแล้ว • คืน ${refund} เครดิต (ขาด ${miss} คน)`
+    });
+
+    return res.json({ ok:true, refund, miss, invited, total: qty });
 
   } catch (err) {
     console.error("STOP_JOB_ERROR:", err);
-    return res.json({ ok:false });
+    return res.json({ ok:false, error:"เกิดข้อผิดพลาด" });
   }
 });
 

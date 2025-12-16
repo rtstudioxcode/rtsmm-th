@@ -1074,15 +1074,29 @@ function renderHistoryTable(list) {
     const logs = j.logs || [];
 
     html += `<tr>
-      <td style="text-align: start;">${formatDate(j.createdAt)}</td>
-      <td style="text-align: center;">
+      <td style="text-align:start;">${formatDate(j.createdAt)}</td>
+
+      <td style="text-align:center;">
         <div class="mono">${j.srcGroup || "-"}</div>
         <div class="mono">➜ ${j.destGroup || "-"}</div>
       </td>
-      <td style="text-align: center;">${invited}/${limit || "-"} <small class="muted">(${pct}%)</small></td>
-      <td style="text-align: end;">
+
+      <td style="text-align:center;">
+        ${invited}/${limit || "-"} <small class="muted">(${pct}%)</small>
+      </td>
+
+      <td style="text-align:end;">
         <span class="pill ${j.status}">${pill}</span>
-        <button onclick='openLogModal(${JSON.stringify(logs)})'>
+
+        ${
+          String(j.status).toLowerCase() === "running"
+            ? `<button class="icon-btn danger" title="หยุดงาน" onclick="stopJobFromHistory('${j._id}')">
+                <img src="/static/assets/emoji/cancel.png" alt="Stop" class="detail-icon">
+              </button>`
+            : ``
+        }
+
+        <button class="icon-btn" title="ดูรายละเอียด" onclick='openLogModal(${JSON.stringify(logs)})'>
           <img src="/static/assets/emoji/detail.png" alt="Details" class="detail-icon">
         </button>
       </td>
@@ -1190,6 +1204,32 @@ function startHistoryLive(intervalMs = 2000){
 function stopHistoryLive(){
   if (historyTimer) clearInterval(historyTimer);
   historyTimer = null;
+}
+
+/* ======================================================
+   หยุดงานจากประวัติ
+====================================================== */
+async function stopJobFromHistory(jobId) {
+  const ok = await uiConfirm({
+    variant: "danger",
+    title: "หยุดงานนี้ใช่ไหม?",
+    sub: "ระบบจะหยุดทันที และคืนเครดิตตามจำนวนที่ยังไม่ได้เชิญ",
+    okText: "หยุดงาน",
+    cancelText: "ยกเลิก",
+    focus: "cancel"
+  });
+  if (!ok) return;
+
+  const res = await fetch(`/telegram/jobs/${jobId}/stop`, { method: "POST" });
+  const data = await res.json();
+
+  if (!data.ok) {
+    notify.error(data.error || "หยุดงานไม่สำเร็จ");
+    return;
+  }
+
+  notify.info(`⛔ หยุดงานแล้ว • คืน ${data.refund || 0} เครดิต`);
+  loadHistoryLiveOnce().catch(()=>{});
 }
 </script>
 
