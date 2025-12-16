@@ -224,7 +224,7 @@ export async function syncServicesFromProvider() {
         typeCache.set(typeKey, sub);
       }
 
-      const inferredStep = toNum(pick(s, ['step','step_size','step_qty'], 0));
+      
       const mapped = {
         name:        pick(s, ['name','title','service_name'], `Service #${providerId}`),
         description: pick(s, ['description','desc','details','note','notes','instruction','instructions'], ''),
@@ -232,7 +232,7 @@ export async function syncServicesFromProvider() {
         rate:        toNum(pick(s, ['rate','price','cost','price_per_1000','price_per_k','pricePerK','per1000','per_1k'], 0)),
         min:         toNum(pick(s, ['min','min_qty','min_qnt','minimum'], 0)),
         max:         toNum(pick(s, ['max','max_qty','max_qnt','maximum'], 0)),
-        step: inferredStep > 0 ? inferredStep : 1000,
+        step:        toNum(pick(s,['step','step_size','step_qty'],1)),
         type:        pick(s, ['type','mode','kind'], 'default'),
         dripfeed:    !!pick(s, ['dripfeed','drip','drip_feed'], false),
         refill:      !!pick(s, ['refill'], false),
