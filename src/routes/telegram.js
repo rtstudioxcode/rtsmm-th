@@ -23,6 +23,7 @@ const router = Router();
 const running = new Set();
 const stopRequested = new Set();
 const PRICE_PER_PERSON = 0;
+const MAX_LIMIT_PER_JOB = 1000;
 
 // Helper functions
 export const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -135,21 +136,59 @@ async function resolveEntity(client, group) {
 }
 
 // Fetch participants (ไม่รวม bot/deleted/self)
-async function fetchSrcMembers(client, src, meId) {
+async function fetchSrcMembers(client, src, meId, jobId, want = 2000) {
+  const out = [];
+  const seen = new Set();
+  const pageSize = 200;
+
   try {
-    const r = await client.invoke(
-      new Api.channels.GetParticipants({
+    for (let offset = 0; offset < want; offset += pageSize) {
+      const r = await client.invoke(new Api.channels.GetParticipants({
         channel: src,
-        filter: new Api.ChannelParticipantsRecent(),
-        offset: 0,
-        limit: 500
-      })
+        filter: new Api.ChannelParticipantsSearch({ q: "" }),
+        offset,
+        limit: pageSize
+      }));
+
+      const users = r.users || [];
+      if (!users.length) break;
+
+      for (const u of users) {
+        if (!u || u.bot || u.deleted) continue;
+        if (String(u.id) === String(meId)) continue;
+        const key = String(u.id);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(u);
+        if (out.length >= want) break;
+      }
+      if (out.length >= want) break;
+    }
+
+    return out;
+  } catch (err) {
+    const msg = String(err?.errorMessage || err?.message || err || "");
+
+    if (msg.includes("CHAT_ADMIN_REQUIRED")) {
+      telegramPush(jobId, {
+        status: "failed",
+        log: "❌ ดึงรายชื่อสมาชิกไม่ได้ (ต้องเป็นแอดมินในกลุ่มต้นทาง หรือกลุ่ม/ช่องนี้ไม่อนุญาตให้ดึงสมาชิก)"
+      });
+
+      await TelegramJob.updateOne(
+        { _id: jobId },
+        { $set: { status: "failed" }, $push: { logs: { text: "CHAT_ADMIN_REQUIRED: ต้องเป็นแอดมินในกลุ่มต้นทาง", time: new Date() } } }
+      );
+
+      return [];
+    }
+
+    telegramPush(jobId, { status: "error", log: "❌ error: " + msg });
+    await TelegramJob.updateOne(
+      { _id: jobId },
+      { $set: { status: "error" }, $push: { logs: { text: "error: " + msg, time: new Date() } } }
     );
 
-    let arr = r.users || [];
-    return arr.filter(u => u.id !== meId && !u.bot && !u.deleted);
-  } catch (err) {
-    console.log("fetchSrcMembers:", err.message);
     return [];
   }
 }
@@ -157,27 +196,25 @@ async function fetchSrcMembers(client, src, meId) {
 // Invite Member (รองรับ Channel ด้วย)
 async function inviteOne(client, dstEntity, user) {
   try {
+    const inputUser = await client.getInputEntity(user); // ✅ แปลงเป็น InputUser
     await client.invoke(new Api.channels.InviteToChannel({
       channel: dstEntity,
-      users: [user.id]
+      users: [inputUser]
     }));
     return { ok: true };
   } catch (err) {
-    const msg = String(err.message || err);
+    const msg = String(err?.message || err);
 
     if (msg.includes("FLOOD_WAIT")) {
       const ms = extractFloodWait(msg) || 7200000;
       return { flood: true, waitMs: ms, message: msg };
     }
-
     if (msg.includes("PEER_FLOOD") || msg.includes("PRIVACY")) {
       return { spam: true, message: msg };
     }
-
     return { error: msg };
   }
 }
-
 
 // Risk scoring / rotation (AI-based risk scoring)
 function riskScore(acc) {
@@ -369,9 +406,16 @@ export async function startTelegramJob(jobId) {
     job.logs.push({ text: "เริ่มงาน..." });
     await job.save();
 
-    const qty = Number(job.limit || 0);
-    telegramPush(jobId, { status: "running", total: qty, invited: 0 });
+    const rawQty = Number(job.limit || 0);
+    const qty = Math.min(rawQty, MAX_LIMIT_PER_JOB);
 
+    if (rawQty !== qty) {
+      job.limit = qty;
+      job.logs.push({ text: `ปรับ limit จาก ${rawQty} → ${qty} (max ต่อรอบ)`, time: new Date() });
+      await job.save();
+    }
+
+    telegramPush(jobId, { status: "running", total: qty, invited: 0 });
     let remaining = qty;
 
     while (remaining > 0) {
@@ -406,7 +450,7 @@ export async function startTelegramJob(jobId) {
           const me = await client.getMe();
           let members = [];
           try {
-            members = await fetchSrcMembers(client, src, me.id);
+            members = await fetchSrcMembers(client, src, me.id, jobId);
           } catch (err) {
             const msg = String(err?.message || err || "");
 
@@ -864,10 +908,10 @@ router.post("/jobs/start", requireAuth, async (req, res) => {
       reasons.push("กรุณากรอกลิงก์กลุ่มต้นทางและปลายทาง");
     }
 
-    const qty = Number(limit) || 0;
-    if (qty <= 0) {
-      reasons.push("จำนวนสมาชิกต้องมากกว่า 0");
-    }
+    const qty = Math.floor(Number(limit) || 0);
+
+    if (qty <= 0) reasons.push("จำนวนสมาชิกต้องมากกว่า 0");
+    if (qty > MAX_LIMIT_PER_JOB) reasons.push(`สูงสุด ${MAX_LIMIT_PER_JOB} คนต่อรอบ`);
 
     /* =========================
        ตรวจ CREDIT (2 เครดิต/คน)
@@ -911,8 +955,6 @@ router.post("/jobs/start", requireAuth, async (req, res) => {
       ตรวจ COOL DOWN (แค่รายงาน ไม่ต้องแก้ DB)
     ========================== */
     for (const acc of accounts) {
-      if (stopRequested.has(String(jobId))) return;
-
       if (acc.status === "COOLDOWN" && acc.cooldownUntil) {
         const until = new Date(acc.cooldownUntil).getTime();
         const diff = until - now;

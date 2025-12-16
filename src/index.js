@@ -418,6 +418,13 @@ app.get("/page/terms-of-use", (req, res) => {
   });
 });
 
+process.on("unhandledRejection", (err) => {
+  console.error("[unhandledRejection]", err);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[uncaughtException]", err);
+});
+
 // ✅ กลืน error "request aborted" จาก raw-body ไม่ให้เป็น error แดง
 app.use((err, req, res, next) => {
   const msg = String(err?.message || "");

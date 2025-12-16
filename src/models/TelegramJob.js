@@ -17,6 +17,15 @@ const TelegramJobSchema = new mongoose.Schema({
   invited: { type: Number, default: 0 },
   failed: { type: Number, default: 0 },
 
+  // เพิ่ม fields สำหรับระบบ pause/resume
+  scanOffset: { type: Number, default: 0 },       // offset สำหรับ GetParticipants
+  pausedAt:   { type: Date, default: null },
+  nextRunAt:  { type: Date, default: null },
+  lastRunAt:  { type: Date, default: null },
+
+  // กันงานหนักใน 1 รอบ
+  runCount:   { type: Number, default: 0 },       // นับรอบที่รันไปแล้ว
+
   status: {
     type: String,
     enum: ["pending", "running", "finished", "error", "stopped", "failed", "stopped"],

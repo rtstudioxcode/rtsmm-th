@@ -240,7 +240,7 @@
         <!-- Limit -->
         <div class="form-row" style="margin-top:14px;">
           <label>จำนวนสมาชิกที่ต้องการ</label>
-          <input type="number" id="limit" min="1" placeholder="เช่น 10" />
+          <input type="number" id="limit" min="1" max="1000" step="1" required placeholder="เช่น 10 สูงสุด 1000 คนต่อ 1 รอบ" />
         </div>
 
         <!-- Cost Preview -->
@@ -400,7 +400,7 @@
         <ul>
         <li>ลิงก์กลุ่มเป้าหมาย</li>
         <li>ลิงก์กลุ่มตัวเอง (หรือกลุ่มที่ต้องการเพิ่มสมาชิก)</li>
-        <li>จำนวนสมาชิกที่ต้องการ — เช่น <b style="color:#57d110;">5</b>, <b style="color:#57d110;">10</b>, <b style="color:#57d110;">25</b></li>
+        <li>จำนวนสมาชิกที่ต้องการ — เช่น <b style="color:#57d110;">5</b>, <b style="color:#57d110;">10</b>, <b style="color:#57d110;">25</b> สูงสุด <b style="color:#d1c410;">1000</b> คนต่อรอบ</li>
         </ul>
     </div>
 
@@ -1231,6 +1231,32 @@ async function stopJobFromHistory(jobId) {
   notify.info(`⛔ หยุดงานแล้ว • คืน ${data.refund || 0} เครดิต`);
   loadHistoryLiveOnce().catch(()=>{});
 }
+
+(function () {
+    const el = document.getElementById("limit");
+    if (!el) return;
+
+    const MIN = 1;
+    const MAX = 1000;
+
+    function clamp() {
+      let v = parseInt(el.value, 10);
+
+      // เคสว่าง/ไม่ใช่ตัวเลข: ไม่บังคับ (หรือจะตั้ง MIN ก็ได้)
+      if (!Number.isFinite(v)) return;
+
+      if (v > MAX) v = MAX;
+      if (v < MIN) v = MIN;
+
+      if (String(v) !== el.value) el.value = String(v);
+    }
+
+    // พิมพ์ปุ๊บปรับปั๊บ (รวมกรณี paste)
+    el.addEventListener("input", clamp);
+
+    // ตอนออกจากช่องก็เช็คซ้ำ (กันบางเบราว์เซอร์)
+    el.addEventListener("blur", clamp);
+  })();
 </script>
 
 <!-- ====================== CSS ====================== -->
