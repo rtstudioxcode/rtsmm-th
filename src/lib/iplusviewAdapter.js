@@ -122,6 +122,7 @@ export async function getProviderCatalog() {
     currency:         s.currency ?? 'THB',
     min:              Number(s.min ?? s.minimum ?? 0),
     max:              Number(s.max ?? s.maximum ?? 0),
+    step:             Number(s.step ??s.step_size ??s.step_qty ??s.quantity_step ??1000),
     dripfeed:         !!(s.dripfeed ?? s.drip ?? false),
     refill:           !!(s.refill ?? false),
     cancel:           !!(s.cancel ?? false),

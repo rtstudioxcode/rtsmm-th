@@ -217,6 +217,90 @@ function clampPerPage(n) {
   return Math.min(n, maxAllowed);
 }
 
+// ===============================
+// RATE UNIT CONFIG (LOCAL)
+// ===============================
+const DEFAULT_RATE_UNIT = 1000;
+
+// override เฉพาะ service ที่ต้องการ (providerServiceId)
+const RATE_UNIT_OVERRIDE = {
+  // CANVA
+  '27984': 1,
+  '27985': 1,
+  '25037': 1,
+  '27984': 1,
+  '27984': 1,
+  '34559': 1,
+  '25038': 1,
+  // CHATGPT
+  '30643': 1,
+  // Disney+ 🔴 Amazon Prime 🔴 Youtube Premium
+  '32729': 1,
+  '32723': 1,
+  '30140': 1,
+  '30141': 1,
+  '30900': 1,
+  '25886': 1,
+  '26734': 1,
+  '27278': 1,
+  '30182': 1,
+  // License Key 🔑 Microsoft Office, Windows Key ✈️ บริการพิเศษจากเรา 📧 ใส่อีเมล์เพื่อสั่งซื้อ
+  '30117': 1,
+  '30116': 1,
+  '30695': 1,
+  '30119': 1,
+  '30118': 1,
+  '30696': 1,
+  '30700': 1,
+  '30697': 1,
+  '30699': 1,
+  '30698': 1,
+  // License Key 🔑 Adobe, AutoDesk, Steam, Kaspersky, Grammarly, Duolingo, อื่นๆ 📧 ใส่อีเมล์เพื่อสั่งซื้อ
+  '27740': 1,
+  '32803': 1,
+  '30111': 1,
+  '30112': 1,
+  '30120': 1,
+  '30121': 1,
+  '30109': 1,
+  '30099': 1,
+  '30100': 1,
+  '30115': 1,
+  '30101': 1,
+  '30104': 1,
+  '30105': 1,
+  '30106': 1,
+  '30107': 1,
+  '30108': 1,
+  '30113': 1,
+  '30114': 1,
+  '34769': 1,
+  // 
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+};
+
+function getRateUnit(providerServiceId) {
+  const key = String(providerServiceId || '');
+  return RATE_UNIT_OVERRIDE[key] ?? DEFAULT_RATE_UNIT;
+}
+
 // ─────────────────────────────────────────────────────────────
 // redirects
 // ─────────────────────────────────────────────────────────────
@@ -311,19 +395,33 @@ router.post('/orders', async (req, res) => {
     // fallback (เผื่อ pricing ล่ม): ใช้หน่วยจริง ไม่ใช่หาร 1000 ตายตัว
     let cost = moneyRound(calcCostByUnit(quantity, rate, stepUnit));
 
-    try {
-      const ex = await computeEffectiveRateEx({
-        serviceId: baseDoc._id,
-        childId: (serviceId ? null : providerIdForApi),
-        userId,
-        baseRate: rate,
-        quantity
-      });
-      rate = nz(ex.finalRate ?? rate);
-      // ใช้ lineCost ที่คิดด้วย unit จาก pricing (ถูกต้องสุด)
-      cost = moneyRound(ex.lineCost ?? calcCostByUnit(quantity, rate, ex.unit ?? stepUnit));
-    } catch {
-      // ใช้ fallback ต่อไป
+    // เมื่อดึง service แต่ละตัว
+    for (const s of services) {
+      try {
+        const ex = await computeEffectiveRateEx({
+          serviceId: s._id,
+          userId: req.user._id,
+          baseRate: s.rate
+        });
+
+        // 1️⃣ เรทหลังผ่าน pricing
+        s.effectiveRate = Number(ex.finalRate ?? s.rate);
+
+        // 2️⃣ unit ราคา (เราเป็นคนคุม ไม่ใช้ step API)
+        s.rateUnit = getRateUnit(s.providerServiceId);
+
+        // 3️⃣ เรทที่เอาไป "แสดง" (บาท / unit)
+        s.displayRate = round2(s.effectiveRate);
+
+        // (optional) เก็บไว้ให้ frontend รู้
+        s.priceLabel = `฿${s.displayRate.toFixed(2)} / ${s.rateUnit}`;
+      } catch {
+        // fallback ปลอดภัย
+        s.effectiveRate = Number(s.rate);
+        s.rateUnit = getRateUnit(s.providerServiceId);
+        s.displayRate = round2(s.rate);
+        s.priceLabel = `฿${s.displayRate.toFixed(2)} / ${s.rateUnit}`;
+      }
     }
 
     const currency = chosen.currency || 'THB';

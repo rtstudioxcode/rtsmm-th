@@ -227,6 +227,89 @@ const notify = (opts = {}) => {
 // === หน่วยคำนวณตาม DB (เลิกยึด 1/1000 ตายตัว) ===
 let currentUnitStep = 1000; // หน่วยที่ใช้คำนวณ ณ ตอนนี้
 
+// ===============================
+// RATE UNIT (ต้องตรงกับ routes)
+// ===============================
+const DEFAULT_RATE_UNIT = 1000;
+
+// override เฉพาะ service ที่ต้องการ
+const RATE_UNIT_OVERRIDE = {
+  // CANVA
+  '27984': 1,
+  '27985': 1,
+  '25037': 1,
+  '27984': 1,
+  '27984': 1,
+  '34559': 1,
+  '25038': 1,
+  // CHATGPT
+  '30643': 1,
+  // Disney+ 🔴 Amazon Prime 🔴 Youtube Premium
+  '32729': 1,
+  '32723': 1,
+  '30140': 1,
+  '30141': 1,
+  '30900': 1,
+  '25886': 1,
+  '26734': 1,
+  '27278': 1,
+  '30182': 1,
+  // License Key 🔑 Microsoft Office, Windows Key ✈️ บริการพิเศษจากเรา 📧 ใส่อีเมล์เพื่อสั่งซื้อ
+  '30117': 1,
+  '30116': 1,
+  '30695': 1,
+  '30119': 1,
+  '30118': 1,
+  '30696': 1,
+  '30700': 1,
+  '30697': 1,
+  '30699': 1,
+  '30698': 1,
+  // License Key 🔑 Adobe, AutoDesk, Steam, Kaspersky, Grammarly, Duolingo, อื่นๆ 📧 ใส่อีเมล์เพื่อสั่งซื้อ
+  '27740': 1,
+  '32803': 1,
+  '30111': 1,
+  '30112': 1,
+  '30120': 1,
+  '30121': 1,
+  '30109': 1,
+  '30099': 1,
+  '30100': 1,
+  '30115': 1,
+  '30101': 1,
+  '30104': 1,
+  '30105': 1,
+  '30106': 1,
+  '30107': 1,
+  '30108': 1,
+  '30113': 1,
+  '30114': 1,
+  '34769': 1,
+  // 
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+  '': 1,
+};
+
+function getRateUnit(providerServiceId){
+  return RATE_UNIT_OVERRIDE[String(providerServiceId)] ?? DEFAULT_RATE_UNIT;
+}
+
 function isPerPiece(obj = {}) {
   const type = String(obj.type || '').toLowerCase();
   const step = Number(obj.step ?? NaN);
@@ -1533,11 +1616,7 @@ function chooseGroup(grp){
 }
 /* ---------- รายการบริการย่อย ---------- */
 function computeUnitForService(c) {
-  const type = String(c?.type || '').toLowerCase();
-  const min  = Number(c?.min);
-  const max  = Number(c?.max);
-  const isPackage = (type === 'package') || (min === 1 && max === 1);
-  return isPackage ? 1 : 1000;
+  return getRateUnit(String(c.id));
 }
 
 function renderChildList(){
@@ -1553,7 +1632,7 @@ function renderChildList(){
 
   // ใส่ base rate ไว้ก่อน
   $('#childList').innerHTML = list.length ? list.map(c => {
-    const u = computeUnitForService(c);
+    const u = getRateUnit(String(c.id));
     const unitStr = (u <= 1 ? '1' : u.toLocaleString());
     return `
       <div class="opt" data-id="${c.id}">
@@ -1563,7 +1642,7 @@ function renderChildList(){
             <span class="name"> — ${c.name || ''}</span>
           </div>
           <div class="rate" data-rate-for="${c.id}">
-            ${fmt(c.rate || 0)} ${c.currency || 'THB'} / ${unitStr}
+            ${fmt(c.rate)} ${c.currency || 'THB'} / ${u.toLocaleString()}
           </div>
         </div>
       </div>`;
@@ -1575,7 +1654,7 @@ function renderChildList(){
     if (er !== null) {
       const el = document.querySelector(`.rate[data-rate-for="${CSS.escape(String(c.id))}"]`);
       if (el) {
-        const u = computeUnitForService(c);
+        const u = getRateUnit(String(c.id));
         const unitStr = (u <= 1 ? '1' : u.toLocaleString());
         el.textContent = `${fmt(er)} ${c.currency || 'THB'} / ${unitStr}`;
       }
@@ -1820,7 +1899,7 @@ async function fetchEffectiveRateIfAvailable(groupId, childId, baseRate){
 /* ---------- รายละเอียด/ฟอร์ม ---------- */
 async function chooseChild(svc){
   currentChild = svc;
-  currentUnitStep = pickUnitStepFromSvc(svc);
+  currentUnitStep = getRateUnit(String(svc.id));
 
   $('#childText').textContent = svc?.name || '—';
   $('#providerServiceId').value = svc?.id || '';
@@ -1840,13 +1919,13 @@ async function chooseChild(svc){
     rateSource = 'effective';
     $('#rateNote').style.display = '';
     $('#rateNote').textContent =
-      `อัตรานี้เป็นราคาหลังปรับตามกฎของบัญชีคุณ (ต่อ ${unitLabel(currentUnitStep)} หน่วย)`;
+      `อัตรานี้เป็นราคาหลังปรับตามกฎของบัญชีคุณ (ต่อ ${currentUnitStep.toLocaleString()} หน่วย)`;
   }
 
   const displayRate = rateSource==='effective' ? effectiveRate : rate;
 
   const bits = [];
-  bits.push(`อัตรา: ${fmt(displayRate)} ${currency} / ${unitLabel(currentUnitStep)}`);
+  bits.push(`อัตรา: ${fmt(displayRate)} ${currency} / ${currentUnitStep.toLocaleString()}`);
   bits.push(`ช่วง: ${svc.min||0}-${svc.max||0}${svc.step? ' | ขั้นละ '+svc.step: ''}`);
   if (svc.average_delivery) bits.push(`เฉลี่ย: ${svc.average_delivery}`);
   if (svc.dripfeed) bits.push('Dripfeed');
@@ -1933,11 +2012,12 @@ function calcUnitRate(){
 }
 function updateEstimate(){
   const n = Number($('#qty').value || 0);
-  const unit = calcUnitRate();
-  const step = Math.max(1, Number(currentUnitStep || 1000));
-  const price = Math.max(0, (step <= 1 ? (n * unit) : ((n / step) * unit)));
-  const el = document.getElementById('est');
-  el.value = `${fmt(price)} ${currency}`;
+  const rateUsed = calcUnitRate(); // base หรือ effective
+  const unit = Math.max(1, Number(currentUnitStep || 1000));
+
+  const price = Math.max(0, (n / unit) * rateUsed);
+
+  $('#est').value = `${fmt(price)} ${currency}`;
 }
 
 /* ---------- ส่งคำสั่งซื้อ ---------- */
