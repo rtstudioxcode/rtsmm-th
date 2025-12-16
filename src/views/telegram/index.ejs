@@ -222,66 +222,109 @@
     <section class="card" style="padding:18px 18px 22px;">
       <h3 class="title" style="margin-bottom:12px;">ตั้งค่าการดึงสมาชิก</h3>
 
-      <!-- FORM -->
       <form id="tgPullForm" class="form" onsubmit="return false;">
-        
-        <!-- Source Group -->
-        <div class="form-row">
-          <label>กลุ่มเป้าหมาย (กลุ่มที่ต้องการดึงสมาชิก)</label>
-          <input type="text" id="srcGroup" placeholder="รองรับทั้ง https://t.me/group หรือ t.me/+invitehash หรือ @group" />
+
+        <!-- MODE SELECTOR -->
+        <div class="form-row" style="margin-bottom:14px;">
+          <label>เลือกรูปแบบการเพิ่มสมาชิก</label>
+
+          <div id="pullModeSwitch" class="mode-switch">
+            <button type="button" class="mode-btn active" data-mode="group">
+              1) ใส่ลิงก์กลุ่ม (ดึงจากกลุ่ม)
+            </button>
+
+            <button type="button" class="mode-btn" data-mode="list">
+              2) อัปโหลดไฟล์ CSV/TXT (เบอร์ / @username)
+            </button>
+          </div>
+
+          <div id="listHint" class="muted"
+              style="margin-top:8px; font-size:12px; line-height:1.45; display:none;">
+            ✅ 1 รายชื่อ = 1 คน • รองรับ <b style="color:#8ec7ff;">+66123456789</b> และ <b style="color:#8ec7ff;">@username</b>
+          </div>
+
+          <input type="hidden" id="pullMode" value="group">
+          <input type="hidden" id="targetsJson" value="[]">
         </div>
 
-        <!-- Destination Group -->
-        <div class="form-row" style="margin-top:14px;">
-          <label>กลุ่ม/ช่องปลายทาง (กลุ่มที่ต้องการเพิ่มสมาชิก)</label>
-          <input type="text" id="destGroup" placeholder="รองรับทั้ง https://t.me/yourgroup หรือ t.me/+invitehash หรือ @yourgroup" />
+        <!-- ✅ GROUP MODE -->
+        <div id="modeGroupFields">
+          <!-- 1) กลุ่มเป้าหมาย -->
+          <div class="form-row" id="srcRow">
+            <label>กลุ่มเป้าหมาย (กลุ่มที่ต้องการดึงสมาชิก)</label>
+            <input type="text" id="srcGroup" placeholder="รองรับทั้ง https://t.me/group หรือ t.me/+invitehash หรือ @group" />
+          </div>
+
+          <!-- 2) กลุ่มปลายทาง (ย้ายได้ด้วย JS) -->
+          <div class="form-row" id="destRow" style="margin-top:14px;">
+            <label>กลุ่ม/ช่องปลายทาง (กลุ่ม/ช่องที่ต้องการเพิ่มสมาชิก)</label>
+            <input type="text" id="destGroup" placeholder="รองรับทั้ง https://t.me/yourgroup หรือ t.me/+invitehash หรือ @yourgroup" />
+          </div>
+
+          <!-- 3) จำนวนสมาชิก -->
+          <div class="form-row" id="limitRow" style="margin-top:14px;">
+            <label>จำนวนสมาชิกที่ต้องการ</label>
+            <input type="number" id="limit" min="1" max="1000" step="1" required placeholder="เช่น 10 สูงสุด 1000 คนต่อ 1 รอบ" />
+          </div>
         </div>
 
-        <!-- Limit -->
-        <div class="form-row" style="margin-top:14px;">
-          <label>จำนวนสมาชิกที่ต้องการ</label>
-          <input type="number" id="limit" min="1" max="1000" step="1" required placeholder="เช่น 10 สูงสุด 1000 คนต่อ 1 รอบ" />
+        <!-- ✅ LIST MODE -->
+        <div id="modeListFields" style="display:none; margin-top:14px;">
+          <!-- 1) อัปโหลดไฟล์ -->
+          <div class="form-row" id="fileRow">
+            <label>อัปโหลดไฟล์รายชื่อ (.csv / .txt)</label>
+            <input type="file" id="targetFile" accept=".txt,.csv" style="width:100%;" />
+
+            <div class="muted" style="margin-top:8px; font-size:12px; line-height:1.45;">
+              ตัวอย่างในไฟล์: <code style="color:#8ec7ff;">+66123456789</code> หรือ <code style="color:#8ec7ff;">@username</code>
+            </div>
+          </div>
+
+          <!-- รายชื่อ -->
+          <section class="card targets-card" id="targetsCard" style="display:none; margin-top:14px;">
+            <div class="targets-top">
+              <div class="targets-title">
+                <div class="t-h">รายชื่อที่จะเชิญ</div>
+                <div class="t-sub">
+                  พบ <b id="tTotal">0</b> รายชื่อ · เลือก <b id="tSelected">0</b>
+                  <span id="tInvalidWrap" style="display:none;"> · <b id="tInvalid">0</b> ไม่ถูกต้อง</span>
+                </div>
+              </div>
+
+              <div class="targets-actions">
+                <div class="t-search">
+                  <input id="tSearch" type="text" placeholder="ค้นหาเบอร์ / @username..." />
+                </div>
+                <button type="button" class="btn-mini" id="btnSelectAll">เลือกทั้งหมด</button>
+                <button type="button" class="btn-mini danger" id="btnRemoveSelected" disabled>ลบที่เลือก</button>
+              </div>
+            </div>
+
+            <div class="targets-table">
+              <div class="targets-th">
+                <div class="col-check"></div>
+                <div class="col-type">ประเภท</div>
+                <div class="col-value">เบอร์/Username</div>
+                <div class="col-status">สถานะ</div>
+                <div class="col-del"></div>
+              </div>
+              <div id="targetsBody" class="targets-body"></div>
+            </div>
+          </section>
+
+          <!-- 2) กลุ่มปลายทาง (JS จะย้าย destRow มาเสียบตรงนี้) -->
+          <div id="listDestMount" style="margin-top:14px;"></div>
         </div>
 
         <!-- Cost Preview -->
-        <div id="costPreview" style="margin-top:10px; font-size:13px; color:#3fbd0d;">
+        <div id="costPreview" style="margin-top:12px; font-size:13px; color:#3fbd0d;">
           เครดิตที่ใช้: 0 เครดิต
         </div>
 
-        <!-- Start btn -->
         <div style="margin-top:20px;">
-          <button id="startBtn" class="btn-lux" style="width:100%;">
-            เริ่มการทำงาน
-          </button>
+          <button id="startBtn" class="btn-lux" style="width:100%;">เริ่มการทำงาน</button>
         </div>
       </form>
-      <!-- ================= Progress Section ================= -->
-      <!-- <section id="tgProgressBox" class="card" style="margin-top:18px; display:none; padding:18px;">
-        <h3 class="title" style="margin-bottom:10px;">ความคืบหน้า</h3>
-
-        <div id="tgStatusText" class="muted" style="margin-bottom:8px;">
-            — 
-        </div>
-        <div class="progress-wrap" style="margin-top:6px; margin-bottom:12px;">
-            <div class="progress-bar-bg" style="height:8px; background:#2b2b2f; border-radius:6px;">
-            <div id="tgProgressBar" style="height:8px; width:0%; background:#e3b863; border-radius:6px;"></div>
-            </div>
-        </div>
-
-        <div id="tgCounts" style="font-size:13px; color:#dcdcdc;">
-            เชิญแล้ว 0 คน • ล้มเหลว 0 คน • ทั้งหมด 0 คน
-        </div>
-
-        <div style="margin-top:16px;">
-            <button id="stopBtn" class="btn danger" style="width:100%;">
-            หยุดการดึง
-            </button>
-        </div>
-
-        <div id="tgLogBox" style="margin-top:20px; max-height:220px; overflow-y:auto; background:#1d1d21; padding:10px 12px; border-radius:8px; font-size:12px;">
-            <div class="muted">ยังไม่มีข้อมูล…</div>
-        </div>
-      </section> -->
     </section>
     <!-- ========== HOW TO USE ========== -->
     <section class="card" style="margin-top:22px; padding:20px 20px 26px;">
@@ -297,11 +340,11 @@
             color:#9be169; font-weight:600;">
             1
         </div>
-        <div>
-            วางลิงก์กลุ่มเป้าหมาย — รองรับทั้ง 
-            <code style="color:#8ec7ff;">https://t.me/group</code> 
-            หรือ <code style="color:#8ec7ff;">t.me/+invitehash</code>
-            หรือ <code style="color:#8ec7ff;">@group</code>
+        <div id="howtoStep1Text">
+          วางลิงก์กลุ่มเป้าหมาย — รองรับทั้ง 
+          <code style="color:#8ec7ff;">https://t.me/group</code> 
+          หรือ <code style="color:#8ec7ff;">t.me/+invitehash</code>
+          หรือ <code style="color:#8ec7ff;">@group</code>
         </div>
         </li>
 
@@ -329,10 +372,9 @@
             color:#9be169; font-weight:600;">
             3
         </div>
-        <div>
-            กรอกจำนวนสมาชิกที่ต้องการเชิญ — ระบบจะคำนวณเครดิตอัตโนมัติ 
-            <!-- <b style="color:#e3b863;">(2 เครดิต/คน)</b> -->
-            <b style="color:#57d110;">ตอนนี้ใช้ฟรีไม่เสียเงิน</b>
+        <div id="howtoStep3Text">
+          กรอกจำนวนสมาชิกที่ต้องการเชิญ — ระบบจะคำนวณเครดิตอัตโนมัติ 
+          <b style="color:#57d110;">ตอนนี้ใช้ฟรีไม่เสียเงิน</b>
         </div>
         </li>
 
@@ -570,35 +612,100 @@ const countText = document.getElementById("tgCounts");
 document.getElementById("precheckBox").style.display = "none";
 document.getElementById("precheckList").innerHTML = "";
 
+window.__TG_TARGETS__ = [];
 startBtn.disabled = false;
 let currentJob = null;
 let orderId = null;
 let evtSource = null;
+let uiTargets = [];
+let parsedInvalid = [];
+
+async function parseTargetsFromFile(file) {
+  const fd = new FormData();
+  fd.append("file", file);
+
+  const r = await fetch("/telegram/targets/parse", { method: "POST", body: fd });
+  const data = await r.json();
+
+  if (!data.ok) throw new Error(data.error || "parse failed");
+
+  targets = Array.isArray(data.targets) ? data.targets : [];   // ✅ ตรงนี้แหละ
+  parsedInvalid = Array.isArray(data.invalid) ? data.invalid : [];
+
+  // จะโชว์ preview ก็ทำต่อได้
+  console.log("targets:", targets.length, "invalid:", parsedInvalid.length);
+}
+
+function syncBackendTargets() {
+  const selected = uiTargets
+    .filter(t => t.valid && t.checked)
+    .map(t => {
+      if (t.type === "user") return { kind: "username", value: t.value };
+      return { kind: "phone", value: t.value };
+    });
+
+  window.__TG_TARGETS__ = selected;
+}
 
 startBtn.addEventListener("click", async () => {
-  const srcGroup = document.getElementById("srcGroup").value.trim();
-  const destGroup = document.getElementById("destGroup").value.trim();
-  const limit = Number(document.getElementById("limit").value.trim());
+  const mode = document.getElementById("pullMode")?.value || "group";
 
-  if (!srcGroup || !destGroup || !limit) {
-    return notify("⚠️ กรุณากรอกข้อมูลให้ครบ");
+  const srcGroupEl  = document.getElementById("srcGroup");
+  const destGroupEl = document.getElementById("destGroup");
+  const limitEl     = document.getElementById("limit");
+
+  const srcGroup  = (srcGroupEl?.value || "").trim();
+  const destGroup = (destGroupEl?.value || "").trim();
+  let limit       = Math.floor(Number(limitEl?.value || 0));
+
+  if (!destGroup) return notify.error("⚠️ กรุณากรอกลิงก์กลุ่มปลายทาง");
+
+  let payload;
+
+  if (mode === "list") {
+    const tgTargets = Array.isArray(window.__TG_TARGETS__) ? window.__TG_TARGETS__ : [];
+    if (!tgTargets.length) return notify.error("⚠️ โหมดอัปโหลดไฟล์ต้องมีรายชื่อจากไฟล์/รายการ");
+
+    // limit ไม่กรอก/เป็น 0 -> ให้ backend ใช้ targets.length (ตามที่ route ทำไว้แล้ว)
+    if (limit <= 0) limit = tgTargets.length;
+
+    payload = {
+      mode: "list",
+      srcGroup: "__FILE_IMPORT__", // ให้ route ตัดสินเป็น list ชัวร์ๆ
+      destGroup,
+      limit,
+      targets: tgTargets
+    };
+  } else {
+    // group mode
+    if (!srcGroup) return notify.error("⚠️ กรุณากรอกลิงก์กลุ่มต้นทาง");
+    if (limit <= 0) return notify.error("⚠️ กรุณากรอกจำนวนสมาชิก (มากกว่า 0)");
+
+    payload = {
+      mode: "group",
+      srcGroup,
+      destGroup,
+      limit
+    };
   }
 
   const res = await fetch("/telegram/jobs/start", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ srcGroup, destGroup, limit })
+    body: JSON.stringify(payload)
   });
 
   const data = await res.json();
 
+  // ✅ handle precheck_fail ให้ตรงกับ backend
   if (!data.ok) {
-    // ตรวจสอบข้อผิดพลาดและแสดงเหตุผลที่ชัดเจน
-    const errorMessage = data.error || data.message || "ไม่ทราบข้อผิดพลาด";
-    return notify.error("เกิดข้อผิดพลาด: " + errorMessage);
+    if (data.type === "precheck_fail") {
+      showPrecheckErrors(data.reasons || []);
+      return;
+    }
+    return notify.error("เกิดข้อผิดพลาด: " + (data.error || data.message || "ไม่ทราบข้อผิดพลาด"));
   }
 
-  // ⭐ เก็บตัวแปรสำคัญ
   currentJob = data.jobId;
   orderId = data.orderId;
 
@@ -1096,8 +1203,8 @@ function renderHistoryTable(list) {
             : ``
         }
 
-        <button class="icon-btn" title="ดูรายละเอียด" onclick='openLogModal(${JSON.stringify(logs)})'>
-          <img src="/static/assets/emoji/detail.png" alt="Details" class="detail-icon">
+        <button type="button" class="icon-btn logBtn" data-jobid="${j._id}" aria-label="รายละเอียด">
+          <img src="/static/assets/emoji/detail.png" alt="Detail" class="detail-icon">
         </button>
       </td>
     </tr>`;
@@ -1107,6 +1214,17 @@ function renderHistoryTable(list) {
   return html;
 }
 
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest(".logBtn");
+  if (!btn) return;
+
+  const jobId = btn.dataset.jobid;
+  const r = await fetch(`/telegram/history/${jobId}`);
+  const data = await r.json();
+
+  if (!data.ok) return notify(data.error || "โหลด log ไม่ได้");
+  openLogModal(data.logs || [], data.meta);
+});
 
 /* ======================================================
    HELPERS
@@ -1233,30 +1351,405 @@ async function stopJobFromHistory(jobId) {
 }
 
 (function () {
-    const el = document.getElementById("limit");
-    if (!el) return;
+  const el = document.getElementById("limit");
+  if (!el) return;
 
-    const MIN = 1;
-    const MAX = 1000;
+  const MIN = 1;
+  const MAX = 1000;
 
-    function clamp() {
-      let v = parseInt(el.value, 10);
+  function clamp() {
+    let v = parseInt(el.value, 10);
 
-      // เคสว่าง/ไม่ใช่ตัวเลข: ไม่บังคับ (หรือจะตั้ง MIN ก็ได้)
-      if (!Number.isFinite(v)) return;
+    // เคสว่าง/ไม่ใช่ตัวเลข: ไม่บังคับ (หรือจะตั้ง MIN ก็ได้)
+    if (!Number.isFinite(v)) return;
 
-      if (v > MAX) v = MAX;
-      if (v < MIN) v = MIN;
+    if (v > MAX) v = MAX;
+    if (v < MIN) v = MIN;
 
-      if (String(v) !== el.value) el.value = String(v);
+    if (String(v) !== el.value) el.value = String(v);
+  }
+
+  // พิมพ์ปุ๊บปรับปั๊บ (รวมกรณี paste)
+  el.addEventListener("input", clamp);
+
+  // ตอนออกจากช่องก็เช็คซ้ำ (กันบางเบราว์เซอร์)
+  el.addEventListener("blur", clamp);
+})();
+
+(() => {
+  const PRICE_PER_PERSON = 0;  // เครดิต/คน
+  const MAX_TARGETS = 10000;
+
+  const $ = (id) => document.getElementById(id);
+
+  // mode
+  const modeSwitch = $("pullModeSwitch");
+  const pullMode   = $("pullMode");
+  const groupFields = $("modeGroupFields");
+  const listFields  = $("modeListFields");
+  const listHint = $("listHint");
+
+  // form
+  const srcGroup  = $("srcGroup");
+  const destGroup = $("destGroup");
+  const limitEl   = $("limit");
+  const fileEl    = $("targetFile");
+
+  const targetsJson = $("targetsJson");
+  const costPreview = $("costPreview");
+
+  // ✅ new UI elements
+  const targetsCard = $("targetsCard");
+  const targetsBody = $("targetsBody");
+
+  const tTotal = $("tTotal");
+  const tSelected = $("tSelected");
+  const tInvalidWrap = $("tInvalidWrap");
+  const tInvalid = $("tInvalid");
+
+  const tSearch = $("tSearch");
+  const btnSelectAll = $("btnSelectAll");
+  const btnRemoveSelected = $("btnRemoveSelected");
+  const btnClearAll = $("btnClearAll");
+
+  // store
+  let targets = []; // { id, value, type:'phone'|'user', valid:boolean, checked:boolean }
+
+  function uid() {
+    return Math.random().toString(16).slice(2) + Date.now().toString(16);
+  }
+
+  function setActiveButton(mode){
+    modeSwitch?.querySelectorAll(".mode-btn").forEach(btn => {
+      const is = btn.dataset.mode === mode;
+      btn.classList.toggle("active", is);
+      btn.style.color = is ? "#ffd78a" : "#b8c1cc";
+      btn.style.borderColor = is ? "rgba(255,215,138,.35)" : "rgba(255,255,255,.12)";
+      btn.style.boxShadow = is ? "0 0 0 3px rgba(255,215,138,.08) inset" : "none";
+    });
+  }
+
+  // ✅ รองรับ @username ที่มี . ด้วย (ตามที่คุยไว้)
+  function detectType(v){
+    v = String(v || "").trim();
+    if (!v) return { type:"phone", valid:false, clean:"" };
+
+    // ตัดช่องว่าง/วงเล็บ/ขีด
+    v = v.replace(/[()\s-]/g, "");
+
+    // @username
+    if (v.startsWith("@")) {
+      const u = v.slice(1);
+      const ok = /^[a-zA-Z0-9_\.]{3,32}$/.test(u);
+      return { type:"user", valid:ok, clean:"@" + u };
     }
 
-    // พิมพ์ปุ๊บปรับปั๊บ (รวมกรณี paste)
-    el.addEventListener("input", clamp);
+    // phone: อนุโลมให้พิมพ์เป็นตัวเลขล้วนได้ -> เติม +
+    let p = v;
+    if (!p.startsWith("+") && /^\d+$/.test(p)) p = "+" + p;
 
-    // ตอนออกจากช่องก็เช็คซ้ำ (กันบางเบราว์เซอร์)
-    el.addEventListener("blur", clamp);
-  })();
+    if (p.startsWith("+")) {
+      const digits = p.slice(1);
+      const ok = /^\d{8,15}$/.test(digits);
+      return { type:"phone", valid:ok, clean:"+" + digits };
+    }
+
+    return { type:"phone", valid:false, clean:v };
+  }
+
+  function escapeHtml(s){
+    return String(s || "")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  function updateCost(){
+    let qty = 0;
+
+    if (pullMode.value === "group") {
+      qty = Math.max(0, Number(limitEl.value || 0));
+    } else {
+      qty = targets.filter(t => t.valid && t.checked).length;
+      // ส่ง qty ไป backend ผ่าน limit เหมือนเดิม (ชั่วคราว)
+      limitEl.value = String(qty || 0);
+    }
+
+    const cost = qty * PRICE_PER_PERSON;
+    if (costPreview) costPreview.textContent = `เครดิตที่ใช้: ${cost} เครดิต`;
+  }
+
+  function syncTargetsHidden(){
+    const selected = targets
+      .filter(t => t.valid && t.checked)
+      .map(t => t.value);
+
+    if (targetsJson) targetsJson.value = JSON.stringify(selected);
+
+    // ✅ สำคัญ: ส่งขึ้น global ให้ปุ่ม Start เห็น
+    window.__TG_TARGETS__ = selected;
+
+    updateCost();
+  }
+
+  function updateSelectedCountUI(){
+    const sel = targetsBody ? [...targetsBody.querySelectorAll(".t-check")].filter(c => c.checked).length : 0;
+    if (tSelected) tSelected.textContent = String(sel);
+    if (btnRemoveSelected) btnRemoveSelected.disabled = sel === 0;
+  }
+
+  function wireRowEvents(){
+    if (!targetsBody) return;
+
+    targetsBody.querySelectorAll(".targets-row").forEach(row => {
+      const id = row.dataset.id;
+      const chk = row.querySelector(".t-check");
+      const inp = row.querySelector(".t-input");
+      const del = row.querySelector(".t-del");
+
+      chk?.addEventListener("change", () => {
+        const item = targets.find(x => x.id === id);
+        if (!item) return;
+        item.checked = chk.checked;
+        syncTargetsHidden();
+        updateSelectedCountUI();
+      });
+
+      inp?.addEventListener("input", () => {
+        const item = targets.find(x => x.id === id);
+        if (!item) return;
+
+        const d = detectType(inp.value);
+        item.value = d.clean;
+        item.type = d.type;
+        item.valid = d.valid;
+
+        // ถ้าแก้จนถูกต้อง ให้ติ๊กอัตโนมัติ
+        if (item.valid && item.checked === false) item.checked = true;
+
+        syncTargetsHidden();
+        renderTargets(); // รีเฟรช badge/type/status ให้ตรง
+      });
+
+      del?.addEventListener("click", () => {
+        targets = targets.filter(x => x.id !== id);
+        syncTargetsHidden();
+        renderTargets();
+      });
+    });
+  }
+
+  function renderTargets(){
+    if (!targetsCard || !targetsBody) return;
+
+    const q = String(tSearch?.value || "").trim().toLowerCase();
+    const list = !q ? targets : targets.filter(x => String(x.value||"").toLowerCase().includes(q));
+
+    targetsBody.innerHTML = list.map(x => {
+      const badge = x.type === "user"
+        ? `<span class="t-badge user">@ยูสเซอร์</span>`
+        : `<span class="t-badge phone">เบอร์โทรศัพท์</span>`;
+
+      const st = x.valid
+        ? `<span class="t-status ok">พร้อม</span>`
+        : `<span class="t-status bad">รูปแบบไม่ถูกต้อง</span>`;
+
+      return `
+        <div class="targets-row" data-id="${x.id}">
+          <div class="col-check"><input class="t-check" type="checkbox" ${x.valid ? "" : "disabled"} ${x.checked ? "checked" : ""} /></div>
+          <div class="col-type">${badge}</div>
+          <div class="col-value">
+            <input class="t-input" value="${escapeHtml(x.value)}" />
+          </div>
+          <div class="col-status">${st}</div>
+          <div class="col-del">
+            <button class="t-del" type="button" title="ลบ">🗑️</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    // show/hide
+    targetsCard.style.display = targets.length ? "block" : "none";
+
+    // stats
+    const total = targets.length;
+    const invalid = targets.filter(x => !x.valid).length;
+
+    if (tTotal) tTotal.textContent = String(total);
+    if (tInvalid) tInvalid.textContent = String(invalid);
+    if (tInvalidWrap) tInvalidWrap.style.display = invalid ? "inline" : "none";
+
+    updateSelectedCountUI();
+    wireRowEvents();
+  }
+
+  function extractTokens(text){
+    return String(text || "")
+      .split(/[\n,;\t\r]+/g)
+      .map(x => x.trim())
+      .filter(Boolean);
+  }
+
+  async function parseFile(){
+    const f = fileEl?.files?.[0];
+    if (!f) return;
+
+    const text = await f.text();
+    const tokens = extractTokens(text);
+
+    const seen = new Set();
+    const out = [];
+
+    for (const raw of tokens) {
+      if (out.length >= MAX_TARGETS) break;
+
+      const d = detectType(raw);
+      if (!d.clean) continue;
+
+      const key = d.clean.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      out.push({
+        id: uid(),
+        value: d.clean,
+        type: d.type,
+        valid: d.valid,
+        checked: !!d.valid
+      });
+    }
+
+    targets = out;
+    syncTargetsHidden();
+    renderTargets();
+  }
+
+  function setMode(mode){
+    pullMode.value = mode;
+    setActiveButton(mode);
+
+    const srcRow = $("srcRow");
+    const destRow = $("destRow");
+    const limitRow = $("limitRow");
+    const listDestMount = $("listDestMount");
+    const howto1 = $("howtoStep1Text");
+    const howto3 = $("howtoStep3Text");
+
+    if (listHint) listHint.style.display = (mode === "list") ? "block" : "none";
+
+    // ✅ สลับ How-to ตามโหมด (เปลี่ยนแค่ข้อ 1 และ 3)
+    if (howto1 && howto3) {
+      if (mode === "list") {
+        howto1.innerHTML = `
+          อัปโหลดไฟล์รายชื่อ — รองรับทั้ง 
+          <code style="color:#8ec7ff;">.txt</code> และ <code style="color:#8ec7ff;">.csv</code>
+          (1 บรรทัด/1 ค่า) เช่น
+          <code style="color:#8ec7ff;">+66123456789</code> หรือ <code style="color:#8ec7ff;">@username</code>
+        `;
+
+        howto3.innerHTML = `
+          ระบบจะคำนวณเครดิตที่ต้องจ่ายให้อัตโนมัติจากรายชื่อในไฟล์ —
+          <b style="color:#57d110;">ตอนนี้ใช้ฟรีไม่เสียเงิน</b>
+        `;
+      } else {
+        // mode === "group" (ค่าดั้งเดิม)
+        howto1.innerHTML = `
+          วางลิงก์กลุ่มเป้าหมาย — รองรับทั้ง 
+          <code style="color:#8ec7ff;">https://t.me/group</code> 
+          หรือ <code style="color:#8ec7ff;">t.me/+invitehash</code>
+          หรือ <code style="color:#8ec7ff;">@group</code>
+        `;
+
+        howto3.innerHTML = `
+          กรอกจำนวนสมาชิกที่ต้องการเชิญ — ระบบจะคำนวณเครดิตอัตโนมัติ 
+          <b style="color:#57d110;">ตอนนี้ใช้ฟรีไม่เสียเงิน</b>
+        `;
+      }
+    }
+
+    if (mode === "group") {
+      groupFields.style.display = "block";
+      listFields.style.display  = "none";
+
+      // ✅ จัดลำดับ: เป้าหมาย -> ปลายทาง -> จำนวน
+      groupFields.appendChild(srcRow);
+      groupFields.appendChild(destRow);
+      groupFields.appendChild(limitRow);
+
+      // โหมดกลุ่ม ใช้ค่าปกติ
+      if (srcGroup.value === "__FILE_IMPORT__") srcGroup.value = "";
+
+    } else {
+      groupFields.style.display = "none";
+      listFields.style.display  = "block";
+
+      // ✅ จัดลำดับ: อัปโหลดไฟล์ -> ปลายทาง
+      listDestMount.appendChild(destRow);
+
+      // srcGroup ไม่ต้องโชว์ แต่ส่งค่าให้ backend รู้ว่าเป็นโหมดไฟล์
+      srcGroup.value = "__FILE_IMPORT__";
+      if (!limitEl.value) limitEl.value = "0";
+    }
+
+    updateCost();
+  }
+
+  // ---------- events ----------
+  modeSwitch?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".mode-btn");
+    if (!btn) return;
+    setMode(btn.dataset.mode);
+  });
+
+  // ✅ อ่านไฟล์ออโต้ทันทีเมื่อเลือกไฟล์
+  fileEl?.addEventListener("change", async () => {
+    if (pullMode.value !== "list") setMode("list");
+    if (!fileEl.files || !fileEl.files[0]) return;
+    await parseFile();
+  });
+
+  // ค้นหา
+  tSearch?.addEventListener("input", renderTargets);
+
+  // เลือกทั้งหมด / ยกเลิกทั้งหมด (toggle)
+  btnSelectAll?.addEventListener("click", () => {
+    const allValid = targets.filter(t => t.valid);
+    const allChecked = allValid.length && allValid.every(t => t.checked);
+    allValid.forEach(t => (t.checked = !allChecked));
+    syncTargetsHidden();
+    renderTargets();
+  });
+
+  // ลบที่เลือก
+  btnRemoveSelected?.addEventListener("click", () => {
+    const removeSet = new Set(
+      targetsBody ? [...targetsBody.querySelectorAll(".targets-row")]
+        .filter(r => r.querySelector(".t-check")?.checked)
+        .map(r => r.dataset.id)
+      : []
+    );
+    targets = targets.filter(t => !removeSet.has(t.id));
+    syncTargetsHidden();
+    renderTargets();
+  });
+
+  // ล้างทั้งหมด
+  btnClearAll?.addEventListener("click", () => {
+    targets = [];
+    syncTargetsHidden();
+    renderTargets();
+  });
+
+  // อัปเดตราคา realtime (โหมด group)
+  limitEl?.addEventListener("input", updateCost);
+
+  // init
+  setMode("group");
+  renderTargets();
+})();
 </script>
 
 <!-- ====================== CSS ====================== -->
@@ -1605,10 +2098,357 @@ button {
   display: block;
   transition: transform 0.3s ease; /* เปลี่ยนจาก background-color เป็น transform */
 }
-
 .detail-icon:hover {
   transform: scale(1.1); /* ขยายขนาดเล็กน้อยเมื่อ hover */
 }
-
 .text-yellow { color:#FFD700; }
+
+/* =========================
+   Targets list (desktop base)
+========================= */
+.targets-table { overflow: auto; }
+.targets-row{
+  display:grid;
+  grid-template-columns: 54px 120px 1fr 120px 54px; /* เดสก์ท็อปแบบตาราง */
+  align-items:center;
+  gap: 10px;
+  padding: 10px 10px;
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+.targets-th{
+  display:grid;
+  grid-template-columns: 54px 120px 1fr 120px 54px;
+  align-items:center;
+  gap: 10px;
+  padding: 10px 10px;
+  position: sticky;
+  top: 0;
+  background: rgba(15,17,20,.92);
+  backdrop-filter: blur(8px);
+  z-index: 2;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+.col-check { display:flex; justify-content:center; }
+.t-check{
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #4da3ff;
+}
+
+.t-input{
+  width:100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.22);
+  color: #fff;
+  outline: none;
+}
+.t-input:focus{
+  border-color: rgba(255,215,138,.35);
+  box-shadow: 0 0 0 3px rgba(255,215,138,.10);
+}
+
+.t-del{
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.06);
+  cursor: pointer;
+}
+.t-del:active{ transform: scale(.98); }
+
+/* =========================
+   ✅ Mobile: เปลี่ยน "ตาราง" เป็น "การ์ด" อ่านง่าย
+========================= */
+@media (max-width: 640px){
+  .targets-top{
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .targets-actions{
+    display:flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .targets-actions .t-search{
+    flex: 1 1 100%;
+  }
+  #tSearch{
+    width: 100%;
+  }
+
+  /* ซ่อนหัวตารางบนมือถือ */
+  .targets-th{ display:none; }
+
+  /* แถวกลายเป็นการ์ด */
+  .targets-row{
+    grid-template-columns: 24px 1fr 40px;
+    grid-template-areas:
+      "check value del"
+      "check type  status";
+    gap: 8px 10px;
+    padding: 12px;
+    margin-top: 10px;
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 14px;
+    background: rgba(0,0,0,.18);
+  }
+
+  .col-check{ grid-area: check; justify-content:flex-start; }
+  .col-value{ grid-area: value; }
+  .col-del{ grid-area: del; display:flex; justify-content:flex-end; }
+  .col-type{ grid-area: type; display:flex; align-items:center; gap:8px; }
+  .col-status{ grid-area: status; display:flex; justify-content:flex-end; }
+
+  /* ✅ checkbox เล็กลงอีกนิดบนมือถือ */
+  .t-check{
+    width: 16px;
+    height: 16px;
+  }
+
+  /* อินพุตไม่หนาจนเกิน */
+  .t-input{
+    padding: 10px 10px;
+    border-radius: 12px;
+  }
+
+  /* ปุ่มลบเล็กลง */
+  .t-del{
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+  }
+}
+
+/* ✅ บังคับ checkbox ให้เล็กลงจริง (กัน CSS เดิมที่ขยายไว้) */
+.targets-row .col-check input.t-check{
+  -webkit-appearance: auto !important;
+  appearance: auto !important;
+  transform: none !important;
+  zoom: 1 !important;
+
+  width: 14px !important;
+  height: 14px !important;
+  margin: 0 !important;
+
+  accent-color: #4da3ff;
+}
+
+/* กล่องคอลัมน์ check อย่าให้บวม */
+.targets-row .col-check{
+  width: 26px !important;
+  min-width: 26px !important;
+  padding: 0 !important;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+/* มือถือเล็กลงอีกนิด */
+@media (max-width: 640px){
+  .targets-row .col-check input.t-check{
+    width: 12px !important;
+    height: 12px !important;
+  }
+  .targets-row .col-check{
+    width: 22px !important;
+    min-width: 22px !important;
+  }
+}
+
+/* =========================
+   Theme-aware tokens (รองรับสว่าง/มืดจาก layout)
+========================= */
+.telegram-page{
+  --tg-page:   var(--page, #0f1114);
+  --tg-card:   var(--card, #14161a);
+  --tg-text:   var(--text, #e9eef6);
+  --tg-muted:  var(--muted, #a7b0bd);
+  --tg-border: var(--border, rgba(255,255,255,.10));
+  --tg-accent: var(--accent, #4da3ff);
+  color: var(--tg-text);
+}
+
+/* กล่อง/การ์ดที่คุณ hardcode สีดำไว้ -> ผูกธีม */
+.tg-modal,
+.modal,
+.detail-boxes .box,
+.targets-th,
+.targets-row{
+  background: var(--tg-card) !important;
+  border: 1px solid var(--tg-border) !important;
+  color: var(--tg-text);
+}
+
+.targets-th{
+  background: color-mix(in srgb, var(--tg-card) 92%, transparent) !important;
+  backdrop-filter: blur(8px);
+}
+
+.detail-boxes ul,
+.modal-body label,
+.muted{
+  color: var(--tg-muted) !important;
+}
+
+/* input ให้เข้าธีม */
+.t-input,
+.modal-body input,
+.modal-body textarea,
+#tSearch{
+  background: color-mix(in srgb, var(--tg-page) 70%, transparent) !important;
+  border: 1px solid var(--tg-border) !important;
+  color: var(--tg-text) !important;
+}
+
+/* =========================
+   Targets table layout + ลดคอลัมน์ checkbox
+========================= */
+.targets-row,
+.targets-th{
+  grid-template-columns: 40px 120px 1fr 120px 44px !important; /* ลดจาก 54/54 */
+}
+
+.col-check{
+  width: 40px !important;
+  min-width: 40px !important;
+  display:flex; align-items:center; justify-content:center;
+}
+
+/* =========================
+   ✅ Custom checkbox (คุมขนาดได้จริง ไม่บวมอีก)
+========================= */
+.t-check{
+  -webkit-appearance: none !important;
+  appearance: none !important;
+
+  width: 16px !important;
+  height: 16px !important;
+  margin: 0 !important;
+
+  border-radius: 5px;
+  border: 1px solid var(--tg-border);
+  background: color-mix(in srgb, var(--tg-page) 70%, transparent);
+  display: inline-grid;
+  place-content: center;
+  cursor: pointer;
+  transition: transform .12s ease, border-color .12s ease, background .12s ease;
+}
+
+.t-check:hover{ transform: scale(1.04); border-color: color-mix(in srgb, var(--tg-accent) 55%, var(--tg-border)); }
+.t-check:disabled{ opacity:.45; cursor:not-allowed; }
+
+.t-check::after{
+  content:"";
+  width: 8px;
+  height: 4px;
+  border-left: 2px solid transparent;
+  border-bottom: 2px solid transparent;
+  transform: rotate(-45deg) scale(0);
+  transition: transform .12s ease;
+}
+
+.t-check:checked{
+  background: color-mix(in srgb, var(--tg-accent) 22%, transparent);
+  border-color: color-mix(in srgb, var(--tg-accent) 70%, var(--tg-border));
+}
+.t-check:checked::after{
+  border-left-color: var(--tg-accent);
+  border-bottom-color: var(--tg-accent);
+  transform: rotate(-45deg) scale(1);
+}
+
+/* =========================
+   ✅ Mobile: การ์ดอ่านง่าย + checkbox เล็กลง
+========================= */
+@media (max-width: 640px){
+  .targets-th{ display:none !important; }
+
+  .targets-row{
+    grid-template-columns: 22px 1fr 38px !important;
+    grid-template-areas:
+      "check value del"
+      "check type  status";
+    gap: 8px 10px;
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--tg-card) 88%, transparent) !important;
+  }
+
+  .col-check{ grid-area: check; width:22px !important; min-width:22px !important; justify-content:flex-start; }
+  .col-value{ grid-area: value; }
+  .col-del{ grid-area: del; display:flex; justify-content:flex-end; }
+  .col-type{ grid-area: type; display:flex; gap:8px; align-items:center; }
+  .col-status{ grid-area: status; display:flex; justify-content:flex-end; }
+
+  .t-check{ width: 13px !important; height: 13px !important; border-radius: 4px; }
+  .t-del{ width: 34px; height: 34px; border-radius: 12px; }
+}
+
+/* Theme-aware switch */
+.mode-switch{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  padding:10px;
+  border-radius:12px;
+  
+  background: color-mix(in srgb, var(--tg-card, #14161a) 92%, transparent);
+  border: 1px solid var(--tg-border, rgba(255,255,255,.10));
+}
+
+.mode-switch .mode-btn{
+  flex:1;
+  min-width:220px;
+  padding:10px 12px;
+  border-radius:10px;
+  cursor:pointer;
+  font-weight:700;
+
+  background: color-mix(in srgb, var(--tg-page, #0f1114) 60%, transparent);
+  border: 1px solid var(--tg-border, rgba(255,255,255,.12));
+  color: var(--tg-muted, #b8c1cc);
+  transition: transform .12s ease, border-color .12s ease, box-shadow .12s ease, background .12s ease;
+}
+
+.mode-switch .mode-btn:hover{
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--tg-accent, #4da3ff) 35%, var(--tg-border, rgba(255,255,255,.12)));
+}
+
+.mode-switch .mode-btn.active{
+  color: color-mix(in srgb, var(--tg-accent, #4da3ff) 35%, var(--tg-text, #e9eef6));
+  border-color: color-mix(in srgb, var(--tg-accent, #4da3ff) 55%, var(--tg-border, rgba(255,255,255,.12)));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tg-accent, #4da3ff) 12%, transparent) inset;
+  background: color-mix(in srgb, var(--tg-accent, #4da3ff) 10%, var(--tg-page, #0f1114));
+}
+
+/* มือถือ: ให้ปุ่มเต็มบรรทัด ไม่บีบ */
+@media (max-width: 640px){
+  .mode-switch .mode-btn{ min-width: 0; flex: 1 1 100%; }
+}
+
+/* ปุ่มปิด (X) สีแดง */
+.modal-close{
+  color: #ff4d4f !important;
+  font-weight: 800;
+  opacity: .95;
+  transition: transform .12s ease, opacity .12s ease, filter .12s ease;
+}
+
+.modal-close:hover{
+  opacity: 1;
+  filter: drop-shadow(0 0 6px rgba(255,77,79,.45));
+  transform: scale(1.06);
+}
+
+.modal-close:active{
+  transform: scale(.96);
+}
 </style>
