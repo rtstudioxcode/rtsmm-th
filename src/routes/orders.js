@@ -356,39 +356,27 @@ router.post('/orders', async (req, res) => {
       quantity = fixed;
     }
 
-    // 3) คิดราคา
-    let rate = nz(chosen.rate);
-    // fallback (เผื่อ pricing ล่ม): ใช้หน่วยจริง ไม่ใช่หาร 1000 ตายตัว
-    let cost = moneyRound(calcCostByUnit(quantity, rate, stepUnit));
+    // 3) pricing + คิดราคา (single service)
+    const baseRate = nz(chosen.rate);
+    let effectiveRate = baseRate;
+    const rateUnit = getRateUnit(providerIdForApi);
 
-    // เมื่อดึง service แต่ละตัว
-    for (const s of services) {
-      try {
-        const ex = await computeEffectiveRateEx({
-          serviceId: s._id,
-          userId: req.user._id,
-          baseRate: s.rate
-        });
-
-        // 1️⃣ เรทหลังผ่าน pricing
-        s.effectiveRate = Number(ex.finalRate ?? s.rate);
-
-        // 2️⃣ unit ราคา (เราเป็นคนคุม ไม่ใช้ step API)
-        s.rateUnit = getRateUnit(s.providerServiceId);
-
-        // 3️⃣ เรทที่เอาไป "แสดง" (บาท / unit)
-        s.displayRate = round2(s.effectiveRate);
-
-        // (optional) เก็บไว้ให้ frontend รู้
-        s.priceLabel = `฿${s.displayRate.toFixed(2)} / ${s.rateUnit}`;
-      } catch {
-        // fallback ปลอดภัย
-        s.effectiveRate = Number(s.rate);
-        s.rateUnit = getRateUnit(s.providerServiceId);
-        s.displayRate = round2(s.rate);
-        s.priceLabel = `฿${s.displayRate.toFixed(2)} / ${s.rateUnit}`;
-      }
+    try {
+      const ex = await computeEffectiveRateEx({
+        serviceId: chosen._id,
+        userId: req.user._id,
+        baseRate
+      });
+      effectiveRate = Number(ex.finalRate ?? baseRate);
+    } catch {
+      effectiveRate = baseRate; // fallback
     }
+
+    // ✅ สูตรคิดเงินจริง (สำคัญ)
+    // quantity / rateUnit * rate
+    const cost = moneyRound(
+      (quantity / rateUnit) * effectiveRate
+    );
 
     const currency = chosen.currency || 'THB';
 
@@ -449,7 +437,8 @@ router.post('/orders', async (req, res) => {
       cost,
       estCost: cost,
       currency,
-      rateAtOrder: rate,
+      rateAtOrder: effectiveRate,
+      rateUnitAtOrder: rateUnit,
       baseRateAtOrder: nz(chosen.rate),
       serviceName: chosen.name || baseDoc.name,
       status: 'processing',
