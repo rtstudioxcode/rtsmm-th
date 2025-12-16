@@ -438,12 +438,16 @@ function toInputUser(peerUser){
 function pushJobLog(job, jobId, text, { persist = true } = {}) {
   const line = { text, time: new Date() };
 
-  // กัน log บวม (MongoDB doc 16MB)
   if (persist && Array.isArray(job.logs) && job.logs.length < 3000) {
     job.logs.push(line);
   }
 
-  telegramPush(jobId, { log: text, invited: job.invited, total: Number(job.limit || 0) });
+  telegramPush(jobId, {
+    log: text,
+    time: line.time.toISOString(),  // ✅ เพิ่ม
+    invited: job.invited,
+    total: Number(job.limit || 0)
+  });
 }
 
 // Invite Member (รองรับ Channel ด้วย)
@@ -1269,34 +1273,6 @@ export async function stopTelegramJob(jobId, by = "user") {
   });
 
   return { ok:true, refund, miss, invited, total: qty };
-}
-
-function normalizeTargetsForJobModel(rawTargets = []) {
-  const list = Array.isArray(rawTargets) ? rawTargets : [];
-
-  // ถ้าเป็น object อยู่แล้ว (อนาคตอาจส่งมาแบบ {value,type}) ก็ใช้เลย
-  const justValue = list
-    .map(x => (typeof x === "string" ? x : (x?.value || x?.target || x?.text || x?.raw || "")))
-    .map(x => String(x || "").trim())
-    .filter(Boolean);
-
-  // ถ้า schema targets เป็น [String] ก็คืน string[] ได้เลย
-  const tp = TelegramJob?.schema?.path("targets");
-  const isDocArray = !!tp?.schema; // มี schema = embedded doc array
-  if (!isDocArray) return justValue;
-
-  // ถ้าเป็น embedded doc array -> สร้างเป็น object ให้ตรง schema (แบบยืดหยุ่น)
-  const paths = tp.schema.paths || {};
-  return justValue.map(v => {
-    const obj = {};
-    if (paths.value) obj.value = v;
-    if (paths.target) obj.target = v;
-    if (paths.text) obj.text = v;
-    if (paths.raw) obj.raw = v;
-    if (paths.type) obj.type = v.startsWith("@") ? "user" : "phone";
-    if (paths.valid) obj.valid = true;
-    return obj;
-  });
 }
 
 function coerceTargets(rawTargets = []) {

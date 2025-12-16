@@ -807,7 +807,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!currentJob) return;
 
         await fetch(`/telegram/jobs/${currentJob}/stop`, { method: "POST" });
-        notify("⛔ หยุดงานแล้ว");
+        notify.success("⛔ หยุดงานแล้ว");
       });
 
       // Stop the interval once the button is found
@@ -1180,7 +1180,7 @@ function renderHistoryTable(list) {
     const pill = mapStatus(j.status);
     const logs = j.logs || [];
 
-    html += `<tr>
+    html += `<tr data-job-id="${j._id}">
       <td style="text-align:start;">${formatDate(j.createdAt)}</td>
 
       <td style="text-align:center;">
@@ -1222,8 +1222,8 @@ document.addEventListener("click", async (e) => {
   const r = await fetch(`/telegram/history/${jobId}`);
   const data = await r.json();
 
-  if (!data.ok) return notify(data.error || "โหลด log ไม่ได้");
-  openLogModal(data.logs || [], data.meta);
+  if (!data.ok) return notify.error(data.error || "โหลด log ไม่ได้");
+  openLogModal(data.logs || [], { ...(data.meta || {}), _id: jobId });
 });
 
 /* ======================================================
@@ -1240,26 +1240,163 @@ function mapStatus(s) {
          (s || "-");
 }
 
-/* ======================================================
-   OPEN LOG MODAL
-====================================================== */
-function openLogModal(logs = []) {
-  const modal = document.getElementById("tgLogModal");
-  const body  = document.getElementById("tgModalContent");
+// ==============================
+// Realtime Log Modal (History) - AUTO UPDATE (SSE + POLL FALLBACK)
+// ==============================
+let logES = null;
+let pollTimer = null;
+let modalJobId = null;
 
-  if (!logs || logs.length === 0) {
-    body.innerHTML = `<div class="muted">ไม่มีบันทึก</div>`;
-  } else {
-    body.innerHTML = logs
-      .map(l => `<div>[${formatDate(l.time)}] ${l.text}</div>`)
-      .join("");
+const seenLogKey = new Set();
+
+function getLogDom() {
+  return {
+    modal: document.getElementById("tgLogModal"),
+    list: document.getElementById("tgModalContent")
+  };
+}
+
+function fmtTH(ts) {
+  const d = new Date(ts || Date.now());
+  return d.toLocaleString("th-TH", {
+    year: "2-digit", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit"
+  });
+}
+
+function stopLogStream() {
+  try { logES?.close(); } catch (_) {}
+  logES = null;
+}
+
+function stopLogPoll() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = null;
+}
+
+function stopLogLive() {
+  stopLogStream();
+  stopLogPoll();
+  modalJobId = null;
+}
+
+function appendLogLine(line) {
+  const { list } = getLogDom();
+  if (!list) return;
+
+  const time = line?.time || line?.createdAt || Date.now();
+  const text = line?.text || line?.log || "";
+  if (!text) return;
+
+  const key = `${new Date(time).toISOString()}|${text}`;
+  if (seenLogKey.has(key)) return;
+  seenLogKey.add(key);
+
+  const nearBottom = (list.scrollHeight - list.scrollTop - list.clientHeight) < 80;
+
+  const row = document.createElement("div");
+  row.className = "log-row";
+  row.textContent = `[${fmtTH(time)}] ${text}`;
+  list.appendChild(row);
+
+  if (nearBottom) list.scrollTop = list.scrollHeight;
+}
+
+async function fetchAndAppendHistory(jobId) {
+  try {
+    const r = await fetch(`/telegram/history/${jobId}`);
+    const data = await r.json();
+    if (!data.ok) return;
+
+    // เติม log ใหม่ (กันซ้ำด้วย seenLogKey)
+    (data.logs || []).forEach(l => appendLogLine(l));
+
+    // ถ้างานจบแล้ว หยุด poll/stream ให้เอง (กันกินทรัพยากร)
+    const st = String(data.meta?.status || "").toLowerCase();
+    if (["finished", "stopped", "error", "auto_stopped", "failed"].includes(st)) {
+      stopLogLive();
+    }
+  } catch (_) {
+    // เงียบไว้ ไม่ต้อง spam
+  }
+}
+
+function startLogPoll(jobId) {
+  stopLogPoll();
+
+  // ดึงทันที 1 ครั้งก่อน
+  fetchAndAppendHistory(jobId);
+
+  // แล้วค่อยดึงซ้ำทุก 1500ms
+  pollTimer = setInterval(() => {
+    const { modal } = getLogDom();
+    if (!modal || modal.style.display === "none") {
+      stopLogPoll();
+      return;
+    }
+    fetchAndAppendHistory(jobId);
+  }, 1500);
+}
+
+function startLogStream(jobId) {
+  stopLogStream();
+
+  logES = new EventSource(`/telegram/jobs/${jobId}/stream`);
+
+  logES.onmessage = (ev) => {
+    let data = {};
+    try { data = JSON.parse(ev.data || "{}"); } catch (_) {}
+
+    // รองรับได้ทั้งส่งมาเป็น log เดี่ยว หรือส่งมาเป็น array logs
+    if (data.log) appendLogLine({ time: data.time || Date.now(), text: data.log });
+    if (Array.isArray(data.logs)) data.logs.forEach(l => appendLogLine(l));
+
+    const st = String(data.status || "").toLowerCase();
+    if (["finished", "stopped", "error", "auto_stopped", "failed"].includes(st)) {
+      stopLogLive();
+    }
+  };
+
+  logES.onerror = () => {
+    // ปล่อยให้มัน reconnect เอง + เรามี poll กันพลาดอยู่แล้ว
+  };
+}
+
+/**
+ * ✅ เปิด modal + เปิด live update ทันที (ไม่ต้องปิด/เปิดใหม่)
+ */
+function openLogModal(logs = [], meta = {}) {
+  const { modal, list } = getLogDom();
+  if (!modal || !list) {
+    console.log("missing modal dom #tgLogModal/#tgModalContent");
+    return;
   }
 
+  const jobId = meta._id || meta.jobId || meta.id;
+  if (!jobId) return;
+
+  // reset
+  list.innerHTML = "";
+  seenLogKey.clear();
+
+  // render ที่มีอยู่ก่อน
+  (logs || []).forEach(l => appendLogLine(l));
+
+  // เปิด modal (center ด้วย CSS flex)
   modal.style.display = "flex";
+  document.body.style.overflow = "hidden";
+
+  // ✅ เริ่ม live update ทันที (SSE + Poll)
+  modalJobId = jobId;
+  startLogStream(jobId);
+  startLogPoll(jobId);
 }
 
 function closeLogModal() {
-  document.getElementById("tgLogModal").style.display = "none";
+  const { modal } = getLogDom();
+  stopLogLive();
+  if (modal) modal.style.display = "none";
+  document.body.style.overflow = "";
 }
 
 // ================== Modal ขยายรูป ==================
@@ -2450,5 +2587,41 @@ button {
 
 .modal-close:active{
   transform: scale(.96);
+}
+
+/* ===== TG LOG MODAL (centered) ===== */
+#tgLogModal.modal-backdrop{
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+
+  /* background dim */
+  background: rgba(0,0,0,.55);
+
+  /* ✅ center */
+  display: none;               /* default hidden */
+  align-items: center;
+  justify-content: center;
+
+  padding: 16px;
+}
+
+#tgLogModal .modal{
+  width: min(560px, 92vw);
+  max-height: min(70vh, 520px);
+  overflow: hidden;
+
+  display: flex;
+  flex-direction: column;
+
+  border-radius: 14px;
+  background: #141414;
+  border: 1px solid rgba(255,255,255,.08);
+  box-shadow: 0 20px 60px rgba(0,0,0,.6);
+}
+
+#tgModalContent.modal-body{
+  overflow-y: auto;
+  max-height: unset; /* ให้ใช้ max-height ของ .modal แทน */
 }
 </style>

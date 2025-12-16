@@ -180,7 +180,7 @@ const app = express();
 // ✅ จับเคส client/proxy ตัดสายระหว่างอ่าน body (กัน log แตก)
 app.use((req, _res, next) => {
   req.on("aborted", () => {
-    console.warn("[REQ ABORTED]", req.method, req.originalUrl);
+    // console.warn("[REQ ABORTED]", req.method, req.originalUrl);
   });
   next();
 });
