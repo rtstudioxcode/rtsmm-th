@@ -48,7 +48,7 @@ export async function checkAndUpdateAccounts() {
           bulkOps.push({
             updateOne: {
               filter: { _id: acc._id, status: "LOCKED" },
-              update: { $set: { status: "READY" }, $unset: { lockUntil: "", lastError: "", invitesToday: ""  } }
+              update: { $set: { status: "READY", invitesToday: 0 }, $unset: { lockUntil: "", lastError: ""  } }
             }
           });
         } else {
@@ -56,7 +56,7 @@ export async function checkAndUpdateAccounts() {
           bulkOps.push({
             updateOne: {
               filter: { _id: acc._id, status: { $ne: "LOCKED" } },
-              update: { $unset: { lockUntil: "", lastError: "", invitesToday: "" } }
+              update: { $unset: { lockUntil: "", lastError: ""} }
             }
           });
         }
@@ -84,7 +84,7 @@ export async function checkAndUpdateAccounts() {
           bulkOps.push({
             updateOne: {
               filter: { _id: acc._id, status: "COOLDOWN" },
-              update: { $set: { status: "READY" }, $unset: { cooldownUntil: "", lastError: "", invitesToday: "" } }
+              update: { $set: { status: "READY", invitesToday: 0 }, $unset: { cooldownUntil: "", lastError: "" } }
             }
           });
         } else {
@@ -92,7 +92,7 @@ export async function checkAndUpdateAccounts() {
           bulkOps.push({
             updateOne: {
               filter: { _id: acc._id, status: { $ne: "COOLDOWN" } },
-              update: { $unset: { cooldownUntil: "", lastError: "", invitesToday: "" } }
+              update: { $unset: { cooldownUntil: "", lastError: "" } }
             }
           });
         }

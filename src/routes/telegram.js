@@ -523,7 +523,7 @@ export async function startTelegramJob(jobId) {
                 if (remaining > 0) {
                   const left = await pickAccounts(uid);
                   if (!left.length) {
-                    await finalizeEarly(job, jobId, qty, `บัญชีครบโควต้า ${ROUND_LIMIT}/รอบ และไม่มีบัญชีสำรอง`);
+                    await finalizeEarly(job, jobId, qty, `บัญชีครบโควต้า ${ROUND_LIMIT}คน/รอบ และไม่มีบัญชีสำรอง`);
                     return;
                   }
                 }
