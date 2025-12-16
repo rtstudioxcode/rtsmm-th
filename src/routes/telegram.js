@@ -540,7 +540,7 @@ export async function startTelegramJob(jobId) {
               if (remaining > 0) {
                 const left = await pickAccounts(uid);
                 if (!left.length) {
-                  await finalizeEarly(job, jobId, qty, "โดน FLOOD/PEER_FLOOD แล้วบัญชีทั้งหมดพัก");
+                  await finalizeEarly(job, jobId, qty, "ระบบของ Telegram จำกัดการเชิญชั่วคราว (ถูกมองว่าส่งคำเชิญถี่เกินไป/เสี่ยงสแปม) จึงพักบัญชีทั้งหมดไว้ก่อน เพื่อความปลอดภัย");
                   return;
                 }
               }
