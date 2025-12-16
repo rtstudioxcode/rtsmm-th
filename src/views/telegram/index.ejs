@@ -282,6 +282,8 @@
 
           <!-- รายชื่อ -->
           <section class="card targets-card" id="targetsCard" style="display:none; margin-top:14px;">
+
+            <!-- TOP (ไม่ต้อง sticky) -->
             <div class="targets-top">
               <div class="targets-title">
                 <div class="t-h">รายชื่อที่จะเชิญ</div>
@@ -300,7 +302,8 @@
               </div>
             </div>
 
-            <div class="targets-table">
+            <!-- SCROLL ZONE -->
+            <div class="targets-scroll">
               <div class="targets-th">
                 <div class="col-check"></div>
                 <div class="col-type">ประเภท</div>
@@ -308,6 +311,7 @@
                 <div class="col-status">สถานะ</div>
                 <div class="col-del"></div>
               </div>
+
               <div id="targetsBody" class="targets-body"></div>
             </div>
           </section>
@@ -1784,7 +1788,7 @@ async function stopJobFromHistory(jobId) {
           อัปโหลดไฟล์รายชื่อ — รองรับทั้ง 
           <code style="color:#8ec7ff;">.txt</code> และ <code style="color:#8ec7ff;">.csv</code>
           (1 บรรทัด/1 ค่า) เช่น
-          <code style="color:#8ec7ff;">+66123456789</code> หรือ <code style="color:#8ec7ff;">@username</code>
+          <code style="color:#8ec7ff;">+66123456789 | 0123456789</code> หรือ <code style="color:#8ec7ff;">@username | https://t.me/username</code>
         `;
 
         howto3.innerHTML = `
@@ -2623,5 +2627,46 @@ button {
 #tgModalContent.modal-body{
   overflow-y: auto;
   max-height: unset; /* ให้ใช้ max-height ของ .modal แทน */
+}
+
+/* กล่องรายชื่อ: จำกัดความสูง แล้วเลื่อนข้างใน */
+.targets-card{
+  padding: 0;
+  overflow: hidden;
+  border-radius: 14px;
+}
+
+/* Top bar (ไม่ sticky) */
+.targets-top{
+  padding: 14px 14px 12px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  background: rgba(10,10,12,.75);
+  backdrop-filter: blur(8px);
+}
+
+/* Scroll area */
+.targets-scroll{
+  max-height: 420px;     /* ปรับได้ */
+  overflow: auto;
+}
+
+/* Table header sticky แค่ตัวนี้ตัวเดียวพอ */
+.targets-th{
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 10px 14px;
+  background: rgba(10,10,12,.92);
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+
+/* Body padding ให้ดูสวย */
+.targets-body{
+  padding: 10px 14px 14px;
+}
+
+/* มือถือ */
+@media (max-width: 640px){
+  .targets-scroll{ max-height: 55vh; }
 }
 </style>

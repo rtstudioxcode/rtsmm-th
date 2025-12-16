@@ -74,13 +74,46 @@ function normalizePhone(raw){
   // เก็บเฉพาะ + และตัวเลข
   s = s.replace(/[^\d+]/g, "");
 
+  // 00xx -> +xx
+  if (s.startsWith("00")) s = "+" + s.slice(2);
+
+  // เผื่อคนใส่ +095xxxxxxx (มี + แต่ยังเป็นเบอร์ไทย)
+  if (s.startsWith("+0")) s = s.slice(1); // กลายเป็น 0xxxxxxxxx
+
+  // กรณีไม่ขึ้นต้นด้วย +
   if (!s.startsWith("+")) {
-    return { ok:false, value:s, reason:"เบอร์ต้องขึ้นต้นด้วย + (E.164) เช่น +6680xxxxxxx" };
+    const digits = s.replace(/\D/g, "");
+
+    // ✅ ไทย: 0xxxxxxxx (9 หลัก) หรือ 0xxxxxxxxx (10 หลัก)
+    if (/^0\d{8,9}$/.test(digits)) {
+      return { ok: true, value: "+66" + digits.slice(1) };
+    }
+
+    // ✅ ไทยที่พิมพ์ 66xxxxxxxxx (ไม่มี +)
+    if (/^66\d{8,9}$/.test(digits)) {
+      return { ok: true, value: "+" + digits };
+    }
+
+    // เผื่อเบอร์ต่างประเทศที่ไม่มี + แต่ยาวพอ
+    if (/^\d{8,15}$/.test(digits)) {
+      return { ok: true, value: "+" + digits };
+    }
+
+    return { ok:false, value:s, reason:"รูปแบบเบอร์ไม่ถูกต้อง (รองรับ 0xxxxxxxxx/0xxxxxxxxxx หรือ +E.164 เช่น +6680xxxxxxx)" };
   }
 
-  // E.164 ปกติยาว 8-15 ตัว (ไม่รวม +)
+  // normalize เครื่องหมาย + ซ้ำ ๆ
+  s = "+" + s.replace(/^\++/, "");
+  const digits = s.slice(1);
+
+  // ✅ ถ้าเป็น +0xxxxxxxxx / +0xxxxxxxxxx ให้แปลงเป็น +66...
+  if (/^0\d{8,9}$/.test(digits)) {
+    return { ok: true, value: "+66" + digits.slice(1) };
+  }
+
+  // E.164
   if (!/^\+\d{8,15}$/.test(s)) {
-    return { ok:false, value:s, reason:"รูปแบบเบอร์ไม่ถูกต้อง (ควรเป็น + ตามด้วยตัวเลข 8-15 หลัก)" };
+    return { ok:false, value:s, reason:"รูปแบบเบอร์ไม่ถูกต้อง (ควรเป็น + ตามด้วยตัวเลข 8-15 หลัก หรือ 0xxxxxxxxx/0xxxxxxxxxx)" };
   }
 
   return { ok:true, value:s };
@@ -90,23 +123,18 @@ function normalizeTarget(raw) {
   const t = String(raw || "").trim();
   if (!t) return null;
 
-  // ถ้าดูเหมือนเบอร์ (+...) ให้ลองเป็น phone ก่อน
-  if (t.startsWith("+")) {
+  // ✅ ถ้าเป็น “หน้าตาเบอร์” (มีแต่ตัวเลข/+/วงเล็บ/ช่องว่าง/ขีด) → ให้ไป normalizePhone
+  if (/^[\d+()\s-]+$/.test(t)) {
     const r = normalizePhone(t);
     if (r?.ok) return { ok:true, kind:"phone", value:r.value };
     return { ok:false, input:t, reason:r?.reason || "เบอร์ไม่ถูกต้อง" };
   }
 
-  // ถ้าขึ้นต้น @ หรือเป็น t.me/ ให้เป็น username
+  // username / link
   if (t.startsWith("@") || /^https?:\/\/t\.me\//i.test(t) || /^t\.me\//i.test(t)) {
     const r = normalizeUsername(t);
     if (r?.ok) return { ok:true, kind:"username", value:r.value };
     return { ok:false, input:t, reason:r?.reason || "username ไม่ถูกต้อง" };
-  }
-
-  // ถ้าเป็นตัวเลขล้วน/มีขีดวงเล็บ แต่ไม่มี + → ถือว่าเบอร์ผิดฟอร์แมต
-  if (/^[\d()\s-]+$/.test(t)) {
-    return { ok:false, input:t, reason:"เบอร์ต้องขึ้นต้นด้วย + (E.164) เช่น +6680xxxxxxx" };
   }
 
   // อย่างอื่นลองตีเป็น username แบบไม่มี @
@@ -1049,7 +1077,7 @@ export async function startTelegramJob(jobId) {
                 job.failed++;
                 const reasonRaw = rr.reason || "RESOLVE_FAIL";
                 const tr = translateTgErrorCode(reasonRaw); // เผื่อ reason เป็น code TG
-                const msg = `ข้าม ${label}: หา user ไม่เจอ/resolve ไม่ได้ — ${tr.th}${tr.code ? ` (${tr.code})` : ""}`;
+                const msg = `ข้าม ${label}: หา user ไม่เจอ`;
                 job.logs.push({ text: msg, time: new Date() });
                 telegramPush(jobId, { invited: job.invited, total: qty, log: msg });
                 await job.save();
@@ -1136,7 +1164,7 @@ export async function startTelegramJob(jobId) {
                 if (remaining > 0) {
                   const left = await pickAccounts(uid);
                   if (!left.length) {
-                    await finalizeEarly(job, jobId, qty, `โดน FLOOD_WAIT ~${mins} นาที และไม่มีบัญชีสำรอง`);
+                    await finalizeEarly(job, jobId, qty, `โดน FLOOD_WAIT ~${mins} นาที และไม่มีบัญชีสำรอง • FLOOD_WAIT = Telegram สั่งให้รอชั่วคราว เพราะทำถี่เกิน/ระบบจำกัดความถี่การเชิญ (ต้องพักตามเวลาที่กำหนด)`);
                     return;
                   }
                 }
@@ -1152,7 +1180,7 @@ export async function startTelegramJob(jobId) {
                 if (remaining > 0) {
                   const left = await pickAccounts(uid);
                   if (!left.length) {
-                    await finalizeEarly(job, jobId, qty, `โดน PEER_FLOOD และไม่มีบัญชีสำรอง`);
+                    await finalizeEarly(job, jobId, qty, `โดน PEER_FLOOD และไม่มีบัญชีสำรอง • PEER_FLOOD = บัญชีผู้เชิญถูกจำกัด/เสี่ยงสแปมจากการเชิญเยอะหรือถี่เกิน (ควรพักบัญชีหลายชั่วโมงหรือเปลี่ยนบัญชี)`);
                     return;
                   }
                 }
