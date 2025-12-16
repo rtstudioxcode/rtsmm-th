@@ -433,7 +433,7 @@ async function fetchSrcMembers(client, src, meId, jobId, want = 2000) {
 
       await TelegramJob.updateOne(
         { _id: jobId },
-        { $set: { status: "failed" }, $push: { logs: { text: "CHAT_ADMIN_REQUIRED: ต้องเป็นแอดมินในกลุ่มต้นทาง", time: new Date() } } }
+        { $set: { status: "failed" }, $push: { logs: { text: "CHAT_ADMIN_REQUIRED: ต้องเป็นแอดมินในกลุ่ม", time: new Date() } } }
       );
 
       return [];
