@@ -26,7 +26,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 *
 const running = new Set();
 const stopRequested = new Set();
 const PRICE_PER_PERSON = 0;
-const MAX_LIMIT_PER_JOB = 1000;
+const MAX_LIMIT_PER_JOB = 10000;
 const PEER_FLOOD_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const MAX_PHONES = 10000;
 
