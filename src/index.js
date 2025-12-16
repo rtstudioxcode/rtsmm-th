@@ -177,6 +177,14 @@ try {
 /* ------------------------------------------------------------------ */
 const app = express();
 
+// ✅ จับเคส client/proxy ตัดสายระหว่างอ่าน body (กัน log แตก)
+app.use((req, _res, next) => {
+  req.on("aborted", () => {
+    console.warn("[REQ ABORTED]", req.method, req.originalUrl);
+  });
+  next();
+});
+
 // View engine + Layouts
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
@@ -192,8 +200,8 @@ app.use(
   "/uploads",
   express.static(path.join(process.cwd(), "uploads"), { maxAge: "7d" })
 );
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+app.use(express.json({ limit: "1mb" }));
 app.use(compression());
 app.use(express.static("public", { maxAge: "30d" }));
 app.use("/", sitemapRouter);
@@ -410,9 +418,23 @@ app.get("/page/terms-of-use", (req, res) => {
   });
 });
 
+// ✅ กลืน error "request aborted" จาก raw-body ไม่ให้เป็น error แดง
+app.use((err, req, res, next) => {
+  const msg = String(err?.message || "");
+  if (msg.includes("request aborted") || err?.type === "request.aborted") {
+    return; // เงียบไปเลย (เกิดจาก client/proxy ตัดสาย)
+  }
+
+  // ถ้าเป็นพวก JSON parse error
+  if (err?.type === "entity.parse.failed") {
+    return res.status(400).json({ ok: false, error: "Invalid JSON body" });
+  }
+
+  return next(err);
+});
+
 // 404 (optional)
 app.use((req, res) => res.status(404).send("Not found"));
-
 
 // 🔁 Auto-sync services เมื่อ DB ยังว่าง (ทำครั้งเดียวตอนบูต)
 (async () => {
