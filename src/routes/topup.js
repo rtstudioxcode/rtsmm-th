@@ -348,7 +348,7 @@ topupRouter.post("/create", async (req, res) => {
     // ✅ สร้าง pending ใหม่: สุ่มเศษ 0.01..0.60 และเช็ค "global clash" สำหรับ method นั้น ๆ
     const pickUniqueCents = async () => {
       for (let t = 0; t < 6; t++) {
-        const decimalCents = Math.floor(Math.random() * 60) + 1; // 1..60
+        const decimalCents = Math.floor(Math.random() * 19) + 1; // 1..60
         const uniqueAmt = (Math.round(base * 100) + decimalCents) / 100;
         const uniqueCents = Math.round(uniqueAmt * 100);
 
@@ -362,7 +362,7 @@ topupRouter.post("/create", async (req, res) => {
         if (!clash) return { uniqueAmt, uniqueCents };
       }
       // ถ้าชนทุกครั้ง ก็ใช้ตัวสุดท้ายไป (โอกาสน้อยมาก)
-      const decimalCents = Math.floor(Math.random() * 60) + 1;
+      const decimalCents = Math.floor(Math.random() * 19) + 1;
       const uniqueAmt = (Math.round(base * 100) + decimalCents) / 100;
       return { uniqueAmt, uniqueCents: Math.round(uniqueAmt * 100) };
     };
