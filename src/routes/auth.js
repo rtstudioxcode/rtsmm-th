@@ -189,12 +189,12 @@ router.post('/login', parseUrlencoded, async (req, res) => {
       '';
 
     const human = await verifyTurnstile(token, req.ip);
-    if (!human) {
-      return res.status(400).json({
-        ok: false,
-        message: '⚠️ กรุณายืนยันว่าคุณเป็นมนุษย์ก่อนเข้าสู่ระบบ',
-      });
-    }
+    // if (!human) {
+    //   return res.status(400).json({
+    //     ok: false,
+    //     message: '⚠️ กรุณายืนยันว่าคุณเป็นมนุษย์ก่อนเข้าสู่ระบบ',
+    //   });
+    // }
 
     const user = await User.findOne({ username }).lean(false);
     if (!user) return res.status(400).json({ ok:false, message:'⚠️ไม่พบบัญชีผู้ใช้' });
