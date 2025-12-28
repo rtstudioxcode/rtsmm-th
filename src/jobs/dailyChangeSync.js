@@ -284,7 +284,7 @@ async function runDaily() {
     console.log('[services] daily maintenance completed.');
 
     // ใช้ข้อมูลจาก ChangeLog รอบล่าสุดส่งไป Telegram
-    await sendTelegramDailySummary();
+    // await sendTelegramDailySummary();
   } catch (e) {
     console.error(
       '[services] daily sync error:',
