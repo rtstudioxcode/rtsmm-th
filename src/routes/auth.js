@@ -178,16 +178,13 @@ router.get('/login', (req, res) => {
 
 router.post('/login', parseUrlencoded, async (req, res) => {
   try {
-    const username = (req.body.username || '').trim();
+    // รับค่าจากช่อง input (ซึ่งตอนนี้อาจจะเป็นได้ทั้ง username หรือ email)
+    const loginIdentifier = (req.body.username || '').trim(); 
     const password = req.body.password || '';
-    const nextUrl  = safeNext(req.body.next);
+    const nextUrl = safeNext(req.body.next);
 
-    // ✅ ดึง Turnstile token จากฟอร์ม (ชื่อฟิลด์มาตรฐานของ Cloudflare)
-    const token =
-      req.body['cf-turnstile-response'] ||
-      req.body['cf_challenge_response'] ||
-      '';
-
+    // ✅ ส่วนการยืนยัน Turnstile (คงเดิม)
+    const token = req.body['cf-turnstile-response'] || req.body['cf_challenge_response'] || '';
     const human = await verifyTurnstile(token, req.ip);
     if (!human) {
       return res.status(400).json({
@@ -196,20 +193,37 @@ router.post('/login', parseUrlencoded, async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ username }).lean(false);
-    if (!user) return res.status(400).json({ ok:false, message:'⚠️ไม่พบบัญชีผู้ใช้' });
+    // 🔥 แก้ไขตรงนี้: ใช้ $or เพื่อหาจากทั้ง username หรือ email
+    const user = await User.findOne({
+      $or: [
+        { username: loginIdentifier },
+        { email: loginIdentifier }
+      ]
+    }).lean(false);
 
+    if (!user) {
+      return res.status(400).json({ ok: false, message: '⚠️ ไม่พบบัญชีผู้ใช้' });
+    }
+
+    // ✅ ตรวจสอบรหัสผ่าน (คงเดิม)
     const ok = await bcrypt.compare(password, user.passwordHash);
-    if (!ok) return res.status(400).json({ ok:false, message:'⛔️รหัสผ่านไม่ถูกต้อง' });
+    if (!ok) {
+      return res.status(400).json({ ok: false, message: '⛔️รหัสผ่านไม่ถูกต้อง' });
+    }
 
-    req.session.user = { _id:String(user._id), username:user.username, role:user.role || 'user' };
+    // ✅ จัดเก็บ Session (ใช้ข้อมูลจริงจาก user object ที่หาเจอ)
+    req.session.user = { 
+      _id: String(user._id), 
+      username: user.username, 
+      role: user.role || 'user' 
+    };
     req.session.userId = String(user._id);
     await req.session.save();
 
-    return res.json({ ok:true, redirect: nextUrl });
+    return res.json({ ok: true, redirect: nextUrl });
   } catch (e) {
     console.error(e);
-    return res.status(500).json({ ok:false, message:'⚠️เกิดข้อผิดพลาด' });
+    return res.status(500).json({ ok: false, message: '⚠️เกิดข้อผิดพลาด' });
   }
 });
 
