@@ -197,7 +197,7 @@ router.post('/login', parseUrlencoded, async (req, res) => {
     const user = await User.findOne({
       $or: [
         { username: loginIdentifier },
-        { email: loginIdentifier }
+        { email: loginIdentifier.toLowerCase() }
       ]
     }).lean(false);
 
