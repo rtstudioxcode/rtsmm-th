@@ -75,6 +75,9 @@ const secureConfigSchema = new mongoose.Schema(
       apiBase: String,
       apiKey: String,
     },
+    
+    // TRUEWALLET_GEN_LINK
+    TW_GEN_LINK_SECRET: String,
 
     // smtp
     mail: {
