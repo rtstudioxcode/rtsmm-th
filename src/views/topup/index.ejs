@@ -1,3 +1,4 @@
+<!-- topup/index.ejs -->
 <!-- 🟣 Tab-style header buttons -->
 <div class="tabs">
   <button class="tab active" data-tab="tab-topup">
@@ -269,7 +270,7 @@
                              : (st === 'failed')    ? 'ล้มเหลว'
                              : (st === 'reject')    ? 'ยกเลิก'
                              : (st === 'canceled')  ? 'ยกเลิก' : st;
-             var ts = tx.paidAt || tx.updatedAt || tx.createdAt;
+             var ts = tx.createdAt;
              var amountNum = Number(tx.amount) || 0;
         %>
           <tr data-status="<%= st %>">
@@ -323,7 +324,7 @@
                        : (st2 === 'failed')    ? 'ล้มเหลว'
                        : (st2 === 'reject')    ? 'ยกเลิก'
                        : (st2 === 'canceled')  ? 'ยกเลิก' : st2;
-           var ts2 = t.paidAt || t.updatedAt || t.createdAt;
+           var ts2 = t.createdAt;
            var amt = Number(t.amount) || 0;
       %>
         <details class="hx-card" data-status="<%= st2 %>">

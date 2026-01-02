@@ -45,7 +45,7 @@ topupRouter.get("/", async (req, res) => {
     }).lean();
 
     const transactions = await Transaction.find({ userId })
-      .sort({ createdAt: -1 })
+      .sort({ _id: -1 })
       .limit(20)
       .lean();
 
