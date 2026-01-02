@@ -121,6 +121,10 @@ function applyDBToConfig(doc) {
     } catch {}
   }
 
+  if (doc.TW_GEN_LINK_SECRET) {
+    config.TW_GEN_LINK_SECRET = String(doc.TW_GEN_LINK_SECRET);
+  }
+
   if (Number.isFinite(doc.port)) config.port = Number(doc.port);
   if (doc.sessionSecret) config.sessionSecret = String(doc.sessionSecret);
 
