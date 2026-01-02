@@ -89,7 +89,7 @@ topupRouter.post("/truewallet/gen/link", async (req, res) => {
       },
       {
         headers: {
-          Authorization: `Bearer ${config?.TW_GEN_LINK_SECRET || process.env.TW_GEN_LINK_SECRET}`,
+          Authorization: `Bearer ${config.TW_GEN_LINK_SECRET}`,
           "Content-Type": "application/json",
         },
         // timeout ใส่กันแหกเผื่อเน็ตงอแง
