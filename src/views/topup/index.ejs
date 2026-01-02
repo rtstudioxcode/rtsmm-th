@@ -626,8 +626,9 @@
   }
 
   function computeSubtotal(base, walletCode){
-    const rate = (walletCode === 'tw') ? 1.03 : 1;     // TW +3%, อื่นๆ 0%
-    return Math.round(base * rate * 100) / 100;        // ปัด 2 ตำแหน่ง (bankers)
+    // const rate = (walletCode === 'tw') ? 1.03 : 1;     // TW +3%, อื่นๆ 0%
+    // return Math.round(base * rate * 100) / 100;        // ปัด 2 ตำแหน่ง (bankers)
+    return Math.round(base * 100) / 100;
   }
 
   function bindTopupSummary(form){
@@ -732,71 +733,73 @@
   let TW_LOCK = false;
 
   /* 💸 Submit TrueWallet topup */
-  async function submitTopup(ev){
+  async function submitTopup(ev) {
     ev.preventDefault();
-    if (TW_LOCK) return false;                 // กันกดรัว
+    if (TW_LOCK) return false; // กันกดรัว
     TW_LOCK = true;
 
-    try{
-      const form       = ev.currentTarget || ev.target;
+    try {
+      const form = ev.currentTarget || ev.target;
       const walletCode = form.dataset.walletCode; // ควรเป็น 'tw'
-      const amountEl   = form.querySelector('input[name="amount"]');
-      const base       = Number(amountEl?.value || 0);
+      const amountEl = form.querySelector('input[name="amount"]');
+      const base = Number(amountEl?.value || 0);
 
-      if (walletCode !== 'tw'){
+      if (walletCode !== 'tw') {
         document.querySelector("#resp").innerHTML =
           `<div class="card soft">❌ วิธีนี้รองรับเฉพาะ TrueWallet</div>`;
+        TW_LOCK = false;
         return false;
       }
-      if (!Number.isFinite(base) || base < 10){
+
+      if (!Number.isFinite(base) || base < 10) {
         document.querySelector("#resp").innerHTML =
           `<div class="card soft">❌ จำนวนเงินขั้นต่ำ 10 บาท</div>`;
+        TW_LOCK = false;
         return false;
       }
 
-      // 1) รวมค่าธรรมเนียม 3% (ปัดทศนิยม 2 ตำแหน่งให้แน่นอน)
-      const subtotal = Math.round((base * 1.03 + Number.EPSILON) * 100) / 100;
+      // ✅ 1) ตัดการคำนวณ 3% ออก (ใช้ยอด base โดยตรงเพื่อส่งไปสุ่มเศษที่ backend)
+      const payAmountBase = base;
 
-      // 2) ให้ backend สุ่มเศษ + สร้าง tx (สำคัญ: walletCode='tw')
-      //    หมายเหตุ: ถ้าแบ็กเอนด์คืน pendingTxId มา → reuse ไม่สร้างซ้ำ
+      // 2) ให้ backend สุ่มเศษ + สร้าง tx
       const cRes = await fetch('/topup/create', {
         method: 'POST',
-        headers: { 'Content-Type':'application/json' },
-        body: JSON.stringify({ amount: subtotal, walletCode: 'tw' })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: payAmountBase, walletCode: 'tw' })
       });
       const c = await cRes.json();
 
-      if (!cRes.ok || !c?.ok){
-        // ถ้ามี tx ค้างคืนมาให้ ก็ใช้ตัวนั้นต่อ (หลีกเลี่ยง Pending ซ้ำ)
+      if (!cRes.ok || !c?.ok) {
         if (c?.pendingTxId) {
           window.currentTxId = c.pendingTxId;
         } else {
           const err = c?.error || 'สร้างคำสั่งเติมเงินไม่สำเร็จ';
-          window.showMsg ? window.showMsg({ variant:'error', title:'ไม่สำเร็จ', text: err }) : alert(err);
+          window.showMsg ? window.showMsg({ variant: 'error', title: 'ไม่สำเร็จ', text: err }) : alert(err);
+          TW_LOCK = false;
           return false;
         }
       } else {
-        // ปกติได้ tx ใหม่
         window.currentTxId = c.txId || c.id || c.pendingTxId;
       }
 
-      // จำนวนที่ต้องจ่ายจริง (สุ่มเศษแล้ว)
-      const payAmount = Number((c?.displayAmount ?? subtotal));
+      // ✅ จำนวนที่ต้องจ่ายจริง (คือยอดที่สุ่มเศษ .01 - .19 มาจากหลังบ้านแล้ว)
+      const finalPayAmount = Number(c?.displayAmount || payAmountBase);
 
       // 3) ขอลิงก์จ่ายจาก TrueMoney
       const gRes = await fetch('/topup/truewallet/gen/link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: payAmount })
+        body: JSON.stringify({ amount: finalPayAmount })
       });
       const g = await gRes.json();
-      if (!gRes.ok || !g?.url){
+      if (!gRes.ok || !g?.url) {
         const err = g?.message || 'ไม่สามารถสร้างลิงก์ TrueWallet ได้';
-        window.showMsg ? window.showMsg({ variant:'error', title:'ไม่สำเร็จ', text: err }) : alert(err);
+        window.showMsg ? window.showMsg({ variant: 'error', title: 'ไม่สำเร็จ', text: err }) : alert(err);
+        TW_LOCK = false;
         return false;
       }
 
-      // 4) เคลียร์ watcher เก่า (ถ้ามี) ก่อนเริ่มรอบใหม่
+      // 4) เคลียร์ watcher เก่า
       try { stopTxWatcher(); } catch {}
 
       // 5) ใส่ข้อมูลลงโมดัล + เปิดโหมด TW
@@ -806,23 +809,24 @@
       document.getElementById('qrMethod')?.replaceChildren(document.createTextNode('TrueMoney Wallet'));
       document.getElementById('qrName')?.replaceChildren(document.createTextNode(g.accountName || 'RTSMM'));
       document.getElementById('qrNumber')?.replaceChildren(document.createTextNode(g.accountNumber || '-'));
+      
+      // ✅ แสดงยอดที่สุ่มเศษแล้วใน Modal
       document.getElementById('qrAmountTw')?.replaceChildren(document.createTextNode(
-        payAmount.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2})
+        finalPayAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       ));
 
-      // เปิด modal โหมด TW + เริ่มจับเวลา
       openQrModal('tw', 300);
 
-      // 6) เริ่มเฝ้าสถานะ (webhook สำเร็จ → watcher ปิด modal + reload)
+      // 6) เริ่มเฝ้าสถานะ
       startTxWatcher(window.currentTxId, 300);
 
       return false;
-    } catch(err){
+    } catch (err) {
       const msg = `ขัดข้อง: ${err.message}`;
-      window.showMsg ? window.showMsg({ variant:'error', title:'ไม่สำเร็จ', text: msg }) : alert(msg);
+      window.showMsg ? window.showMsg({ variant: 'error', title: 'ไม่สำเร็จ', text: msg }) : alert(msg);
       return false;
     } finally {
-      TW_LOCK = false; // ปลดล็อคไม่ว่าผลจะสำเร็จ/ล้มเหลว
+      TW_LOCK = false;
     }
   }
 
