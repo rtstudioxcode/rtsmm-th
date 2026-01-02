@@ -142,18 +142,19 @@ topupRouter.post("/truewallet", async (req, res) => {
       return res.status(400).json({ success: false, message: "invalid_event_type" });
     }
 
-    // 2) แปลงจำนวนเงิน (TrueMoney ส่งเป็นสตางค์)
-    const added = Math.round(Number(amount)) / 100;     // บาท
-    const addedCents = Math.round(added * 100);         // สตางค์ (int)
+    // 2) แปลงจำนวนเงิน
+    const rawAmount = Math.round(Number(amount)) / 100; // ยอดรวมเศษที่โอนมาจริง (เช่น 10.17)
+    const addedCents = Math.round(rawAmount * 100);    // สตางค์สำหรับใช้ match transaction
+    
+    // 🔥 จุดแก้ไข: คำนวณยอดจำนวนเต็มที่จะเติมให้ผู้ใช้ (เช่น 10.17 -> 10)
+    const amountToFill = Math.floor(rawAmount); 
+
     const occurredAt =
       payload?.transferred_at ? new Date(payload.transferred_at * 1000) :
       payload?.created_at     ? new Date(payload.created_at     * 1000) :
                                 new Date();
 
-    // 3) จับคู่ใบ pending ที่สร้างจาก /topup/create ด้วย amountCents
-    //    - ต้องเป็นวิธี 'tw'
-    //    - ยัง pending และยังไม่หมดอายุ
-    //    - เอาใบล่าสุดพอ (กัน match ผิด)
+    // 3) จับคู่ใบ pending
     const pendingTx = await Transaction.findOne({
       method: "tw",
       status: "pending",
@@ -169,27 +170,28 @@ topupRouter.post("/truewallet", async (req, res) => {
       if (!user) {
         pendingTx.note = "User not found at webhook";
         await pendingTx.save();
-        return res.json({ success: true, method: "tw", amount: added, unmatched: true });
+        return res.json({ success: true, method: "tw", amount: rawAmount, unmatched: true });
       }
 
-      // เติมเครดิต + ปิดใบ pending → completed
-      const newBalance = await user.addBalance(added);
+      // 🔥 เติมเครดิตเฉพาะจำนวนเต็ม
+      const newBalance = await user.addBalance(amountToFill);
 
       pendingTx.set({
         status: "completed",
-        paidAt: occurredAt,            // ✅ เวลาโอนจริง → paidAt เท่านั้น
-        // ❌ ห้ามเซ็ต createdAt = occurredAt อีกแล้ว (จะทำให้เวลาเพี้ยน)
+        paidAt: occurredAt,
+        amount: amountToFill, // บันทึกยอดที่เติมจริง (จำนวนเต็ม)
+        note: `ยอดโอนจริง ${rawAmount} (หักเศษออกตอนเติม)`,
         username: user.username,
         matchedBy: "amountCents"
       });
       await pendingTx.save();
 
-      console.log(`✅ TrueWallet Auto-Topup: ${user.username} +${added} → ${newBalance}`);
+      console.log(`✅ TrueWallet Auto-Topup: ${user.username} +${amountToFill} (from ${rawAmount}) → ${newBalance}`);
       return res.json({
         success: true,
         method: "tw",
         username: user.username,
-        amount: added,
+        amount: amountToFill,
         status: "completed",
         balance: newBalance,
       });
@@ -201,41 +203,40 @@ topupRouter.post("/truewallet", async (req, res) => {
     });
 
     if (!user) {
-      // เก็บ unmatched ไว้ให้แอดมินตรวจ (สำคัญ: เก็บ amountCents และ paidAt)
       await Transaction.create({
         method: "tw",
         senderNumber: sender_mobile,
-        amount: added,
-        amountCents: addedCents,
+        amount: amountToFill,      // บันทึกจำนวนเต็ม
+        amountCents: addedCents,   // เก็บเศษไว้ตรวจสอบใน amountCents
         currency: "THB",
         status: "pending",
         paidAt: occurredAt,
-        note: "unmatched by phone"
+        note: `unmatched by phone (raw: ${rawAmount})`
       });
-      console.log(`✅ TrueWallet Deposit (unmatched): +${added} THB`);
-      return res.json({ success: true, method: "tw", amount: added });
+      console.log(`✅ TrueWallet Deposit (unmatched): +${amountToFill} THB`);
+      return res.json({ success: true, method: "tw", amount: amountToFill });
     }
 
-    // 5) user เจอจากเบอร์ → auto/manual ตามคอนฟิก
+    // 5) user เจอจากเบอร์
     if (topup.isAuto) {
-      const newBalance = await user.addBalance(added);
+      const newBalance = await user.addBalance(amountToFill); // เติมเฉพาะจำนวนเต็ม
       await Transaction.create({
         userId: user._id,
         username: user.username,
         method: "tw",
         senderNumber: sender_mobile,
-        amount: added,
+        amount: amountToFill,
         amountCents: addedCents,
         currency: "THB",
         status: "completed",
         paidAt: occurredAt,
+        note: `โอนมา ${rawAmount} เติม ${amountToFill}`
       });
-      console.log(`✅ TrueWallet Deposit: ${user.username} +${added} THB → ${newBalance}`);
       return res.json({
         success: true,
         method: "tw",
         username: user.username,
-        amount: added,
+        amount: amountToFill,
         status: "completed",
         balance: newBalance,
       });
@@ -245,14 +246,13 @@ topupRouter.post("/truewallet", async (req, res) => {
         username: user.username,
         method: "tw",
         senderNumber: sender_mobile,
-        amount: added,
+        amount: amountToFill,
         amountCents: addedCents,
         currency: "THB",
         status: "pending",
         paidAt: occurredAt,
       });
-      console.log(`✅ TrueWallet Deposit (manual): ${user.username} +${added} THB (pending)`);
-      return res.json({ success: true, method: "tw", username: user.username, amount: added, status: "pending" });
+      return res.json({ success: true, method: "tw", username: user.username, amount: amountToFill, status: "pending" });
     }
   } catch (err) {
     console.error("❌ /truewallet error:", err);
@@ -347,24 +347,29 @@ topupRouter.post("/create", async (req, res) => {
 
     // ✅ สร้าง pending ใหม่: สุ่มเศษ 0.01..0.60 และเช็ค "global clash" สำหรับ method นั้น ๆ
     const pickUniqueCents = async () => {
-      for (let t = 0; t < 6; t++) {
-        const decimalCents = Math.floor(Math.random() * 19) + 1; // 1..60
-        const uniqueAmt = (Math.round(base * 100) + decimalCents) / 100;
+      for (let t = 0; t < 20; t++) { // เพิ่มรอบ loop เผื่อกรณีเศษชนกัน
+        // สุ่มเลข 1 ถึง 19
+        const randomSmallCents = Math.floor(Math.random() * 19) + 1; 
+        
+        // คำนวณยอดเงินรวมเศษ (เช่น 100.00 + 0.17 = 100.17)
+        const uniqueAmt = (Math.round(base * 100) + randomSmallCents) / 100;
         const uniqueCents = Math.round(uniqueAmt * 100);
 
-        // กันชนกับ pending method เดียวกันที่ยังไม่หมดอายุ (ภายใน 60 นาทีล่าสุด)
+        // เช็คว่ายอดรวมเศษนี้มีการใช้งานค้างอยู่ในระบบไหม
         const clash = await Transaction.exists({
           method: walletCode,
           status: "pending",
           amountCents: uniqueCents,
-          expiresAt: { $gt: new Date(now - 60 * 60 * 1000) }
+          expiresAt: { $gt: new Date() }
         });
+        
         if (!clash) return { uniqueAmt, uniqueCents };
       }
-      // ถ้าชนทุกครั้ง ก็ใช้ตัวสุดท้ายไป (โอกาสน้อยมาก)
-      const decimalCents = Math.floor(Math.random() * 19) + 1;
-      const uniqueAmt = (Math.round(base * 100) + decimalCents) / 100;
-      return { uniqueAmt, uniqueCents: Math.round(uniqueAmt * 100) };
+      
+      // Fallback กรณีสุ่มแล้วชนบ่อย (เพิ่มโอกาสสุ่มใหม่)
+      const finalCents = Math.floor(Math.random() * 19) + 1;
+      const finalAmt = (Math.round(base * 100) + finalCents) / 100;
+      return { uniqueAmt: finalAmt, uniqueCents: Math.round(finalAmt * 100) };
     };
 
     const { uniqueAmt, uniqueCents } = await pickUniqueCents();
