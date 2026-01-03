@@ -2911,25 +2911,40 @@ html[data-theme="dark"] .uicf__card{
 }
 
 /* Badge: ปรับขนาดตามจอ */
-.uicf__badge{
-  position:absolute; left:50%; transform: translate(-50%, -50%);
-  width: clamp(68px, 14vw, 96px);
-  height: clamp(68px, 14vw, 96px);
-  border-radius: 999px;
-  display:flex; align-items:center; justify-content:center;
-  box-shadow: 0 6px 22px rgba(0,0,0,.18);
-  background: var(--uicf-badge, #22c55e);
-  border: clamp(4px, .9vw, 6px) solid #dde6f0;
+.uicf__badge {
+    width: 60px;
+    height: 60px;
+    background: #22c55e; /* สีเขียว */
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: -30px; /* ให้ครึ่งหนึ่งโผล่พ้นการ์ด */
+    left: 50%;
+    transform: translateX(-50%);
+    border: 4px solid #1e293b; /* สีเดียวกับพื้นหลัง modal เพื่อให้ดูนูน */
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
 }
 html[data-theme="dark"] .uicf__badge{ border-color:#2c3138; }
 
-.uicf__icon{
-  width: clamp(28px, 5vw, 44px);
-  height: clamp(28px, 5vw, 44px);
-  fill:#fff; display:none;
+.uicf__icon {
+    width: 30px;  /* ปรับขนาดให้พอดีวงกลม */
+    height: 30px;
+    color: white;
+    display: none; /* ซ่อนไว้ก่อน */
 }
-.uicf--success .uicf__icon--ok{ display:block; }
-.uicf--danger  .uicf__icon--x { display:block; }
+.uicf--success .uicf__icon--ok {
+    display: block;
+}
+
+.uicf--danger .uicf__badge {
+    background: #fb7185; /* สีแดงสำหรับแจ้งเตือนยกเลิก */
+}
+
+.uicf--danger .uicf__icon--x {
+    display: block;
+}
 
 /* เนื้อในการ์ด */
 .uicf__body{
@@ -5071,4 +5086,113 @@ html[data-theme="dark"]{ --pv-bg: var(--page, #0b1620); --pv-border: var(--borde
 
 .row2 > .full-row {
   grid-column: 1 / -1;
+}
+
+
+
+:root {
+  --shmd-bg: #0f172a;
+  --shmd-surface: #1e293b;
+  --shmd-primary: #38bdf8;
+  --shmd-success: #22c55e;
+  --shmd-error: #fb7185;
+  --shmd-text: #f1f5f9;
+  --shmd-text-muted: #94a3b8;
+  --shmd-border: rgba(255,255,255,0.08);
+}
+
+.shmd-modal {
+  position: fixed; inset: 0; z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px; opacity: 0; visibility: hidden; transition: 0.25s;
+}
+.shmd-modal.active { opacity: 1; visibility: visible; }
+
+.shmd-backdrop {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px);
+}
+
+.shmd-container {
+  position: relative; width: 100%; max-width: 750px;
+  background: var(--shmd-bg); border-radius: 24px;
+  border: 1px solid var(--shmd-border);
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+  display: flex; flex-direction: column; max-height: 90vh;
+  transform: translateY(20px); transition: 0.3s;
+}
+.shmd-modal.active .shmd-container { transform: translateY(0); }
+
+.shmd-header { display: flex; justify-content: space-between; padding: 24px; border-bottom: 1px solid var(--shmd-border); }
+.shmd-title { font-size: 20px; color: var(--shmd-text); }
+.shmd-close-btn {
+    background: none;
+    border: none;
+    color: var(--shmd-text-muted);
+    font-size: 28px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px;
+    margin-top: -10px; /* ขยับขึ้นด้านบนเล็กน้อย */
+    margin-right: -10px; /* ขยับไปทางขวาเล็กน้อย */
+    transition: 0.2s;
+}
+
+.shmd-close-btn:hover {
+    color: var(--shmd-text);
+    transform: scale(1.1);
+}
+
+.shmd-body { padding: 20px 24px; overflow-y: auto; flex: 1; }
+.shmd-card { background: var(--shmd-surface); border-radius: 16px; padding: 16px; margin-bottom: 24px; border: 1px solid var(--shmd-border); }
+
+.shmd-timeline { position: relative; margin: 16px 0; }
+.shmd-step { position: relative; display: flex; gap: 16px; padding-bottom: 24px; }
+.shmd-step::after { content: ''; position: absolute; left: 11px; top: 24px; bottom: 0; width: 2px; background: var(--shmd-border); }
+.shmd-step:last-child::after { display: none; }
+.shmd-step-icon { width: 24px; height: 24px; border-radius: 50%; background: var(--shmd-surface); border: 2px solid var(--shmd-border); flex-shrink: 0; z-index: 1; }
+.shmd-step-active .shmd-step-icon { background: var(--shmd-primary); border-color: var(--shmd-primary); box-shadow: 0 0 15px var(--shmd-primary); }
+
+.shmd-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.full-width { grid-column: span 2; }
+.shmd-info-item { background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px; }
+
+.shmd-progress-track { height: 8px; background: var(--shmd-surface); border-radius: 10px; overflow: hidden; margin: 8px 0; }
+.shmd-progress-fill { height: 100%; background: linear-gradient(90deg, var(--shmd-primary), #6366f1); transition: 1s ease-in-out; }
+
+.shmd-footer { padding: 16px 24px; border-top: 1px solid var(--shmd-border); display: grid; grid-template-columns: 1fr 1.5fr; gap: 12px; }
+.shmd-btn-secondary { background: var(--shmd-surface); color: var(--shmd-text); border: 1px solid var(--shmd-border); padding: 12px; border-radius: 12px; cursor: pointer; }
+.shmd-btn-primary { background: var(--shmd-primary); color: #000; border: none; padding: 12px; border-radius: 12px; cursor: pointer; font-weight: bold; }
+
+/* ส่วนกล่องคอมเมนต์เลื่อนได้ */
+.shmd-comments-wall {
+    background: rgba(0, 0, 0, 0.3); /* สีพื้นหลังกล่องให้ดูจมลงไปเล็กน้อย */
+    border-radius: 12px;
+    padding: 15px;
+    font-size: 14px;
+    color: #cbd5e1;
+    line-height: 1.6;
+    border: 1px solid var(--shmd-border);
+    
+    /* ควบคุมความสูงและเปิดการเลื่อน */
+    max-height: 200px; /* ปรับความสูงตามต้องการ เช่น 150px - 250px */
+    overflow-y: auto;
+    
+    /* ตกแต่ง Scrollbar ให้ดูโปร (สำหรับ Chrome/Safari) */
+}
+
+.shmd-comments-wall::-webkit-scrollbar {
+    width: 6px;
+}
+
+.shmd-comments-wall::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.shmd-comments-wall::-webkit-scrollbar-thumb {
+    background: var(--shmd-border);
+    border-radius: 10px;
+}
+
+.shmd-comments-wall::-webkit-scrollbar-thumb:hover {
+    background: var(--shmd-text-muted);
 }

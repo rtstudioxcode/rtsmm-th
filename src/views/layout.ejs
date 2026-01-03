@@ -439,28 +439,24 @@
   <!-- ========== Global Confirm Modal ========== -->
   <div id="uiConfirm" class="uicf hidden" aria-hidden="true">
     <div class="uicf__overlay" data-close="1"></div>
-
     <div class="uicf__card" role="dialog" aria-modal="true" aria-labelledby="uicfTitle">
-      <!-- Badge วงกลมบนหัวการ์ด -->
       <div class="uicf__badge">
-        <svg class="uicf__icon uicf__icon--ok" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M9.000,16.200 L4.800,12.000 L3.400,13.400 L9.000,19.000 L21.000,7.000 L19.600,5.600 L9.000,16.200 Z"></path>
+        <svg class="uicf__icon uicf__icon--ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
         </svg>
-        <svg class="uicf__icon uicf__icon--x" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M18.3 5.71L12 12.01 5.7 5.71 4.29 7.12l6.3 6.29-6.3 6.29 1.41 1.41 6.3-6.29 6.29 6.29 1.41-1.41-6.29-6.29 6.29-6.29z"/>
+        
+        <svg class="uicf__icon uicf__icon--x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
       </div>
-
-      <!-- เนื้อในการ์ด -->
       <div class="uicf__body">
-        <h3 id="uicfTitle" class="uicf__title">Success</h3>
-        <p id="uicfSub" class="uicf__sub">Woah, successfully completed 3/5 Tasks</p>
+        <h3 id="uicfTitle" class="uicf__title">-</h3>
+        <p id="uicfSub" class="uicf__sub">-</p>
       </div>
-
-      <!-- แถบปุ่มล่างเทาอ่อน -->
       <div class="uicf__actions">
-        <button id="uicfCancel" class="uicf__btn uicf__btn--ghost" type="button">Cancel</button>
-        <button id="uicfOk" class="uicf__btn uicf__btn--primary" type="button">Dashboard</button>
+        <button id="uicfCancel" class="uicf__btn uicf__btn--ghost" type="button">ยกเลิก</button>
+        <button id="uicfOk" class="uicf__btn uicf__btn--primary" type="button">ตกลง</button>
       </div>
     </div>
   </div>
@@ -533,10 +529,10 @@
       background:#d1fae5; color:#059669; border-radius:999px; flex:0 0 22px;
     }
     .notify__title{
-      font-weight:600; color:#111827; font-size:14px; line-height:1;
+      font-weight:400; color:#111827; font-size:14px; line-height:1;
     }
     .notify__meta{
-      margin-left:auto; color:#6b7280; font-size:12px;
+      margin-left:auto; color:#6b7280; font-size:14px;
       display:flex; align-items:center; gap:10px;
     }
     .notify__close{
@@ -546,7 +542,7 @@
     .notify__close:hover{ color:#6b7280; background:#f3f4f6; }
     .notify__body{
       padding:10px 12px 12px 12px; color:#374151; font-size:13px;
-      border-top:1px solid #f3f4f6;
+      border-top:1px solid #f3f4f6; font-weight:400;
     }
     /* variants: ปรับเฉพาะสีไอคอน (พื้น+ตัว) */
     .notify--success .notify__icon{ background:#d1fae5; color:#059669; }
@@ -805,72 +801,91 @@
   <script>
   (function(){
     const root = document.getElementById('uiConfirm');
-    const card = root.querySelector('.uicf__card');
     const titleEl = root.querySelector('#uicfTitle');
-    const subEl   = root.querySelector('#uicfSub');
-    const btnOk   = root.querySelector('#uicfOk');
+    const subEl = root.querySelector('#uicfSub');
+    const btnOk = root.querySelector('#uicfOk');
     const btnCancel = root.querySelector('#uicfCancel');
 
     let resolver = null;
 
-    function show(opts){
-      // default
+    // 1. ฟังก์ชันพื้นฐานแสดง Modal Confirm
+    window.uiConfirm = function(opts){
       const {
-        variant = 'success', 
-        title   = (variant==='success'?'Success':'Cancel'),
-        sub     = (variant==='success'?'Woah, successfully completed 3/5 Tasks':'Just a small miss, 2/5 Tasks'),
-        okText  = (variant==='success'?'Dashboard':'Try Again'),
-        cancelText = 'Cancel',
-        // focus control
-        focus = 'ok', // 'ok'|'cancel'
+        variant = 'success', // 'success' | 'danger'
+        title = 'ยืนยันการทำรายการ',
+        sub = 'คุณแน่ใจใช่หรือไม่ที่จะดำเนินการนี้?',
+        okText = 'ตกลง',
+        cancelText = 'ยกเลิก',
+        focus = 'ok'
       } = opts || {};
 
-      // set variant class
       root.classList.remove('hidden', 'uicf--success', 'uicf--danger');
-      root.classList.add(variant==='danger' ? 'uicf--danger' : 'uicf--success');
+      root.classList.add(variant === 'danger' ? 'uicf--danger' : 'uicf--success');
 
-      // set texts
       titleEl.textContent = title;
-      subEl.textContent   = sub;
-      btnOk.textContent   = okText;
+      subEl.textContent = sub;
+      btnOk.textContent = okText;
       btnCancel.textContent = cancelText;
 
-      // lock scroll
+      root.classList.remove('hidden');
       document.documentElement.style.overflow = 'hidden';
+      setTimeout(() => (focus === 'cancel' ? btnCancel : btnOk).focus(), 10);
 
-      // focus
-      setTimeout(()=> (focus==='cancel' ? btnCancel : btnOk).focus(), 10);
-
-      return new Promise((resolve)=>{
-        resolver = resolve;
-      });
-    }
-
-    function hide(){
-      root.classList.add('hidden');
-      document.documentElement.style.overflow = '';
-      if (resolver){ resolver = null; }
-    }
+      return new Promise((resolve) => { resolver = resolve; });
+    };
 
     function decide(val){
-      const r = resolver;
-      hide();
-      if (r) r(val);
+      root.classList.add('hidden');
+      document.documentElement.style.overflow = '';
+      if (resolver) { resolver(val); resolver = null; }
     }
 
-    // events
-    btnOk.addEventListener('click',   ()=>decide(true));
-    btnCancel.addEventListener('click',()=>decide(false));
-    root.addEventListener('click', (e)=>{
-      if (e.target.dataset.close === '1') decide(false);
-    });
-    document.addEventListener('keydown', (e)=>{
-      if (root.classList.contains('hidden')) return;
-      if (e.key === 'Escape') decide(false);
-    });
+    btnOk.addEventListener('click', () => decide(true));
+    btnCancel.addEventListener('click', () => decide(false));
+    root.addEventListener('click', (e) => { if (e.target.dataset.close === '1') decide(false); });
 
-    // expose global
-    window.uiConfirm = show;
+    // --------------------------------------------------------
+    // 2. Global Helper สำหรับ "กดยกเลิกออเดอร์"
+    // --------------------------------------------------------
+    window.confirmCancelOrder = async function(orderId) {
+      const confirmed = await window.uiConfirm({
+        variant: 'danger',
+        title: 'ยกเลิกคำสั่งซื้อ',
+        sub: `คุณต้องการยกเลิกคำสั่งซื้อหมายเลข #${orderId} ใช่หรือไม่?`,
+        okText: 'ยืนยันยกเลิก',
+        cancelText: 'กลับไป'
+      });
+
+      if (confirmed) {
+        if (typeof startCancel === 'function') {
+          startCancel(orderId); // เรียกใช้ฟังก์ชันเดิมในหน้าประวัติ
+        } else {
+          console.error('ฟังก์ชัน startCancel ไม่ได้ถูกนิยามในหน้านี้');
+        }
+      }
+    };
+
+    // --------------------------------------------------------
+    // 3. Global Helper สำหรับ "กดสั่งซื้อซ้ำ"
+    // --------------------------------------------------------
+    window.confirmRepeatOrder = async function(btn) {
+      const orderId = btn.dataset.id;
+      const confirmed = await window.uiConfirm({
+        variant: 'success',
+        title: 'สั่งซื้อรายการเดิมอีกครั้ง',
+        sub: 'ระบบจะนำข้อมูลเดิมมาสร้างคำสั่งซื้อใหม่ให้คุณต้องการดำเนินการต่อหรือไม่?',
+        okText: 'สั่งซื้อซ้ำ',
+        cancelText: 'ยกเลิก'
+      });
+
+      if (confirmed) {
+        if (typeof repeatOrder === 'function') {
+          repeatOrder(btn); // เรียกใช้ฟังก์ชันเดิมในหน้าประวัติ
+        } else {
+          console.error('ฟังก์ชัน repeatOrder ไม่ได้ถูกนิยามในหน้านี้');
+        }
+      }
+    };
   })();
   </script>
   <!-- <% if (me) { %>

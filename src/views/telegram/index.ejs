@@ -648,13 +648,13 @@ startBtn.addEventListener("click", async () => {
   const destGroup = (destGroupEl?.value || "").trim();
   let limit       = Math.floor(Number(limitEl?.value || 0));
 
-  if (!destGroup) return notify.error("⚠️ กรุณากรอกลิงก์กลุ่มปลายทาง");
+  if (!destGroup) return notify.error("กรุณากรอกลิงก์กลุ่มปลายทาง");
 
   let payload;
 
   if (mode === "list") {
     const tgTargets = Array.isArray(window.__TG_TARGETS__) ? window.__TG_TARGETS__ : [];
-    if (!tgTargets.length) return notify.error("⚠️ โหมดอัปโหลดไฟล์ต้องมีรายชื่อจากไฟล์/รายการ");
+    if (!tgTargets.length) return notify.error("โหมดอัปโหลดไฟล์ต้องมีรายชื่อจากไฟล์/รายการ");
 
     // limit ไม่กรอก/เป็น 0 -> ให้ backend ใช้ targets.length (ตามที่ route ทำไว้แล้ว)
     if (limit <= 0) limit = tgTargets.length;
@@ -668,8 +668,8 @@ startBtn.addEventListener("click", async () => {
     };
   } else {
     // group mode
-    if (!srcGroup) return notify.error("⚠️ กรุณากรอกลิงก์กลุ่มต้นทาง");
-    if (limit <= 0) return notify.error("⚠️ กรุณากรอกจำนวนสมาชิก (มากกว่า 0)");
+    if (!srcGroup) return notify.error("กรุณากรอกลิงก์กลุ่มต้นทาง");
+    if (limit <= 0) return notify.error("กรุณากรอกจำนวนสมาชิก (มากกว่า 0)");
 
     payload = {
       mode: "group",
@@ -927,7 +927,7 @@ btnNext.onclick = async () => {
   const apiHash = document.getElementById("tg_apiHash").value.trim();
 
   if (!phone || !apiId || !apiHash)
-    return notify.error("⚠️ กรุณากรอกข้อมูลให้ครบ");
+    return notify.error("กรุณากรอกข้อมูลให้ครบ");
 
   notify.info("กำลังส่งรหัส OTP...");
 

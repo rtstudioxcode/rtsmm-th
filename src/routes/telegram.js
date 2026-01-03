@@ -182,7 +182,7 @@ function translateTgErrorCode(errOrCode) {
 
   const map = {
     USER_CHANNELS_TOO_MUCH: "ผู้ใช้นี้เข้าร่วมกลุ่ม/ช่องเยอะเกินลิมิตแล้ว (ต้องให้ออกจากบางกลุ่มก่อน)",
-    USER_NOT_MUTUAL_CONTACT: "ผู้ใช้นี้ไม่ได้เป็น Mutual Contact (ต้องให้เขาเพิ่มเรา/เคยคุยกันก่อน หรือเปิดให้คนอื่นเชิญได้)",
+    USER_NOT_MUTUAL_CONTACT: "ผู้ใช้นี้ไม่ได้เป็นผู้ติดต่อร่วมกัน (ต้องให้เขาเพิ่มเรา/เคยคุยกันก่อน หรือเปิดให้คนอื่นเชิญได้)",
     USER_PRIVACY_RESTRICTED: "ผู้ใช้นี้ตั้งค่าความเป็นส่วนตัว ไม่อนุญาตให้ถูกเพิ่มเข้ากลุ่ม",
     CHAT_ADMIN_REQUIRED: "ต้องเป็นแอดมิน/มีสิทธิ์เชิญสมาชิกในกลุ่มปลายทางก่อน",
     INVITE_REQUEST_SENT: "ส่งคำขอเข้ากลุ่มแล้ว (กลุ่มปลายทางต้องอนุมัติ)",
@@ -204,7 +204,8 @@ function translateTgErrorCode(errOrCode) {
 
 function formatInviteFail(name, errOrCode) {
   const tr = translateTgErrorCode(errOrCode);
-  return `❌ เชิญ ${name} ไม่สำเร็จ: ${tr.th}${tr.code ? ` (${tr.code})` : ""}`;
+  // แก้ไขบรรทัดนี้ โดยลบส่วนรหัสโค้ดภาษาอังกฤษออก
+  return `❌ เชิญ ${name} ไม่สำเร็จ: ${tr.th}`;
 }
 
 // Create Telegram Client
@@ -739,7 +740,7 @@ export async function startTelegramJob(jobId) {
     job = await TelegramJob.findById(jobId);
     if (!job) return;
 
-    const uid = job.userId; 
+    const uid = job.userId;
     if (!uid) {
       job.status = "error";
       job.logs.push({ text: "เจ้าของงานหายไป: userId ว่างเปล่า", time: new Date() });
@@ -749,23 +750,20 @@ export async function startTelegramJob(jobId) {
     }
 
     const now = Date.now();
-    const reasons = [];
     const allAccounts = await TgAccount.find({ userId: uid, session: { $ne: null } });
-    
+
     // ตั้งค่าพื้นฐาน
-    const ROUND_LIMIT = 50; 
-    const COOLDOWN_MS = 2 * 60 * 60 * 1000; 
+    const ROUND_LIMIT = 50;
+    const COOLDOWN_MS = 2 * 60 * 60 * 1000;
 
     // Pre-check เบื้องต้น
     for (const acc of allAccounts) {
       if (!acc.session || !acc.userId || String(acc.userId) !== String(uid) || acc.status === "LOCKED") continue;
-
       if (acc.cooldownUntil && acc.cooldownUntil.getTime() > now) {
         acc.status = "COOLDOWN";
         await acc.save();
         continue;
       }
-
       if (acc.status === "COOLDOWN" && acc.cooldownUntil && acc.cooldownUntil.getTime() <= now) {
         acc.status = "READY";
         acc.cooldownUntil = null;
@@ -779,25 +777,24 @@ export async function startTelegramJob(jobId) {
     const qty = Math.min(Number(job.limit || 0), MAX_LIMIT_PER_JOB);
     telegramPush(jobId, { status: "running", total: qty, invited: job.invited });
 
+    let listIndex = 0; // ย้ายตัวแปรมาไว้นอก Loop บัญชี เพื่อให้ดึงรายชื่อต่อจากเดิมได้
+
     // =========================================================
     // MAIN LOOP: วนจนกว่าจะเชิญสำเร็จครบตามจำนวนจริง (qty)
     // =========================================================
     while (job.invited < qty) {
       if (stopRequested.has(String(jobId))) return;
 
-      // เลือกบัญชีที่พร้อมที่สุดมาใช้งาน (เรียงตาม Risk Score)
       const accounts = await pickAccounts(uid, { maxSecurity: !!job.maxSecurity });
-      
-      // ถ้าไม่มีบัญชี READY เหลืออยู่เลย ให้หยุดงานอัตโนมัติ
+
       if (!accounts.length) {
-        await finalizeEarly(job, jobId, qty, "หยุดงานชั่วคราว: บัญชีทั้งหมดติด Cooldown หรือ Locked และไม่มีบัญชีสำรองใช้งานต่อได้", "auto_stopped");
+        await finalizeEarly(job, jobId, qty, "หยุดงานชั่วคราว: บัญชีทั้งหมดติด Cooldown หรือ Locked", "auto_stopped");
         return;
       }
 
       for (const acc of accounts) {
         if (job.invited >= qty) break;
 
-        // คำนวณโควต้าที่บัญชีนี้ทำได้ (คำนวณจากยอดที่ขาดจริง)
         const q = quota(acc, qty - job.invited);
         if (q <= 0) continue;
 
@@ -805,86 +802,72 @@ export async function startTelegramJob(jobId) {
         try {
           const ok = await safeConnect(client);
           if (!ok) continue;
-          await client.getMe();
+          
+          const me = await client.getMe();
 
-          // เข้าร่วมกลุ่มต้นทาง/ปลายทาง
           if ((job.mode || "group") === "group") await ensureJoin(client, job.srcGroup);
           await ensureJoin(client, job.destGroup);
 
           const dst = await resolveEntity(client, job.destGroup);
-          if (!dst) throw new Error("ไม่สามารถระบุกลุ่มปลายทางได้ (resolveEntity failed)");
+          if (!dst) throw new Error("ไม่สามารถระบุกลุ่มปลายทางได้");
 
-          let doneThisAcc = 0; // ยอดที่บัญชีนี้ทำสำเร็จในรอบนี้
+          let doneThisAcc = 0;
 
           // --- MODE: GROUP ---
           if ((job.mode || "group") === "group") {
             const src = await resolveEntity(client, job.srcGroup);
             if (!src) throw new Error("ไม่สามารถระบุกลุ่มต้นทางได้");
-            const me = await client.getMe();
             const members = await fetchSrcMembers(client, src, me.id, jobId, 500);
 
             for (const user of members) {
               if (stopRequested.has(String(jobId)) || job.invited >= qty || doneThisAcc >= q) break;
 
               const username = user.username || user.firstName || ("user_" + user.id);
-              
-              // 1. ตรวจสอบประวัติการเชิญ (ข้ามแบบจริงๆ ไม่นับรวมจำนวน)
               const exists = await TgInviteLog.findOne({ destGroup: job.destGroup, tgUserId: user.id }).lean();
-              if (exists) continue; 
+              if (exists) continue;
 
-              // 2. ส่งคำสั่งเชิญ
               const r = await inviteOne(client, dst, user);
-              
+
               if (r.ok) {
-                // บันทึก Log เมื่อสำเร็จจริงเท่านั้น
-                await TgInviteLog.create({ 
-                    jobId: job._id, 
-                    accountId: acc._id, 
-                    tgUserId: user.id, 
-                    tgUserName: username, 
-                    srcGroup: job.srcGroup, 
-                    destGroup: job.destGroup 
+                await TgInviteLog.create({
+                  jobId: job._id,
+                  accountId: acc._id,
+                  tgUserId: user.id,
+                  tgUserName: username,
+                  srcGroup: job.srcGroup,
+                  destGroup: job.destGroup
                 });
 
                 pushJobLog(job, jobId, `✅ เชิญ ${username} สำเร็จ`, { persist: true });
-
                 job.invited++;
                 doneThisAcc++;
                 acc.invitesToday++;
-
                 telegramPush(jobId, { invited: job.invited, total: qty, user: username });
-
-                // ✅ ระบบ Delay แบบคนอย่างฉลาด (Smart Human Delay) เพื่อความปลอดภัย
                 await sleep(humanDelay());
 
-                // ถ้าครบโควต้าต่อรอบ (50 คน) ให้พักบัญชี
                 if (acc.invitesToday % ROUND_LIMIT === 0) {
                   acc.status = "COOLDOWN";
                   acc.cooldownUntil = new Date(Date.now() + COOLDOWN_MS);
                   await acc.save();
-                  break; 
+                  break;
                 }
-              } 
-              else if (r.already) {
-                // ข้ามแบบจริงๆ ถ้าอยู่ในกลุ่มอยู่แล้ว ไม่ลดโควต้างาน
-                continue; 
-              } 
-              else if (r.flood || r.peerFlood) {
-                // ติด Flood: พักบัญชีและเปลี่ยนบัญชีทันที
+              } else if (r.already) {
+                continue;
+              } else if (r.flood || r.peerFlood) {
                 const waitMs = r.peerFlood ? PEER_FLOOD_COOLDOWN_MS : (extractFloodWait(r.message) || COOLDOWN_MS);
                 acc.cooldownUntil = new Date(Date.now() + waitMs);
                 acc.status = "COOLDOWN";
                 acc.lastError = r.peerFlood ? "PEER_FLOOD" : "FLOOD_WAIT";
                 await acc.save();
                 break;
-              }
-              else {
-                // Error อื่นๆ (เช่น Privacy): ข้ามไปหาคนถัดไป ไม่นับเป็นความล้มเหลวที่ต้องหักยอด
-                telegramPush(jobId, { invited: job.invited, total: qty, log: `⚠️ ข้าม ${username}: เนื่องจากสิทธิ์ความเป็นส่วนตัว` });
+              } else {
+                // ✅ เรียกใช้ formatInviteFail สำหรับ Error อื่นๆ เช่น Privacy
+                const failMsg = formatInviteFail(username, r.message || r.error);
+                pushJobLog(job, jobId, failMsg, { persist: true });
                 continue;
               }
             }
-          } 
+          }
           // --- MODE: LIST ---
           else {
             const targets = Array.isArray(job.targets) ? job.targets : [];
@@ -896,58 +879,59 @@ export async function startTelegramJob(jobId) {
               if (!rr.ok) continue;
 
               const userEnt = rr.user;
+              const username = userEnt.username || userEnt.firstName || "Unknown";
               const exists = await TgInviteLog.findOne({ destGroup: job.destGroup, tgUserId: userEnt.id }).lean();
               if (exists) continue;
 
               const r = await inviteOne(client, dst, userEnt);
               if (r.ok) {
-                await TgInviteLog.create({ 
-                    jobId: job._id, 
-                    accountId: acc._id, 
-                    tgUserId: userEnt.id, 
-                    tgUserName: userEnt.username || userEnt.firstName, 
-                    srcGroup: "-", 
-                    destGroup: job.destGroup 
+                await TgInviteLog.create({
+                  jobId: job._id,
+                  accountId: acc._id,
+                  tgUserId: userEnt.id,
+                  tgUserName: username,
+                  srcGroup: "-",
+                  destGroup: job.destGroup
                 });
 
+                pushJobLog(job, jobId, `✅ เชิญ ${username} สำเร็จ`, { persist: true });
                 job.invited++;
                 doneThisAcc++;
                 acc.invitesToday++;
-                telegramPush(jobId, { invited: job.invited, total: qty });
-
-                // ✅ ระบบ Delay แบบคนอย่างฉลาด
+                telegramPush(jobId, { invited: job.invited, total: qty, user: username });
                 await sleep(humanDelay());
 
                 if (acc.invitesToday % ROUND_LIMIT === 0) break;
-              } 
-              else if (r.flood || r.peerFlood) {
+              } else if (r.flood || r.peerFlood) {
                 acc.status = "COOLDOWN";
                 acc.cooldownUntil = new Date(Date.now() + (r.peerFlood ? PEER_FLOOD_COOLDOWN_MS : COOLDOWN_MS));
                 await acc.save();
                 break;
+              } else {
+                // ✅ เรียกใช้ formatInviteFail ในโหมด LIST
+                const failMsg = formatInviteFail(username, r.message || r.error);
+                pushJobLog(job, jobId, failMsg, { persist: true });
+                continue;
               }
             }
-            // กรณีรายชื่อในไฟล์หมดแต่ยังดึงไม่ครบ
             if (listIndex >= targets.length && job.invited < qty) {
-              await finalizeEarly(job, jobId, qty, "รายชื่อในไฟล์/รายการ ถูกใช้งานจนครบแล้วแต่ยังไม่ถึงจำนวนที่ต้องการ", "finished");
+              await finalizeEarly(job, jobId, qty, "รายชื่อในรายการถูกใช้งานจนครบแล้ว", "finished");
               return;
             }
           }
           await job.save();
         } catch (err) {
-          pushJobLog(job, jobId, `❌ ข้อผิดพลาดที่บัญชี ${acc.phone}: ${err.message}`);
+          pushJobLog(job, jobId, `❌ บัญชี ${acc.phone}: ${err.message}`);
         } finally {
           try { await safeClose(client); } catch {}
           await acc.save();
         }
       }
-      // พักรอบสั้นๆ ก่อนเริ่มหาบัญชี READY รอบใหม่
-      await sleep(1500); 
+      await sleep(1500);
     }
 
-    // เมื่อดึงครบตามจำนวนจริง (qty) เท่านั้น ถึงจะจบงานแบบสำเร็จ
     job.status = "finished";
-    job.logs.push({ text: `✅ ดึงสมาชิกครบตามจำนวนสำเร็จ (${job.invited}/${qty})`, time: new Date() });
+    job.logs.push({ text: `✅ ดึงสมาชิกสำเร็จ (${job.invited}/${qty})`, time: new Date() });
     await job.save();
     telegramPush(jobId, { status: "finished", invited: job.invited, total: qty });
 

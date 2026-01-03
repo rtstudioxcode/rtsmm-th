@@ -541,118 +541,97 @@ function fmtTHDate(d){
   </div>
 
   <!-- ===== Modal: รายละเอียดคำสั่งซื้อ ===== -->
-  <div id="orderModal" class="omodal" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="omodal-backdrop" data-close="1"></div>
-
-    <div class="omodal-dialog">
-      <header class="omodal-head">
-        <div class="omodal-title">
-          คำสั่งซื้อ ID: <span id="om-title" style="color: #e3b863;">#</span>
+  <div id="shmdOrderModal" class="shmd-modal" role="dialog" aria-hidden="true">
+    <div class="shmd-backdrop" data-close-shmd="1"></div>
+    
+    <div class="shmd-container">
+      <header class="shmd-header">
+        <div class="shmd-header-content">
+          <span class="shmd-badge">รายละเอียดคำสั่งซื้อ</span>
+          <h2 class="shmd-title">ID: <span id="shmd-id-val">#0000</span></h2>
         </div>
-        <button class="omodal-close" title="ปิด" data-close="1">×</button>
+        <button class="shmd-close-btn" data-close-shmd="1">&times;</button>
       </header>
 
-      <div class="omodal-body">
-        <!-- ค่าใช้จ่าย -->
-        <section class="omodal-sec">
-          <h4>รายละเอียดค่าใช้จ่าย</h4>
-          <div class="ometa">
-            <div class="muted">ค่าใช้จ่าย ทั้งหมด</div>
-            <div id="om-cost" class="om-cost">-</div>
-
-            <div class="muted" id="om-refund-label" style="margin-top:8px; display:none;">ยอดคืนเงิน</div>
-            <div id="om-refund" style="display:none;">-</div>
+      <div class="shmd-body">
+        <section class="shmd-card shmd-card-price">
+          <div class="shmd-price-row">
+            <span class="shmd-label">ยอดชำระสุทธิ</span>
+            <span id="shmd-cost-val" class="shmd-value shmd-highlight-green">-</span>
+          </div>
+          <div id="shmd-refund-box" class="shmd-refund-alert" style="display:none;">
+            <span class="shmd-label">ยอดคืนเงิน</span>
+            <span id="shmd-refund-val" class="shmd-value">-</span>
           </div>
         </section>
 
-        <!-- ไทม์ไลน์คำสั่งซื้อ -->
-        <section class="omodal-sec">
-          <h4>ไทม์ไลน์คำสั่งซื้อ</h4>
-          <div class="otimeline">
-            <!-- จุดสุดท้าย (สถานะล่าสุด) -->
-            <label class="ot-item ot-item--final">
-              <input type="radio" name="otime" id="om-final-radio" checked>
-              <div>
-                <span id="om-final-label">สถานะล่าสุด</span>
-                <div class="ottime" id="om-final-time">-</div>
+        <section class="shmd-section">
+          <h3 class="shmd-sec-title">สถานะและไทม์ไลน์</h3>
+          <div class="shmd-timeline">
+            <div class="shmd-step shmd-step-active" id="shmd-step-final">
+              <div class="shmd-step-icon"></div>
+              <div class="shmd-step-content">
+                <div class="shmd-step-label" id="shmd-final-label">สถานะปัจจุบัน</div>
+                <div class="shmd-step-time" id="shmd-final-time">-</div>
               </div>
-            </label>
-
-            <!-- เวลาที่เซิร์ฟเวอร์อัปเดต -->
-            <label class="ot-item">
-              <input type="radio" name="otime" disabled>
-              <div>
-                เซิร์ฟเวอร์อัปเดต
-                <div class="ottime" id="om-updatedAt">-</div>
-              </div>
-            </label>
-
-            <!-- เวลาที่คำสั่งซื้อเข้ามา -->
-            <label class="ot-item">
-              <input type="radio" name="otime" disabled>
-              <div>
-                คำสั่งซื้อเข้ามา
-                <div class="ottime" id="om-createdAt">-</div>
-              </div>
-            </label>
-          </div>
-        </section>
-
-              <!-- รายละเอียดคำสั่งซื้อ -->
-        <section class="omodal-sec">
-          <h4>รายละเอียดคำสั่งซื้อ</h4>
-          <div class="ometa">
-            <!-- ลิงก์ -->
-            <div class="muted">ลิงก์</div>
-            <div class="olink">
-              <a id="om-link" style="color: rgb(41, 149, 238);" href="#" target="_blank" rel="noopener">-</a>
             </div>
-
-            <!-- ปริมาณ -->
-            <div class="muted">ปริมาณ</div>
-            <div id="om-qty" class="mono">-</div>
-
-            <!-- เริ่ม -->
-            <div class="muted">เริ่ม</div>
-            <div id="om-start" class="mono">-</div>
-
-            <!-- current ซ่อนไว้ (เผื่ออนาคตใช้) -->
-            <div class="muted" hidden>นับปัจจุบัน (current)</div>
-            <div id="om-current" class="mono" hidden>-</div>
-
-            <!-- ปริมาณที่เหลือ + แถบความคืบหน้า แบบในรูป -->
-            <div class="muted">ปริมาณที่เหลือ</div>
-            <div class="om-left-wrap">
-              <div class="oprog">
-                <div class="oprog-head">
-                  <span class="mono left-label">
-                    <span id="om-left-abs-head">0</span> รอดำเนิน
-                  </span>
-                  <span class="mono right-label" id="om-left-pct">0.00%</span>
-                </div>
-                <div class="opbar">
-                  <i id="om-bar" style="width:0%"></i>
-                </div>
+            <div class="shmd-step">
+              <div class="shmd-step-icon"></div>
+              <div class="shmd-step-content">
+                <div class="shmd-step-label">อัปเดตล่าสุด</div>
+                <div class="shmd-step-time" id="shmd-updated-time">-</div>
               </div>
-              <div class="mono muted o-left-summary">
-                เหลือ <span id="om-left-abs">0</span> จากทั้งหมด <span id="om-qty-abs">0</span>
+            </div>
+            <div class="shmd-step">
+              <div class="shmd-step-icon"></div>
+              <div class="shmd-step-content">
+                <div class="shmd-step-label">รับคำสั่งซื้อ</div>
+                <div class="shmd-step-time" id="shmd-created-time">-</div>
               </div>
             </div>
           </div>
         </section>
 
-        <!-- คอมเมนต์จากผู้ให้บริการ -->
-        <section class="omodal-sec" id="om-comments-sec" style="display:none;">
-          <h4>Comments <small class="muted" style="font-weight:400;">(1 บรรทัดต่อ 1 Comment)</small></h4>
-          <div class="ometa mono small om-comments-scroll" id="om-comments-body">
-            <!-- จะถูกเติมด้วย JS -->
+        <section class="shmd-section">
+          <h3 class="shmd-sec-title">รายละเอียดงาน</h3>
+          <div class="shmd-info-grid">
+            <div class="shmd-info-item full-width">
+              <span class="shmd-label">ลิงก์ปลายทาง</span>
+              <a id="shmd-link-val" href="#" target="_blank" class="shmd-link-text">-</a>
+            </div>
+            <div class="shmd-info-item">
+              <span class="shmd-label">จำนวนสั่งซื้อ</span>
+              <span id="shmd-qty-val" class="shmd-value-bold">-</span>
+            </div>
+            <div class="shmd-info-item">
+              <span class="shmd-label">จุดเริ่มต้น</span>
+              <span id="shmd-start-val" class="shmd-value-bold">-</span>
+            </div>
+
+            <div class="shmd-progress-container full-width">
+              <div class="shmd-progress-header">
+                <span class="shmd-label">ความคืบหน้า</span>
+                <span id="shmd-pct-val" class="shmd-pct-badge">0%</span>
+              </div>
+              <div class="shmd-progress-track">
+                <div id="shmd-bar-val" class="shmd-progress-fill"></div>
+              </div>
+              <div class="shmd-progress-footer">
+                เหลือ <span id="shmd-left-val">0</span> จาก <span id="shmd-total-val">0</span>
+              </div>
+            </div>
           </div>
+        </section>
+
+        <section class="shmd-section" id="shmd-comments-sec" style="display:none;">
+        <h3 class="shmd-sec-title">Comments <span style="color: #f7cb3b;" >(1 บรรทัดต่อ 1 Comment)</span></h3>
+          <div class="shmd-comments-wall" id="shmd-comments-val"></div>
         </section>
       </div>
 
-      <footer class="omodal-foot">
-        <button class="btn-ghost" data-close="1">ปิด</button>
-        <button id="om-refresh" class="btn-ghost">รีเฟรชสถานะ</button>
+      <footer class="shmd-footer">
+        <button class="shmd-btn-secondary" data-close-shmd="1">ปิด</button>
+        <button id="shmd-refresh-btn" class="shmd-btn-primary">อัปเดตสถานะ</button>
       </footer>
     </div>
   </div>
@@ -683,9 +662,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 });
-</script>
 
-<script>
 // === ไอคอนสถานะ (GLOBAL) ===
 window.__STATUS_ICONS__ = {
   processing: '/static/assets/status/processing.png',
@@ -712,448 +689,400 @@ window.ensureStatusIcon = function ensureStatusIcon(pill, status){
   ico.style.setProperty('--st-ico', `url("${url}")`);
   pill.classList.add('has-ico');
 };
-</script>
 
-<script>
-/* ==== ส่งข้อมูลออเดอร์มาไว้ฝั่ง client (เฉพาะที่ต้องใช้ใน modal) ==== */
-window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
-  _id: o._id,
-  providerOrderId: o.providerOrderId,
-  link: o.link,
-  quantity: o.quantity,
-  startCount: o.startCount ?? null,
-  currentCount: o.currentCount ?? null,
-  remains: o.remains ?? null,
-  progress: o.progress ?? null,
-  status: o.status,
-  createdAt: o.createdAt,
-  updatedAt: o.updatedAt ?? o.createdAt,
-  currency: (o.currency || o.service?.currency || 'THB'),
-  estCost: (o.estCost ?? o.cost ?? (((o.quantity||0)/1000) * (o.service?.rate||0))),
-  serviceId: (o.service && o.service._id) || null, 
-  svcProviderServiceId: (o.service && o.service.providerServiceId) || (o.providerServiceId || null),
-  providerServiceId: o.providerServiceId || null,
-  refundAmount: (o.refundAmount ?? 0),
-  refundType: (o.refundType || null),
-
-  // 🆕 ดึง comments จาก providerResponse
-  comments:
-    (o.providerResponse?.raw?.comments)
-    || (o.providerResponse?.raw?.comment)
-    || (o.providerResponse?.comments)
-    || ''
-}))) %>;
-
-(function(){
-  const $ = (s,r=document)=>r.querySelector(s);
-
-  // utils
-  const fmtDate = x => {
-    if(!x) return '-';
-    try{ return new Date(x).toLocaleString(); }catch{ return '-'; }
+/* ==== ส่งข้อมูลออเดอร์มาไว้ฝั่ง client (Render ข้อมูลจาก Server เป็น JSON) ==== */
+window.__ORDERS__ = <%- JSON.stringify((list || []).map(o => {
+  // คำนวณค่าใช้จ่าย (Cost Calculation)
+  const costNum = Number(o.estCost ?? o.cost ?? (((o.quantity || 0) / 1000) * (o.service?.rate || 0)));
+  
+  return {
+    _id: o._id,
+    providerOrderId: o.providerOrderId || '-',
+    link: o.link || '#',
+    quantity: Number(o.quantity) || 0,
+    startCount: o.startCount ?? 0,
+    currentCount: o.currentCount ?? 0,
+    remains: o.remains ?? 0,
+    progress: o.progress ?? 0,
+    status: (o.status || 'processing').toLowerCase(),
+    createdAt: o.createdAt,
+    updatedAt: o.updatedAt ?? o.createdAt,
+    currency: o.currency || o.service?.currency || 'THB',
+    estCost: costNum,
+    refundAmount: Number(o.refundAmount || 0),
+    refundType: o.refundType || null,
+    comments: (o.providerResponse?.raw?.comments) || (o.providerResponse?.raw?.comment) || (o.comments) || ''
   };
-  const fmtMoney = (n,cur='THB') =>
-    (Number(n)||0).toLocaleString(undefined,{minimumFractionDigits:3, maximumFractionDigits:3}) + ' ' + cur;
+})) %>;
 
-  function clamp01(x){ return Math.max(0, Math.min(1, x)); }
+(function() {
+    // --- [Helper Functions] ---
+    // ป้องกัน Error '$ is not defined' โดยสร้างฟังก์ชันเลือก Element เอง
+    const $ = (s, r = document) => r.querySelector(s);
+    const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 
-  // คำนวณเปอร์เซ็นต์ ทำ/เหลือ (ใช้ใน modal)
-  function calcPercents(o){
-    const qty = Number(o.quantity)||0;
-    if (qty <= 0){
-      const progress = (typeof o.progress === 'number') ? clamp01(o.progress/100) : 0;
-      return { donePct: progress*100, leftPct: (1-progress)*100, leftAbs: null };
-    }
-    if (typeof o.remains === 'number') {
-      const r = Math.max(0, o.remains);
-      const leftPct = clamp01(r/qty)*100;
-      const donePct = 100 - leftPct;
-      return { donePct, leftPct, leftAbs: r };
-    }
-    if (typeof o.progress === 'number'){
-      const donePct = clamp01(o.progress/100)*100;
-      const leftPct = 100 - donePct;
-      const leftAbs = Math.round((leftPct/100)*qty);
-      return { donePct, leftPct, leftAbs };
-    }
-    if (typeof o.startCount === 'number' && typeof o.currentCount === 'number'){
-      const gained = Math.max(0, o.currentCount - o.startCount);
-      const donePct = clamp01(gained/qty)*100;
-      const leftPct = 100 - donePct;
-      const leftAbs = Math.max(0, qty - gained);
-      return { donePct, leftPct, leftAbs };
-    }
-    const st = String(o.status||'').toLowerCase();
-    if (st === 'partial') {
-      return { label: 'คืนบางส่วน', donePct: 0, showPct: false, isDone: false };
-    }
-    if (st === 'completed') return { donePct:100, leftPct:0, leftAbs:0 };
-    if (st === 'processing') return { donePct:0, leftPct:100, leftAbs:qty };
-    return { donePct:0, leftPct:100, leftAbs:qty };
-  }
+    const fmtTH = (d) => { try { return d ? new Date(d).toLocaleString('th-TH') : '-'; } catch { return '-'; } };
+    const fmtMoney = (n, cur = 'THB') => (Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) + ' ' + cur;
 
-  // ===== Modal =====
-  const wrap = $('#orderModal');
-  const title = $('#om-title'), cost = $('#om-cost'), link = $('#om-link');
-  const qty = $('#om-qty'), start = $('#om-start'), current = $('#om-current');
-  const leftAbsHeadEl = $('#om-left-abs-head');      // label ด้านซ้าย "0 รอดำเนิน"
-  const leftAbsEl     = $('#om-left-abs');           // ตัวเลขในประโยค "เหลือ 0 จากทั้งหมด 10"
-  const qtyAbsEl      = $('#om-qty-abs');
-  const leftPctEl     = $('#om-left-pct');           // % ด้านขวา
-  const bar           = $('#om-bar');
-  const createdAt = $('#om-createdAt'), updatedAt = $('#om-updatedAt');
-  const btnRefresh = $('#om-refresh');
-
-  let currentId = null;
-
-  // ===== Render =====
-  function render(o){
-    currentId = o._id;
-    title.textContent = '#' + (o.providerOrderId || '-');
-    cost.textContent  = fmtMoney(o.estCost, o.currency);
-    link.href = o.link; link.textContent = o.link;
-
-    qty.textContent     = Number(o.quantity)||0;
-    start.textContent   = (o.startCount ?? '-');
-    current.textContent = (o.currentCount ?? '-');
-
-    createdAt.textContent = fmtDate(o.createdAt);
-    updatedAt.textContent = fmtDate(o.updatedAt);
-
-    // ==== สรุปเปอร์เซ็นต์ ====
-    const { donePct, leftPct, leftAbs } = calcPercents(o);
-
-    // % ความคืบหน้าด้านขวา
-    if (leftPctEl) {
-      leftPctEl.textContent = donePct.toFixed(2) + '%';
+    /**
+     * 2. CORE LOGIC: PROGRESS ENGINE
+     * แก้ปัญหา 'calcPercents is not defined' โดยการย้าย Logic มาไว้ใน Scope นี้
+     */
+    function shmdCalculateProgress(o) {
+        const qty = Number(o.quantity) || 0;
+        if (qty <= 0) return { donePct: 0, leftAbs: 0 };
+        let donePct = 0;
+        if (typeof o.progress === 'number' && o.progress > 0) {
+            donePct = o.progress;
+        } else if (typeof o.remains === 'number') {
+            donePct = Math.max(0, (1 - (o.remains / qty)) * 100);
+        } else if (o.startCount != null && o.currentCount != null) {
+            donePct = ((o.currentCount - o.startCount) / qty) * 100;
+        }
+        donePct = Math.max(0, Math.min(100, donePct));
+        const leftAbs = Math.max(0, Math.round(qty - (qty * donePct / 100)));
+        return { donePct, leftAbs };
     }
 
-    // ความยาวแท่ง progress
-    if (bar) {
-      bar.style.width = donePct + '%';
+    /**
+     * 3. MODAL RENDERER
+     * แก้ปัญหา 'textContent of null' โดยตรวจสอบ Element ก่อนเขียนค่าเสมอ
+     */
+    function renderShmdModal(o) {
+        if (!o) return;
+
+        const safeSet = (sel, val, attr = 'textContent') => {
+            const el = $(sel);
+            if (el) el[attr] = val;
+        };
+
+        // ข้อมูลพื้นฐาน
+        safeSet('#shmd-id-val', '#' + o.providerOrderId);
+        safeSet('#shmd-cost-val', fmtMoney(o.estCost, o.currency));
+        
+        const linkEl = $('#shmd-link-val');
+        if (linkEl) { linkEl.href = o.link; linkEl.textContent = o.link; }
+
+        safeSet('#shmd-qty-val', o.quantity.toLocaleString());
+        safeSet('#shmd-start-val', (o.startCount ?? 0).toLocaleString());
+        safeSet('#shmd-total-val', o.quantity.toLocaleString());
+
+        // ความคืบหน้า
+        const prog = shmdCalculateProgress(o);
+        safeSet('#shmd-pct-val', prog.donePct.toFixed(2) + '%');
+        const bar = $('#shmd-bar-val');
+        if (bar) bar.style.width = prog.donePct + '%';
+        safeSet('#shmd-left-val', prog.leftAbs.toLocaleString());
+
+        // ระบบคืนเงิน
+        const refAmt = Number(o.refundAmount || 0);
+        const refBox = $('#shmd-refund-box');
+        if (refBox) {
+            refBox.style.display = refAmt > 0 ? 'flex' : 'none';
+            safeSet('#shmd-refund-val', fmtMoney(refAmt, o.currency));
+        }
+
+        // สถานะและไทม์ไลน์
+        const st = String(o.status || '').toLowerCase();
+        let statusTitle = 'กำลังดำเนินการ';
+        let themeColor = '#38bdf8'; // Blue
+
+        if (st === 'completed') {
+            statusTitle = 'เสร็จสิ้นสมบูรณ์';
+            themeColor = '#22c55e'; // Green
+        } else if (['canceled', 'partial'].includes(st)) {
+            statusTitle = st === 'partial' ? 'คืนเงินบางส่วน' : 'ยกเลิกคำสั่งซื้อ';
+            themeColor = '#fb7185'; // Red
+        }
+
+        const finalStep = $('#shmd-step-final');
+        if (finalStep) finalStep.style.setProperty('--shmd-primary', themeColor);
+        safeSet('#shmd-final-label', statusTitle);
+        safeSet('#shmd-final-time', fmtTH(o.updatedAt));
+        safeSet('#shmd-updated-time', fmtTH(o.updatedAt));
+        safeSet('#shmd-created-time', fmtTH(o.createdAt));
+
+        // คอมเมนต์
+        const commSec = $('#shmd-comments-sec');
+        const commVal = $('#shmd-comments-val');
+
+        if (commSec && commVal) {
+            const raw = (o.comments || '').trim();
+            if (raw) {
+                commSec.style.display = 'block';
+                // ใช้คำสั่งนี้เพื่อแทนที่ขึ้นบรรทัดใหม่ และป้องกัน XSS เบื้องต้น
+                commVal.innerHTML = raw.split('\n').map(line => `<div>${line}</div>`).join('');
+                
+                // รีเซ็ตตำแหน่งการเลื่อนให้ไปที่ด้านบนสุดทุกครั้งที่เปิด modal ใหม่
+                commVal.scrollTop = 0; 
+            } else {
+                commSec.style.display = 'none';
+            }
+        }
+
+        // ปุ่ม Refresh ใน Modal
+        const refBtn = $('#shmd-refresh-btn');
+        if (refBtn) refBtn.style.display = ['completed', 'canceled', 'partial'].includes(st) ? 'none' : 'flex';
     }
 
-    // ตัวเลขปริมาณ
-    const qtyAbs = Number(o.quantity) || 0;
-    if (qtyAbsEl) qtyAbsEl.textContent = qtyAbs;
+    // --- [Global Actions] ---
 
-    const leftVal = (leftAbs == null ? (qtyAbs ? qtyAbs : 0) : leftAbs);
-    if (leftAbsEl)      leftAbsEl.textContent      = leftVal;
-    if (leftAbsHeadEl)  leftAbsHeadEl.textContent  = leftVal;
-
-
-    // ==== Refund display ====
-    const refund = Number(o.refundAmount||0);
-    const refLabel = document.getElementById('om-refund-label');
-    const refVal   = document.getElementById('om-refund');
-    if (refund > 0) {
-      refLabel.style.display = '';
-      refVal.style.display = '';
-      refVal.textContent = fmtMoney(refund, o.currency) + (o.refundType==='partial' ? ' (คืนบางส่วน)' : ' (คืนเต็ม)');
-    } else {
-      refLabel.style.display = 'none';
-      refVal.style.display = 'none';
-    }
-
-    // ==== ไทม์ไลน์: จุดสุดท้าย (แข็งแรง + ครอบคลุมสถานะ) ====
-    const stRaw = String(o.status || '').toLowerCase();
-    const isPartialRefundCanceled =
-      stRaw === 'canceled' && o.refundType === 'partial' && Number(o.refundAmount || 0) > 0;
-
-    // เลือก label + class ตามสถานะ
-    function decideFinalTimeline(status) {
-      switch (status) {
-        case 'completed':
-          return { label: 'คำสั่งซื้อเสร็จสิ้น', cls: 'ot-final--success' };
-        case 'partial':
-          return { label: 'เซิร์ฟเวอร์ยืนยัน (คืนบางส่วน)', cls: 'ot-final--partial' };
-        case 'canceled':
-          if (isPartialRefundCanceled) {
-            return { label: 'คำสั่งซื้อยกเลิก (คืนเงินบางส่วน)', cls: 'ot-final--partial' };
-          }
-          return { label: 'เซิร์ฟเวอร์ยกเลิก / คำสั่งซื้อผิดพลาด', cls: 'ot-final--canceled' };
-        case 'canceling':
-          return { label: 'สถานะล่าสุด (กำลังสั่งยกเลิก...)', cls: 'ot-final--progress' };
-        case 'processing':
-        case 'inprogress':
-        default:
-          return { label: 'สถานะล่าสุด (ดำเนินการ)', cls: 'ot-final--progress' };
-      }
-    }
-
-    const finalWrap  = document.querySelector('.ot-item--final');
-    const finalLabel = document.getElementById('om-final-label');
-    const finalTime  = document.getElementById('om-final-time');
-
-    // อัปเดตเฉพาะเมื่อ element มีจริง (กัน null)
-    if (finalWrap && finalLabel && finalTime) {
-      // เคลียร์คลาสเก่า
-      finalWrap.classList.remove(
-        'ot-final--success',
-        'ot-final--canceled',
-        'ot-final--partial',
-        'ot-final--progress'
-      );
-
-      // คำนวณค่าที่จะแสดง
-      const { label, cls } = decideFinalTimeline(stRaw);
-      finalLabel.textContent = label;
-      finalTime.textContent  = fmtDate(o.updatedAt || o.createdAt);
-      if (cls) finalWrap.classList.add(cls);
-    }
-
-    // ==== Comments จากผู้ให้บริการ ====
-    const commentsSec  = document.getElementById('om-comments-sec');
-    const commentsBody = document.getElementById('om-comments-body');
-
-    if (commentsSec && commentsBody) {
-      const raw = (o.comments || '').toString().trim();
-
-      if (!raw) {
-        commentsSec.style.display = 'none';
-        commentsBody.textContent = '';
-      } else {
-        commentsSec.style.display = '';
-        commentsBody.innerHTML = '';
-
-        const lines = raw
-          .split(/\r?\n/)
-          .map(l => l.trim())
-          .filter(Boolean);
-
-        lines.forEach((line) => {
-          const div = document.createElement('div');
-          div.textContent = line;
-          commentsBody.appendChild(div);
-        });
-      }
-    }
-
-    // ===== ควบคุมปุ่มรีเฟรชในโมดัล ตามสถานะ =====
-    const showRefresh = shouldShowModalRefresh(o);
-    if (btnRefresh) {
-      btnRefresh.style.display = showRefresh ? '' : 'none';
-      btnRefresh.disabled = !showRefresh;
-    }
-  }
-  // ===== END =====
-
-  function openModal(o){
-    render(o);
-    // ย้ำอีกชั้นเผื่ออนาคตมีการเปลี่ยนแปลงลำดับ render
-    const showRefresh = shouldShowModalRefresh(o);
-    if (btnRefresh) {
-      btnRefresh.style.display = showRefresh ? '' : 'none';
-      btnRefresh.disabled = !showRefresh;
-    }
-
-
-    wrap.classList.add('show');
-    wrap.setAttribute('aria-hidden','false');
-    document.documentElement.style.overflow = 'hidden';
-  }
-  function closeModal(){
-    wrap.classList.remove('show');
-    wrap.setAttribute('aria-hidden','true');
-    document.documentElement.style.overflow = '';
-    currentId = null;
-  }
-
-  document.addEventListener('click', e=>{
-    const btn = e.target.closest('.open-order'); if(!btn) return;
-    e.preventDefault();
-    const row = btn.closest('[data-order-id]');
-    const id  = row?.dataset?.orderId;
-    const o   = (window.__ORDERS__||[]).find(x=>x._id===id);
-    if (o) openModal(o);
-  });
-
-  function shouldShowModalRefresh(o){
-    const st = String(o?.status || '').toLowerCase();
-    // ไม่ให้รีเฟรชเมื่อกำลังยกเลิก / เสร็จแล้ว / คืนบางส่วน / ยกเลิกแล้ว
-    return !(st === 'canceling' || st === 'completed' || st === 'partial' || st === 'canceled');
-  }
-
-  if (btnRefresh) btnRefresh.addEventListener('click', async ()=>{
-    if (btnRefresh.disabled || btnRefresh.style.display === 'none') return;
-    if (!currentId) return;
-
-    btnRefresh.disabled = true;
-    btnRefresh.setAttribute('aria-busy','true');
-    const keep = btnRefresh.textContent;
-    btnRefresh.textContent = 'กำลังรีเฟรช…';
-
-    try {
-      const res = await fetch(`/api/orders/${currentId}/refresh`, { method:'POST' });
-      const data = await res.json();
-
-      const arr = window.__ORDERS__||[];
-      const idx = arr.findIndex(x=>x._id===currentId);
-      if (idx>-1){
-        const o = arr[idx];
-        o.status        = data.status ?? o.status;
-        if (typeof data.progress === 'number')      o.progress = data.progress;
-        if (typeof data.remains  === 'number')      o.remains  = data.remains;
-        if (typeof data.start_count === 'number')   o.startCount   = data.start_count;
-        if (typeof data.current_count === 'number') o.currentCount = data.current_count;
-        if (typeof data.refundAmount === 'number')  o.refundAmount = data.refundAmount;
-        if (typeof data.refundType === 'string')    o.refundType   = data.refundType;
-        o.updatedAt = data.updatedAt ?? new Date().toISOString();
-
-        render(o); // จะจัดการโชว์/ซ่อนปุ่มให้เอง
-      }
-    } catch {
-      // เงียบไว้หรือจะแจ้งเตือนก็ได้
-    } finally {
-      btnRefresh.textContent = keep;
-      btnRefresh.removeAttribute('aria-busy');
-
-      const arr = window.__ORDERS__||[];
-      const idx = arr.findIndex(x=>x._id===currentId);
-      const o = idx>-1 ? arr[idx] : null;
-      const showRefresh = shouldShowModalRefresh(o);
-      btnRefresh.style.display = showRefresh ? '' : 'none';
-      btnRefresh.disabled = !showRefresh;
-    }
-  });
-
-  wrap.addEventListener('click', e=>{
-    if (e.target.dataset.close) closeModal();
-  });
-  document.addEventListener('keydown', e=>{
-    if(e.key==='Escape' && wrap.classList.contains('show')) closeModal();
-  });
-
-  /* ===== UI helpers (ใช้ทั้ง Desktop & Mobile) ===== */
-
-  // อัปเดต DOM ทั้งฝั่งตารางและการ์ดให้ตรงกับ payload ล่าสุด
-  window.applyOrderPatch = function(payload){
-    // sync cache
-    const arr = window.__ORDERS__ || [];
-    const idx = arr.findIndex(x => x._id === payload._id);
-    if (idx > -1) {
-      Object.assign(arr[idx], {
-        status: payload.status ?? arr[idx].status,
-        progress: payload.progress ?? arr[idx].progress,
-        remains: payload.remains ?? arr[idx].remains,
-        startCount: payload.startCount ?? arr[idx].startCount,
-        currentCount: payload.currentCount ?? arr[idx].currentCount,
-        updatedAt: payload.updatedAt ?? arr[idx].updatedAt,
-        refundAmount: (payload.refundAmount ?? arr[idx].refundAmount),
-        refundType: (payload.refundType ?? arr[idx].refundType)
-      });
-    }
-
-    const displayPayload = {
-      status: payload.status,
-      progress: payload.progress,
-      remains: payload.remains,
-      startCount: payload.startCount,
-      currentCount: payload.currentCount,
-      quantity: (payload.quantity != null ? payload.quantity :
-                 (idx > -1 ? arr[idx].quantity : 0)),
-      refundAmount: payload.refundAmount,
-      refundType: payload.refundType
+    window.openOrderModal = function(id) {
+        const order = (window.__ORDERS__ || []).find(x => x._id === id);
+        if (order) {
+            renderShmdModal(order);
+            const modal = $('#shmdOrderModal');
+            if (modal) {
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+        }
     };
 
-    const newSt = String(displayPayload.status || '').toLowerCase();
-    const isPartialRefundCanceled = (newSt === 'canceled') &&
-      (Number(displayPayload.refundAmount||0) > 0) &&
-      (displayPayload.refundType === 'partial');
+    window.closeShmdModal = function() {
+        const modal = $('#shmdOrderModal');
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+    };
 
-    // Desktop row
-    const tr = document.querySelector(`tr[data-order-id="${payload._id}"]`);
-    if (tr) {
-      tr.dataset.status = newSt;
-      renderProgressPill(tr, displayPayload);
+    // --- [Icon Injector] ---
+    window.ensureStatusIcon = function(pill, status) {
+        if (!pill) return;
+        const url = window.__STATUS_ICONS__[String(status || '').toLowerCase()] || window.__STATUS_ICONS__.default;
+        let ico = pill.querySelector('.st-ico');
+        if (!ico) {
+            ico = document.createElement('span');
+            ico.className = 'st-ico';
+            const target = pill.querySelector('.label') || pill;
+            target.prepend(ico);
+        }
+        ico.style.setProperty('--st-ico', `url("${url}")`);
+    };
 
-      // toggle buttons
-      tr.querySelectorAll('.btn-cancel').forEach(b => {
-        b.style.display = (newSt === 'processing') ? '' : 'none';
-        if (newSt === 'canceling') b.style.display = 'none'; // ⬅️ ซ่อนทันที
-      });
-      tr.querySelectorAll('.btn-refresh').forEach(b => {
-        b.style.display = (newSt === 'completed' || newSt === 'canceled' || newSt === 'partial' || newSt === 'canceling') ? 'none' : '';
-      });
-      tr.querySelectorAll('.btn-repeat').forEach(b => {
-        b.style.display = ((newSt === 'completed') || (newSt === 'partial') || isPartialRefundCanceled) ? '' : 'none';
-      });
+    // --- [Event Listeners] ---
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Tabs
+        $$('.tabs .tab[data-tab]').forEach(tab => {
+            tab.addEventListener('click', () => {
+                if (tab.dataset.tab === 'order') { window.location.href = '/orders/new'; return; }
+                $$('.tabs .tab').forEach(t => t.classList.remove('active'));
+                $$('.tabpane').forEach(p => p.classList.remove('show'));
+                tab.classList.add('active');
+                const pane = $('#tab-' + tab.dataset.tab);
+                if (pane) pane.classList.add('show');
+            });
+        });
+
+        // Pagination
+        const ppSelect = $('#ppSelect');
+        if (ppSelect) ppSelect.addEventListener('change', () => {
+            const url = new URL(window.location.href);
+            url.searchParams.set('perPage', ppSelect.value);
+            url.searchParams.set('page', '1');
+            window.location.href = url.toString() + '#page-bottom';
+        });
+
+        // Delegate Clicks (เปิด Modal, ปิด Modal, เปลี่ยนสถานะ)
+        document.addEventListener('click', (e) => {
+            const t = e.target;
+            // ปุ่มเปิด Modal
+            const openBtn = t.closest('.open-order');
+            if (openBtn) {
+                e.preventDefault();
+                const id = openBtn.dataset.id || openBtn.closest('[data-order-id]')?.dataset.orderId;
+                if (id) openOrderModal(id);
+                return;
+            }
+            // ปุ่มปิด Modal
+            if (t.closest('[data-close-shmd]') || t.classList.contains('shmd-backdrop')) {
+                closeShmdModal();
+                return;
+            }
+            // ปุ่มตัวกรองสถานะ
+            const statusBtn = t.closest('[data-st]');
+            if (statusBtn && !statusBtn.closest('.tabs')) { // เลี่ยงชนกับระบบ Tab บน
+                const st = statusBtn.dataset.st;
+                const url = new URL(window.location.href);
+                url.searchParams.set("status", st);
+                url.searchParams.set("page", "1");
+                window.location.href = url.toString();
+            }
+        });
+
+        // ESC Key
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeShmdModal(); });
+
+        // Initial Icons injection
+        $$('.pill.long, .pill.progress').forEach(p => {
+            const status = p.closest('[data-status]')?.dataset.status;
+            window.ensureStatusIcon(p, status);
+        });
+    });
+
+    // 4. API ACTIONS (Refresh Single Order)
+    const refBtnModal = $('#shmd-refresh-btn');
+    if (refBtnModal) {
+        refBtnModal.addEventListener('click', async () => {
+            const idNode = $('#shmd-id-val');
+            if (!idNode || refBtnModal.disabled) return;
+            
+            // หา ID จริงจาก Cache (ใช้ slice(-6) หรือ ID เต็ม)
+            const displayId = idNode.textContent.replace('#', '');
+            const order = window.__ORDERS__.find(x => x.providerOrderId == displayId || x._id.slice(-6) == displayId);
+            if (!order) return;
+
+            refBtnModal.disabled = true;
+            const oldTxt = refBtnModal.innerHTML;
+            refBtnModal.innerHTML = '<span>กำลังอัปเดต...</span>';
+
+            try {
+                const res = await fetch(`/api/orders/${order._id}/refresh`, { method: 'POST' });
+                const data = await res.json();
+                if (data && data._id) {
+                    const idx = window.__ORDERS__.findIndex(x => x._id === order._id);
+                    if (idx > -1) window.__ORDERS__[idx] = { ...window.__ORDERS__[idx], ...data };
+                    renderShmdModal(window.__ORDERS__[idx]);
+                    if (window.applyOrderPatch) window.applyOrderPatch(data);
+                }
+            } catch (e) { console.error(e); } finally {
+                refBtnModal.disabled = false;
+                refBtnModal.innerHTML = oldTxt;
+            }
+        });
     }
 
-    // Mobile card
-    const card = document.querySelector(`.o-card[data-order-id="${payload._id}"]`);
-    if (card) {
-      card.dataset.status = newSt;
-      renderProgressPill(card, displayPayload);
-
-      card.querySelectorAll('.btn-cancel').forEach(b => {
-        b.style.display = (newSt === 'processing') ? '' : 'none';
-        if (newSt === 'canceling') b.style.display = 'none'; // ⬅️ ซ่อนทันที
-      });
-      card.querySelectorAll('.btn-refresh').forEach(b => {
-        b.style.display = (newSt === 'completed' || newSt === 'canceled' || newSt === 'partial' || newSt === 'canceling') ? 'none' : '';
-      });
-      card.querySelectorAll('.btn-repeat').forEach(b => {
-        b.style.display = ((newSt === 'completed') || (newSt === 'partial') || isPartialRefundCanceled) ? '' : 'none';
-      });
-    }
-  };
-
-  // รองรับทั้ง .pill.long (ใหม่) และ .pill.progress (เดิม)
-  window.renderProgressPill = function(container, payload){
-    const pillLong = container?.querySelector?.('.pill.long') || container?.querySelector?.('.pill.progress');
-    if (!pillLong) return;
-
-    const dd = (window.decideDisplay ? window.decideDisplay(payload) : null) ||
-              { label:'รอดำเนินการ', donePct:0, showPct:false, isDone:false };
-
-    const stLower       = String(payload.status||'').toLowerCase();
-    const isCanceled    = stLower === 'canceled';
-    const isPartial     = stLower === 'partial';
-    const isCanceling   = stLower === 'canceling';
-    const isPartialRefund = (isCanceled && Number(payload.refundAmount||0) > 0 && payload.refundType === 'partial');
-
-    pillLong.classList.toggle('ok', !!dd.isDone);
-    pillLong.classList.toggle('danger', isCanceled);
-    pillLong.classList.toggle('warn', isPartial || isCanceling);
-
-    // โครงสร้างใหม่: มี .bar + .label
-    const barEl = pillLong.querySelector('.bar');
-    const lblEl = pillLong.querySelector('.label');
-    if (barEl && lblEl) {
-      // ถ้า canceling แถบความคืบหน้าให้ 0%
-      const widthPct = isCanceling ? 0 : (dd.isDone ? 100 : Math.max(0, Math.min(100, dd.donePct)));
-      barEl.style.width = widthPct + '%';
-
-      // ถ้า canceling แสดงข้อความเฉพาะ
-      const mainLabel = isCanceling
-        ? 'กำลังส่งยกเลิก…'
-        : (dd.showPct ? `ดำเนินการ ~ <span class="pct">${Number(dd.donePct||0).toFixed(2)}%</span>` : dd.label);
-
-      lblEl.innerHTML = isPartialRefund
-        ? `<span class="badge warn" style="margin-right:8px">คืนบางส่วน</span>${mainLabel}`
-        : mainLabel;
-
-      ensureStatusIcon(pillLong, stLower);
-      
-      return;
-    }
-
-    // fallback: pill เดิม (ไม่มี .bar/.label)
-    if (isCanceling) {
-      pillLong.textContent = 'กำลังส่งยกเลิก…';
-      ensureStatusIcon(pillLong, 'canceling');
-    } else {
-      pillLong.innerHTML = dd.showPct
-        ? `ดำเนินการ ~ <span class="pct" data-pct="${dd.donePct}">${Number(dd.donePct||0).toFixed(2)}%</span>`
-        : dd.label;
-      ensureStatusIcon(pillLong, stLower);
-    }
-  };
 })();
-</script>
 
-<script>
+/* ===== UI helpers (ใช้ทั้ง Desktop & Mobile) ===== */
+
+// อัปเดต DOM ทั้งฝั่งตารางและการ์ดให้ตรงกับ payload ล่าสุด
+window.applyOrderPatch = function(payload){
+  // sync cache
+  const arr = window.__ORDERS__ || [];
+  const idx = arr.findIndex(x => x._id === payload._id);
+  if (idx > -1) {
+    Object.assign(arr[idx], {
+      status: payload.status ?? arr[idx].status,
+      progress: payload.progress ?? arr[idx].progress,
+      remains: payload.remains ?? arr[idx].remains,
+      startCount: payload.startCount ?? arr[idx].startCount,
+      currentCount: payload.currentCount ?? arr[idx].currentCount,
+      updatedAt: payload.updatedAt ?? arr[idx].updatedAt,
+      refundAmount: (payload.refundAmount ?? arr[idx].refundAmount),
+      refundType: (payload.refundType ?? arr[idx].refundType)
+    });
+  }
+
+  const displayPayload = {
+    status: payload.status,
+    progress: payload.progress,
+    remains: payload.remains,
+    startCount: payload.startCount,
+    currentCount: payload.currentCount,
+    quantity: (payload.quantity != null ? payload.quantity :
+                (idx > -1 ? arr[idx].quantity : 0)),
+    refundAmount: payload.refundAmount,
+    refundType: payload.refundType
+  };
+
+  const newSt = String(displayPayload.status || '').toLowerCase();
+  const isPartialRefundCanceled = (newSt === 'canceled') &&
+    (Number(displayPayload.refundAmount||0) > 0) &&
+    (displayPayload.refundType === 'partial');
+
+  // Desktop row
+  const tr = document.querySelector(`tr[data-order-id="${payload._id}"]`);
+  if (tr) {
+    tr.dataset.status = newSt;
+    renderProgressPill(tr, displayPayload);
+
+    // toggle buttons
+    tr.querySelectorAll('.btn-cancel').forEach(b => {
+      b.style.display = (newSt === 'processing') ? '' : 'none';
+      if (newSt === 'canceling') b.style.display = 'none'; // ⬅️ ซ่อนทันที
+    });
+    tr.querySelectorAll('.btn-refresh').forEach(b => {
+      b.style.display = (newSt === 'completed' || newSt === 'canceled' || newSt === 'partial' || newSt === 'canceling') ? 'none' : '';
+    });
+    tr.querySelectorAll('.btn-repeat').forEach(b => {
+      b.style.display = ((newSt === 'completed') || (newSt === 'partial') || isPartialRefundCanceled) ? '' : 'none';
+    });
+  }
+
+  // Mobile card
+  const card = document.querySelector(`.o-card[data-order-id="${payload._id}"]`);
+  if (card) {
+    card.dataset.status = newSt;
+    renderProgressPill(card, displayPayload);
+
+    card.querySelectorAll('.btn-cancel').forEach(b => {
+      b.style.display = (newSt === 'processing') ? '' : 'none';
+      if (newSt === 'canceling') b.style.display = 'none'; // ⬅️ ซ่อนทันที
+    });
+    card.querySelectorAll('.btn-refresh').forEach(b => {
+      b.style.display = (newSt === 'completed' || newSt === 'canceled' || newSt === 'partial' || newSt === 'canceling') ? 'none' : '';
+    });
+    card.querySelectorAll('.btn-repeat').forEach(b => {
+      b.style.display = ((newSt === 'completed') || (newSt === 'partial') || isPartialRefundCanceled) ? '' : 'none';
+    });
+  }
+};
+
+// รองรับทั้ง .pill.long (ใหม่) และ .pill.progress (เดิม)
+window.renderProgressPill = function(container, payload){
+  const pillLong = container?.querySelector?.('.pill.long') || container?.querySelector?.('.pill.progress');
+  if (!pillLong) return;
+
+  const dd = (window.decideDisplay ? window.decideDisplay(payload) : null) ||
+            { label:'รอดำเนินการ', donePct:0, showPct:false, isDone:false };
+
+  const stLower       = String(payload.status||'').toLowerCase();
+  const isCanceled    = stLower === 'canceled';
+  const isPartial     = stLower === 'partial';
+  const isCanceling   = stLower === 'canceling';
+  const isPartialRefund = (isCanceled && Number(payload.refundAmount||0) > 0 && payload.refundType === 'partial');
+
+  pillLong.classList.toggle('ok', !!dd.isDone);
+  pillLong.classList.toggle('danger', isCanceled);
+  pillLong.classList.toggle('warn', isPartial || isCanceling);
+
+  // โครงสร้างใหม่: มี .bar + .label
+  const barEl = pillLong.querySelector('.bar');
+  const lblEl = pillLong.querySelector('.label');
+  if (barEl && lblEl) {
+    // ถ้า canceling แถบความคืบหน้าให้ 0%
+    const widthPct = isCanceling ? 0 : (dd.isDone ? 100 : Math.max(0, Math.min(100, dd.donePct)));
+    barEl.style.width = widthPct + '%';
+
+    // ถ้า canceling แสดงข้อความเฉพาะ
+    const mainLabel = isCanceling
+      ? 'กำลังส่งยกเลิก…'
+      : (dd.showPct ? `ดำเนินการ ~ <span class="pct">${Number(dd.donePct||0).toFixed(2)}%</span>` : dd.label);
+
+    lblEl.innerHTML = isPartialRefund
+      ? `<span class="badge warn" style="margin-right:8px">คืนบางส่วน</span>${mainLabel}`
+      : mainLabel;
+
+    ensureStatusIcon(pillLong, stLower);
+    
+    return;
+  }
+
+  // fallback: pill เดิม (ไม่มี .bar/.label)
+  if (isCanceling) {
+    pillLong.textContent = 'กำลังส่งยกเลิก…';
+    ensureStatusIcon(pillLong, 'canceling');
+  } else {
+    pillLong.innerHTML = dd.showPct
+      ? `ดำเนินการ ~ <span class="pct" data-pct="${dd.donePct}">${Number(dd.donePct||0).toFixed(2)}%</span>`
+      : dd.label;
+    ensureStatusIcon(pillLong, stLower);
+  }
+};
+
 (() => {
   const $  = (s,r=document)=>r.querySelector(s);
   const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
@@ -1364,11 +1293,24 @@ window.__ORDERS__ = <%- JSON.stringify((list||[]).map(o => ({
     }
   }
 
-  document.addEventListener('click', e=>{
-    const b = e.target.closest('.btn-repeat'); 
-    if (!b) return;
-    e.preventDefault();
-    repeatOrder(b);
+  document.addEventListener('click', async e => { // เพิ่ม async ตรงนี้ด้วย
+      const b = e.target.closest('.btn-repeat'); 
+      if (!b) return;
+      e.preventDefault();
+
+      // --- ส่วนที่แก้ไข: เรียกใช้ UI Confirm ---
+      const confirmed = await window.uiConfirm({
+        variant: 'success',
+        title: 'สั่งซื้อรายการเดิมอีกครั้ง',
+        sub: 'ระบบจะนำข้อมูลเดิมมาสร้างคำสั่งซื้อใหม่ให้คุณ ต้องการดำเนินการต่อหรือไม่?',
+        okText: 'ตกลง',
+        cancelText: 'ยกเลิก'
+      });
+
+      if (confirmed) {
+        repeatOrder(b); // ทำงานต่อเมื่อกดตกลง
+      }
+      // ------------------------------------------
   });
 
   /* ---------- ปุ่ม/ยูทิล ---------- */
@@ -1635,9 +1577,7 @@ document.addEventListener("click", (ev) => {
     else btn.classList.remove("active");
   });
 })();
-</script>
 
-<script>
 (function(){
   const wrap = document.getElementById('statusTabs');
   if (!wrap) return;
@@ -1673,9 +1613,7 @@ document.addEventListener("click", (ev) => {
     btn.appendChild(label);
   });
 })();
-</script>
 
-<script>
 (function(){
   const ICONS = {
     processing: '/static/assets/status/processing.png',
@@ -1770,26 +1708,36 @@ async function pollCancel(orderId, {
 }
 
 async function startCancel(orderId) {
+  // --- ส่วนที่เพิ่มเข้ามา: เรียกใช้ UI Confirm ---
+  const confirmed = await window.uiConfirm({
+    variant: 'danger',
+    title: 'ยืนยันการยกเลิก',
+    sub: `คุณต้องการยกเลิกคำสั่งซื้อหมายเลข #${orderId} ใช่หรือไม่?`,
+    okText: 'ยืนยันยกเลิก',
+    cancelText: 'กลับไป'
+  });
+
+  if (!confirmed) return; // ถ้ากดยกเลิกใน Modal ให้หยุดการทำงานตรงนี้
+  // ------------------------------------------
+
   const btn = document.querySelector(`tr[data-order-id="${orderId}"] .btn-cancel`)
           || document.querySelector(`.o-card[data-order-id="${orderId}"] .btn-cancel`)
           || document.querySelector(`[data-order-id="${orderId}"] .btn.small.danger`)
           || document.querySelector(`button[onclick*="${orderId}"]`);
+  
   if (btn) btn.disabled = true;
 
   try {
     await postJSON(`/orders/${orderId}/cancel`);
-    setPillCanceling(orderId);          // UI: แสดง "กำลังส่งยกเลิก…"
-    await pollCancel(orderId);          // รอผลจริงจาก API → แล้วค่อยอัปเดต
+    setPillCanceling(orderId);          
+    await pollCancel(orderId);          
   } catch (e) {
     if (window.showMsg) showMsg({ variant:'error', title:'ยกเลิกไม่สำเร็จ', text: e.message || 'โปรดลองใหม่' });
     else alert('ยกเลิกไม่สำเร็จ: ' + (e.message || 'โปรดลองใหม่'));
     if (btn) btn.disabled = false;
   }
 }
-</script>
 
-
-<script>
 (function(){
   const sel = document.getElementById('ppSelect');
   if (!sel) return;
@@ -1867,4 +1815,5 @@ async function startCancel(orderId) {
     if (!matchMedia('(max-width:640px)').matches) wrap.classList.remove('open');
   });
 })();
+
 </script>
