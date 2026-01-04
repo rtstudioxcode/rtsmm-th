@@ -8,7 +8,7 @@ async function autoRejectOrphanTopups(opts = {}) {
   const {
     logPrefix = "[TopupAutoRejectJob]",
     batchSize = 50,
-    ageHours = 3,
+    ageHours = 1,
   } = opts;
 
   // ✅ กันงานซ้อนรอบ (สำคัญมาก)
