@@ -382,8 +382,8 @@ topupRouter.post("/create", async (req, res) => {
       amountCents: uniqueCents,
       expectedAmount: uniqueAmt,
       status: "pending",
-      expiresAt: new Date(now + 30 * 60 * 1000), // 30 นาที
-      // expiresAt: new Date(now + 1 * 60 * 60 * 1000), 1 ชั่วโมง
+      // expiresAt: new Date(now + 30 * 60 * 1000), // 30 นาที
+      expiresAt: new Date(now + 2 * 60 * 60 * 1000), // 2 ชั่วโมง
     });
 
     // ธนาคาร: ใช้ QR KBANK อย่างเดียว / TW: null (ไป gen link เอง)
