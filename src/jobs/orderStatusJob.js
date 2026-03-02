@@ -2,7 +2,7 @@
 import os from 'os';
 import pLimit from 'p-limit';
 import { Order } from '../models/Order.js';
-import { getOrderStatus } from '../lib/iplusviewAdapter.js';
+import { getOrderStatus, providerCancelOrder } from '../lib/iplusviewAdapter.js';
 import { connectMongoIfNeeded } from '../config.js';
 import { reconcileUserByOrderEvent, recalcUserTotals } from '../services/spend.js';
 
@@ -189,8 +189,47 @@ function ensureFastRunner() {
   }, FAST_SCAN_MS);
 }
 
+async function autoCancelIfStuck(o) {
+  const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
+  const now = new Date();
+  const createdAt = new Date(o.createdAt);
+
+  // เงื่อนไข: สถานะรอดำเนินการ + ค้างเกิน 12 ชม. + ยังไม่เคยสั่งยกเลิก (ไม่มี lastCancelId)
+  const isStuck = (now - createdAt) > TWELVE_HOURS_MS;
+  const isPending = ['processing', 'pending'].includes(String(o.status).toLowerCase());
+  const notCanceledYet = !o.lastCancelId;
+
+  if (isPending && isStuck && notCanceledYet) {
+    if (VERBOSE) console.log(`[Auto-Cancel] Order ${o._id} is stuck for >12h. Sending cancel request...`);
+    
+    try {
+      // 1. ส่งคำสั่งยกเลิกไปที่ API ผู้ให้บริการ
+      const resp = await providerCancelOrder(o.providerOrderId);
+      const cancelId = resp?.cancelId || 'auto-system';
+
+      // 2. อัปเดต DB ทันทีเพื่อกันการทำงานซ้ำ (Idempotency)
+      await Order.updateOne({ _id: o._id }, {
+        $set: {
+          status: 'canceling',
+          lastCancelId: cancelId,
+          updatedAt: new Date(),
+          'meta.autoCanceled': true // เก็บ flag ไว้ดูว่าระบบยกเลิกให้เอง
+        }
+      });
+      
+      return true; // ยกเลิกสำเร็จ
+    } catch (e) {
+      console.warn(`[Auto-Cancel] Failed to cancel order ${o._id}:`, e?.message || e);
+    }
+  }
+  return false;
+}
+
 async function updateOneOrder(o) {
   if (!o?.providerOrderId) return;
+  
+  const wasAutoCanceled = await autoCancelIfStuck(o);
+  if (wasAutoCanceled) return;
 
   let res;
   try {
@@ -280,7 +319,7 @@ async function updateOneOrder(o) {
 async function tickOnce() {
   const fields = {
     _id: 1,
-    user: 1,                      // << ต้องใช้เพื่อ recalcUserTotals
+    user: 1,
     status: 1,
     providerOrderId: 1,
     estCost: 1, cost: 1, quantity: 1,
@@ -288,6 +327,8 @@ async function tickOnce() {
     startCount: 1, currentCount: 1, remains: 1,
     progress: 1,
     updatedAt: 1,
+    createdAt: 1,
+    lastCancelId: 1
   };
 
   const filter = {

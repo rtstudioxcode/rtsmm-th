@@ -45,6 +45,7 @@ const calcCostByUnit = (qty, rate, unit) => {
 // ใช้ map สถานะไทย (ใช้ซ้ำ)
 const mapTH = (x='') => ({
   processing: 'รอดำเนินการ',
+  pending: 'รอดำเนินการ',
   inprogress: 'กำลังทำ',
   completed:  'เสร็จสิ้น',
   partial:    'ส่วนบางส่วน',
@@ -587,6 +588,7 @@ router.get('/my/orders', requireAuth, async (req, res, next) => {
     const pillClass = (s = '') => {
       s = String(s).toLowerCase();
       if (s === 'processing') return 'warn';
+      if (s === 'pending') return 'warn';
       if (s === 'inprogress') return 'blue';
       if (s === 'completed')  return 'ok';
       if (s === 'partial')    return 'violet';
@@ -594,7 +596,7 @@ router.get('/my/orders', requireAuth, async (req, res, next) => {
       return '';
     };
     const thStatus = (s = '') =>
-      ({ processing:'รอดำเนินการ', inprogress:'กำลังทำ', completed:'เสร็จสิ้น', partial:'คืนบางส่วน', canceled:'ยกเลิก' }[String(s).toLowerCase()] || s);
+      ({ processing:'รอดำเนินการ', pending:'รอดำเนินการ', inprogress:'กำลังทำ', completed:'เสร็จสิ้น', partial:'คืนบางส่วน', canceled:'ยกเลิก' }[String(s).toLowerCase()] || s);
 
     res.render('orders/history', {
       list: listWithSvc,
@@ -663,7 +665,7 @@ router.post('/api/orders/:id/refresh', async (req, res) => {
     if (!o) return res.status(404).json({ error: 'not found' });
 
     const mapTHL = (x='') => ({
-      processing:'รอดำเนินการ', inprogress:'กำลังทำ', completed:'เสร็จสิ้น',
+      processing:'รอดำเนินการ', pending:'รอดำเนินการ', inprogress:'กำลังทำ', completed:'เสร็จสิ้น',
       partial:'ส่วนบางส่วน', canceled:'ยกเลิก', canceling:'กำลังยกเลิก'
     }[String(x).toLowerCase()] || x);
 
@@ -796,7 +798,7 @@ router.post('/api/orders/refresh-all', async (req, res) => {
 
     const list = await Order.find({
       user: userId,
-      status: { $in: ['processing', 'inprogress', 'partial', 'canceling'] }
+      status: { $in: ['processing', 'pending', 'inprogress', 'partial', 'canceling'] }
     }).sort({ createdAt: -1 }).limit(300);
 
     let updated = 0;
