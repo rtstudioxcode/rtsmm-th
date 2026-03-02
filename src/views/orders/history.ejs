@@ -963,6 +963,7 @@ window.applyOrderPatch = function(payload){
   // sync cache
   const arr = window.__ORDERS__ || [];
   const idx = arr.findIndex(x => x._id === payload._id);
+  const rawSt = String(payload.rawStatus || payload.providerResponse?.lastStatus?.rawStatus || '').toLowerCase();
   if (idx > -1) {
     Object.assign(arr[idx], {
       status: payload.status ?? arr[idx].status,
@@ -1001,8 +1002,11 @@ window.applyOrderPatch = function(payload){
 
     // toggle buttons
     tr.querySelectorAll('.btn-cancel').forEach(b => {
-      b.style.display = (newSt === 'processing') ? '' : 'none';
-      if (newSt === 'canceling') b.style.display = 'none'; // ⬅️ ซ่อนทันที
+      // เงื่อนไขใหม่: แสดงปุ่มถ้าสถานะเป็น processing หรือ rawStatus เป็น pending
+      const canShow = (newSt === 'processing' || rawSt === 'pending');
+      b.style.display = canShow ? '' : 'none';
+      
+      if (newSt === 'canceling') b.style.display = 'none'; 
     });
     tr.querySelectorAll('.btn-refresh').forEach(b => {
       b.style.display = (newSt === 'completed' || newSt === 'canceled' || newSt === 'partial' || newSt === 'canceling') ? 'none' : '';
@@ -1019,8 +1023,11 @@ window.applyOrderPatch = function(payload){
     renderProgressPill(card, displayPayload);
 
     card.querySelectorAll('.btn-cancel').forEach(b => {
-      b.style.display = (newSt === 'processing') ? '' : 'none';
-      if (newSt === 'canceling') b.style.display = 'none'; // ⬅️ ซ่อนทันที
+      // ใช้เงื่อนไขเดียวกันเพื่อให้ทำงานเหมือนกันทั้งสองหน้าจอ
+      const canShow = (newSt === 'processing' || rawSt === 'pending');
+      b.style.display = canShow ? '' : 'none';
+      
+      if (newSt === 'canceling') b.style.display = 'none'; 
     });
     card.querySelectorAll('.btn-refresh').forEach(b => {
       b.style.display = (newSt === 'completed' || newSt === 'canceled' || newSt === 'partial' || newSt === 'canceling') ? 'none' : '';

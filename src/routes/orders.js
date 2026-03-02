@@ -571,6 +571,7 @@ router.get('/my/orders', requireAuth, async (req, res, next) => {
       const svc = svcMap[String(o.service)] || null;
       const flags = getServiceFlags(svc, o.providerServiceId);
       const _isDone = isDone(o);
+      const rawStatus = String(o.providerResponse?.lastStatus?.rawStatus || '').toLowerCase();
       return {
         ...o,
         service: svc ? {
@@ -578,7 +579,7 @@ router.get('/my/orders', requireAuth, async (req, res, next) => {
           currency: svc.currency, providerServiceId: svc.providerServiceId
         } : null,
         uiFlags: {
-          canCancel: (flags.cancel === true) && !_isDone && !!o.providerOrderId,
+          canCancel: (flags.cancel === true || rawStatus === 'pending') && !_isDone && !!o.providerOrderId,
           canRefill: (flags.refill === true) && _isDone && !!o.providerOrderId,
           isDone: _isDone
         }
@@ -1323,6 +1324,7 @@ router.get('/api/orders/:id/local-status', async (req, res) => {
     return res.json({
       ok: true,
       status:        o.status,
+      rawStatus: o.providerResponse?.lastStatus?.rawStatus || '',
       progress:      (typeof o.progress === 'number') ? o.progress : undefined,
       remains:       Number.isFinite(o.remains) ? o.remains : undefined,
       start_count:   Number.isFinite(o.startCount) ? o.startCount : undefined,
