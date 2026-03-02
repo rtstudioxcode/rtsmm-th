@@ -2,7 +2,7 @@
 import os from 'os';
 import pLimit from 'p-limit';
 import { Order } from '../models/Order.js';
-import { getOrderStatus, providerCancelOrder } from '../lib/iplusviewAdapter.js';
+import { getOrderStatus, cancelOrder } from '../lib/iplusviewAdapter.js';
 import { connectMongoIfNeeded } from '../config.js';
 import { reconcileUserByOrderEvent, recalcUserTotals } from '../services/spend.js';
 
@@ -204,7 +204,7 @@ async function autoCancelIfStuck(o) {
     
     try {
       // 1. ส่งคำสั่งยกเลิกไปที่ API ผู้ให้บริการ
-      const resp = await providerCancelOrder(o.providerOrderId);
+      const resp = await cancelOrder(o.providerOrderId);
       const cancelId = resp?.cancelId || 'auto-system';
 
       // 2. อัปเดต DB ทันทีเพื่อกันการทำงานซ้ำ (Idempotency)
