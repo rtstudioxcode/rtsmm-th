@@ -1070,7 +1070,12 @@ async function loadBonustimeHistory() {
                 ${extendBtnHtml}
                 ${updatedataBtnHtml}
                 ${upgradeBtnHtml}
-                
+                <button class="bt-btn primary" onclick="openServerMonitor('${rec.tenantId}')" style="background: linear-gradient(135deg, #6366f1, #a855f7); color: white !important;">
+                    <i class="fa-solid fa-server"></i> ดูรายงาน Server
+                </button>
+                <button class="bt-btn warn" onclick="confirmRestartServer('${rec.tenantId}')">
+                    <i class="fa-solid fa-rotate"></i> Restart
+                </button>
             </div>
         </div>
         `;
@@ -1633,7 +1638,7 @@ document.getElementById("imgPreviewModal").addEventListener("click", function ()
   this.style.display = "none";
 });
 
-// RAILWAY
+// ============================= RAILWAY =============================
 let currentDeploymentId = null;
 let logInterval = null;
 
@@ -1646,52 +1651,61 @@ async function openServerMonitor(tenantId) {
     logBox.innerHTML = "กำลังดึงข้อมูล Service...";
 
     try {
+        // แก้ไข Path: ลบ /bonustime ออก ให้เหลือแค่ /railway
         const res = await fetch(`/railway/service-info/${tenantId}`); 
         const info = await res.json();
 
         if (info.deploymentId) {
             currentDeploymentId = info.deploymentId;
             fetchLogs();
-            // สั่ง Refresh Log ทุก 5 วินาที
             if(logInterval) clearInterval(logInterval);
             logInterval = setInterval(fetchLogs, 5000);
         } else {
-            logBox.innerHTML = "ไม่พบข้อมูลการ Deploy ของเซิร์ฟเวอร์นี้";
+            logBox.innerHTML = info.message || "ไม่พบข้อมูลการ Deploy";
         }
     } catch (err) {
-        logBox.innerHTML = "เกิดข้อผิดพลาดในการเชื่อมต่อ Railway API";
+        logBox.innerHTML = "เกิดข้อผิดพลาดในการเชื่อมต่อ";
     }
 }
 
 async function fetchLogs() {
     if (!currentDeploymentId) return;
     try {
-        // ต้องเปลี่ยน Path ให้ตรงกับที่ประกาศใน bonustime.js
         const res = await fetch(`/railway/logs/deploy/${currentDeploymentId}`);
         const data = await res.json();
-        const logs = data.logs; // ใน backend คุณส่งกลับเป็น { ok: true, logs: [...] }
+        
+        // *** จุดสำคัญ: ต้องเป็น data.logs ตามที่ backend ส่งมา ***
+        const logs = data.logs || []; 
         
         const logBox = document.getElementById('logContainer');
+        if (logs.length === 0) {
+            logBox.innerHTML = "ไม่มี Log ในขณะนี้ (หรือกำลังโหลด...)";
+            return;
+        }
+
         logBox.innerHTML = logs.map(l => `
             <div style="margin-bottom: 4px;">
                 <span style="color: #6b7280;">[${new Date(l.timestamp).toLocaleTimeString()}]</span> 
-                <span>${l.message}</span>
+                <span style="${l.severity === 'error' ? 'color: #ef4444;' : ''}">${l.message}</span>
             </div>
-        `).join('') || "ไม่มี Log ในขณะนี้";
+        `).join('');
         
         logBox.scrollTop = logBox.scrollHeight;
-    } catch (e) { console.error(e); }
+    } catch (e) {
+        console.error("Frontend Log Error:", e);
+    }
 }
-
 async function confirmRestartServer(tenantId) {
     if(!confirm(`ยืนยันการ Restart Service: ${tenantId}?`)) return;
 
     try {
+        // แก้ไข Path: ลบ /bonustime ออก
         const infoRes = await fetch(`/railway/service-info/${tenantId}`);
         const info = await infoRes.json();
+
         if(!info.serviceId) return alert("ไม่พบข้อมูล Service ID");
 
-        // เปลี่ยน Path ตรงนี้ด้วย
+        // แก้ไข Path: ลบ /bonustime ออก
         const res = await fetch('/railway/restart', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1701,11 +1715,10 @@ async function confirmRestartServer(tenantId) {
             })
         });
 
-        const result = await res.json();
         if(res.ok) {
-            alert("สั่ง Restart เรียบร้อย! กรุณารอระบบ Rebuild ประมาณ 1-2 นาที");
+            alert("สั่ง Restart เรียบร้อย!");
         } else {
-            alert("Error: " + result.error);
+            alert("Error: ไม่สามารถสั่ง Restart ได้");
         }
     } catch (err) {
         alert("เชื่อมต่อล้มเหลว: " + err.message);

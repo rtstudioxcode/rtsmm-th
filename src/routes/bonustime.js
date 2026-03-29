@@ -635,11 +635,11 @@ router.post("/bonustime/check-expiry-mail", async (req, res) => {
   }
 });
 
-// ===== ส่วนเชื่อมต่อ Railway API (ฉบับแก้ไข Error 400 และ Path 404) =====
+// ===== ส่วนเชื่อมต่อ Railway API (ฉบับแก้ไข Path และการค้นหาด้วย Name) =====
 import axios from "axios";
 
 const RAILWAY_API_URL = 'https://backboard.railway.app/graphql/v2';
-const RAILWAY_TOKEN = process.env.RAILWAY_API_TOKEN || "bafd63e9-6c18-4760-8c40-1251592552c2";
+const RAILWAY_TOKEN = process.env.RAILWAY_API_TOKEN || "cd81edfe-4356-4022-9f52-3af0fc1398d1";
 const PROJECT_ID = "6676f236-5084-43a0-bdc6-6902c088ac4d";
 
 async function railwayQuery(query, variables = {}) {
@@ -657,74 +657,110 @@ async function railwayQuery(query, variables = {}) {
     }
 }
 
-// 1. ดึงข้อมูล Service Info (ระวังเรื่อง Path /bonustime นำหน้า)
+// ค้นหาด้วยชื่อ Service (Name) โดยตรง
 router.get('/railway/service-info/:tenantId', async (req, res) => {
     try {
         const { tenantId } = req.params;
-        console.log(`[Railway] Searching for Tenant: ${tenantId}`);
+        console.log(`[Railway] Searching for Service Name: ${tenantId}`);
 
-        // ดึงรายชื่อ Service ทั้งหมด
-        const listQuery = `query { project(id: "${PROJECT_ID}") { services { edges { node { id name } } } } }`;
-        const listRes = await railwayQuery(listQuery);
-        const services = listRes.data?.project?.services?.edges || [];
-
-        let targetServiceId = null;
-
-        // วนลูปเช็ค Variables ทีละตัวเพื่อความชัวร์ (แก้ปัญหา Error 400)
-        for (const edge of services) {
-            const sId = edge.node.id;
-            const varQuery = `query { variables(serviceId: "${sId}") }`;
-            const varRes = await railwayQuery(varQuery);
-            const vars = varRes.data?.variables || {};
-
-            if (vars.TENANTID === tenantId) {
-                targetServiceId = sId;
-                break;
+        const query = `
+            query GetServiceByName($projectId: String!) {
+                project(id: $projectId) {
+                    services {
+                        edges {
+                            node {
+                                id
+                                name
+                                serviceInstances {
+                                    edges {
+                                        node {
+                                            environmentId
+                                        }
+                                    }
+                                }
+                                deployments(first: 1) {
+                                    edges {
+                                        node {
+                                            id
+                                            status
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
+        `;
+
+        const result = await railwayQuery(query, { projectId: PROJECT_ID });
+        const services = result.data?.project?.services?.edges || [];
+        
+        // ค้นหา Service ที่มีชื่อตรงกับ tenantId
+        const target = services.find(edge => edge.node.name === tenantId);
+
+        if (!target) {
+            return res.status(404).json({ ok: false, message: "ไม่พบ Service ชื่อนี้ใน Railway" });
         }
 
-        if (!targetServiceId) return res.status(404).json({ ok: false, message: "Service not found" });
-
-        // ดึง Deployment และ Environment ID
-        const deployQuery = `query { service(id: "${targetServiceId}") { 
-            serviceInstances { edges { node { environmentId } } }
-            deployments(first: 1) { edges { node { id status } } } 
-        } }`;
-        const dRes = await railwayQuery(deployQuery);
-        const node = dRes.data?.service;
+        const node = target.node;
         
+        // ดึง environmentId และ deploymentId ล่าสุดให้ถูกต้อง (เจาะจงตำแหน่ง Array)
+        const envId = node.serviceInstances?.edges[0]?.node?.environmentId;
+        const latestDeployId = node.deployments?.edges[0]?.node?.id;
+        const status = node.deployments?.edges[0]?.node?.status;
+
+        // บันทึกลง Log เพื่อเช็คความถูกต้องใน Terminal
+        console.log(`[Railway] Found Service ID: ${node.id}, Env: ${envId}, Deploy: ${latestDeployId}`);
+
         return res.json({
             ok: true,
-            serviceId: targetServiceId,
-            environmentId: node?.serviceInstances?.edges[0]?.node?.environmentId,
-            deploymentId: node?.deployments?.edges[0]?.node?.id,
-            status: node?.deployments?.edges[0]?.node?.status
+            serviceId: node.id,
+            environmentId: envId,
+            deploymentId: latestDeployId,
+            status: status || "UNKNOWN"
         });
     } catch (err) {
-        res.status(500).json({ ok: false, error: err.message });
+        console.error("Railway Route Error:", err.message);
+        return res.status(500).json({ ok: false, error: err.message });
     }
 });
 
-// 2. ดึง Logs
+// ส่วน Logs และ Restart (ใช้เหมือนเดิมแต่เช็ค Path ให้ดี)
 router.get('/railway/logs/deploy/:deploymentId', async (req, res) => {
     try {
-        const query = `query { deploymentLogs(deploymentId: "${req.params.deploymentId}", limit: 150) { message timestamp } }`;
-        const result = await railwayQuery(query);
-        res.json({ ok: true, logs: result.data?.deploymentLogs || [] });
+        const { deploymentId } = req.params;
+        // ปรับ Query ให้ดึงข้อมูลที่ละเอียดขึ้น
+        const query = `
+            query GetLogs($id: String!) {
+                deploymentLogs(deploymentId: $id, limit: 150) {
+                    message
+                    timestamp
+                    severity
+                }
+            }
+        `;
+        const result = await railwayQuery(query, { id: deploymentId });
+        
+        // บันทึก Log ฝั่ง Server เพื่อดูว่า Railway ส่งอะไรกลับมาจริงไหม
+        const logs = result.data?.deploymentLogs || [];
+        console.log(`[Railway] Logs fetched: ${logs.length} lines for Deploy ID: ${deploymentId}`);
+        
+        return res.json({ ok: true, logs: logs });
     } catch (err) {
-        res.status(500).json({ ok: false, error: err.message });
+        console.error("Fetch Logs Error:", err.message);
+        return res.status(500).json({ ok: false, error: err.message });
     }
 });
 
-// 3. Restart
 router.post('/railway/restart', async (req, res) => {
     try {
         const { serviceId, environmentId } = req.body;
         const mutation = `mutation { serviceInstanceRedeploy(serviceId: "${serviceId}", environmentId: "${environmentId}") }`;
         const result = await railwayQuery(mutation);
-        res.json({ ok: true, data: result.data });
+        return res.json({ ok: true, data: result.data });
     } catch (err) {
-        res.status(500).json({ ok: false, error: err.message });
+        return res.status(500).json({ ok: false, error: err.message });
     }
 });
 
