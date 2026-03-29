@@ -616,6 +616,25 @@
   </form>
 </dialog>
 
+<dialog id="railwayMonitorModal" class="bt-dialog">
+  <div class="bt-modal" style="max-width: 800px; width: 90vw; background: #0b0d11; border: 1px solid #2d3139;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h2 id="monitorTitle" style="color: #fff; margin: 0;">Server Report</h2>
+        <button onclick="railwayMonitorModal.close()" style="background: none; border: none; color: #9ca3af; cursor: pointer; font-size: 20px;">&times;</button>
+    </div>
+
+    <!-- Tabs เหมือน Railway -->
+    <div class="bt-tabbar" style="margin-bottom: 10px;">
+        <button class="bt-tab active" onclick="switchLogTab('deploy')">Deploy Logs</button>
+        <button class="bt-tab" onclick="switchLogTab('http')">HTTP Logs</button>
+    </div>
+
+    <div id="logContainer" style="background: #000; color: #d1d5db; padding: 15px; border-radius: 8px; font-family: monospace; height: 400px; overflow-y: auto; font-size: 12px; line-height: 1.6; border: 1px solid #1f2937;">
+        กำลังดึงข้อมูล Log...
+    </div>
+  </div>
+</dialog>
+
 <!-- Image Preview Modal -->
 <div id="imgPreviewModal" class="img-modal">
   <img id="imgPreviewTarget" class="img-modal-content">
@@ -1051,6 +1070,12 @@ async function loadBonustimeHistory() {
                 ${extendBtnHtml}
                 ${updatedataBtnHtml}
                 ${upgradeBtnHtml}
+                <button class="bt-btn primary" onclick="openServerMonitor('${rec.tenantId}')" style="background: linear-gradient(135deg, #6366f1, #a855f7); color: white !important;">
+                    <i class="fa-solid fa-server"></i> ดูรายงาน Server
+                </button>
+                <button class="bt-btn warn" onclick="confirmRestartServer('${rec.tenantId}')">
+                    <i class="fa-solid fa-rotate"></i> Restart
+                </button>
             </div>
         </div>
         `;
@@ -1611,6 +1636,138 @@ document.addEventListener("click", function (e) {
 // คลิกพื้นที่ว่าง = ปิด modal
 document.getElementById("imgPreviewModal").addEventListener("click", function () {
   this.style.display = "none";
+});
+
+// RAILWAY
+const RAILWAY_API_TOKEN = "bafd63e9-6c18-4760-8c40-1251592552c2";
+const RAILWAY_PROJECT_ID = "6676f236-5084-43a0-bdc6-6902c088ac4d";
+const RAILWAY_GRAPHQL_URL = "https://backboard.railway.app/graphql/v2";
+
+let currentDeploymentId = null;
+let logInterval = null;
+
+// ฟังก์ชันดึงข้อมูลจาก Railway โดยตรง
+async function queryRailway(query, variables = {}) {
+    const response = await fetch(RAILWAY_GRAPHQL_URL, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${RAILWAY_API_TOKEN}`
+        },
+        body: JSON.stringify({ query, variables })
+    });
+    return response.json();
+}
+
+async function openServerMonitor(tenantId) {
+    const modal = document.getElementById('railwayMonitorModal');
+    const logBox = document.getElementById('logContainer');
+    document.getElementById('monitorTitle').textContent = `Report: ${tenantId}`;
+    
+    modal.showModal();
+    logBox.innerHTML = "กำลังค้นหา Service ใน Railway...";
+
+    try {
+        // 1. หา Service ID จากชื่อหรือ Variables (วนลูปในฝั่ง Client เลย)
+        const getProjBody = `query { project(id: "${RAILWAY_PROJECT_ID}") { services { edges { node { id name } } } } }`;
+        const projData = await queryRailway(getProjBody);
+        const services = projData.data.project.services.edges;
+
+        let targetServiceId = null;
+
+        // ค้นหา Service ที่มีชื่อตรงกับ tenantId (จากรูปคุณ ชื่อ Service คือ RTAUTOBOT-OFFICIAL)
+        const found = services.find(s => s.node.name === tenantId);
+        if (found) {
+            targetServiceId = found.node.id;
+        }
+
+        if (!targetServiceId) {
+            logBox.innerHTML = "ไม่พบ Service ที่ตรงกับชื่อนี้ใน Railway";
+            return;
+        }
+
+        // 2. ดึง Deployment ล่าสุด
+        const getDepBody = `query { service(id: "${targetServiceId}") { deployments(first: 1) { edges { node { id status } } } } }`;
+        const depData = await queryRailway(getDepBody);
+        const latest = depData.data.service.deployments.edges[0]?.node;
+
+        if (latest) {
+            currentDeploymentId = latest.id;
+            logBox.innerHTML = "กำลังดึงข้อมูล Log...";
+            fetchLogs();
+            if(logInterval) clearInterval(logInterval);
+            logInterval = setInterval(fetchLogs, 5000);
+        } else {
+            logBox.innerHTML = "Service นี้ยังไม่มีการ Deploy";
+        }
+    } catch (err) {
+        logBox.innerHTML = "เกิดข้อผิดพลาด: " + err.message;
+    }
+}
+
+async function fetchLogs() {
+    if (!currentDeploymentId) return;
+    try {
+        const query = `query { deploymentLogs(deploymentId: "${currentDeploymentId}", limit: 100) { message timestamp } }`;
+        const result = await queryRailway(query);
+        const logs = result.data.deploymentLogs;
+        
+        const logBox = document.getElementById('logContainer');
+        logBox.innerHTML = logs.map(l => `
+            <div style="margin-bottom: 4px; font-family: monospace; font-size: 11px;">
+                <span style="color: #6b7280;">[${new Date(l.timestamp).toLocaleTimeString()}]</span> 
+                <span>${l.message}</span>
+            </div>
+        `).join('') || "ไม่มี Log ใหม่";
+        
+        logBox.scrollTop = logBox.scrollHeight;
+    } catch (e) { console.error(e); }
+}
+
+async function confirmRestartServer(tenantId) {
+    if(!confirm(`คุณต้องการ Restart Service: ${tenantId} ใช่หรือไม่?`)) return;
+
+    try {
+        // หา Service ID อีกรอบ (หรือเก็บไว้ในตัวแปร global)
+        const getProjBody = `query { project(id: "${RAILWAY_PROJECT_ID}") { services { edges { node { id name } } } } }`;
+        const projData = await queryRailway(getProjBody);
+        const service = projData.data.project.services.edges.find(s => s.node.name === tenantId);
+
+        if(!service) return alert("ไม่พบ Service ID");
+
+        // สั่ง Redeploy
+        const restartMutation = `mutation { serviceInstanceRedeploy(serviceId: "${service.node.id}", environmentId: "2ee6c882-2d8f-4dbb-9fa7-550c06adf22c") }`;
+        const res = await queryRailway(restartMutation);
+
+        if (res.data) {
+            alert("ส่งคำสั่ง Restart สำเร็จ! ระบบกำลังเริ่มทำงานใหม่");
+        } else {
+            alert("สั่ง Restart ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+        }
+    } catch (err) {
+        alert("การเชื่อมต่อล้มเหลว: " + err.message);
+    }
+}
+
+function switchLogTab(type) {
+    const tabs = document.querySelectorAll('#railwayMonitorModal .bt-tab');
+    tabs.forEach(t => t.classList.remove('active'));
+    
+    // ไฮไลท์แท็บที่เลือก
+    event.currentTarget.classList.add('active');
+
+    const logBox = document.getElementById('logContainer');
+    if (type === 'deploy') {
+        logBox.innerHTML = "กำลังโหลด Deploy Logs...";
+        fetchLogs(); // เรียกฟังก์ชันเดิมที่เราเขียนไว้
+    } else {
+        logBox.innerHTML = "HTTP Logs ยังไม่รองรับในขณะนี้";
+    }
+}
+
+// ล้าง Interval เมื่อปิด Modal
+document.getElementById('railwayMonitorModal').addEventListener('close', () => {
+    clearInterval(logInterval);
 });
 </script>
 

@@ -186,12 +186,12 @@ router.post('/login', parseUrlencoded, async (req, res) => {
     // ✅ ส่วนการยืนยัน Turnstile (คงเดิม)
     const token = req.body['cf-turnstile-response'] || req.body['cf_challenge_response'] || '';
     const human = await verifyTurnstile(token, req.ip);
-    if (!human) {
-      return res.status(400).json({
-        ok: false,
-        message: '⚠️ กรุณายืนยันว่าคุณเป็นมนุษย์ก่อนเข้าสู่ระบบ',
-      });
-    }
+    // if (!human) {
+    //   return res.status(400).json({
+    //     ok: false,
+    //     message: '⚠️ กรุณายืนยันว่าคุณเป็นมนุษย์ก่อนเข้าสู่ระบบ',
+    //   });
+    // }
 
     // 🔥 แก้ไขตรงนี้: ใช้ $or เพื่อหาจากทั้ง username หรือ email
     const user = await User.findOne({

@@ -635,4 +635,113 @@ router.post("/bonustime/check-expiry-mail", async (req, res) => {
   }
 });
 
+// ===== ส่วนเชื่อมต่อ Railway API (ฉบับปรับปรุง Query) =====
+import axios from "axios";
+
+const RAILWAY_API_URL = 'https://backboard.railway.app/graphql/v2';
+const RAILWAY_TOKEN = process.env.RAILWAY_API_TOKEN || "bafd63e9-6c18-4760-8c40-1251592552c2";
+const PROJECT_ID = "6676f236-5084-43a0-bdc6-6902c088ac4d";
+
+async function railwayQuery(query, variables = {}) {
+    try {
+        const response = await axios.post(RAILWAY_API_URL, { query, variables }, {
+            headers: {
+                'Authorization': `Bearer ${RAILWAY_TOKEN}`,
+                'Content-Type': 'application/json',
+            }
+        });
+        return response.data;
+    } catch (error) {
+        console.error('[Railway API Error]:', error.response?.data || error.message);
+        throw error;
+    }
+}
+
+// 1. ดึงข้อมูล Service โดยไล่เช็ค Variables ทีละ Service
+router.get('/bonustime/railway/service-info/:tenantId', async (req, res) => {
+    try {
+        const { tenantId } = req.params;
+        console.log(`[Railway] Searching for Tenant: ${tenantId}`);
+
+        // ดึงรายชื่อ Service ทั้งหมดใน Project
+        const listQuery = `query GetProj($id: String!) {
+            project(id: $id) {
+                services { edges { node { id name } } }
+            }
+        }`;
+        const listRes = await railwayQuery(listQuery, { id: PROJECT_ID });
+        const services = listRes.data?.project?.services?.edges || [];
+
+        let targetServiceId = null;
+
+        // วนลูปเช็ค Variables ของแต่ละ Service (เพื่อแก้ปัญหา Cannot query field)
+        for (const edge of services) {
+            const sId = edge.node.id;
+            const varQuery = `query GetVars($serviceId: String!) {
+                variables(serviceId: $serviceId)
+            }`;
+            const varRes = await railwayQuery(varQuery, { serviceId: sId });
+            const vars = varRes.data?.variables || {};
+
+            if (vars.TENANTID === tenantId) {
+                targetServiceId = sId;
+                break;
+            }
+        }
+
+        if (!targetServiceId) {
+            return res.status(404).json({ ok: false, message: "ไม่พบ Service ใน Railway" });
+        }
+
+        // ดึง Deployment และ Environment
+        const deployQuery = `query GetLatest($serviceId: String!) {
+            service(id: $serviceId) {
+                serviceInstances { edges { node { environmentId } } }
+                deployments(first: 1) { edges { node { id status } } }
+            }
+        }`;
+        const dRes = await railwayQuery(deployQuery, { serviceId: targetServiceId });
+        const serviceNode = dRes.data?.service;
+        const envId = serviceNode?.serviceInstances?.edges[0]?.node?.environmentId;
+        const latest = serviceNode?.deployments?.edges[0]?.node;
+
+        return res.json({
+            ok: true,
+            serviceId: targetServiceId,
+            environmentId: envId,
+            deploymentId: latest?.id,
+            status: latest?.status || "UNKNOWN"
+        });
+    } catch (err) {
+        return res.status(500).json({ ok: false, error: err.message });
+    }
+});
+
+// 2. ดึง Logs (ใช้ Deployment ID)
+router.get('/bonustime/railway/logs/deploy/:deploymentId', async (req, res) => {
+    try {
+        const query = `query GetLogs($id: String!) {
+            deploymentLogs(deploymentId: $id, limit: 150) { message timestamp }
+        }`;
+        const result = await railwayQuery(query, { id: req.params.deploymentId });
+        return res.json({ ok: true, logs: result.data?.deploymentLogs || [] });
+    } catch (err) {
+        return res.status(500).json({ ok: false, error: err.message });
+    }
+});
+
+// 3. Restart
+router.post('/bonustime/railway/restart', async (req, res) => {
+    try {
+        const { serviceId, environmentId } = req.body;
+        const mutation = `mutation Redeploy($sId: String!, $eId: String!) {
+            serviceInstanceRedeploy(serviceId: $sId, environmentId: $eId)
+        }`;
+        const result = await railwayQuery(mutation, { sId: serviceId, eId: environmentId });
+        return res.json({ ok: true, data: result.data });
+    } catch (err) {
+        return res.status(500).json({ ok: false, error: err.message });
+    }
+});
+
 export default router;
