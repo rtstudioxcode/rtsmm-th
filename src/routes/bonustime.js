@@ -639,7 +639,7 @@ router.post("/bonustime/check-expiry-mail", async (req, res) => {
 import axios from "axios";
 
 const RAILWAY_API_URL = 'https://backboard.railway.app/graphql/v2';
-const RAILWAY_TOKEN = process.env.RAILWAY_API_TOKEN || "cd81edfe-4356-4022-9f52-3af0fc1398d1";
+const RAILWAY_TOKEN = process.env.RAILWAY_API_TOKEN || "db77a719-bf65-45cd-b9fc-e0b6f7bb82be";
 const PROJECT_ID = "6676f236-5084-43a0-bdc6-6902c088ac4d";
 
 async function railwayQuery(query, variables = {}) {
@@ -730,36 +730,102 @@ router.get('/railway/service-info/:tenantId', async (req, res) => {
 router.get('/railway/logs/deploy/:deploymentId', async (req, res) => {
     try {
         const { deploymentId } = req.params;
-        // ปรับ Query ให้ดึงข้อมูลที่ละเอียดขึ้น
+        
+        // ใช้ Query แบบระบุ deploymentId และเพิ่มโครงสร้างที่ชัดเจน
         const query = `
-            query GetLogs($id: String!) {
-                deploymentLogs(deploymentId: $id, limit: 150) {
+            query {
+                deploymentLogs(deploymentId: "${deploymentId}", limit: 100) {
                     message
                     timestamp
-                    severity
                 }
             }
         `;
-        const result = await railwayQuery(query, { id: deploymentId });
         
-        // บันทึก Log ฝั่ง Server เพื่อดูว่า Railway ส่งอะไรกลับมาจริงไหม
-        const logs = result.data?.deploymentLogs || [];
-        console.log(`[Railway] Logs fetched: ${logs.length} lines for Deploy ID: ${deploymentId}`);
-        
-        return res.json({ ok: true, logs: logs });
+        const result = await railwayQuery(query);
+
+        // ตรวจสอบว่ามีข้อมูลส่งกลับมาไหม
+        if (result.data && result.data.deploymentLogs) {
+            const logs = result.data.deploymentLogs;
+            console.log(`[Railway] Success! Fetched ${logs.length} lines.`);
+            return res.json({ ok: true, logs: logs });
+        } else {
+            // กรณี Railway ส่ง Error กลับมาในรูปแบบ JSON
+            console.error("[Railway API Error Result]:", result.errors);
+            return res.json({ ok: true, logs: [{ message: "Railway ยังไม่มี Log ใหม่ส่งกลับมา หรือ Token สิทธิ์ไม่พอ", timestamp: new Date() }] });
+        }
     } catch (err) {
         console.error("Fetch Logs Error:", err.message);
         return res.status(500).json({ ok: false, error: err.message });
     }
 });
 
+// --- Route สำหรับ RESTART (แค่เริ่มรันใหม่ - ถ้าคุณยังอยากเก็บไว้แยกกัน) ---
 router.post('/railway/restart', async (req, res) => {
     try {
         const { serviceId, environmentId } = req.body;
-        const mutation = `mutation { serviceInstanceRedeploy(serviceId: "${serviceId}", environmentId: "${environmentId}") }`;
+        
+        if (!serviceId || !environmentId) {
+            return res.status(400).json({ ok: false, message: "ข้อมูลไม่ครบถ้วน (Missing ID)" });
+        }
+
+        // ใช้ serviceInstanceRedeploy ตามที่ API แนะนำใน Error Message
+        const mutation = `
+            mutation {
+                serviceInstanceRedeploy(
+                    serviceId: "${serviceId}",
+                    environmentId: "${environmentId}"
+                )
+            }
+        `;
+
         const result = await railwayQuery(mutation);
+
+        // ตรวจสอบ Error จากโครงสร้างของ Railway API
+        if (result.errors) {
+            console.error('[Railway API Error Detail]:', JSON.stringify(result.errors, null, 2));
+            return res.status(400).json({ ok: false, error: result.errors[0].message });
+        }
+
+        console.log(`[Railway] Restart (Redeploy) Triggered for: ${serviceId}`);
         return res.json({ ok: true, data: result.data });
+
     } catch (err) {
+        console.error("Restart Route Error:", err.message);
+        return res.status(500).json({ ok: false, error: err.message });
+    }
+});
+
+// --- Route สำหรับ RE-DEPLOY (Build ใหม่) ---
+router.post('/railway/redeploy', async (req, res) => {
+    try {
+        const { serviceId, environmentId } = req.body;
+        
+        if (!serviceId || !environmentId) {
+            return res.status(400).json({ ok: false, message: "ข้อมูล ID ไม่ครบถ้วน" });
+        }
+
+        // Mutation สำหรับ Redeploy (ดึง Code มา Build ใหม่)
+        const mutation = `
+            mutation {
+                serviceInstanceRedeploy(
+                    serviceId: "${serviceId}",
+                    environmentId: "${environmentId}"
+                )
+            }
+        `;
+
+        const result = await railwayQuery(mutation);
+
+        if (result.errors) {
+            console.error('[Redeploy API Error]:', result.errors);
+            return res.status(400).json({ ok: false, error: result.errors[0].message });
+        }
+
+        console.log(`[Railway] Redeploy Started for Service: ${serviceId}`);
+        return res.json({ ok: true, data: result.data });
+
+    } catch (err) {
+        console.error("Redeploy Route Error:", err.message);
         return res.status(500).json({ ok: false, error: err.message });
     }
 });

@@ -264,6 +264,23 @@
                     </div>
 
                   </div>
+                  
+                  <div class="bt-admin-actions">
+                      <button type="button" class="bt-action-btn primary" onclick="openServerMonitor('<%= rec.tenantId %>')">
+                          <i class="fa-solid fa-terminal"></i> <span>ดูรายงานเซิฟเวอร์</span>
+                      </button>
+                      
+                      <button type="button" class="bt-action-btn restart" onclick="confirmRestartServer('<%= rec.tenantId %>')">
+                          <i class="fa-solid fa-rotate"></i> <span>รีสตาร์ท Server</span>
+                      </button>
+
+                      <button type="button" class="bt-action-btn redeploy" onclick="confirmRedeploy('<%= rec.tenantId %>')">
+                          <i class="fa-solid fa-cloud-arrow-up"></i> <span>Re-Deploy</span>
+                      </button>
+
+                      <div class="bt-flex-spacer"></div>
+                  </div>
+
                 </div>
               </article>
 
@@ -452,7 +469,239 @@
       </div>
   </section>
   </section>
+
+  <!-- Monitor Modal สำหรับ Admin (หน้าตาเหมือนฝั่ง User เพื่อความคุ้นเคย) -->
+  <dialog id="railwayMonitorModal" class="bt-dialog" style="padding: 0; border: none; background: transparent;">
+    <style>
+      /* ปรับแต่งภาพรวมให้ Fit จอ */
+      #railwayMonitorModal * {
+          box-sizing: border-box !important;
+      }
+
+      @media (max-width: 768px) {
+          #railwayMonitorModal .bt-modal {
+              width: 90vw !important;
+              max-width: 100vw !important;
+              height: 95vh !important;
+              max-height: 100vh !important;
+              border-radius: 0 !important;
+              margin: 0 !important;
+          }
+
+          #logContainer {
+              height: calc(100vh - 120px) !important;
+              width: 100% !important;
+              overflow-x: hidden !important;
+              border-radius: 0 !important;
+          }
+
+          /* --- แก้ไขจุดที่มีปัญหา (เวลาและข้อความ) --- */
+          #logContainer > div {
+              display: flex !important;           /* บังคับให้อยู่บรรทัดเดียวกัน */
+              flex-direction: row !important;      /* เรียงจากซ้ายไปขวา */
+              align-items: flex-start !important;  /* ให้เวลาอยู่ชิดบนเสมอ */
+              gap: 10px !important;                /* ระยะห่างระหว่างเวลากับข้อความ */
+              padding: 4px 10px !important;
+              width: 100% !important;
+          }
+
+          #logContainer span:first-child {
+              flex-shrink: 0 !important;           /* บังคับไม่ให้เวลาโดนบีบจนหาย */
+              white-space: nowrap !important;      /* เวลาห้ามขึ้นบรรทัดใหม่ */
+              min-width: 65px !important;          /* ล็อคความกว้างช่วงเวลาไว้ */
+          }
+
+          #logContainer span:last-child {
+              flex: 1 !important;                  /* ให้ข้อความกินพื้นที่ที่เหลือ */
+              white-space: pre-wrap !important;    /* ข้อความยาวให้ตัดลงบรรทัดใหม่ */
+              word-break: break-all !important;     /* กันล้นขอบจอ */
+              display: inline-block !important;    /* กลับมาเป็นบรรทัดเดียวกัน */
+          }
+          /* -------------------------------------- */
+      }
+    </style>
+
+    <div class="bt-modal" style="max-width: 900px; width: 95vw; background: #0b0d11; border: 1px solid #2d3139; padding: 0; overflow: hidden; margin: auto;">
+      <!-- Head -->
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #1f2937;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+              <i class="fa-solid fa-terminal" style="color: #6366f1;"></i>
+              <h2 id="monitorTitle" style="color: #fff; margin: 0; font-size: 16px; font-weight: 500;">Server Report</h2>
+          </div>
+          <button onclick="closeMonitorAndRefresh()" style="background: none; border: none; color: #9ca3af; cursor: pointer; font-size: 24px; line-height: 1;">&times;</button>
+      </div>
+
+      <!-- Tabs -->
+      <div style="background: #0f1116; padding: 0 10px; border-bottom: 1px solid #1f2937;">
+          <div class="bt-tabbar" style="margin: 0; border: none;">
+              <button class="bt-tab active" id="tab-btn-deploy" onclick="switchLogTab('deploy')">รายงานเซิฟเวอร์</button>
+          </div>
+      </div>
+
+      <!-- Log Body -->
+      <div id="logContainer" style="background: #050505; padding: 10px 0; height: 500px; overflow-y: auto; font-family: 'Fira Code', monospace; font-size: 12px; border-radius: 0 0 18px 18px;">
+          <div style="padding: 20px; color: #4b5563;">กำลังดึงข้อมูล...</div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- UI Confirm Modal (Custom) -->
+  <dialog id="btConfirmModal" class="bt-dialog" style="padding: 0; border: none; background: transparent;">
+    <style>
+      /* Backdrop พื้นหลัง (Blur และมืดลง) */
+      #btConfirmModal::backdrop {
+        background: rgba(0, 0, 0, 0.75);
+        backdrop-filter: blur(5px);
+      }
+
+      /* Container หลักของ Confirm Card */
+      .confirm-card {
+        background: #111318; /* Dark Soft */
+        border: 1px solid #2d3139;
+        border-radius: 20px;
+        width: 90vw;
+        max-width: 380px; /* ไม่ใหญ่เกินไป */
+        margin: auto;
+        overflow: hidden;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+        display: flex;
+        flex-direction: column;
+        position: relative;
+      }
+
+      /* ปุ่มปิดมุมขวาบน */
+      .confirm-close-btn {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.08);
+        color: #9ca3af;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 18px;
+        transition: 0.2s;
+        z-index: 5;
+      }
+      .confirm-close-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
+
+      /* ส่วนเนื้อหาหลัก */
+      .confirm-content {
+        padding: 32px 24px 24px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      /* ไอคอนวงกลมใหญ่ */
+      .confirm-icon-circle {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 36px;
+        margin-bottom: 20px;
+        border-width: 2px;
+        border-style: solid;
+      }
+
+      /* หัวข้อและคำอธิบาย */
+      .confirm-title-text {
+        color: #fff;
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0 0 8px 0;
+        font-family: 'Inter', system-ui, sans-serif;
+      }
+      .confirm-desc-text {
+        color: #9ca3af;
+        font-size: 14px;
+        line-height: 1.6;
+        margin: 0;
+        word-break: break-word; /* กันล้น */
+      }
+
+      /* ส่วนปุ่มกด (วางซ้อนกันแนวตั้งแบบ Mobile First) */
+      .confirm-actions-area {
+        padding: 0 24px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      /* สไตล์ปุ่มกดแบบใหม่ */
+      .confirm-action-btn {
+        width: 100%;
+        padding: 14px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-family: 'Inter', system-ui, sans-serif;
+        text-align: center;
+        border: none;
+      }
+
+      /* ปุ่มยืนยัน (สีหลัก) */
+      .confirm-action-btn.submit {
+        color: #111;
+        /* จะถูกกำหนดสีพื้นหลังโดย JS */
+      }
+      .confirm-action-btn.submit:hover { filter: brightness(1.1); }
+      .confirm-action-btn.submit:active { transform: translateY(1px); }
+
+      /* ปุ่มยกเลิก */
+      .confirm-action-btn.cancel {
+        background: #1f2229;
+        color: #d1d5db;
+        border: 1px solid #33363f;
+      }
+      .confirm-action-btn.cancel:hover { background: #2a2e38; }
+
+      /* สถานะ Loading */
+      .confirm-action-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        pointer-events: none;
+      }
+
+      /* Responsive สำหรับมือถือจอเล็ก */
+      @media (max-width: 480px) {
+        .confirm-card { width: 92vw; }
+        .confirm-content { padding: 28px 20px 20px; }
+        .confirm-icon-circle { width: 70px; height: 70px; font-size: 30px; }
+        .confirm-title-text { font-size: 17px; }
+        .confirm-actions-area { padding: 0 20px 20px; gap: 10px; }
+        .confirm-action-btn { padding: 12px; }
+      }
+    </style>
+
+    <div class="confirm-card">
+      <button type="button" class="confirm-close-btn" onclick="document.getElementById('btConfirmModal').close()">&times;</button>
+      
+      <div class="confirm-content">
+        <div id="uiConfirmIconCircle" class="confirm-icon-circle"></div>
+        <h3 id="uiConfirmTitleText" class="confirm-title-text"></h3>
+        <p id="uiConfirmDescText" class="confirm-desc-text"></p>
+      </div>
+      
+      <div class="confirm-actions-area">
+        <button type="button" id="uiConfirmSubmitBtn" class="confirm-action-btn submit"></button>
+        <button type="button" class="confirm-action-btn cancel" onclick="document.getElementById('btConfirmModal').close()">ยกเลิก</button>
+      </div>
+    </div>
+  </dialog>
 </section>
+
 
 <!-- SCRIPT: GRAPH LOGIC -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -1479,6 +1728,234 @@ if (dailyData.length) {
   makeSpark("sparkOrders", dailyData.map(x => x * 0.02), "#a78bfa");
   makeMainCharts();
 }
+
+// ============================= RAILWAY =============================
+let currentLogType = 'deploy';
+
+// ฟังก์ชันปิดหน้าต่างและโหลดประวัติใหม่ (แก้ปัญหาข้อมูลหาย)
+function closeMonitorAndRefresh() {
+    const modal = document.getElementById('railwayMonitorModal');
+    modal.close(); // ปิด Modal
+    if(logInterval) clearInterval(logInterval); // หยุด Loop ดึง Log
+    
+    // สำคัญ: เรียกโหลดประวัติใหม่เพื่อให้รายการในการ์ดไม่หาย
+    loadBonustimeHistory(); 
+}
+
+async function openServerMonitor(tenantId) {
+    const modal = document.getElementById('railwayMonitorModal');
+    const logBox = document.getElementById('logContainer');
+    document.getElementById('monitorTitle').textContent = `รายงาน Server: ${tenantId}`;
+    
+    modal.showModal();
+    logBox.innerHTML = '<div style="padding:20px; color:#4b5563;">กำลังดึงข้อมูล Service...</div>';
+
+    try {
+        const res = await fetch(`/railway/service-info/${tenantId}`);
+        const info = await res.json();
+
+        if (info.ok) {
+            currentDeploymentId = info.deploymentId;
+            currentServiceId = info.serviceId;
+            switchLogTab('deploy'); // เริ่มที่ Deploy Logs
+            
+            if(logInterval) clearInterval(logInterval);
+            logInterval = setInterval(() => {
+                if (currentLogType === 'deploy') fetchLogs();
+                else fetchHttpLogs();
+            }, 4000);
+        } else {
+            logBox.innerHTML = `<div style="padding:20px; color:#55ef44;">${info.message}</div>`;
+        }
+    } catch (err) {
+        logBox.innerHTML = '<div style="padding:20px; color:#55ef44;">กำลังเชื่อมต่อกับเซิฟเวอร์....</div>';
+    }
+}
+
+const noLogHtml = `
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px; color: #9ca3af; text-align: center;">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.1; margin-bottom: 16px;">
+            <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+            <path d="M7 8h10M7 12h10M7 16h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <div style="font-size: 16px; font-weight: 500; color: #f9fafb;">ยังไม่มีรายงานในเวลานี้่</div>
+        <div style="font-size: 13px; color: #9ca3af; margin-top: 4px;">รายงานจะแสดงทันทีเมื่อมีรายงาน.</div>
+    </div>
+`;
+
+// ฟังก์ชันดึงและวาด Deploy Logs แบบ Railway
+async function fetchLogs() {
+    if (!currentDeploymentId) return;
+    try {
+        const res = await fetch(`/railway/logs/deploy/${currentDeploymentId}`);
+        const data = await res.json();
+        const logs = data.logs || [];
+        const logBox = document.getElementById('logContainer');
+
+        if (logs.length === 0) {
+            logBox.innerHTML = noLogHtml; // โชว์ "No Logs" ถ้าว่าง
+            return;
+        }
+
+        logBox.innerHTML = logs.map(l => {
+            // 1. ตรวจสอบว่าเป็น Error หรือ Warning หรือไม่
+            const msgLower = l.message.toLowerCase();
+            const isError = msgLower.includes('error') || msgLower.includes('failed') || msgLower.includes('exception');
+            const isWarn = msgLower.includes('npm warn') || msgLower.includes('warning');
+
+            // 2. กำหนดสีมาร์คข้างหน้า (แดง=Error, ส้ม=Warn, น้ำเงิน=ปกติ)
+            let markColor = '#3b82f6'; // สีน้ำเงิน (Default)
+            let rowBg = 'transparent'; // พื้นหลังปกติ
+            let textColor = '#d1d5db'; // สีตัวหนังสือปกติ
+
+            if (isError) {
+                markColor = '#ef4444'; // แดงเข้ม
+                rowBg = 'rgba(239, 68, 68, 0.1)'; // แดงอ่อนจางๆ (เหมือนในรูป)
+                textColor = '#fca5a5'; // ตัวหนังสือแดงอ่อน
+            } else if (isWarn) {
+                markColor = '#f97316'; // ส้มเข้ม
+                rowBg = 'rgba(249, 115, 22, 0.1)'; // ส้มอ่อนจางๆ
+                textColor = '#fde68a'; // ตัวหนังสือเหลืองอ่อน
+            }
+
+            const time = new Date(l.timestamp).toLocaleTimeString('th-TH', { hour12: false });
+            
+            // 3. วาด HTML โดยใส่ background-color ที่บรรทัด
+            return `
+                <div style="display: flex; gap: 15px; padding: 2px 20px; border-left: 3px solid ${markColor}; background-color: ${rowBg}; margin-bottom: 1px; line-height: 1.5;">
+                    <span style="color: #6b7280; font-size: 11px; font-family: monospace; white-space: nowrap;">${time}</span>
+                    <span style="color: ${textColor}; white-space: pre-wrap; word-break: break-all;">${l.message}</span>
+                </div>
+            `;
+        }).join('');
+        
+        logBox.scrollTop = logBox.scrollHeight; // Auto scroll ลงล่างสุด
+    } catch (e) {
+        console.error("Fetch Logs Error:", e);
+    }
+}
+
+function switchLogTab(type) {
+    currentLogType = type;
+    document.getElementById('tab-btn-deploy').classList.toggle('active', type === 'deploy');
+    
+    const logBox = document.getElementById('logContainer');
+    logBox.innerHTML = '<div style="padding:20px; color:#4b5563;">กำลังโหลด...</div>';
+    
+    if (type === 'deploy') fetchLogs();
+    else fetchHttpLogs();
+}
+
+// ฟังก์ชันกลางสำหรับเรียกใช้ UI Confirm ที่สวยงามขึ้น
+function showCustomConfirm({ title, desc, icon, color, bgColor, btnText, onConfirm }) {
+    const modal = document.getElementById('btConfirmModal');
+    const submitBtn = document.getElementById('uiConfirmSubmitBtn');
+    const iconCircle = document.getElementById('uiConfirmIconCircle');
+    
+    document.getElementById('uiConfirmTitleText').textContent = title;
+    document.getElementById('uiConfirmDescText').textContent = desc;
+    
+    // ตั้งค่าไอคอนและสีวงกลม
+    iconCircle.innerHTML = icon;
+    iconCircle.style.color = color;
+    iconCircle.style.borderColor = color;
+    iconCircle.style.background = bgColor || 'rgba(255,255,255,0.03)';
+    
+    // ตั้งค่าปุ่มยืนยัน
+    submitBtn.textContent = btnText || "ยืนยัน";
+    submitBtn.style.background = color || "#6366f1"; // Default เป็นสี Indigo
+    
+    // ล้าง Event เดิมก่อนใส่ใหม่
+    const newSubmitBtn = submitBtn.cloneNode(true);
+    submitBtn.parentNode.replaceChild(newSubmitBtn, submitBtn);
+
+    newSubmitBtn.addEventListener('click', async () => {
+        newSubmitBtn.disabled = true;
+        newSubmitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> กำลังดำเนินการ...';
+        await onConfirm();
+        newSubmitBtn.disabled = false;
+        newSubmitBtn.textContent = btnText || "ยืนยัน";
+        modal.close();
+    });
+
+    modal.showModal();
+}
+
+// 1. ฟังก์ชัน Restart (ธีมสีฟ้า)
+async function confirmRestartServer(tenantId) {
+    showCustomConfirm({
+        title: "Restart System",
+        desc: `คุณต้องการสั่ง Restart บริการของ ${tenantId} ใช่หรือไม่? ระบบจะหยุดทำงานชั่วคราว`,
+        icon: `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>`,
+        color: "#38bdf8", // Sky Blue
+        bgColor: "rgba(56, 189, 248, 0.1)",
+        btnText: "Restart ระบบ",
+        onConfirm: async () => {
+            try {
+                const infoRes = await fetch(`/railway/service-info/${tenantId}`);
+                const info = await infoRes.json();
+                if(!info.serviceId) throw new Error("ไม่พบข้อมูล Service ID");
+
+                const res = await fetch('/railway/restart', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ serviceId: info.serviceId, environmentId: info.environmentId })
+                });
+
+                if(res.ok) {
+                    if (window.notify) notify.success("สำเร็จ", "สั่ง Restart เรียบร้อย!");
+                    else alert("สั่ง Restart เรียบร้อย!");
+                } else {
+                    throw new Error("ไม่สามารถสั่ง Restart ได้");
+                }
+            } catch (err) {
+                if (window.notify) notify.error("ผิดพลาด", err.message);
+                else alert("Error: " + err.message);
+            }
+        }
+    });
+}
+
+// 2. ฟังก์ชัน Redeploy (ธีมสีส้ม)
+async function confirmRedeploy(tenantId) {
+    showCustomConfirm({
+        title: "Re-Deploy System",
+        desc: `ยืนยันการ Build ใหม่สำหรับ ${tenantId}?\nCode ล่าสุดจะถูกดึงมาติดตั้งและเริ่มทำงานใหม่`,
+        icon: `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19L17.5 13M17.5 13L15 15.5M17.5 13L20 15.5"></path><path d="M12 19H6a3 3 0 0 1-1-5.83a6 6 0 1 1 11.83-1.17A3.01 3.01 0 0 1 21 15a3 3 0 0 1-3.5 2.95"></path></svg>`,
+        color: "#fb923c", // Orange
+        bgColor: "rgba(251, 146, 60, 0.1)",
+        btnText: "เริ่ม Re-Deploy",
+        onConfirm: async () => {
+            try {
+                const infoRes = await fetch(`/railway/service-info/${tenantId}`);
+                const info = await infoRes.json();
+                if(!info.serviceId) throw new Error("ไม่พบข้อมูลรหัสเครื่อง");
+
+                const res = await fetch('/railway/redeploy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ serviceId: info.serviceId, environmentId: info.environmentId })
+                });
+
+                const result = await res.json();
+                if(res.ok && result.ok) {
+                    if (window.notify) notify.success("กำลังดำเนินการ", "ระบบเริ่มการ Build ใหม่แล้ว");
+                    else alert("สั่ง Re-Deploy สำเร็จ!");
+                } else {
+                    throw new Error(result.error || "สั่ง Redeploy ไม่สำเร็จ");
+                }
+            } catch (err) {
+                if (window.notify) notify.error("ผิดพลาด", err.message);
+                else alert("Error: " + err.message);
+            }
+        }
+    });
+}
+
+// ล้าง Interval เมื่อปิด Modal
+document.getElementById('railwayMonitorModal').addEventListener('close', () => {
+    clearInterval(logInterval);
+});
 </script>
 
 <style>
@@ -2215,5 +2692,253 @@ if (dailyData.length) {
     width: auto;               /* ไม่เต็มหน้าจอ */
     padding: 8px 12px;
   }
+}
+
+#railwayMonitorModal {
+    border: none !important;
+    outline: none !important;
+    padding: 0;
+    background: transparent;
+}
+
+/* ลบขอบตอนที่ Modal ถูกโฟกัส */
+#railwayMonitorModal:focus-visible {
+    outline: none;
+}
+
+.bt-monitor-dialog {
+    border: none !important;
+    outline: none !important;
+    padding: 0;
+    background: transparent;
+    max-width: 900px;
+    width: 95vw;
+}
+
+.bt-monitor-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
+}
+
+/* 2. ตัวกล่องเนื้อหาภายใน */
+.monitor-wrapper {
+    background: #0b0d11;
+    border: 1px solid #2d3139;
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    max-height: 85vh; /* ไม่ให้สูงเกินหน้าจอมือถือ */
+}
+
+/* 3. Header */
+.monitor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    border-bottom: 1px solid #1f2937;
+    background: #0b0d11;
+}
+
+.monitor-header .header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.monitor-header h2 {
+    color: #fff;
+    margin: 0;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.monitor-header .close-btn {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    font-size: 24px;
+    line-height: 1;
+    padding: 0;
+}
+
+/* 4. Tabs */
+.monitor-tabs {
+    display: flex;
+    background: #0f1116;
+    border-bottom: 1px solid #1f2937;
+    padding: 0 8px;
+}
+
+.monitor-tabs .bt-tab {
+    flex: 1;
+    padding: 12px 5px;
+    font-size: 13px;
+    border: none;
+    background: transparent;
+    color: #9ca3af;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+}
+
+.monitor-tabs .bt-tab.active {
+    color: #facc15;
+    border-bottom-color: #facc15;
+}
+
+/* 5. พื้นที่แสดง Log */
+.monitor-body {
+    background: #050505;
+    height: 450px; /* ความสูงเริ่มต้นสำหรับคอมพิวเตอร์ */
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 10px 0;
+}
+
+/* ปรับความสูงสำหรับหน้าจอมือถือ */
+@media (max-width: 768px) {
+    .bt-monitor-dialog {
+        width: 100vw;
+        height: 100vh;
+        max-height: 100vh;
+    }
+    
+    .monitor-wrapper {
+        border-radius: 0;
+        height: 100vh;
+        max-height: 100vh;
+    }
+
+    .monitor-body {
+        height: calc(100vh - 120px); /* ลบพื้นที่ Header และ Tabs ออก */
+    }
+
+    /* ขยายตัวอักษรบนมือถือให้อ่านง่ายขึ้นเล็กน้อย */
+    .monitor-body {
+        font-size: 11px;
+    }
+}
+
+/* Loading State */
+.loading-state {
+    padding: 40px;
+    text-align: center;
+    color: #4b5563;
+}
+
+/* ตาราง HTTP Logs สำหรับมือถือ (ให้เลื่อนแนวนอนได้) */
+.monitor-body table {
+    min-width: 500px; /* บังคับความกว้างขั้นต่ำของตารางเพื่อให้ไม่เบียดกันจนอ่านไม่ออก */
+}
+
+/* Container ปรับปรุงการจัดวาง */
+.bt-admin-actions {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.1);
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.bt-flex-spacer {
+    flex-grow: 1;
+}
+
+/* สไตล์ปุ่มหลัก */
+.bt-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0px;
+    padding: 8px 16px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.2s ease;
+    color: #fff;
+    height: 38px;
+}
+
+.bt-action-btn i {
+    font-size: 14px;
+}
+
+/* สีปุ่ม Logs (Indigo Gradient) */
+.bt-action-btn.primary {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
+/* สีปุ่ม Restart (Sky Blue Soft) */
+.bt-action-btn.restart {
+    background: rgba(56, 189, 248, 0.1);
+    color: #38bdf8;
+    border-color: rgba(56, 189, 248, 0.2);
+}
+.bt-action-btn.restart:hover {
+    background: #38bdf8;
+    color: #fff;
+}
+
+/* สีปุ่ม Redeploy (Orange Soft) */
+.bt-action-btn.redeploy {
+    background: rgba(251, 146, 60, 0.1);
+    color: #fb923c;
+    border-color: rgba(251, 146, 60, 0.2);
+}
+.bt-action-btn.redeploy:hover {
+    background: #fb923c;
+    color: #fff;
+}
+
+/* สีปุ่มลบ (Red Soft) */
+.bt-action-btn.delete {
+    background: transparent;
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+.bt-action-btn.delete:hover {
+    background: #ef4444;
+    color: #fff;
+}
+
+/* Hover Effect รวมๆ */
+.bt-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+}
+
+.bt-action-btn:active {
+    transform: translateY(0);
+}
+
+/* Mobile Responsive */
+@media (max-width: 600px) {
+    .bt-admin-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* แบ่งครึ่งจอ */
+        gap: 8px;
+    }
+    
+    .bt-flex-spacer {
+        display: none; /* ซ่อนตัวเว้นวรรคในมือถือ */
+    }
+    
+    .bt-action-btn {
+        width: 100%;
+        justify-content: center;
+        font-size: 12px;
+        padding: 8px 4px;
+    }
+    
+    .bt-action-btn.delete {
+        grid-column: span 2; /* ปุ่มลบยืดเต็มแถวในมือถือ */
+        margin-top: 4px;
+    }
 }
 </style>
