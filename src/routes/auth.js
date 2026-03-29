@@ -189,7 +189,7 @@ router.post('/login', parseUrlencoded, async (req, res) => {
     if (!human) {
       return res.status(400).json({
         ok: false,
-        message: '⚠️ กรุณายืนยันว่าคุณเป็นมนุษย์ก่อนเข้าสู่ระบบ',
+        message: '⚠️ กรุณายืนยันก่อนเข้าสู่ระบบ',
       });
     }
 
