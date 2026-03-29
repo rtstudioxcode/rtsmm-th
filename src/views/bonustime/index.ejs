@@ -1070,12 +1070,12 @@ async function loadBonustimeHistory() {
                 ${extendBtnHtml}
                 ${updatedataBtnHtml}
                 ${upgradeBtnHtml}
-                // <button class="bt-btn primary" onclick="openServerMonitor('${rec.tenantId}')" style="background: linear-gradient(135deg, #6366f1, #a855f7); color: white !important;">
-                //     <i class="fa-solid fa-server"></i> ดูรายงาน Server
-                // </button>
-                // <button class="bt-btn warn" onclick="confirmRestartServer('${rec.tenantId}')">
-                //     <i class="fa-solid fa-rotate"></i> Restart
-                // </button>
+                <button class="bt-btn primary" onclick="openServerMonitor('${rec.tenantId}')" style="background: linear-gradient(135deg, #6366f1, #a855f7); color: white !important;">
+                    <i class="fa-solid fa-server"></i> ดูรายงาน Server
+                </button>
+                <button class="bt-btn warn" onclick="confirmRestartServer('${rec.tenantId}')">
+                    <i class="fa-solid fa-rotate"></i> Restart
+                </button>
             </div>
         </div>
         `;
@@ -1639,25 +1639,8 @@ document.getElementById("imgPreviewModal").addEventListener("click", function ()
 });
 
 // RAILWAY
-const RAILWAY_API_TOKEN = "bafd63e9-6c18-4760-8c40-1251592552c2";
-const RAILWAY_PROJECT_ID = "6676f236-5084-43a0-bdc6-6902c088ac4d";
-const RAILWAY_GRAPHQL_URL = "https://backboard.railway.app/graphql/v2";
-
 let currentDeploymentId = null;
 let logInterval = null;
-
-// ฟังก์ชันดึงข้อมูลจาก Railway โดยตรง
-async function queryRailway(query, variables = {}) {
-    const response = await fetch(RAILWAY_GRAPHQL_URL, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${RAILWAY_API_TOKEN}`
-        },
-        body: JSON.stringify({ query, variables })
-    });
-    return response.json();
-}
 
 async function openServerMonitor(tenantId) {
     const modal = document.getElementById('railwayMonitorModal');
@@ -1665,87 +1648,72 @@ async function openServerMonitor(tenantId) {
     document.getElementById('monitorTitle').textContent = `Report: ${tenantId}`;
     
     modal.showModal();
-    logBox.innerHTML = "กำลังค้นหา Service ใน Railway...";
+    logBox.innerHTML = "กำลังดึงข้อมูล Service...";
 
     try {
-        // 1. หา Service ID จากชื่อหรือ Variables (วนลูปในฝั่ง Client เลย)
-        const getProjBody = `query { project(id: "${RAILWAY_PROJECT_ID}") { services { edges { node { id name } } } } }`;
-        const projData = await queryRailway(getProjBody);
-        const services = projData.data.project.services.edges;
+        const res = await fetch(`/railway/service-info/${tenantId}`); 
+        const info = await res.json();
 
-        let targetServiceId = null;
-
-        // ค้นหา Service ที่มีชื่อตรงกับ tenantId (จากรูปคุณ ชื่อ Service คือ RTAUTOBOT-OFFICIAL)
-        const found = services.find(s => s.node.name === tenantId);
-        if (found) {
-            targetServiceId = found.node.id;
-        }
-
-        if (!targetServiceId) {
-            logBox.innerHTML = "ไม่พบ Service ที่ตรงกับชื่อนี้ใน Railway";
-            return;
-        }
-
-        // 2. ดึง Deployment ล่าสุด
-        const getDepBody = `query { service(id: "${targetServiceId}") { deployments(first: 1) { edges { node { id status } } } } }`;
-        const depData = await queryRailway(getDepBody);
-        const latest = depData.data.service.deployments.edges[0]?.node;
-
-        if (latest) {
-            currentDeploymentId = latest.id;
-            logBox.innerHTML = "กำลังดึงข้อมูล Log...";
+        if (info.deploymentId) {
+            currentDeploymentId = info.deploymentId;
             fetchLogs();
+            // สั่ง Refresh Log ทุก 5 วินาที
             if(logInterval) clearInterval(logInterval);
             logInterval = setInterval(fetchLogs, 5000);
         } else {
-            logBox.innerHTML = "Service นี้ยังไม่มีการ Deploy";
+            logBox.innerHTML = "ไม่พบข้อมูลการ Deploy ของเซิร์ฟเวอร์นี้";
         }
     } catch (err) {
-        logBox.innerHTML = "เกิดข้อผิดพลาด: " + err.message;
+        logBox.innerHTML = "เกิดข้อผิดพลาดในการเชื่อมต่อ Railway API";
     }
 }
 
 async function fetchLogs() {
     if (!currentDeploymentId) return;
     try {
-        const query = `query { deploymentLogs(deploymentId: "${currentDeploymentId}", limit: 100) { message timestamp } }`;
-        const result = await queryRailway(query);
-        const logs = result.data.deploymentLogs;
+        // ต้องเปลี่ยน Path ให้ตรงกับที่ประกาศใน bonustime.js
+        const res = await fetch(`/railway/logs/deploy/${currentDeploymentId}`);
+        const data = await res.json();
+        const logs = data.logs; // ใน backend คุณส่งกลับเป็น { ok: true, logs: [...] }
         
         const logBox = document.getElementById('logContainer');
         logBox.innerHTML = logs.map(l => `
-            <div style="margin-bottom: 4px; font-family: monospace; font-size: 11px;">
+            <div style="margin-bottom: 4px;">
                 <span style="color: #6b7280;">[${new Date(l.timestamp).toLocaleTimeString()}]</span> 
                 <span>${l.message}</span>
             </div>
-        `).join('') || "ไม่มี Log ใหม่";
+        `).join('') || "ไม่มี Log ในขณะนี้";
         
         logBox.scrollTop = logBox.scrollHeight;
     } catch (e) { console.error(e); }
 }
 
 async function confirmRestartServer(tenantId) {
-    if(!confirm(`คุณต้องการ Restart Service: ${tenantId} ใช่หรือไม่?`)) return;
+    if(!confirm(`ยืนยันการ Restart Service: ${tenantId}?`)) return;
 
     try {
-        // หา Service ID อีกรอบ (หรือเก็บไว้ในตัวแปร global)
-        const getProjBody = `query { project(id: "${RAILWAY_PROJECT_ID}") { services { edges { node { id name } } } } }`;
-        const projData = await queryRailway(getProjBody);
-        const service = projData.data.project.services.edges.find(s => s.node.name === tenantId);
+        const infoRes = await fetch(`/railway/service-info/${tenantId}`);
+        const info = await infoRes.json();
+        if(!info.serviceId) return alert("ไม่พบข้อมูล Service ID");
 
-        if(!service) return alert("ไม่พบ Service ID");
+        // เปลี่ยน Path ตรงนี้ด้วย
+        const res = await fetch('/railway/restart', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                serviceId: info.serviceId, 
+                environmentId: info.environmentId 
+            })
+        });
 
-        // สั่ง Redeploy
-        const restartMutation = `mutation { serviceInstanceRedeploy(serviceId: "${service.node.id}", environmentId: "2ee6c882-2d8f-4dbb-9fa7-550c06adf22c") }`;
-        const res = await queryRailway(restartMutation);
-
-        if (res.data) {
-            alert("ส่งคำสั่ง Restart สำเร็จ! ระบบกำลังเริ่มทำงานใหม่");
+        const result = await res.json();
+        if(res.ok) {
+            alert("สั่ง Restart เรียบร้อย! กรุณารอระบบ Rebuild ประมาณ 1-2 นาที");
         } else {
-            alert("สั่ง Restart ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+            alert("Error: " + result.error);
         }
     } catch (err) {
-        alert("การเชื่อมต่อล้มเหลว: " + err.message);
+        alert("เชื่อมต่อล้มเหลว: " + err.message);
     }
 }
 
